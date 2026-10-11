@@ -2,3 +2,5 @@
 //! command line so tests and the daemon drive the same code.
 
 pub mod render;
+
+pub mod window;

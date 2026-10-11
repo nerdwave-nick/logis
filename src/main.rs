@@ -18,9 +18,24 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => fail(&e.to_string()),
         },
+        Ok(cli::Command::DebugPanel) => debug_panel(),
         Err(arg) => fail(&format!(
             "the rune '{arg}' is unknown to this cogitator. It knows only --version."
         )),
+    }
+}
+
+/// `logis daemon --debug-panel`; `LOGIS_GPU_BACKEND` forces a backend.
+fn debug_panel() -> ExitCode {
+    if let Err(e) = wayland::preflight() {
+        return fail(&e.to_string());
+    }
+    let result = logis::render::BackendChoice::from_env()
+        .map_err(|e| e.to_string())
+        .and_then(|choice| logis::window::run_debug_panel(choice).map_err(|e| e.to_string()));
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => fail(&e),
     }
 }
 

@@ -43,6 +43,19 @@ impl BackendChoice {
     }
 }
 
+impl BackendChoice {
+    /// The environment variable that forces a backend.
+    pub const ENV: &'static str = "LOGIS_GPU_BACKEND";
+
+    /// The choice in [`Self::ENV`]; unset or empty means `Auto`.
+    pub fn from_env() -> Result<Self, String> {
+        match std::env::var(Self::ENV) {
+            Ok(name) if !name.is_empty() => name.parse().map_err(|e| format!("{}: {e}", Self::ENV)),
+            _ => Ok(Self::Auto),
+        }
+    }
+}
+
 impl FromStr for BackendChoice {
     type Err = String;
 
