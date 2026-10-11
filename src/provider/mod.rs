@@ -12,6 +12,8 @@ pub mod process;
 pub mod stages;
 pub mod wire;
 
+use std::time::Duration;
+
 use logis::list::{Entry, Notice, Options};
 
 /// What a provider asks of its session's window. Items are addressed by
@@ -32,8 +34,8 @@ pub enum Step {
     Remove(Vec<u32>),
     /// Select this item once it is settled, unless the user has moved.
     Preselect(u32),
-    /// A short notice over the list.
-    Toast(Notice),
+    /// A short notice over the list, shown for `span`.
+    Toast { notice: Notice, span: Duration },
     /// The current stage takes Return again after an answer.
     Ready,
 }

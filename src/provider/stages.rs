@@ -4,11 +4,17 @@
 //! the user's answers back into lines for the provider.
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use logis::list::{Decor, Entry, Notice, Options, Preselect};
 
 use super::wire::{FromProvider, Input, Item, Stage, ToProvider};
 use super::{Answer, Step};
+
+/// How long a toast shows unless the provider says otherwise.
+pub const TOAST_SECONDS: u32 = 3;
+/// The longest a toast may show.
+pub const MAX_TOAST_SECONDS: u32 = 60;
 
 /// The current stage of one provider session.
 #[derive(Default)]
@@ -52,7 +58,16 @@ impl Stages {
                     vec![Step::Remove(gone)]
                 })
             }
-            FromProvider::Toast { text, level } => Ok(vec![Step::Toast(Notice { text, level })]),
+            FromProvider::Toast {
+                text,
+                level,
+                seconds,
+            } => {
+                let seconds = seconds.unwrap_or(TOAST_SECONDS).clamp(1, MAX_TOAST_SECONDS);
+                let notice = Notice { text, level };
+                let span = Duration::from_secs(u64::from(seconds));
+                Ok(vec![Step::Toast { notice, span }])
+            }
             FromProvider::Ready => Ok(vec![Step::Ready]),
             FromProvider::Hello { .. } | FromProvider::Close => Ok(Vec::new()),
         }
@@ -380,6 +395,26 @@ mod tests {
             })
             .unwrap();
         assert_eq!(steps, [Step::Preselect(0)]);
+    }
+
+    #[test]
+    fn a_toast_shows_for_its_seconds_within_bounds() {
+        let mut s = Stages::default();
+        let span = |s: &mut Stages, seconds| {
+            let toast = FromProvider::Toast {
+                text: "t".into(),
+                level: Default::default(),
+                seconds,
+            };
+            match s.apply(toast).unwrap().as_slice() {
+                [Step::Toast { span, .. }] => span.as_secs(),
+                other => panic!("{other:?}"),
+            }
+        };
+        assert_eq!(span(&mut s, None), 3);
+        assert_eq!(span(&mut s, Some(8)), 8);
+        assert_eq!(span(&mut s, Some(0)), 1);
+        assert_eq!(span(&mut s, Some(3600)), 60);
     }
 
     #[test]

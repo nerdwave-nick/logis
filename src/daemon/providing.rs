@@ -3,8 +3,9 @@
 //! lines into window steps, and its timers:
 //!
 //! - its first stage is due within [`START_PATIENCE`], or the session fails;
-//! - a toast shows for [`TOAST_SPAN`], and after the provider's `close` the
-//!   window lingers (without the keyboard) until it is over;
+//! - a toast shows for its span (3 s unless the provider says otherwise),
+//!   and after the provider's `close` the window lingers (without the
+//!   keyboard) until it is over;
 //! - a provider retired without ever having been sent an `activate` or
 //!   `submit` gets [`GRACE`] to exit after `cancel` and end of input, then
 //!   SIGTERM, then after another [`GRACE`] SIGKILL. One that was sent one is
@@ -25,8 +26,6 @@ use crate::provider::process::Heard;
 
 /// How long a provider may take to show its first stage.
 pub const START_PATIENCE: Duration = Duration::from_secs(5);
-/// How long a toast shows.
-pub const TOAST_SPAN: Duration = Duration::from_secs(3);
 /// How long a provider that may be ended gets after each word.
 pub const GRACE: Duration = Duration::from_secs(1);
 
@@ -184,16 +183,16 @@ fn apply<R: Resolver>(core: &mut Core<R>, session: SessionId, step: Step) {
             core.resolver
                 .show(session, Mode::Provider, options, entries);
         }
-        Step::Toast(notice) if !live.shown => {
+        Step::Toast { notice, .. } if !live.shown => {
             super::log(&format!(
                 "a provider's toast before its window: {}",
                 notice.text
             ));
         }
         _ if !live.shown => {}
-        Step::Toast(notice) => {
-            live.toast = Some(Instant::now() + TOAST_SPAN);
-            core.resolver.step(session, Step::Toast(notice));
+        Step::Toast { notice, span } => {
+            live.toast = Some(Instant::now() + span);
+            core.resolver.step(session, Step::Toast { notice, span });
         }
         step => core.resolver.step(session, step),
     }

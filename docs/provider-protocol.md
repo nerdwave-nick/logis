@@ -58,7 +58,7 @@ error: the session ends with exit 2 and the provider is cancelled.
 | `stage` | see [Stage](#stage) | a new list; the first one opens the window, a later one replaces the list in the same window |
 | `items` | `items`: [Item] | items for the current stage: a new `id` is added after the others, a known `id` is replaced in its place (an *upsert*); optional `select` |
 | `remove` | `ids`: [string] | items of the current stage that are gone (unknown ids are ignored) |
-| `toast` | `text`, `level` (`info` default, `success`, `error`) | a short notice over the bottom of the list, for 3 s |
+| `toast` | `text`, `level` (`info` default, `success`, `error`), `seconds` (default 3, 1 to 60) | a short notice over the bottom of the list, for that long |
 | `ready` | — | after an `activate`/`submit`: the current stage takes Return again |
 | `close` | — | the flow is over: the caller exits 0 and the window closes |
 
@@ -108,7 +108,7 @@ once the list draws icons (the app launcher, ca5ef93c).
   until the provider sends a new `stage` or `ready` (so a held or repeated Return
   cannot activate twice). Escape always dismisses.
 - **Ending.** `close` ends the session: the caller is answered at once (exit 0).
-  If a toast is showing, the window stays on screen until its 3 s are over, but
+  If a toast is showing, the window stays on screen until its time is over, but
   gives up the keyboard at once; a new session replaces it immediately. Without
   your `close` (dismissal, replacement, the caller leaving), logis writes
   `cancel` and closes your stdin.
@@ -156,7 +156,7 @@ it (`→` from logis, `←` from the provider; lines wrapped here for reading):
 ← {"type":"stage","id":"aspect","prompt":"aspect: ","items":[
    {"id":"on","columns":["anointed"],"badges":["current"]},{"id":"off","columns":["dry"]}]}
 → {"type":"activate","stage":"aspect","id":"on"}
-← {"type":"toast","text":"the rite of oil is begun","level":"success"}
+← {"type":"toast","text":"the rite of oil is begun","level":"success","seconds":8}
 ← {"type":"close"}
 ```
 

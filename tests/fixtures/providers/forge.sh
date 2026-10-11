@@ -60,7 +60,7 @@ while read -r line; do
     flow:*'"activate","stage":"rite","id":"oil"'*)
         say '{"type":"stage","id":"aspect","prompt":"aspect: ","items":[{"id":"on","columns":[">anointed"],"badges":["current"]},{"id":"off","columns":["dry"]}]}' ;;
     flow:*'"activate","stage":"aspect"'*)
-        say '{"type":"toast","text":"the rite of oil is begun","level":"success"}'
+        say '{"type":"toast","text":"the rite of oil is begun","level":"success","seconds":8}'
         say '{"type":"close"}'
         exit 0 ;;
     act:*'"activate"'*)

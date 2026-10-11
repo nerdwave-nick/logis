@@ -202,7 +202,7 @@ impl Shown {
                 view.remove(i) || any
             }),
             Step::Preselect(i) => view.preselect(i),
-            Step::Toast(notice) => {
+            Step::Toast { notice, .. } => {
                 let quoted = serde_json::to_string(&notice.text).unwrap_or_default();
                 emit(format_args!("toast {quoted}"));
                 self.toast.replace(Some(notice));

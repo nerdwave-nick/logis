@@ -57,7 +57,7 @@ impl Resolver for Seen {
     fn step(&mut self, s: SessionId, step: Step) {
         self.note(match step {
             Step::Stage { entries, .. } => format!("stage {s} [{}]", texts(&entries)),
-            Step::Toast(n) => format!("toast {s} {}", n.text),
+            Step::Toast { notice, .. } => format!("toast {s} {}", notice.text),
             Step::Update(c) => format!("update {s} {}", c[0].0),
             other => format!("{other:?}"),
         });
@@ -295,10 +295,13 @@ fn a_toast_shows_for_its_span_and_after_close_the_window_lingers_on_it() {
     let toast = FromProvider::Toast {
         text: "the rite is begun".into(),
         level: Level::Success,
+        seconds: Some(8),
     };
+    let shown = Instant::now();
     rig.say(1, toast.clone());
     assert_eq!(rig.seen.take(), ["toast 1 the rite is begun"]);
     let over = rig.core.deadline().unwrap();
+    assert!(over >= shown + Duration::from_secs(8), "its own seconds");
     rig.core.tick(over);
     assert_eq!(rig.seen.take(), ["untoast 1"]);
     rig.say(1, toast);
@@ -309,7 +312,7 @@ fn a_toast_shows_for_its_span_and_after_close_the_window_lingers_on_it() {
         "the caller is answered at once"
     );
     assert_eq!(rig.seen.take(), ["toast 1 the rite is begun", "linger 1"]);
-    rig.core.tick(Instant::now() + TOAST_SPAN);
+    rig.core.tick(Instant::now() + Duration::from_secs(8));
     assert_eq!(rig.seen.take(), ["hide 1"]);
 }
 
@@ -336,6 +339,7 @@ fn updates_reach_the_window_and_toasts_before_it_are_only_logged() {
     let early = FromProvider::Toast {
         text: "early".into(),
         level: Level::Info,
+        seconds: None,
     };
     rig.say(1, early);
     assert!(rig.seen.take().is_empty());

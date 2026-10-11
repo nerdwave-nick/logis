@@ -426,7 +426,7 @@ mod tests {
                 ),
                 Step::Remove(gone) => format!("remove {s} {gone:?}"),
                 Step::Preselect(i) => format!("preselect {s} {i}"),
-                Step::Toast(n) => format!("toast {s} {}", n.text),
+                Step::Toast { notice, .. } => format!("toast {s} {}", notice.text),
                 Step::Ready => format!("ready {s}"),
             });
         }

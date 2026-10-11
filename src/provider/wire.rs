@@ -30,11 +30,13 @@ pub enum FromProvider {
     },
     /// Items of the current stage that are gone.
     Remove { ids: Vec<String> },
-    /// A short notice over the list.
+    /// A short notice over the list, for `seconds` (default 3, at most 60).
     Toast {
         text: String,
         #[serde(default)]
         level: Level,
+        #[serde(default)]
+        seconds: Option<u32>,
     },
     /// After an `activate` or `submit`: the current stage takes Return again.
     Ready,
@@ -202,10 +204,11 @@ mod tests {
                 },
             ),
             (
-                json!({"type": "toast", "text": "done", "level": "error"}),
+                json!({"type": "toast", "text": "done", "level": "error", "seconds": 8}),
                 FromProvider::Toast {
                     text: "done".into(),
                     level: Level::Error,
+                    seconds: Some(8),
                 },
             ),
             (
@@ -213,6 +216,7 @@ mod tests {
                 FromProvider::Toast {
                     text: "hm".into(),
                     level: Level::Info,
+                    seconds: None,
                 },
             ),
             (json!({"type": "ready"}), FromProvider::Ready),

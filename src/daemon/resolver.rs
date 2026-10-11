@@ -216,7 +216,7 @@ impl Resolver for Scripted {
                 }
             }
             Step::Ready => v.waiting = false,
-            Step::Preselect(_) | Step::Toast(_) => {}
+            Step::Preselect(_) | Step::Toast { .. } => {}
         }
         self.try_answer();
     }
