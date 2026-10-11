@@ -3,11 +3,13 @@
 //! rasterisation; and a cache that puts each icon into the renderer's image
 //! atlas once per pixel size.
 
+mod cache;
 mod lookup;
 mod raster;
 mod search;
 mod theme;
 
+pub use cache::{IconCache, IconMiss};
 pub use lookup::{HICOLOR, IconThemes};
 pub use raster::{MAX_ICON_PIXELS, RasterError, rasterise};
 pub use search::SearchPaths;

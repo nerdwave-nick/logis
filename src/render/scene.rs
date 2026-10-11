@@ -2,6 +2,8 @@
 //! painted in order. Colours are sRGB with straight alpha here; the GPU sees
 //! them premultiplied (spec §4.3).
 
+use super::atlas::ImageId;
+
 /// An sRGB colour with straight (not premultiplied) alpha, channels in 0..=1.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rgba {
@@ -100,13 +102,27 @@ pub struct RoundedRect {
     pub glow: Option<Glow>,
 }
 
-/// Everything one frame shows: a clear colour and shapes in paint order.
+/// An atlas image drawn texel for texel at the pixel size it was rasterised
+/// for, its top-left corner snapped to the nearest buffer pixel so it stays
+/// crisp at fractional scales.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ImageQuad {
+    /// The image, from the renderer's [`super::ImageAtlas`].
+    pub image: ImageId,
+    /// Top-left corner in logical pixels.
+    pub origin: [f32; 2],
+}
+
+/// Everything one frame shows: a clear colour, then shapes and then images,
+/// each in paint order.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
     /// The colour the frame starts from (transparent for a layer surface).
     pub clear: Option<Rgba>,
     /// Shapes, back to front.
     pub shapes: Vec<RoundedRect>,
+    /// Images, back to front, over all shapes.
+    pub images: Vec<ImageQuad>,
 }
 
 /// Floats per shape instance: nine `vec4f` vertex attributes.

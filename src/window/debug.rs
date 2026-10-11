@@ -119,6 +119,7 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
     Scene {
         clear: None,
         shapes,
+        ..Scene::default()
     }
 }
 

@@ -47,6 +47,11 @@ from `vulkan-swrast` / `mesa-vulkan-drivers`); without one, the render tests pri
 `SKIPPED` unless their backend is listed in `LOGIS_TEST_REQUIRE_BACKENDS`
 (`auto,vulkan,gl,software`), as CI does.
 
+`tests/icons.rs` compares icon renders with the PNG goldens in
+`tests/goldens/icons/` (a mismatching render is written to
+`target/golden-failures/`); `LOGIS_UPDATE_GOLDENS=1 cargo test --test icons`
+rewrites them after an intended change.
+
 ### GPU backends
 
 logis tries Vulkan hardware, then GL hardware, then lavapipe, then llvmpipe.
