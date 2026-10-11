@@ -131,6 +131,244 @@ user dismisses it, 2 on error. Dismissal never kills an action the provider
 started: logis signals only a provider it never sent a choice to, and never its
 children.
 
+## Caller contract
+
+What scripts, servitor and other callers of `logis --dmenu` and `logis
+--provider` can rely on. The man page says the same without the test names:
+[`docs/man/logis.1`](docs/man/logis.1) (`man -l docs/man/logis.1`). Every
+statement here is pinned by the tests named beside it as `file::test`
+(`tests/docs.rs` checks that they exist); those marked *E2E* run only in a test
+compositor (`LOGIS_E2E`), the rest in every `cargo test`. Anything not stated
+here (message wording, timings, the socket protocol) may change.
+
+### Exit status
+
+| Status | stdout | When | Pinned by |
+|---|---|---|---|
+| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
+| 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
+| 0 | empty | plain `logis`: a daemon answers (started if need be) | `tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output` |
+| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
+| 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
+| 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
+| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `tests/cli.rs::unknown_argument_exits_2_naming_it`, `src/cli/dmenu.rs::bad_values_are_named_with_their_flag`, `tests/dmenu_runes.rs::list_runes_without_dmenu_are_an_error`, and [below](#when-logis-cannot-serve) |
+
+Exit 1 does not tell a dismissal from a replacement; both mean "nothing was
+chosen". stdout carries nothing but the choice and its newline, also after
+`--dmenu0` (`tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside`).
+`--check-config` exits 0 or 2 likewise
+(`tests/config.rs::check_config_accepts_a_sound_config_and_exits_0`,
+`tests/config.rs::check_config_with_a_missing_named_file_exits_2`).
+
+### dmenu input and output
+
+- stdin is read as it arrives; the window opens before it ends, and logis may
+  answer and exit before reading all of it, so a producer can meet a closed
+  pipe (`tests/dmenu.rs::the_window_opens_before_the_input_ends_and_takes_streamed_lines`
+  (E2E), `src/client/dmenu/stream.rs::lines_are_sent_as_they_arrive_then_end`).
+- A chosen item comes back as its original bytes, exactly as read, whatever
+  their encoding and whatever `--with-nth` showed
+  (`tests/dmenu_runes.rs::the_original_bytes_survive_columns_and_invalid_utf8`,
+  `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`).
+- Return with no match prints the typed text as typed, unless `--only-match`
+  (`tests/dmenu.rs::return_without_a_match_prints_the_typed_text` (E2E),
+  `src/list/view.rs::return_without_a_match_accepts_the_typed_text_unless_only_match`,
+  `tests/dmenu.rs::only_match_refuses_free_text_until_a_match_is_chosen` (E2E)).
+- Matching ignores case and accents and takes fzf's syntax
+  (`src/list/filter.rs::matching_ignores_case_and_accents`,
+  `src/list/filter.rs::fzf_syntax_applies`,
+  `src/list/filter.rs::fzf_suffix_and_exact_terms_apply`).
+
+### dmenu runes
+
+The runes, their defaults and their fuzzel semantics are in [dmenu](#dmenu)
+(`src/cli/dmenu.rs::the_defaults_are_fuzzels`,
+`src/cli/dmenu.rs::values_follow_their_flag_or_an_equals_sign`):
+
+| Rune | Pinned by |
+|---|---|
+| `--dmenu`, `-d`, `--dmenu0` | `src/cli/mod.rs::dmenu_asks_for_a_dmenu_session`, `tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside` |
+| `--prompt`, `-p` | `src/list/scene.rs::the_prompt_line_shows_prompt_query_cursor_and_counter` |
+| `--prompt-only` | `tests/dmenu_runes.rs::prompt_only_never_waits_for_stdin`, `src/cli/dmenu.rs::prompt_only_reads_nothing_and_shows_no_rows` |
+| `--placeholder` | `src/list/view.rs::an_empty_query_shows_the_placeholder_without_a_cursor` |
+| `--password[=C]` | `src/cli/dmenu.rs::password_takes_an_optional_character`, `src/list/view.rs::a_password_is_masked_per_character` |
+| `--lines`, `-l`, `--width`, `-w` | `src/list/scene.rs::the_size_follows_lines_and_width` |
+| `--counter` | `src/list/view.rs::the_counter_counts_matches_of_all` |
+| `--search` | `src/list/view.rs::search_opens_with_a_query` |
+| `--select` | `src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives` |
+| `--select-index` | `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`, `src/cli/dmenu.rs::preselection_is_by_text_or_by_index_not_both` |
+| `--only-match` | see typed text above |
+| `--no-run-if-empty`, `-R` | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
+| `--index` | `tests/dmenu_runes.rs::index_prints_the_position_of_the_choice`, `tests/dmenu.rs::index_and_columns_print_what_was_asked` (E2E) |
+| `--with-nth` | `tests/dmenu_runes.rs::with_nth_shows_a_column_and_the_whole_line_comes_back` |
+| `--accept-nth`, `--nth-delimiter` | `tests/dmenu_runes.rs::accept_nth_prints_columns_split_at_the_nth_delimiter` |
+| `--match-nth` | `src/client/dmenu/stream.rs::with_nth_shapes_the_text_and_match_nth_the_match_text`, `src/list/view.rs::items_matched_by_another_text_are_not_highlighted` |
+| formats `{N}`, `{N..M}`, `{N..}`; `0` | `src/nth.rs::a_format_expands_columns_inside_free_text`, `src/nth.rs::ranges_join_their_columns_with_the_delimiter`, `src/nth.rs::zero_means_no_selection` |
+| `--config` | `tests/config.rs::a_client_hands_its_config_to_the_daemon_it_starts`, `tests/config.rs::a_running_daemon_keeps_its_config_whatever_a_caller_names` |
+| `-i` (ignored) | `src/cli/mod.rs::list_runes_go_with_dmenu_in_any_order` |
+
+`--config PATH` reaches only a daemon that this caller starts; a daemon
+already running keeps its own configuration.
+
+### fuzzel compatibility
+
+logis takes fuzzel's dmenu runes (fuzzel(1) 1.15) and exit statuses 0 and 1.
+Where fuzzel's documentation leaves a choice open, or logis differs on
+purpose:
+
+- typed text is printed as typed, even with `--index` or `--accept-nth`
+  (`src/client/dmenu/mod.rs::typed_text_prints_as_typed_whatever_the_output_runes`);
+- `--select` picks the first item equal to its text ignoring case, not a
+  prefix or fuzzy match, and applies when that item arrives, until the user
+  moves the selection or edits the query
+  (`src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives`,
+  `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`,
+  `src/list/view.rs::typing_ends_a_preselection_still_waiting_for_its_item`);
+- `--no-run-if-empty` exits 1 (nothing was chosen);
+- a format that names no column is an error, exit 2, not a constant output
+  (`src/nth.rs::column_zero_and_backward_ranges_are_refused`);
+- list runes without `--dmenu` are an error, exit 2;
+- errors exit 2, apart from a dismissal's 1, where fuzzel exits 1 (its
+  `--check-config`, for one); logis's `--check-config` exits 2
+  (`tests/config.rs::check_config_with_a_missing_named_file_exits_2`);
+- Shift+Insert pastes the clipboard, not the primary selection; the middle
+  button pastes the primary (`src/input/bindings.rs::ctrl_v_and_shift_insert_paste_the_clipboard`,
+  `tests/pointer.rs::the_middle_button_pastes_the_primary_selection` (E2E)).
+
+### Sessions
+
+Each caller holds one session on its own connection to the daemon, and the
+answer goes to that caller alone
+(`src/daemon/core.rs::the_result_goes_only_to_the_session_that_was_answered`).
+At most one session is visible:
+
+- **dmenu callers queue.** A dmenu session that arrives while another session
+  (of any kind) is visible waits, and the queue is shown first in, first out;
+  each caller gets its own answer
+  (`tests/daemon.rs::dmenu_sessions_queue_and_each_caller_gets_its_own_answer_in_order`,
+  `tests/daemon.rs::a_dmenu_caller_waits_in_the_queue_for_its_turn`,
+  `tests/dmenu.rs::queued_callers_each_get_their_own_answer_in_turn` (E2E),
+  `src/daemon/sessions.rs::a_dmenu_session_queues_behind_an_interactive_one`).
+  A queued caller waits as long as the sessions ahead of it take; to bound
+  that, run it under `timeout(1)`, since leaving cancels (below).
+- **Interactive sessions replace.** An app, servitor or provider session takes
+  the visible session's place; that caller exits 1. Queued dmenu callers stay
+  queued and are shown once the interactive session ends
+  (`tests/daemon.rs::an_interactive_session_replaces_the_visible_one`,
+  `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`,
+  `src/daemon/sessions.rs::an_interactive_session_replaces_the_visible_one_and_keeps_the_queue`).
+- **Leaving cancels.** A caller that exits or is killed (`timeout(1)`, Ctrl+C)
+  cancels its session: a visible one closes and the next queued one is shown,
+  a queued one is dropped
+  (`tests/daemon.rs::a_client_disconnect_cancels_its_session_and_the_next_one_is_shown`,
+  `src/daemon/sessions.rs::closing_a_queued_session_drops_it_silently`). A
+  provider is then sent `cancel`; one that was never sent a choice is ended,
+  one that was is left to finish
+  (`tests/provider.rs::a_provider_that_never_acted_and_lingers_after_cancel_is_ended`,
+  `tests/provider.rs::a_dismissed_provider_that_acted_is_never_signalled_nor_its_action`).
+
+**Ordering caveat.** Connections are not ordered among themselves: the queue
+follows the order in which the daemon *receives* sessions, not the order in
+which callers were started, so two callers started a moment apart may be
+answered in either order. A session opened just after another caller left may
+wait in the queue until the daemon has handled that departure (the protocol
+notes in [`src/protocol/mod.rs`](src/protocol/mod.rs)). Callers that need an
+order should run one after another.
+
+The daemon a caller starts outlives it and serves later callers
+(`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`,
+`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+
+### Providers
+
+`logis --provider PROGRAM [ARG]...` runs a provider that speaks
+[the provider protocol](docs/provider-protocol.md) (version 1: its messages,
+rules, signals and examples). The daemon runs it as this caller would have,
+in its working directory and with its environment
+(`tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close`), and shows
+its stages, pending rows and toasts in one window
+(`tests/provider_window.rs::a_two_stage_flow_with_a_pending_row_ends_in_a_toast`
+(E2E)). For the caller it is an interactive session: exit 0 when the provider
+sends `close`, 1 when dismissed or replaced, 2 when the provider cannot start,
+breaks the protocol, shows no stage within 5 s or exits early
+(`tests/provider.rs::a_provider_that_cannot_start_is_an_error`,
+`tests/provider.rs::a_provider_that_breaks_the_protocol_or_departs_fails_its_session`,
+`tests/provider.rs::a_provider_that_shows_nothing_in_time_fails_its_session`).
+
+### When logis cannot serve
+
+Every case exits 2 with an empty stdout and the reason on stderr. The
+message is for people: its wording may change, so scripts branch on the exit
+status only. It does name the plain fact:
+
+| Case | stderr names | Pinned by |
+|---|---|---|
+| no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/daemon.rs::a_client_whose_daemon_cannot_start_exits_2_with_the_reason`, `tests/cli.rs::with_nonexistent_wayland_socket_exits_2_naming_the_socket` |
+| a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol` |
+| a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `tests/cli.rs::on_compositor_without_fractional_scale_exits_2_naming_the_protocol` |
+| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why` |
+| an invalid config stops the daemon starting | the file, line and column | `tests/config.rs::a_daemon_refuses_to_start_on_an_invalid_config_and_its_client_exits_2` |
+| the daemon dies during the session (the compositor left) | that the daemon fell silent | `tests/daemon.rs::a_dmenu_caller_whose_daemon_dies_exits_2_with_empty_stdout`, `tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero` |
+| the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `tests/daemon.rs::a_caller_the_daemon_refuses_exits_2_with_the_daemons_reason`, `tests/daemon.rs::a_greeting_in_another_protocol_version_is_refused` |
+
+A daemon that lost its compositor exits and removes its socket; the next
+caller starts a new one
+(`tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero`,
+`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`).
+To ask before showing anything, run plain `logis`: it only makes sure a daemon
+answers, starting one if need be, and exits 0 if one does, 2 for each case
+above that stops a daemon starting
+(`tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output`,
+`tests/cli.rs::without_wayland_display_exits_2_with_flavoured_message`,
+`tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol`).
+
+```sh
+if logis 2>/dev/null; then pick='logis --dmenu'; else pick='fuzzel --dmenu'; fi
+choice=$(printf 'rite of oil\nrite of ignition\n' | $pick)
+case $? in
+0) printf 'chosen: %s\n' "$choice" ;;
+1) ;;   # nothing chosen: dismissed, or replaced
+*) echo 'the cogitator is silent; see stderr' >&2 ;;
+esac
+```
+
+### Keys, daemon, environment and files
+
+What the man page adds, pinned as well:
+
+- Accept: Return, keypad Enter, a click on a row
+  (`src/input/bindings.rs::return_and_keypad_enter_accept`,
+  `tests/pointer.rs::hovering_selects_a_row_and_a_click_on_it_accepts_it` (E2E)).
+  Dismiss: see [Exit status](#exit-status). Moving and editing, as in
+  [Keyboard](#keyboard): `src/input/bindings.rs::up_down_tab_and_ctrl_n_p_move`,
+  `src/input/bindings.rs::editing_keys_edit`,
+  `src/input/bindings.rs::left_right_home_and_end_move_the_cursor`,
+  `tests/e2e.rs::every_editing_and_selection_key_does_its_work` (E2E).
+- `logis daemon` checks the session and the config at start and exits 2 if
+  either is unusable, or when the compositor goes away (see the table above);
+  a second daemon finds the first listening and exits 0
+  (`tests/daemon.rs::a_second_daemon_defers_to_the_one_already_listening`).
+  `--idle-timeout SECONDS` ends it once no client has been connected for that
+  long, off by default, `0` keeps it resident, and it outranks the config
+  (`tests/daemon.rs::with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected`,
+  `tests/daemon.rs::without_an_idle_timeout_the_daemon_stays`,
+  `tests/config.rs::the_idle_timeout_flag_outranks_the_config`). `--detach`
+  (how clients start it) sends its later diagnostics to
+  `$XDG_RUNTIME_DIR/logis.log`
+  (`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+- `WAYLAND_DISPLAY` is the compositor's socket, relative to `XDG_RUNTIME_DIR`
+  or absolute, with no fallback to `wayland-0`
+  (`src/wayland.rs::a_relative_display_is_joined_to_the_runtime_dir`,
+  `src/wayland.rs::an_absolute_display_is_used_as_is`,
+  `src/wayland.rs::an_unset_or_empty_display_means_no_session`). The daemon's
+  socket is `$XDG_RUNTIME_DIR/logis.sock`, which must be absolute
+  (`src/protocol/mod.rs::the_socket_lives_in_an_absolute_runtime_dir`). The
+  config is `$XDG_CONFIG_HOME/logis/logis.jsonc`, `~/.config` by default
+  (`src/config/source.rs::the_default_lives_in_xdg_config_home`,
+  `src/config/source.rs::without_a_usable_xdg_config_home_the_default_is_under_home`).
+- `logis --version` prints `logis` and its version, exit 0
+  (`tests/cli.rs::version_flag_prints_name_and_version_and_succeeds`).
+
 ## Configuration
 
 logis reads `$XDG_CONFIG_HOME/logis/logis.jsonc` (`~/.config/logis/logis.jsonc`), or
