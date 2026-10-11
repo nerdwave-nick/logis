@@ -257,7 +257,12 @@ impl TestCompositor {
 }
 
 impl Drop for TestCompositor {
+    /// Stops the compositor; when a test is failing, its log goes to stderr
+    /// first (the scratch directory holding it is removed next).
     fn drop(&mut self) {
+        if thread::panicking() {
+            eprintln!("{} test compositor log:\n{}", self.kind.name(), self.log());
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }

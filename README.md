@@ -34,10 +34,9 @@ research behind them, and a binary that does this much:
   dismissal (exit 1).
 - `logis daemon --debug-panel` does not serve sessions: it shows a static panel drawn
   by the renderer core (a GPU-rendered overlay layer surface at the compositor's
-  fractional scale, with text rows in several scripts and colour emoji) until the
-  compositor closes it or the process is ended. It takes
-  exclusive keyboard focus and has no input handling yet, so end it from elsewhere
-  (for example `timeout 5 logis daemon --debug-panel`).
+  fractional scale, with text rows in several scripts and colour emoji). It takes
+  exclusive keyboard focus: Up and Down move its selection, Escape closes it (as
+  does the compositor, or ending the process).
 
 The session daemon does not show the renderer's window yet, so it refuses every
 session. The list view, the dmenu flags, the app launcher and servitor mode
@@ -85,9 +84,57 @@ A mismatch leaves the render and a difference image under
 `target/tmp/golden-failures/`.
 
 `tests/icons.rs` compares icon renders with the PNG goldens in
-`tests/goldens/icons/` (a mismatching render is written to
-`target/golden-failures/`); `LOGIS_UPDATE_GOLDENS=1 cargo test --test icons`
-rewrites them after an intended change.
+`tests/goldens/icons/` (straight alpha, each channel within 3);
+`LOGIS_UPDATE_GOLDENS=1 cargo test --test icons` rewrites them after an intended
+change.
+
+### Test infrastructure
+
+Shared helpers live in [`tests/support/`](tests/support/); a test crate adopts them
+with `mod support;`.
+
+- **Goldens** ([`golden.rs`](tests/support/golden.rs)): `golden::check(set, name,
+  &image)` compares an image with `tests/goldens/<set>/<name>.png` (each channel
+  within 2); `golden::check_scene(&gpu, set, name, &scene, logical, &scales)`
+  renders a scene through `render::render_offscreen` at each scale
+  (`<name>@1.3` …). `Goldens::checked_in()` takes another `Tolerance` (channel
+  difference plus an allowed fraction of outlier pixels) or `Alpha::Straight`.
+  `LOGIS_UPDATE_GOLDENS=1` rewrites goldens; mismatches leave
+  `<name>.actual.png` and `<name>.diff.png` under `target/tmp/golden-failures/`.
+- **End to end** ([`e2e/`](tests/support/e2e/)): `TestCompositor::start(kind)`
+  runs a compositor the harness owns, in a scratch `XDG_RUNTIME_DIR`: a nested
+  niri window locally (`LOGIS_E2E=niri`, its own generated config, scale 1, never
+  `--session`), sway on wlroots' headless backend in CI (`LOGIS_E2E=sway`).
+  `compositor.logis()` is a `logis` command inside it (pinned fonts);
+  `Traced::spawn(command)` runs it with `LOGIS_TEST_TRACE=1` and waits for its
+  trace (`wait_for_focus()`, `wait_for_commit()` …). `Harness::connect(&compositor)`
+  refuses any socket whose server is not that compositor process (peer
+  credentials), then offers `virtual_keyboard()`, `type_text`, `tap`, `hold`/
+  `release` (real modifier keys plus masks), `toggle` (Caps/Num Lock) — all
+  requiring the `Focused` proof from `wait_for_focus()` — and `capture()`
+  (wlr-screencopy, upright). Without `LOGIS_E2E` these tests print `SKIPPED`.
+- **Latency** ([`tests/latency.rs`](tests/latency.rs),
+  [`latency.rs`](tests/support/latency.rs)): the research/bench `T0_NS` method:
+  the harness reads `CLOCK_MONOTONIC` just before starting the client, the
+  client stamps `commit` (and key) events with the same clock. Each series is
+  reported against its spec §4.10 budget; `LOGIS_LATENCY_REPORT=<file>` appends
+  JSON lines and `LOGIS_LATENCY_BUDGETS=enforce` fails a median over budget.
+
+`LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
+`logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
+`key <evdev code> pressed|released`, `modifiers <depressed> <latched> <locked>
+<group>` and `commit`.
+
+Locally (inside a running Wayland session; a nested niri window opens briefly):
+
+```sh
+LOGIS_E2E=niri cargo test --test e2e
+LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
+```
+
+CI runs the unit and golden tests in one job and the E2E and latency suites in
+headless sway in another, recording latency as a trend (job summary and a
+`latency.jsonl` artefact) without enforcing the budgets.
 
 ### GPU backends
 

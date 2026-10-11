@@ -39,9 +39,73 @@ jobs:
       - name: cargo clippy -D warnings
         run: cargo clippy --locked --all-targets -- -D warnings
 
-      # A missing adapter fails these backends instead of skipping them; the
-      # GL test still skips here (no EGL on the runner).
-      - name: cargo test
+      # Unit tests and the offscreen goldens (render, golden_harness, text,
+      # icons). A missing adapter fails these backends instead of skipping
+      # them; the GL test still skips here (no EGL on the runner). The E2E
+      # and latency tests print SKIPPED here: they run in `headless` below.
+      - name: cargo test (unit, golden)
         env:
           LOGIS_TEST_REQUIRE_BACKENDS: auto,vulkan,software
         run: cargo test --locked
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-check
+          path: target/tmp/golden-failures/
+          if-no-files-found: ignore
+
+  # End to end and latency in sway on wlroots' headless backend (spec §5,
+  # owner decision on e32f9347): installed on this runner only. The harness
+  # starts sway itself (WLR_BACKENDS=headless, pixman renderer, no input
+  # devices, one 1280x720 output) in a scratch XDG_RUNTIME_DIR; logis
+  # renders on lavapipe and presents through Vulkan WSI over wl_shm.
+  headless:
+    name: headless E2E and latency (sway)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LOGIS_E2E: sway
+    steps:
+      - uses: actions/checkout@v5
+
+      # sway brings wlroots and xkb-data (the injector's keymap includes
+      # resolve there); no swaybg, so the background stays black.
+      - name: Install sway and system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sway libwayland-dev pkg-config \
+            libfontconfig-dev libvulkan1 mesa-vulkan-drivers
+          sway --version
+
+      - name: Install Rust ${{ env.RUSTUP_TOOLCHAIN }}
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+
+      - name: E2E (cargo test --test e2e)
+        run: cargo test --locked --test e2e -- --nocapture
+
+      # Relative trend only: budgets are recorded, never enforced here
+      # (absolute budgets are checked on the owner's machine with
+      # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
+      - name: Latency (cargo test --release --test latency)
+        env:
+          LOGIS_LATENCY_RUNS: "20"
+          LOGIS_LATENCY_REPORT: ${{ github.workspace }}/latency.jsonl
+        run: cargo test --locked --release --test latency -- --nocapture
+
+      - name: Keep latency samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-${{ github.sha }}
+          path: latency.jsonl
+          if-no-files-found: ignore
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-headless
+          path: target/tmp/golden-failures/
+          if-no-files-found: ignore
