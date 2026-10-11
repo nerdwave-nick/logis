@@ -10,6 +10,7 @@
 
 pub mod apps;
 pub mod core;
+pub mod events;
 pub mod lifecycle;
 pub mod listener;
 pub mod providing;
