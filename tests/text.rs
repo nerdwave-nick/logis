@@ -245,6 +245,7 @@ fn texts(texts: Vec<Text>) -> Scene {
         shapes: Vec::new(),
         images: Vec::new(),
         texts,
+        post: None,
     }
 }
 
@@ -467,6 +468,7 @@ fn corpus_scene() -> Scene {
         shapes: vec![column(126.0), column(150.0)],
         images: Vec::new(),
         texts,
+        post: None,
     }
 }
 

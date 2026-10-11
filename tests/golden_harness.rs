@@ -231,6 +231,7 @@ fn reference_scene() -> Scene {
         shapes: vec![body, inset, bar],
         images: Vec::new(),
         texts: Vec::new(),
+        post: None,
     }
 }
 

@@ -4,8 +4,9 @@
 use super::Gpu;
 use super::atlas::ImageAtlas;
 use super::images::ImagePass;
+use super::post::PostPass;
 use super::scale::Scale;
-use super::scene::{INSTANCE_FLOATS, Scene, pack};
+use super::scene::{INSTANCE_FLOATS, Post, Scene, pack};
 use super::text_pass::TextPass;
 use crate::text::Fonts;
 
@@ -34,6 +35,7 @@ pub struct Renderer {
     instances: wgpu::Buffer,
     images: ImagePass,
     text: Option<TextPass>,
+    post: PostPass,
 }
 
 impl Renderer {
@@ -79,6 +81,7 @@ impl Renderer {
         let instances = instance_buffer(device, 16);
         Self {
             images: ImagePass::new(gpu),
+            post: PostPass::new(gpu),
             shader,
             layout,
             pipelines: Vec::new(),
@@ -108,6 +111,7 @@ impl Renderer {
     pub fn prepare(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         self.pipeline(gpu, format);
         self.images.prepare(gpu, format);
+        self.post.prepare(gpu, format);
         if let Some(text) = &mut self.text {
             text.prepare_format(gpu, format);
         }
@@ -124,10 +128,34 @@ impl Renderer {
     }
 
     /// Encodes `scene` into `target`: clears it, then paints every shape,
-    /// then every image, then every line of text (the top layer).
+    /// then every image, then every line of text (the top layer), then
+    /// the scene's post-processing effects, if any are on.
     /// Buffers are written through the queue, so submit `encoder` before
     /// encoding the next frame.
     pub fn encode(
+        &mut self,
+        gpu: &Gpu,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &Target<'_>,
+        scene: &Scene,
+    ) {
+        match scene.post.filter(Post::any) {
+            Some(post) => {
+                let view = self.post.source(gpu, target);
+                let drawn = Target {
+                    view: &view,
+                    format: target.format,
+                    size: target.size,
+                    scale: target.scale,
+                };
+                self.encode_scene(gpu, encoder, &drawn, scene);
+                self.post.draw(gpu, encoder, target, &post);
+            }
+            None => self.encode_scene(gpu, encoder, target, scene),
+        }
+    }
+
+    fn encode_scene(
         &mut self,
         gpu: &Gpu,
         encoder: &mut wgpu::CommandEncoder,

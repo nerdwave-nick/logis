@@ -214,6 +214,52 @@ pub struct Scene {
     /// Lines of text, over shapes and images, drawn when the renderer has
     /// fonts.
     pub texts: Vec<super::text::Text>,
+    /// Effects over the finished frame, if any.
+    pub post: Option<Post>,
+}
+
+/// The post-processing pass over a finished frame (spec §4.3): effects
+/// within a rounded rectangle (the panel's body), each a strength from 0
+/// (off) to 1. Outside it the frame stays as drawn (the glow).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Post {
+    /// The area the effects cover: left, top, width, height (logical).
+    pub rect: [f32; 4],
+    /// Its corner radius.
+    pub radius: f32,
+    /// Dark lines every three logical pixels.
+    pub scanlines: f32,
+    /// Film grain.
+    pub grain: f32,
+    /// The brightness trembling over time.
+    pub flicker: f32,
+    /// Darkened edges.
+    pub vignette: f32,
+    /// Bright parts bleeding light.
+    pub bloom: f32,
+    /// Curved glass.
+    pub curvature: f32,
+    /// Red and blue apart at edges.
+    pub aberration: f32,
+    /// Seconds, for grain and flicker; a frozen time gives a frozen frame.
+    pub time: f32,
+}
+
+impl Post {
+    /// Whether any effect is on, so the pass runs at all.
+    pub fn any(&self) -> bool {
+        [
+            self.scanlines,
+            self.grain,
+            self.flicker,
+            self.vignette,
+            self.bloom,
+            self.curvature,
+            self.aberration,
+        ]
+        .iter()
+        .any(|s| *s > 0.0)
+    }
 }
 
 /// Floats per shape instance: fifteen `vec4f` vertex attributes.

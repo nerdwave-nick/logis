@@ -45,6 +45,9 @@ impl Pose {
                 glow.color = fade(glow.color);
             }
         }
+        if let Some(post) = &mut scene.post {
+            post.rect = self.place(post.rect);
+        }
         for image in &mut scene.images {
             image.origin = shift(image.origin);
         }
@@ -96,6 +99,24 @@ mod tests {
             texts: vec![text],
             ..Scene::default()
         }
+    }
+
+    #[test]
+    fn the_effects_move_with_the_panel() {
+        let mut s = scene();
+        s.post = Some(crate::render::Post {
+            rect: [10.0, 20.0, 100.0, 40.0],
+            scanlines: 0.5,
+            ..Default::default()
+        });
+        Pose {
+            opacity: 0.5,
+            offset: [0.0, 8.0],
+        }
+        .apply(&mut s);
+        let post = s.post.unwrap();
+        assert_eq!(post.rect, [10.0, 28.0, 100.0, 40.0]);
+        assert_eq!(post.scanlines, 0.5, "the strengths stay");
     }
 
     #[test]
