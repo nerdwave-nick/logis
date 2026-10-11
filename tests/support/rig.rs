@@ -1,5 +1,5 @@
-//! A test rig for the daemon: a scratch `XDG_RUNTIME_DIR` (never the real
-//! one), a fake compositor, the scripted resolver, and a raw protocol client
+//! A test rig for the daemon: a scratch `XDG_RUNTIME_DIR` and
+//! `XDG_CONFIG_HOME` (never the real ones), a fake compositor, the scripted resolver, and a raw protocol client
 //! that speaks the wire format independently of logis's own code.
 #![allow(dead_code)] // shared by test crates that each use only part of it
 
@@ -47,6 +47,16 @@ impl Rig {
         self.dir.path().join("logis.sock")
     }
 
+    /// The scratch `XDG_CONFIG_HOME`; it does not exist until a test makes it.
+    pub fn config_home(&self) -> PathBuf {
+        self.dir.path().join("config")
+    }
+
+    /// Where the daemon looks for its config by default.
+    pub fn config_file(&self) -> PathBuf {
+        self.config_home().join("logis").join("logis.jsonc")
+    }
+
     /// `logis` in this rig's environment, answering sessions by script.
     pub fn logis(&self) -> Command {
         self.command(env!("CARGO_BIN_EXE_logis"))
@@ -60,6 +70,7 @@ impl Rig {
             .env_remove("LISTEN_FDS")
             .env("WAYLAND_DISPLAY", "wayland-test")
             .env("XDG_RUNTIME_DIR", self.dir.path())
+            .env("XDG_CONFIG_HOME", self.config_home())
             .env("LOGIS_RESOLVER", "scripted");
         cmd
     }
@@ -116,10 +127,18 @@ impl Rig {
     /// cancellation. Merely dropping it would not do: the daemon handles each
     /// connection on its own thread, so another connection's next request may
     /// be served before the dropped probe's hang-up, and see it still there.
+    /// A queued probe may also be shown before its cancel lands, when the
+    /// session ahead of it ends meanwhile.
     pub fn probe(&self) -> String {
         let (mut probe, state) = self.open("dmenu");
         probe.send(json!({"type": "cancel"}));
-        assert_eq!(probe.outcome(), json!({"kind": "cancelled"}));
+        let mut message = probe.recv().expect("the daemon hung up on a probe");
+        if state == "queued" && message["type"] == "visible" {
+            message = probe.recv().expect("the daemon hung up on a probe");
+        }
+        assert_eq!(message["type"], "result", "{message}");
+        assert_eq!(message["outcome"], json!({"kind": "cancelled"}));
+        assert_eq!(probe.recv(), None, "the daemon kept the probe open");
         state
     }
 

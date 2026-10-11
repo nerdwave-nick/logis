@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nerdwave-nick/logis/main/schema/logis.schema.json",
+  "title": "logis configuration",
+  "description": "The standing orders of the cogitator, kept as logis.jsonc in $XDG_CONFIG_HOME/logis/ (or given with --config). JSONC: comments and trailing commas are allowed. Every key is optional; an absent key keeps its default. The machine spirit heeds edits at once; an edit it cannot read leaves the last sound orders in force. Check a file with 'logis --check-config'.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "The schema these orders are written against, for the editors of the faithful. logis accepts it and heeds it not.",
+      "type": "string"
+    },
+    "theme": {
+      "description": "The theme to wear: a bundled theme, or themes/<name>.jsonc beside this file, which overrides a bundled theme of the same name. The name of a file without .jsonc: not empty, no '/', not starting with '.'.",
+      "type": "string",
+      "pattern": "^[^/.][^/]*$",
+      "default": "forge-crimson-brass",
+      "examples": ["forge-crimson-brass", "cogitator-phosphor"]
+    },
+    "idle-timeout": {
+      "description": "Seconds without any client after which the daemon returns to rest (exits); 0 keeps it resident. The rune 'logis daemon --idle-timeout' outranks it.",
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "examples": [0, 600, 1.5]
+    },
+    "terminal": {
+      "description": "The program and leading arguments that run the command of a terminal application (Terminal=true); the command follows as further arguments. When absent: $TERMINAL -e.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"},
+      "prefixItems": [{"type": "string", "minLength": 1}],
+      "examples": [["foot", "-e"], ["kitty", "--"], ["alacritty", "-e"]]
+    },
+    "icon-theme": {
+      "description": "The freedesktop icon theme to draw icons from; lookups fall back to hicolor.",
+      "type": "string",
+      "minLength": 1,
+      "default": "hicolor",
+      "examples": ["hicolor", "Papirus-Dark", "Adwaita"]
+    },
+    "focus-loss": {
+      "description": "What becomes of a visible cogitator when it loses keyboard focus: \"dismiss\" ends the session as if Escape were pressed (as fuzzel does), \"keep\" leaves it open.",
+      "enum": ["dismiss", "keep"],
+      "default": "dismiss",
+      "examples": ["dismiss", "keep"]
+    }
+  }
+}

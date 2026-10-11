@@ -33,8 +33,9 @@ serde_json = "1.0.152"
 # listening (libraries such as wayland-backend print to stderr, and printing
 # to a broken pipe panics). The `time` feature reads CLOCK_MONOTONIC for the
 # test trace (src/window/trace.rs), which std's opaque Instant cannot give a
-# harness in another process.
-rustix = { version = "1.1.5", features = ["stdio", "time"] }
+# harness in another process. `fs` (inotify) and `event` (poll) let the
+# daemon watch its config file for live reload (src/config) without a crate.
+rustix = { version = "1.1.5", features = ["stdio", "time", "fs", "event"] }
 # SVG icons (spec §4.3/§4.7). Defaults off: icons need no <text> (no font
 # database, shaping or system font scan), no .svgz (flate2) and no embedded
 # GIF/WebP/JPEG. PNG icons decode through its re-exported tiny-skia, whose

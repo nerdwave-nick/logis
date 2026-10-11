@@ -6,6 +6,7 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::os::fd::AsFd;
+use std::path::Path;
 use std::process::ExitCode;
 use std::thread;
 
@@ -18,8 +19,9 @@ const BATCH_ITEMS: usize = 1024;
 const BATCH_BYTES: usize = 256 << 10;
 
 /// Runs a dmenu session: exit 0 with the choice on stdout, 1 when dismissed.
-pub fn run() -> ExitCode {
-    match session() {
+/// `config` goes to a daemon this client has to start.
+pub fn run(config: Option<&Path>) -> ExitCode {
+    match session(config) {
         Ok(Some(raw)) => {
             let mut out = io::stdout().lock();
             match out
@@ -37,8 +39,8 @@ pub fn run() -> ExitCode {
 }
 
 /// The chosen item's original bytes, or `None` if the session ended without one.
-fn session() -> Result<Option<Vec<u8>>, String> {
-    let mut connection = super::connect()?;
+fn session(config: Option<&Path>) -> Result<Option<Vec<u8>>, String> {
+    let mut connection = super::connect(config)?;
     connection.send(&Request::Open { mode: Mode::Dmenu })?;
     let mut sender = connection.try_clone()?;
     let stdin = io::stdin()

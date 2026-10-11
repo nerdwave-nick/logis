@@ -19,6 +19,8 @@ use std::process::ExitCode;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
+use logis::config::{self, Source, live::Live, watch::Watcher};
+
 use self::core::{Core, Event};
 use self::lifecycle::Exit;
 use self::listener::Claim;
@@ -37,6 +39,13 @@ pub fn run(options: DaemonOptions) -> ExitCode {
     let noosphere = match wayland::preflight() {
         Ok(noosphere) => noosphere,
         Err(e) => return fail(&e.to_string()),
+    };
+    let source = Source::new(options.config.as_deref());
+    // Watch before reading, so that no edit falls between the two.
+    let watcher = source.path().map(Watcher::new);
+    let config = match source.load() {
+        Ok(config) => config,
+        Err(e) => return fail(&config::heresy(&e)),
     };
     let listening = match listener::claim(&runtime_dir) {
         Ok(Claim::Listening(listening)) => listening,
@@ -61,7 +70,6 @@ pub fn run(options: DaemonOptions) -> ExitCode {
         let reason = noosphere.wait_for_loss();
         let _ = lost.send(Event::WaylandLost { reason });
     });
-    drop(events);
     announce(&format!(
         "the machine spirit wakes and listens at {}",
         listening.path.display()
@@ -69,9 +77,24 @@ pub fn run(options: DaemonOptions) -> ExitCode {
     if options.detach {
         detach(&runtime_dir);
     }
+    // After detaching, so that what a reload logs reaches `logis.log`; edits
+    // made meanwhile wait in the watch.
+    match watcher {
+        Some(Ok(watcher)) => {
+            let reload = events.clone();
+            watcher.spawn(move || reload.send(Event::Reconfigured(source.load())).is_ok());
+        }
+        Some(Err(e)) => log(&format!(
+            "the config is not watched, edits need a restart: {e}"
+        )),
+        None => {}
+    }
+    drop(events);
 
     let mut core = Core::new(resolver, std::process::id());
-    let exit = lifecycle::serve(&mut core, &inbox, options.idle_timeout);
+    core.configure(&config);
+    let mut live = Live::new(config, options.idle_timeout);
+    let exit = lifecycle::serve(&mut core, &inbox, &mut live);
     drop(listening);
     match exit {
         Exit::Idle => ExitCode::SUCCESS,
@@ -81,6 +104,12 @@ pub fn run(options: DaemonOptions) -> ExitCode {
         )),
         Exit::Deaf => fail("the machine spirit can no longer hear its socket"),
     }
+}
+
+/// One line in the daemon's log (stderr: the starter's, or `logis.log` once
+/// detached). Never panics, even when nobody reads stderr any more.
+pub fn log(message: &str) {
+    let _ = writeln!(std::io::stderr(), "logis: {message}");
 }
 
 /// The readiness line: a client that started the daemon waits for it.
