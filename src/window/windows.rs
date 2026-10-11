@@ -203,7 +203,7 @@ impl Windows {
             qh,
             compositor: &self.shell.compositor,
             presentation: self.presentation.as_ref().map(|p| &p.global),
-            clock: &self.clock,
+            clock: &mut self.clock,
         };
         if let Some(closing) = &mut self.closing
             && closing.draw_if_needed(&mut painter).finished

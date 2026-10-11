@@ -25,7 +25,7 @@ pub(in crate::window) struct Painter<'a> {
     pub qh: &'a QueueHandle<Windows>,
     pub compositor: &'a CompositorState,
     pub presentation: Option<&'a WpPresentation>,
-    pub clock: &'a FrameClock,
+    pub clock: &'a mut FrameClock,
 }
 
 /// What [`Panel::draw_if_needed`] did.
@@ -121,8 +121,11 @@ impl Panel {
             presentation.feedback(wl_surface, p.qh, ());
         }
         p.gpu.queue.present(texture);
-        self.transition
-            .presented(p.clock.frame(monotonic_ns()).at, frame.interval);
+        // Expected on screen no sooner than now: a first frame may have
+        // taken long (glyphs rasterised), and the open starts with it.
+        let shown = p.clock.frame(monotonic_ns()).at.max(frame.at);
+        p.clock.drew(shown);
+        self.transition.presented(shown, frame.interval);
         if closing {
             emit(format_args!("commit closing"));
         } else {
