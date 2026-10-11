@@ -79,6 +79,14 @@ accent-insensitive matching; matched characters are highlighted. It is edited at
 cursor that always sits between graphemes, so Backspace deletes what a reader sees
 as one character.
 
+**Typed text**:
+The query itself as a dmenu answer: Return when no item matches prints what was
+typed (fuzzel's "free text"). `--only-match` forbids it.
+
+**Preselection**:
+The item selected when it arrives (`--select`, `--select-index`), until the user
+moves the selection or edits the query.
+
 **Shortcut**:
 A key bound to an action (dismiss, accept, select, edit). It is matched with
 **consumed-modifier** semantics: only the modifiers the key did not need to produce

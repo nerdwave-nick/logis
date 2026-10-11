@@ -16,25 +16,25 @@ logis is meant to be:
 
 ## Status
 
-**Early. Nothing usable yet.** The repository holds the accepted decisions, the
-research behind them, and a binary that does this much:
+**Early.** `logis --dmenu` works; the app launcher and servitor mode are still to
+come. The binary does this much:
 
 - `logis --version` prints the version.
+- `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
+  [dmenu](#dmenu).
 - `logis daemon` is the resident daemon. It checks for a Wayland session whose
   compositor offers wlr-layer-shell (exit 2 with a message on stderr if there is
-  none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and keeps the compositor
-  connection open: when the compositor goes away it exits 2.
-  `--idle-timeout SECONDS` lets it exit once no client has been connected for that
-  long (off by default); it outranks the config's `idle-timeout`, and
-  `--idle-timeout 0` keeps the daemon resident whatever the config says. It reads
-  its [configuration](#configuration) at start (an invalid one is an error, exit 2)
-  and again whenever the file changes.
+  none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and wakes its window at start:
+  the compositor connection (the only one it opens), the GPU and the fonts. When
+  the compositor goes away it exits 2. `--idle-timeout SECONDS` lets it exit once
+  no client has been connected for that long (off by default); it outranks the
+  config's `idle-timeout`, and `--idle-timeout 0` keeps the daemon resident
+  whatever the config says. It reads its [configuration](#configuration) at
+  start (an invalid one is an error, exit 2) and again whenever the file changes.
 - `logis` and `logis --dmenu` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
-  Plain `logis` only makes sure the daemon runs. `logis --dmenu` streams stdin lines
-  to the daemon and prints the chosen line's original bytes (exit 0), or nothing on
-  dismissal (exit 1).
+  Plain `logis` only makes sure the daemon runs.
 - `logis --check-config [--config PATH]` validates the configuration without
   touching Wayland or the daemon: exit 0 if it is sound (or absent), 2 with the
   error's file, line and column on stderr.
@@ -47,14 +47,64 @@ research behind them, and a binary that does this much:
   loss, per the config's `focus-loss`) close it, as does the compositor or ending
   the process.
 
-The session daemon does not show the renderer's window yet, so it refuses every
-session. The list view, the dmenu flags, the app launcher and servitor mode
-are still to come.
-
 Client and daemon speak length-prefixed JSON frames, one session per connection;
 the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
-session is visible, a new dmenu session queues and a new app or servitor session
-replaces it.
+session is visible, a new dmenu session queues (each caller gets its own answer,
+in turn) and a new app or servitor session replaces it.
+
+## dmenu
+
+```sh
+printf 'rite of oil\nrite of ignition\nlitany\n' | logis --dmenu
+```
+
+stdin streams into the window as it arrives, one item per line (per NUL-ended
+item with `--dmenu0`), so the window opens before the input ends. Typing filters
+the items with fzf-like fuzzy matching (nucleo), ignoring case and accents (`e`
+matches `é`; a typed `é` means `é`), with fzf's syntax: `^prefix`, `suffix$`,
+`'exact`, `!not`, and words matched separately. Matched characters are drawn in
+brass; tabs advance to tab stops, so tab-separated columns line up.
+
+Return prints the selected item's original bytes, exactly as read, and exits 0.
+When nothing matches, Return prints the typed text as typed (unless
+`--only-match`). Escape (or Ctrl+G, Ctrl+[, or focus loss) prints nothing and
+exits 1. Errors exit 2 with the message on stderr.
+
+| Rune | Effect |
+|---|---|
+| `--dmenu`, `-d` / `--dmenu0` | items separated by newlines / NUL |
+| `--prompt=TEXT`, `-p` | shown before the query (default `> `) |
+| `--prompt-only=TEXT` | a prompt and nothing else: stdin is not read, no rows |
+| `--placeholder=TEXT` | shown while the query is empty |
+| `--password[=C]` | shows each typed character as `C` (default `*`) |
+| `--lines=N`, `-l` | rows shown at most (default 15); the window's height |
+| `--width=N`, `-w` | the window's width in characters (default 30, an estimate) |
+| `--counter` | shows matching/total items |
+| `--search=TEXT` | the query the window opens with |
+| `--select=TEXT` | preselects the first item equal to TEXT, ignoring case |
+| `--select-index=N` | preselects item N (from 0); not with `--select` |
+| `--only-match` | Return accepts only an item, never typed text |
+| `--no-run-if-empty`, `-R` | empty stdin: exit 1 at once, no window |
+| `--index` | prints the chosen item's index (from 0) instead of its text |
+| `--with-nth=N\|FMT` | shows column N (or a format) of each line |
+| `--accept-nth=N\|FMT` | prints column N (or a format) of the chosen line |
+| `--match-nth=N\|FMT` | matches against column N (or a format) instead of what is shown |
+| `--nth-delimiter=C` | the column delimiter, one ASCII character (default tab) |
+| `--config=PATH` | the config a daemon this client starts reads |
+| `-i` | ignored (dmenu's case switch; logis always ignores case) |
+
+Columns count from 1; a format is free text in which `{N}`, `{N..M}` and `{N..}`
+expand to columns (ranges joined by the delimiter), and `0` means the rune is not
+given. Values may follow as `--rune=V` or `--rune V` (`--password` only takes
+`=C`). The list runes need `--dmenu`.
+
+Where fuzzel's documentation leaves a choice open, logis decides so:
+- typed text is printed as typed even with `--index` or `--accept-nth` (fuzzel:
+  free text "is printed as is");
+- `--select` means equal ignoring case, not a prefix or a fuzzy match; a
+  preselection applies when its item arrives, until you move or type;
+- `--no-run-if-empty` exits 1 (nothing was chosen);
+- a format that names no column is an error, not a constant output.
 
 ## Configuration
 
@@ -83,9 +133,9 @@ changes nothing: the last sound configuration stays in force, and the error goes
 the daemon's log (and, once the window can show it, a themed notice).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
-it; a daemon already running keeps the file it was started with. Themes, the
-window and the app launcher do not use these settings yet; the slices that build
-them will.
+it; a daemon already running keeps the file it was started with. The window
+follows `focus-loss`; themes, the terminal and the app launcher do not use their
+settings yet; the slices that build them will.
 
 ## Keyboard
 
@@ -193,18 +243,32 @@ with `mod support;`.
   commit is measured with the pinned fonts and with the system's own, run by run
   in turn. Each series is reported against its spec §4.10 budget; `LOGIS_LATENCY_REPORT=<file>` appends
   JSON lines and `LOGIS_LATENCY_BUDGETS=enforce` fails a median over budget.
+  The dmenu series run a real daemon: warm open (`logis --dmenu` from exec to
+  the window's first committed frame, ≤ 15 ms) and keystroke → commit with 3
+  and with 100 000 items (one frame).
+- **dmenu** ([`tests/dmenu.rs`](tests/dmenu.rs),
+  [`cogitator.rs`](tests/support/e2e/cogitator.rs)): a traced `logis daemon` in
+  the test compositor and `logis --dmenu` clients with piped stdin and stdout:
+  select, dismiss, index and column output, `--only-match`, typed text, queued
+  callers, streamed input and the compositor's loss.
+  [`tests/dmenu_runes.rs`](tests/dmenu_runes.rs) checks the runes over a real
+  daemon with the scripted resolver (no window), and
+  [`tests/list.rs`](tests/list.rs) the list's goldens offscreen.
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
 `keymap`, `repeat-info <rate> <delay>`, `key <evdev code>
 pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>` and
 `commit`; the debug panel adds what each key did: `query <JSON string>`, `select
-<row>`, `accept <row>` and `dismiss`.
+<row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
+`show <session>`, `items <total>`, `query <JSON string>`, `select <item>` (or
+`select none`), `accept <item>`, `typed <JSON string>`, `dismiss` and `hide
+<session>`.
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e
+LOGIS_E2E=niri cargo test --test e2e --test dmenu
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 
