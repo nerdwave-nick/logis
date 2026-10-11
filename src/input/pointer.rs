@@ -15,7 +15,9 @@
 //!   high-resolution wheels send fractions), else `axis_discrete` (v5–7)
 //!   in whole notches. A touchpad finger, a continuous device, or a wheel
 //!   without either reports logical pixels; `axis_stop` ends a finger's
-//!   scroll. Horizontal scrolling means nothing to a list.
+//!   scroll. Whatever the `axis_source`, whole notches are used when the
+//!   compositor counts them, pixels otherwise. Horizontal scrolling means
+//!   nothing to a list.
 //!
 //! Before wl_pointer v5 there are no frames: the seat ends a frame after
 //! every axis event itself.
@@ -52,15 +54,6 @@ pub enum Scroll {
     Pixels(f64),
     /// The finger lifted: a continuous scroll ended.
     Stop,
-}
-
-/// The source of a frame's axis events (`wl_pointer.axis_source`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Source {
-    Wheel,
-    Finger,
-    Continuous,
-    WheelTilt,
 }
 
 /// The vertical axis events of the frame being collected.
@@ -126,10 +119,6 @@ impl Pointer {
             _ => None,
         }
     }
-
-    /// The source of the frame's axis events. Every source is read the same
-    /// way: whole notches when the compositor counts them, pixels otherwise.
-    pub fn axis_source(&mut self, _: Source) {}
 
     /// A vertical axis value in logical pixels (continuous).
     pub fn axis(&mut self, value: f64) {
@@ -232,7 +221,6 @@ mod tests {
     #[test]
     fn a_wheel_frame_scrolls_by_value120_and_ignores_its_pixels() {
         let mut p = over(1.0, 2.0);
-        p.axis_source(Source::Wheel);
         p.axis(15.0);
         p.axis_value120(120);
         assert_eq!(p.frame(), [Point::Scrolled(Scroll::Wheel(120), 1.0, 2.0)]);
@@ -249,7 +237,6 @@ mod tests {
     #[test]
     fn discrete_steps_count_whole_notches_before_v8() {
         let mut p = over(0.0, 0.0);
-        p.axis_source(Source::Wheel);
         p.axis(-30.0);
         p.axis_discrete(-2);
         assert_eq!(p.frame(), [Point::Scrolled(Scroll::Wheel(-240), 0.0, 0.0)]);
@@ -258,11 +245,9 @@ mod tests {
     #[test]
     fn a_finger_scrolls_by_pixels_and_its_stop_ends_the_scroll() {
         let mut p = over(3.0, 4.0);
-        p.axis_source(Source::Finger);
         p.axis(4.5);
         p.axis(2.0);
         assert_eq!(p.frame(), [Point::Scrolled(Scroll::Pixels(6.5), 3.0, 4.0)]);
-        p.axis_source(Source::Finger);
         p.axis_stop();
         assert_eq!(p.frame(), [Point::Scrolled(Scroll::Stop, 3.0, 4.0)]);
     }

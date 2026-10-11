@@ -25,7 +25,7 @@ use smithay_client_toolkit::reexports::protocols::wp::cursor_shape::v1::client::
 
 use super::Windows;
 use super::trace::emit;
-use crate::input::{self, Action, Point, Scroll, pointer::Source};
+use crate::input::{self, Action, Point, Scroll};
 
 /// The seat's pointer while it has one, its cursor-shape device, and the
 /// pointer model.
@@ -154,14 +154,6 @@ impl Dispatch<WlPointer, ()> for Windows {
                 }
                 action = windows.pointer.model.button(button, pressed);
             }
-            Event::AxisSource {
-                axis_source: WEnum::Value(source),
-            } => windows.pointer.model.axis_source(match source {
-                wl_pointer::AxisSource::Finger => Source::Finger,
-                wl_pointer::AxisSource::Continuous => Source::Continuous,
-                wl_pointer::AxisSource::WheelTilt => Source::WheelTilt,
-                _ => Source::Wheel,
-            }),
             Event::Axis { axis, value, .. } if vertical(&axis) => {
                 windows.pointer.model.axis(value);
             }
