@@ -30,6 +30,7 @@ pub fn byte_ranges(text: &str, positions: &[u32]) -> Vec<Range<usize>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::single_range_in_vec_init)] // one joined range is a case
 mod tests {
     use super::*;
 
