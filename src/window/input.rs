@@ -1,9 +1,9 @@
-//! The keyboard side of [`Windows`]: the [`Action`]s for the visible panel,
+//! The input side of [`Windows`]: the [`Action`]s for the visible panel,
 //! the focus-loss policy, and waiting for the compositor without busy
 //! loops. The event queue's socket is polled with no timeout, unless a held
-//! key's next repeat is due, in which case the wait ends at that deadline.
-//! No timer thread, no async runtime: an idle window sleeps in `poll` until
-//! the compositor speaks.
+//! key's next repeat is due, in which case the wait ends at that deadline;
+//! a paste being read adds its pipe to the poll. No timer thread, no async
+//! runtime: an idle window sleeps in `poll` until the compositor speaks.
 
 use std::os::fd::BorrowedFd;
 use std::time::Instant;
@@ -16,10 +16,20 @@ use super::{WindowError, WindowQueue, Windows};
 use crate::input::{Action, FocusLoss};
 
 impl Windows {
-    /// What the keyboard asked of the visible panel since the last call,
-    /// oldest first: keys, repeats and focus loss (see [`crate::input`]).
+    /// What the seat asked of the visible panel since the last call, oldest
+    /// first: keys, repeats, focus loss, the pointer, and pasted text (see
+    /// [`crate::input`]). A paste is started here and comes back as an
+    /// [`Action::Edit`] once read; it is never returned itself.
     pub fn take_actions(&mut self) -> Vec<Action> {
-        self.keyboard_mut().take_actions()
+        let mut actions = std::mem::take(&mut self.actions);
+        actions.retain(|action| match action {
+            Action::Paste(selection) => {
+                self.clipboard.start(*selection);
+                false
+            }
+            _ => true,
+        });
+        actions
     }
 
     /// What losing keyboard focus does to the visible panel (the config's
@@ -52,6 +62,8 @@ impl Windows {
                     let fd = guard.connection_fd();
                     let mut fds = vec![PollFd::new(&fd, PollFlags::IN)];
                     fds.extend(wake.as_ref().map(|w| PollFd::new(w, PollFlags::IN)));
+                    let pasting = self.clipboard.fd();
+                    fds.extend(pasting.as_ref().map(|p| PollFd::new(p, PollFlags::IN)));
                     poll(&mut fds, timeout.as_ref()).map(|n| (n, !fds[0].revents().is_empty()))
                 };
                 match ready {
@@ -68,7 +80,11 @@ impl Windows {
             }
             queue.dispatch_pending(self).map_err(|e| lost(&e))?;
         }
-        self.keyboard_mut().repeat(Instant::now());
+        let repeats = self.keyboard_mut().repeat(Instant::now());
+        self.actions.extend(repeats);
+        if let Some(edit) = self.clipboard.pump() {
+            self.actions.push(Action::Edit(edit));
+        }
         Ok(())
     }
 }

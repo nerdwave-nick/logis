@@ -142,6 +142,11 @@ impl Panel {
         self.state.set_scale(scale);
     }
 
+    /// What the next frame is rendered at, once configured.
+    pub(super) fn geometry(&self) -> Option<Geometry> {
+        self.state.geometry()
+    }
+
     /// The negotiated swapchain configuration.
     pub fn config(&self) -> &wgpu::SurfaceConfiguration {
         &self.config

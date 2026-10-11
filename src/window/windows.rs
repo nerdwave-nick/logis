@@ -13,8 +13,11 @@ use smithay_client_toolkit::shell::wlr_layer::LayerShell;
 mod handlers;
 
 use super::handle::WaylandDisplay;
+use super::paste::Clipboard;
+use super::pointer::Pointer;
 use super::seat::Keyboard;
 use super::{Panel, SceneFn, Shell, WindowError, WindowQueue};
+use crate::input::Action;
 use crate::render::{BackendChoice, Gpu, Renderer};
 use crate::text::PendingFonts;
 
@@ -28,6 +31,10 @@ pub struct Windows {
     verbose: bool,
     renderer: Renderer,
     gpu: Gpu,
+    /// What the seat asked of the visible panel, oldest first.
+    pub(super) actions: Vec<Action>,
+    pub(super) clipboard: Clipboard,
+    pub(super) pointer: Pointer,
     keyboard: Keyboard,
     shell: Shell,
     connection: Connection,
@@ -63,6 +70,8 @@ impl Windows {
             .map_err(|e| WindowError::Connect(e.to_string()))?;
         let shell = bind(&globals, &queue.handle())?;
         let keyboard = Keyboard::bind(&globals, &queue.handle());
+        let pointer = Pointer::bind(&globals, &queue.handle());
+        let clipboard = Clipboard::bind(&globals, &queue.handle(), keyboard.seat());
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
@@ -78,6 +87,9 @@ impl Windows {
             verbose: false,
             renderer,
             gpu,
+            actions: Vec::new(),
+            clipboard,
+            pointer,
             keyboard,
             shell,
             connection,
@@ -104,7 +116,7 @@ impl Windows {
         scene: SceneFn,
     ) -> Result<(), WindowError> {
         self.panel = None;
-        self.keyboard.reset();
+        self.reset_input();
         let panel = Panel::new(&self.shell, &self.gpu, &self.connection, qh, size, scene)?;
         self.renderer.prepare(&self.gpu, panel.format());
         self.panel = Some(panel);
@@ -114,7 +126,22 @@ impl Windows {
     /// Hides the visible panel, if any.
     pub fn hide(&mut self) {
         self.panel = None;
+        self.reset_input();
+    }
+
+    /// Nothing typed, pointed at or pasted carries over to another panel.
+    fn reset_input(&mut self) {
         self.keyboard.reset();
+        self.pointer.reset();
+        self.clipboard.cancel();
+        self.actions.clear();
+    }
+
+    /// The visible panel's size in logical pixels, once configured: the
+    /// space pointer positions are in.
+    pub fn size(&self) -> Option<(u32, u32)> {
+        let panel = self.panel.as_ref()?;
+        panel.geometry().map(|g| g.logical)
     }
 
     /// Whether a panel is shown.
