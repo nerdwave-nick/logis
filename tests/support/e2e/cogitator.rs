@@ -37,13 +37,25 @@ pub struct Ended {
 
 impl Cogitator {
     /// Starts the compositor and the daemon, or `None` without `LOGIS_E2E`.
+    /// The daemon moves as it does for users (default motion).
     pub fn start() -> Option<Self> {
+        Self::start_with(&[], None)
+    }
+
+    /// [`Self::start`] with `env` set for the daemon (such as
+    /// `LOGIS_MOTION`) and `config` as its logis.jsonc.
+    pub fn start_with(env: &[(&str, &str)], config: Option<&str>) -> Option<Self> {
         let kind = Kind::requested()?;
         let compositor = TestCompositor::start(kind);
+        if let Some(text) = config {
+            let dir = compositor.config_home().join("logis");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("logis.jsonc"), text).unwrap();
+        }
         let mut harness = Harness::connect(&compositor);
         let kb = harness.virtual_keyboard();
         let mut command = compositor.logis();
-        command.arg("daemon");
+        command.arg("daemon").envs(env.iter().copied());
         let daemon = Traced::spawn(command);
         greet(&compositor.runtime_dir().join("logis.sock"));
         Some(Self {

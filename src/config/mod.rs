@@ -32,6 +32,9 @@ pub struct Config {
     pub icon_theme: String,
     /// What losing keyboard focus does to a visible session.
     pub focus_loss: FocusLoss,
+    /// Whether the compositor blurs behind the panel (when it offers
+    /// ext-background-effect).
+    pub blur: bool,
 }
 
 /// What losing keyboard focus does to a visible session (spec §4.5).
@@ -59,6 +62,7 @@ impl Default for Config {
             terminal: None,
             icon_theme: Self::DEFAULT_ICON_THEME.to_owned(),
             focus_loss: FocusLoss::default(),
+            blur: true,
         }
     }
 }

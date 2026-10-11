@@ -44,6 +44,12 @@
       "enum": ["dismiss", "keep"],
       "default": "dismiss",
       "examples": ["dismiss", "keep"]
+    },
+    "blur": {
+      "description": "Whether the compositor blurs what lies behind the cogitator's body (ext-background-effect). A compositor that offers no such rite shows the panel unblurred.",
+      "type": "boolean",
+      "default": true,
+      "examples": [true, false]
     }
   }
 }

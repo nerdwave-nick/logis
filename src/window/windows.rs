@@ -11,24 +11,35 @@ use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::shell::wlr_layer::LayerShell;
 
 mod handlers;
+mod motion;
 
+use super::blur::Effects;
+use super::clock::{FrameClock, Presentation};
+use super::drawing::SceneFn;
 use super::handle::WaylandDisplay;
+use super::panel::Painter;
 use super::paste::Clipboard;
 use super::pointer::Pointer;
 use super::seat::Keyboard;
-use super::{Panel, SceneFn, Shell, WindowError, WindowQueue};
+use super::{Panel, Shell, WindowError, WindowQueue};
 use crate::input::Action;
+use crate::motion::{Motion, Transition};
 use crate::render::{BackendChoice, Gpu, Renderer};
 use crate::text::PendingFonts;
 
 /// What the daemon owns for its windows: the connection, the bound globals,
-/// the GPU (woken at connect, never lazily), the renderer and at most one
-/// visible panel.
+/// the GPU (woken at connect, never lazily), the renderer, at most one
+/// visible panel and at most one panel still closing.
 pub struct Windows {
-    // Drop order: the panel (and its wgpu surface) before the GPU it was
-    // created on, then the globals, then the connection.
+    // Drop order: the panels (and their wgpu surfaces) before the GPU they
+    // were created on, then the globals, then the connection.
     panel: Option<Panel>,
+    closing: Option<Panel>,
+    retired: Option<Panel>,
     verbose: bool,
+    motion: Motion,
+    clock: FrameClock,
+    blur: bool,
     renderer: Renderer,
     gpu: Gpu,
     /// What the seat asked of the visible panel, oldest first.
@@ -36,6 +47,8 @@ pub struct Windows {
     pub(super) clipboard: Clipboard,
     pub(super) pointer: Pointer,
     keyboard: Keyboard,
+    effects: Option<Effects>,
+    presentation: Option<Presentation>,
     shell: Shell,
     connection: Connection,
 }
@@ -72,6 +85,19 @@ impl Windows {
         let keyboard = Keyboard::bind(&globals, &queue.handle());
         let pointer = Pointer::bind(&globals, &queue.handle());
         let clipboard = Clipboard::bind(&globals, &queue.handle(), keyboard.seat());
+        // Used when offered (spec §4.2): blur and presentation timing.
+        let effects = globals
+            .bind(&queue.handle(), 1..=1, ())
+            .ok()
+            .map(|manager| Effects { manager });
+        let presentation =
+            globals
+                .bind(&queue.handle(), 1..=2, ())
+                .ok()
+                .map(|global| Presentation {
+                    global,
+                    monotonic: false,
+                });
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
@@ -84,13 +110,20 @@ impl Windows {
         renderer.prepare(&gpu, wgpu::TextureFormat::Bgra8Unorm);
         let windows = Self {
             panel: None,
+            closing: None,
+            retired: None,
             verbose: false,
+            motion: Motion::OFF,
+            clock: FrameClock::default(),
+            blur: false,
             renderer,
             gpu,
             actions: Vec::new(),
             clipboard,
             pointer,
             keyboard,
+            effects,
+            presentation,
             shell,
             connection,
         };
@@ -108,7 +141,13 @@ impl Windows {
     }
 
     /// Shows a panel of `size` logical pixels drawing `scene`, replacing any
-    /// visible one. It draws once the compositor configures it.
+    /// visible one and cutting short any still closing. It draws once the
+    /// compositor configures it, opening with the [`Motion`] in force.
+    ///
+    /// A panel still closing stops where it is and goes only after the new
+    /// panel's first frame (trace `cut`): destroying it blocks on its
+    /// swapchain and makes the compositor draw a frame, which would delay
+    /// that first frame (the warm-open budget).
     pub fn show(
         &mut self,
         qh: &QueueHandle<Self>,
@@ -116,16 +155,42 @@ impl Windows {
         scene: SceneFn,
     ) -> Result<(), WindowError> {
         self.panel = None;
+        if let Some(closing) = self.closing.take() {
+            self.retired = Some(closing);
+        }
         self.reset_input();
-        let panel = Panel::new(&self.shell, &self.gpu, &self.connection, qh, size, scene)?;
+        let transition = if self.motion.open.duration.is_zero() {
+            Transition::resting()
+        } else {
+            Transition::opening(self.motion.open_from, self.motion.open)
+        };
+        let effects = self.effects.as_ref().filter(|_| self.blur);
+        let panel = Panel::new(
+            &self.shell,
+            &self.gpu,
+            &self.connection,
+            qh,
+            size,
+            scene,
+            transition,
+            effects,
+        );
+        let panel = match panel {
+            Ok(panel) => panel,
+            Err(e) => {
+                self.cut_retired();
+                return Err(e);
+            }
+        };
         self.renderer.prepare(&self.gpu, panel.format());
         self.panel = Some(panel);
         Ok(())
     }
 
-    /// Hides the visible panel, if any.
+    /// Hides the visible panel at once, if any (no close transition).
     pub fn hide(&mut self) {
         self.panel = None;
+        self.cut_retired();
         self.reset_input();
     }
 
@@ -163,6 +228,11 @@ impl Windows {
         self.panel.as_ref().is_some_and(|p| p.has_surface(surface))
     }
 
+    /// The visible panel and the closing one, whichever exist.
+    pub(super) fn panels_mut(&mut self) -> impl Iterator<Item = &mut Panel> {
+        self.panel.iter_mut().chain(self.closing.iter_mut())
+    }
+
     pub(super) fn keyboard_mut(&mut self) -> &mut Keyboard {
         &mut self.keyboard
     }
@@ -175,13 +245,30 @@ impl Windows {
         }
     }
 
-    /// Draws the visible panel if a frame is due. Call it after each
-    /// dispatched batch of events: event handlers only update state, so a
-    /// preferred scale and the configure that follows it in the same batch
-    /// produce one frame, not two.
+    /// Draws the visible panel, and the one closing, if a frame is due.
+    /// Call it after each dispatched batch of events: event handlers only
+    /// update state, so a preferred scale and the configure that follows it
+    /// in the same batch produce one frame, not two.
     pub fn draw_pending(&mut self, qh: &QueueHandle<Self>) {
-        let Some(panel) = &mut self.panel else { return };
-        let reconfigured = panel.draw_if_needed(&self.gpu, &mut self.renderer, qh);
+        let mut painter = Painter {
+            gpu: &self.gpu,
+            renderer: &mut self.renderer,
+            qh,
+            compositor: &self.shell.compositor,
+            presentation: self.presentation.as_ref().map(|p| &p.global),
+            clock: &mut self.clock,
+        };
+        if let Some(closing) = &mut self.closing
+            && closing.draw_if_needed(&mut painter).finished
+        {
+            self.closing = None;
+            super::trace::emit(format_args!("faded"));
+        }
+        let Some(panel) = &mut self.panel else {
+            return;
+        };
+        let reconfigured = panel.draw_if_needed(&mut painter).reconfigured;
+        let shown = panel.was_shown();
         if let Some(g) = reconfigured.filter(|_| self.verbose) {
             let config = panel.config();
             eprintln!(
@@ -195,6 +282,9 @@ impl Windows {
                 config.present_mode,
                 config.alpha_mode,
             );
+        }
+        if shown {
+            self.cut_retired();
         }
     }
 }

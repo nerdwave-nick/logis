@@ -9,6 +9,8 @@ pub mod input;
 
 pub mod list;
 
+pub mod motion;
+
 pub mod render;
 
 pub mod text;
