@@ -8,7 +8,7 @@ use logis::config::{self, Config};
 
 use super::resolver::{Resolver, Toast};
 use super::sessions::{Effect, SessionId, Sessions};
-use crate::protocol::{self, Item, Mode, Outcome, Reply, Request};
+use crate::protocol::{self, Item, Mode, Options, Outcome, Reply, Request};
 
 /// Everything the daemon's event loop reacts to.
 pub enum Event {
@@ -48,9 +48,11 @@ enum Phase {
     Greeting,
     /// Greeted; waiting for `open`.
     Ready,
-    /// A session is open. `pending` holds items while it waits in the queue.
+    /// A session is open. `pending` holds items while it waits in the
+    /// queue; `options` go to the resolver when it is shown.
     Open {
         mode: Mode,
+        options: Box<Options>,
         pending: Vec<Item>,
         ended: bool,
     },
@@ -128,10 +130,11 @@ impl<R: Resolver> Core<R> {
                     protocol::VERSION
                 ),
             ),
-            (Phase::Ready, Request::Open { mode }) => match self.resolver.accepts(mode) {
+            (Phase::Ready, Request::Open { mode, options }) => match self.resolver.accepts(mode) {
                 Ok(()) => {
                     c.phase = Phase::Open {
                         mode,
+                        options: Box::new(options),
                         pending: Vec::new(),
                         ended: false,
                     };
@@ -145,6 +148,7 @@ impl<R: Resolver> Core<R> {
                     mode,
                     pending,
                     ended,
+                    ..
                 },
                 Request::Items { items },
             ) => {
@@ -238,13 +242,15 @@ impl<R: Resolver> Core<R> {
         };
         if let Phase::Open {
             mode,
+            options,
             pending,
             ended,
         } = &mut c.phase
         {
             c.peer.send(&Reply::Visible);
             let items = std::mem::take(pending);
-            self.resolver.show(id, *mode, items, *ended);
+            let options = std::mem::take(&mut **options);
+            self.resolver.show(id, *mode, options, items, *ended);
         }
     }
 }
@@ -304,8 +310,16 @@ mod tests {
         fn accepts(&self, _: Mode) -> Result<(), String> {
             self.refuse.map_or(Ok(()), |m| Err(m.to_owned()))
         }
-        fn show(&mut self, s: SessionId, mode: Mode, items: Vec<Item>, complete: bool) {
-            self.note(format!("show {s} {mode:?} [{}] {complete}", texts(&items)));
+        fn show(&mut self, s: SessionId, mode: Mode, o: Options, items: Vec<Item>, done: bool) {
+            let prompt = if o.prompt == Options::default().prompt {
+                String::new()
+            } else {
+                format!(" '{}'", o.prompt)
+            };
+            self.note(format!(
+                "show {s} {mode:?}{prompt} [{}] {done}",
+                texts(&items)
+            ));
         }
         fn append(&mut self, s: SessionId, items: Vec<Item>) {
             self.note(format!("append {s} [{}]", texts(&items)));
@@ -355,8 +369,40 @@ mod tests {
 
     fn open<R: Resolver>(core: &mut Core<R>, conn: SessionId, mode: Mode) -> Wire {
         let wire = greet(core, conn);
-        core.receive(conn, Ok(Request::Open { mode }));
+        core.receive(conn, Ok(open_request(mode)));
         wire
+    }
+
+    fn open_request(mode: Mode) -> Request {
+        Request::Open {
+            mode,
+            options: Options::default(),
+        }
+    }
+
+    #[test]
+    fn the_options_a_client_opened_with_reach_the_resolver_when_shown() {
+        let (mut core, recorder) = core();
+        open(&mut core, 1, Mode::Dmenu);
+        let _queued = greet(&mut core, 2);
+        let options = Options {
+            prompt: "rite? ".into(),
+            ..Options::default()
+        };
+        core.receive(
+            2,
+            Ok(Request::Open {
+                mode: Mode::Dmenu,
+                options,
+            }),
+        );
+        core.receive(2, Ok(items(&["b"])));
+        assert_eq!(recorder.take(), ["show 1 Dmenu [] false"]);
+        core.receive(1, Ok(Request::Cancel));
+        assert_eq!(
+            recorder.take(),
+            ["hide 1", "show 2 Dmenu 'rite? ' [b] false"]
+        );
     }
 
     fn result(outcome: Outcome) -> Reply {
@@ -482,23 +528,13 @@ mod tests {
     fn protocol_violations_end_the_connection_with_an_error() {
         let cases: [(&[Request], &str); 4] = [
             (&[items(&["a"])], "open"),
+            (&[open_request(Mode::Apps), items(&["a"])], "dmenu"),
             (
-                &[Request::Open { mode: Mode::Apps }, items(&["a"])],
-                "dmenu",
-            ),
-            (
-                &[
-                    Request::Open { mode: Mode::Dmenu },
-                    Request::End,
-                    items(&["a"]),
-                ],
+                &[open_request(Mode::Dmenu), Request::End, items(&["a"])],
                 "end",
             ),
             (
-                &[
-                    Request::Open { mode: Mode::Dmenu },
-                    Request::Hello { version: 1 },
-                ],
+                &[open_request(Mode::Dmenu), Request::Hello { version: 1 }],
                 "hello",
             ),
         ];

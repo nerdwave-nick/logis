@@ -9,7 +9,7 @@ use logis::config::Config;
 
 use super::core::Event;
 use super::sessions::SessionId;
-use crate::protocol::{Item, Mode, Outcome};
+use crate::protocol::{Item, Mode, Options, Outcome};
 
 /// A short themed notice for the user (CONTEXT.md: toast, vox-cast). The
 /// window shows it over a visible session, or on its own; until a window
@@ -29,9 +29,17 @@ pub enum Toast {
 pub trait Resolver {
     /// Whether sessions of this mode can be answered at all.
     fn accepts(&self, mode: Mode) -> Result<(), String>;
-    /// The session becomes visible with the items received so far;
-    /// `complete` says the client has already sent all of them.
-    fn show(&mut self, session: SessionId, mode: Mode, items: Vec<Item>, complete: bool);
+    /// The session becomes visible with the list `options` its client asked
+    /// for and the items received so far; `complete` says the client has
+    /// already sent all of them.
+    fn show(
+        &mut self,
+        session: SessionId,
+        mode: Mode,
+        options: Options,
+        items: Vec<Item>,
+        complete: bool,
+    );
     /// More items for the visible session.
     fn append(&mut self, session: SessionId, items: Vec<Item>);
     /// The visible session's client has sent all its items.
@@ -49,8 +57,15 @@ impl<R: Resolver + ?Sized> Resolver for Box<R> {
     fn accepts(&self, mode: Mode) -> Result<(), String> {
         (**self).accepts(mode)
     }
-    fn show(&mut self, session: SessionId, mode: Mode, items: Vec<Item>, complete: bool) {
-        (**self).show(session, mode, items, complete);
+    fn show(
+        &mut self,
+        session: SessionId,
+        mode: Mode,
+        options: Options,
+        items: Vec<Item>,
+        complete: bool,
+    ) {
+        (**self).show(session, mode, options, items, complete);
     }
     fn append(&mut self, session: SessionId, items: Vec<Item>) {
         (**self).append(session, items);
@@ -78,7 +93,7 @@ impl Resolver for Windowless {
              this machine spirit can only listen"
             .to_owned())
     }
-    fn show(&mut self, _: SessionId, _: Mode, _: Vec<Item>, _: bool) {}
+    fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Item>, _: bool) {}
     fn append(&mut self, _: SessionId, _: Vec<Item>) {}
     fn end(&mut self, _: SessionId) {}
     fn hide(&mut self, _: SessionId) {}
@@ -117,7 +132,14 @@ impl Resolver for Scripted {
         Ok(())
     }
 
-    fn show(&mut self, session: SessionId, mode: Mode, items: Vec<Item>, complete: bool) {
+    fn show(
+        &mut self,
+        session: SessionId,
+        mode: Mode,
+        _: Options,
+        items: Vec<Item>,
+        complete: bool,
+    ) {
         self.visible = Some(Visible {
             session,
             mode,
@@ -190,7 +212,13 @@ mod tests {
     fn a_complete_session_is_answered_with_the_first_marked_item() {
         let (tx, rx) = channel();
         let mut r = Scripted::new(tx);
-        r.show(1, Mode::Dmenu, items(&["a", ">b", ">c"]), true);
+        r.show(
+            1,
+            Mode::Dmenu,
+            Options::default(),
+            items(&["a", ">b", ">c"]),
+            true,
+        );
         assert_eq!(resolutions(&rx), [(1, selected(1, ">b"))]);
     }
 
@@ -198,7 +226,7 @@ mod tests {
     fn streamed_items_are_answered_at_the_end_counting_every_item() {
         let (tx, rx) = channel();
         let mut r = Scripted::new(tx);
-        r.show(4, Mode::Dmenu, items(&["a"]), false);
+        r.show(4, Mode::Dmenu, Options::default(), items(&["a"]), false);
         r.append(4, items(&["b", ">c"]));
         assert!(resolutions(&rx).is_empty());
         r.end(4);
@@ -209,7 +237,7 @@ mod tests {
     fn without_a_marked_item_the_session_is_dismissed() {
         let (tx, rx) = channel();
         let mut r = Scripted::new(tx);
-        r.show(2, Mode::Dmenu, items(&["a", "b"]), true);
+        r.show(2, Mode::Dmenu, Options::default(), items(&["a", "b"]), true);
         assert_eq!(resolutions(&rx), [(2, Outcome::Dismissed)]);
     }
 
@@ -217,7 +245,7 @@ mod tests {
     fn a_hidden_session_is_never_answered() {
         let (tx, rx) = channel();
         let mut r = Scripted::new(tx);
-        r.show(1, Mode::Dmenu, items(&[">a"]), false);
+        r.show(1, Mode::Dmenu, Options::default(), items(&[">a"]), false);
         r.hide(1);
         r.end(1);
         r.append(1, items(&[">b"]));
@@ -228,8 +256,8 @@ mod tests {
     fn interactive_sessions_are_left_open() {
         let (tx, rx) = channel();
         let mut r = Scripted::new(tx);
-        r.show(1, Mode::Apps, Vec::new(), true);
-        r.show(2, Mode::Servitor, items(&[">a"]), true);
+        r.show(1, Mode::Apps, Options::default(), Vec::new(), true);
+        r.show(2, Mode::Servitor, Options::default(), items(&[">a"]), true);
         assert!(resolutions(&rx).is_empty());
     }
 

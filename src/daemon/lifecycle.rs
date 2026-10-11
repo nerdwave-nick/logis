@@ -86,7 +86,7 @@ mod tests {
     use super::*;
     use crate::daemon::resolver::{Toast, Windowless};
     use crate::daemon::sessions::SessionId;
-    use crate::protocol::{Item, Mode, Reply};
+    use crate::protocol::{Item, Mode, Options, Reply};
     use logis::config::{Config, Error, Invalid, Problem};
     use std::sync::mpsc::channel;
     use std::sync::{Arc, Mutex};
@@ -130,7 +130,7 @@ mod tests {
         fn accepts(&self, _: Mode) -> Result<(), String> {
             Ok(())
         }
-        fn show(&mut self, _: SessionId, _: Mode, _: Vec<Item>, _: bool) {}
+        fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Item>, _: bool) {}
         fn append(&mut self, _: SessionId, _: Vec<Item>) {}
         fn end(&mut self, _: SessionId) {}
         fn hide(&mut self, _: SessionId) {}

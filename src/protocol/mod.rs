@@ -4,7 +4,8 @@
 //! One connection carries at most one session:
 //!
 //! 1. client → `hello`; daemon → `welcome` (or `error` and close).
-//! 2. client → `open`; daemon → `queued` and/or `visible`.
+//! 2. client → `open` (with the list's [`Options`]); daemon → `queued`
+//!    and/or `visible`.
 //! 3. dmenu sessions: client → any number of `items`, then `end`.
 //! 4. daemon → `result`, then the daemon closes the connection.
 //!
@@ -23,8 +24,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Bumped whenever a message changes incompatibly.
-pub const VERSION: u32 = 1;
+pub use logis::list::Options;
+
+/// Bumped whenever a message changes incompatibly. 2: `open` carries the
+/// list's options, items may carry their match text, and `typed` outcomes.
+pub const VERSION: u32 = 2;
 
 /// The socket's file name inside `$XDG_RUNTIME_DIR`.
 pub const SOCKET_NAME: &str = "logis.sock";
@@ -59,8 +63,11 @@ impl Mode {
 /// One selectable row: its original bytes, kept apart from its display text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Item {
-    /// The text shown and matched.
+    /// The text shown, and matched unless `match` says otherwise.
     pub text: String,
+    /// The text matched instead of `text` (`--match-nth`).
+    #[serde(rename = "match", default, skip_serializing_if = "Option::is_none")]
+    pub match_text: Option<String>,
     /// The exact input bytes, returned unchanged when the item is chosen.
     #[serde(with = "base64::serde_bytes")]
     pub raw: Vec<u8>,
@@ -68,9 +75,14 @@ pub struct Item {
 
 impl Item {
     /// A dmenu line: the bytes as read, and their lossy UTF-8 for display.
+    #[cfg(test)]
     pub fn from_raw(raw: Vec<u8>) -> Self {
         let text = String::from_utf8_lossy(&raw).into_owned();
-        Self { text, raw }
+        Self {
+            text,
+            match_text: None,
+            raw,
+        }
     }
 }
 
@@ -78,9 +90,17 @@ impl Item {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Request {
-    Hello { version: u32 },
-    Open { mode: Mode },
-    Items { items: Vec<Item> },
+    Hello {
+        version: u32,
+    },
+    Open {
+        mode: Mode,
+        #[serde(default)]
+        options: Options,
+    },
+    Items {
+        items: Vec<Item>,
+    },
     End,
     Cancel,
 }
@@ -91,6 +111,9 @@ pub enum Request {
 pub enum Outcome {
     /// The user chose the item at `index` (in the order the items arrived).
     Selected { index: u64, item: Item },
+    /// The user accepted the typed text, which matched no item (dmenu's
+    /// free text; never with `only-match`).
+    Typed { text: String },
     /// The user dismissed the session.
     Dismissed,
     /// An interactive session took its place.
@@ -134,10 +157,26 @@ mod tests {
             wire(&Request::Hello { version: 1 }),
             json!({"type": "hello", "version": 1})
         );
+        assert_eq!(VERSION, 2, "a changed protocol says so");
         assert_eq!(
-            wire(&Request::Open { mode: Mode::Dmenu }),
-            json!({"type": "open", "mode": "dmenu"})
+            wire(&Reply::Result {
+                outcome: Outcome::Typed { text: "x".into() }
+            }),
+            json!({"type": "result", "outcome": {"kind": "typed", "text": "x"}})
         );
+        let open = |mode| Request::Open {
+            mode,
+            options: Options::default(),
+        };
+        let shape = wire(&open(Mode::Dmenu));
+        assert_eq!(shape["type"], "open");
+        assert_eq!(shape["mode"], "dmenu");
+        assert_eq!(shape["options"]["prompt"], "> ");
+        assert_eq!(shape["options"]["only-match"], false);
+        // Every option has a default, so a bare open is still an open.
+        let bare: Request =
+            serde_json::from_value(json!({"type": "open", "mode": "apps"})).unwrap();
+        assert_eq!(bare, open(Mode::Apps));
         assert_eq!(wire(&Request::End), json!({"type": "end"}));
         assert_eq!(wire(&Request::Cancel), json!({"type": "cancel"}));
     }
@@ -155,6 +194,13 @@ mod tests {
         );
         let back: Request = serde_json::from_value(wire(&message)).unwrap();
         assert_eq!(back, message);
+        let matched = Item {
+            match_text: Some("x".into()),
+            ..item
+        };
+        assert_eq!(wire(&matched)["match"], "x");
+        let back: Item = serde_json::from_value(wire(&matched)).unwrap();
+        assert_eq!(back, matched);
     }
 
     #[test]

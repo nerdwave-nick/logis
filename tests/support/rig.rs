@@ -241,7 +241,7 @@ impl Raw {
 
     /// Says hello; returns the welcome.
     pub fn greet(&mut self) -> Value {
-        self.send(json!({"type": "hello", "version": 1}));
+        self.send(json!({"type": "hello", "version": 2}));
         let welcome = self.recv().expect("no welcome");
         assert_eq!(welcome["type"], "welcome", "{welcome}");
         welcome

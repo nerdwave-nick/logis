@@ -3,6 +3,7 @@
 mod cli;
 mod client;
 mod daemon;
+mod nth;
 mod protocol;
 mod wayland;
 
@@ -22,7 +23,7 @@ fn main() -> ExitCode {
             Ok(_) => ExitCode::SUCCESS,
             Err(e) => fail(&e),
         },
-        Ok(cli::Command::Dmenu { config }) => client::dmenu::run(config.as_deref()),
+        Ok(cli::Command::Dmenu { config, dmenu }) => client::dmenu::run(config.as_deref(), *dmenu),
         Ok(cli::Command::CheckConfig { config }) => {
             let source = logis::config::Source::new(config.as_deref());
             match logis::config::check(&source) {

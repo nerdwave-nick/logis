@@ -1,88 +1,52 @@
-//! The client side of a dmenu session, as far as this slice goes: stdin lines
-//! stream to the daemon as items while the session is open, and the chosen
-//! item's original bytes come back on stdout. The full flag set and NUL mode
-//! belong to the dmenu slice.
+//! stdin to items: input lines (ended by newline, or NUL for `--dmenu0`)
+//! stream to the daemon in batches as they arrive, each item keeping its
+//! original bytes apart from the text it shows and the text it is matched by
+//! (`--with-nth`, `--match-nth`).
 
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
-use std::os::fd::AsFd;
-use std::path::Path;
-use std::process::ExitCode;
-use std::thread;
+use std::io::{BufRead, BufReader, Read};
 
-use crate::fail;
-use crate::protocol::{Item, Mode, Outcome, Reply, Request};
+use crate::cli::Dmenu;
+use crate::protocol::{Item, Request};
 
 /// At most this many items go into one frame.
 const BATCH_ITEMS: usize = 1024;
 /// And at most about this many bytes of item text.
 const BATCH_BYTES: usize = 256 << 10;
 
-/// Runs a dmenu session: exit 0 with the choice on stdout, 1 when dismissed.
-/// `config` goes to a daemon this client has to start.
-pub fn run(config: Option<&Path>) -> ExitCode {
-    match session(config) {
-        Ok(Some(raw)) => {
-            let mut out = io::stdout().lock();
-            match out
-                .write_all(&raw)
-                .and_then(|()| out.write_all(b"\n"))
-                .and_then(|()| out.flush())
-            {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(e) => fail(&format!("the choice could not be inscribed on stdout: {e}")),
-            }
-        }
-        Ok(None) => ExitCode::from(1),
-        Err(message) => fail(&message),
+/// One input line as an item: shown as its `--with-nth` columns (or whole),
+/// matched by its `--match-nth` columns (or as shown), bytes kept as read.
+pub fn item(raw: Vec<u8>, dmenu: &Dmenu) -> Item {
+    let lossy = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+    let columns = |nth: &crate::nth::Nth| lossy(&nth.apply(&raw, dmenu.delimiter));
+    Item {
+        text: dmenu.with_nth.as_ref().map_or_else(|| lossy(&raw), columns),
+        match_text: dmenu.match_nth.as_ref().map(columns),
+        raw,
     }
 }
 
-/// The chosen item's original bytes, or `None` if the session ended without one.
-fn session(config: Option<&Path>) -> Result<Option<Vec<u8>>, String> {
-    let mut connection = super::connect(config)?;
-    connection.send(&Request::Open { mode: Mode::Dmenu })?;
-    let mut sender = connection.try_clone()?;
-    let stdin = io::stdin()
-        .as_fd()
-        .try_clone_to_owned()
-        .map_err(|e| e.to_string())?;
-    // The daemon may answer before stdin ends; the process exit stops this thread.
-    thread::spawn(move || {
-        stream_items(File::from(stdin), |request| sender.send(&request).is_ok());
-    });
-    loop {
-        match connection.recv()? {
-            Some(Reply::Queued | Reply::Visible) => {}
-            Some(Reply::Result {
-                outcome: Outcome::Selected { item, .. },
-            }) => return Ok(Some(item.raw)),
-            Some(Reply::Result { .. }) => return Ok(None),
-            Some(Reply::Error { message }) => return Err(message),
-            Some(other) => return Err(format!("the machine spirit spoke out of turn: {other:?}")),
-            None => return Err("the machine spirit fell silent before answering".to_owned()),
-        }
-    }
-}
-
-/// Reads newline-separated lines and sends them as `items` frames, then `end`.
-/// A batch goes out whenever the input has nothing more buffered, so items
-/// reach the daemon as they arrive. Stops early when `send` fails.
-fn stream_items<R: Read>(input: R, mut send: impl FnMut(Request) -> bool) {
-    let mut input = BufReader::with_capacity(64 << 10, input);
+/// Reads lines ended by `separator` and sends them as `items` frames, then
+/// `end`. A batch goes out whenever the input has nothing more buffered, so
+/// items reach the daemon as they arrive. Stops early when `send` fails.
+pub fn stream_items<R: Read>(
+    mut input: BufReader<R>,
+    separator: u8,
+    make: impl Fn(Vec<u8>) -> Item,
+    mut send: impl FnMut(Request) -> bool,
+) {
     let mut batch = Vec::new();
     let mut bytes = 0;
     loop {
         let mut line = Vec::new();
-        match input.read_until(b'\n', &mut line) {
+        match input.read_until(separator, &mut line) {
             Ok(0) | Err(_) => break,
             Ok(_) => {}
         }
-        if line.last() == Some(&b'\n') {
+        if line.last() == Some(&separator) {
             line.pop();
         }
         bytes += line.len();
-        batch.push(Item::from_raw(line));
+        batch.push(make(line));
         if batch.len() >= BATCH_ITEMS || bytes >= BATCH_BYTES || input.buffer().is_empty() {
             bytes = 0;
             if !send(Request::Items {
@@ -101,6 +65,7 @@ fn stream_items<R: Read>(input: R, mut send: impl FnMut(Request) -> bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io;
 
     /// A reader that hands out its chunks one `read` at a time.
     struct Chunks(Vec<&'static [u8]>);
@@ -118,8 +83,13 @@ mod tests {
 
     /// The frames sent, each as the raw bytes of its items (or "END").
     fn frames(chunks: Vec<&'static [u8]>) -> Vec<Vec<Vec<u8>>> {
+        frames_split(chunks, b'\n')
+    }
+
+    fn frames_split(chunks: Vec<&'static [u8]>, separator: u8) -> Vec<Vec<Vec<u8>>> {
         let mut sent = Vec::new();
-        stream_items(Chunks(chunks), |request| {
+        let input = BufReader::with_capacity(64 << 10, Chunks(chunks));
+        stream_items(input, separator, Item::from_raw, |request| {
             sent.push(match request {
                 Request::Items { items } => items.into_iter().map(|i| i.raw).collect(),
                 Request::End => vec![b"END".to_vec()],
@@ -172,7 +142,8 @@ mod tests {
     #[test]
     fn streaming_stops_when_the_daemon_is_gone() {
         let mut calls = 0;
-        stream_items(Chunks(vec![b"a\n", b"b\n"]), |_| {
+        let input = BufReader::new(Chunks(vec![b"a\n", b"b\n"]));
+        stream_items(input, b'\n', Item::from_raw, |_| {
             calls += 1;
             false
         });
@@ -181,7 +152,31 @@ mod tests {
 
     #[test]
     fn items_display_their_lossy_text() {
-        let item = Item::from_raw(b"caf\xc3\xa9 \xff".to_vec());
+        let item = item(b"caf\xc3\xa9 \xff".to_vec(), &Dmenu::default());
         assert_eq!(item.text, "café \u{fffd}");
+        assert_eq!(item.match_text, None);
+        assert_eq!(item.raw, b"caf\xc3\xa9 \xff");
+    }
+
+    #[test]
+    fn nul_separated_input_keeps_newlines_inside_items() {
+        let sent = frames_split(vec![b"a\nb\0c\0", b"d"], 0);
+        assert_eq!(
+            sent,
+            [lines(&[b"a\nb", b"c"]), lines(&[b"d"]), lines(&[b"END"])]
+        );
+    }
+
+    #[test]
+    fn with_nth_shapes_the_text_and_match_nth_the_match_text() {
+        let dmenu = Dmenu {
+            with_nth: crate::nth::Nth::parse("2").unwrap(),
+            match_nth: crate::nth::Nth::parse("{3} {1}").unwrap(),
+            ..Dmenu::default()
+        };
+        let item = item(b"id\tShown \xff\tsecret".to_vec(), &dmenu);
+        assert_eq!(item.text, "Shown \u{fffd}");
+        assert_eq!(item.match_text.as_deref(), Some("secret id"));
+        assert_eq!(item.raw, b"id\tShown \xff\tsecret", "the bytes stay whole");
     }
 }
