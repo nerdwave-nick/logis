@@ -1,0 +1,15 @@
+[Icon Theme]
+Name=Logis Cogitator
+Comment=Fixture parent theme
+Inherits=logis-forge
+Directories=22x22/apps,scalable/apps
+
+[22x22/apps]
+Size=22
+Type=Fixed
+
+[scalable/apps]
+Size=48
+MinSize=16
+MaxSize=128
+Type=Scalable
