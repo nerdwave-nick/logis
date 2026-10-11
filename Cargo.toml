@@ -1,0 +1,19 @@
+[package]
+name = "logis"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+description = "A grimdark Wayland launcher and dmenu-compatible picker"
+license = "MIT"
+repository = "https://github.com/nerdwave-nick/logis"
+readme = "README.md"
+# research/ is disposable evidence with its own Cargo package; never ship it.
+exclude = ["/research", "/.github"]
+
+[dependencies]
+
+# research/proto-rust is a separate, disposable Cargo package. Keeping the root
+# an explicit workspace that excludes it means neither cargo invocation captures
+# the other.
+[workspace]
+exclude = ["research/proto-rust"]
