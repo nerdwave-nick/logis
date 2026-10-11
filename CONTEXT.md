@@ -134,9 +134,9 @@ Its outcome may be reported as a toast.
 **Toast**:
 A short, themed notice of an action's outcome or of an error, such as a
 provider's result or a configuration error after a live reload. It shows over the
-bottom of the list for 3 s (or as long as its provider asks); when the provider ends its flow meanwhile, the window
-**lingers** on it without the keyboard. (servitor mode shows none: servitor
-announces its own verdicts.)
+bottom of the list for 3 s (or as long as its provider asks); when the provider
+ends its flow meanwhile, the window **lingers** on it without the keyboard.
+(servitor mode shows none: servitor announces its own verdicts.)
 
 **Pending**:
 The state of an item whose data has not settled yet, such as an aspect still

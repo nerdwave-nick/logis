@@ -16,8 +16,8 @@ logis is meant to be:
 
 ## Status
 
-**Early.** `logis --dmenu` works; the app launcher and servitor mode are still to
-come. The binary does this much:
+**Early.** `logis --dmenu` and `logis --provider` work; the app launcher and
+servitor mode are still to come. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
