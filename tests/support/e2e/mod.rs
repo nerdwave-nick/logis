@@ -111,6 +111,21 @@ default_border none
 focus_follows_mouse no
 ";
 
+/// The fontconfig configuration of every client: only the pinned fonts in
+/// tests/fonts/ (the text slice's OFL subsets), so text renders the same on
+/// every machine; `{FONTS}` and `{CACHE}` are filled in.
+const FONTS_CONF: &str = r#"<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>{FONTS}</dir>
+  <cachedir>{CACHE}</cachedir>
+  <alias binding="same">
+    <family>sans-serif</family>
+    <prefer><family>Noto Sans</family></prefer>
+  </alias>
+</fontconfig>
+"#;
+
 /// A compositor the harness started, with its scratch runtime directory.
 pub struct TestCompositor {
     kind: Kind,
@@ -126,6 +141,14 @@ impl TestCompositor {
         let dir = ScratchDir::new();
         std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let log = std::fs::File::create(dir.path().join("compositor.log")).unwrap();
+        let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fonts");
+        let fonts_conf = FONTS_CONF
+            .replace("{FONTS}", &fonts.display().to_string())
+            .replace(
+                "{CACHE}",
+                &dir.path().join("fontconfig").display().to_string(),
+            );
+        std::fs::write(dir.path().join("fonts.conf"), fonts_conf).unwrap();
         let mut command = match kind {
             Kind::NestedNiri => niri(dir.path()),
             Kind::HeadlessSway => sway(dir.path()),
@@ -197,7 +220,7 @@ impl TestCompositor {
     }
 
     /// `program` as a client of this compositor: its runtime directory and
-    /// socket, and nothing that points at another session.
+    /// socket, the pinned fonts, and nothing that points at another session.
     pub fn command(&self, program: impl AsRef<std::ffi::OsStr>) -> Command {
         let mut command = Command::new(program);
         for var in [
@@ -213,6 +236,7 @@ impl TestCompositor {
         command
             .env("XDG_RUNTIME_DIR", self.dir.path())
             .env("WAYLAND_DISPLAY", self.socket.file_name().unwrap())
+            .env("FONTCONFIG_FILE", self.dir.path().join("fonts.conf"))
             .stdin(Stdio::null());
         command
     }
