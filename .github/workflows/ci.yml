@@ -21,10 +21,13 @@ jobs:
       - uses: actions/checkout@v5
 
       # wayland-client's system backend links libwayland-client via pkg-config.
+      # The runner has no GPU: Mesa's lavapipe (mesa-vulkan-drivers) gives the
+      # renderer's offscreen tests a software Vulkan adapter.
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwayland-dev pkg-config
+          sudo apt-get install -y --no-install-recommends libwayland-dev pkg-config \
+            libvulkan1 mesa-vulkan-drivers
 
       - name: Install Rust ${{ env.RUSTUP_TOOLCHAIN }}
         run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt,clippy
@@ -35,5 +38,9 @@ jobs:
       - name: cargo clippy -D warnings
         run: cargo clippy --locked --all-targets -- -D warnings
 
+      # A missing adapter fails these backends instead of skipping them; the
+      # GL test still skips here (no EGL on the runner).
       - name: cargo test
+        env:
+          LOGIS_TEST_REQUIRE_BACKENDS: auto,vulkan,software
         run: cargo test --locked
