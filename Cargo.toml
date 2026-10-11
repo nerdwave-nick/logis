@@ -11,6 +11,9 @@ readme = "README.md"
 exclude = ["/research", "/.github"]
 
 [dependencies]
+# The Wayland client of the decided stack (ADR 0001), lowest layer only: the
+# system backend (libwayland-client) that GPU presentation will need.
+wayland-client = { version = "0.31.15", features = ["system"] }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures

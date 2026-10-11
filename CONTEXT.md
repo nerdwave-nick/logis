@@ -175,6 +175,8 @@ noosphere is silent" means no compositor answers.
 
 **Altar** [a compositor offering layer shell]: where a cogitator can be raised.
 
+**Rune** [a command-line flag]: as in servitor; an unknown rune is an error (exit 2).
+
 **Vox-cast** [toast]: a themed notice, in servitor's sense of sending word.
 
 **Heresy** [an error]: what invalid configuration or a failed invocation reports.
