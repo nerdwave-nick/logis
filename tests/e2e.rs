@@ -151,6 +151,13 @@ fn check_panel(harness: &mut Harness, name: &str) {
         .then(|| goldens.load("e2e", name).ok())
         .flatten();
     let capture = settled_capture(harness);
+    for (x, y) in [(0, 0), (capture.width - 1, capture.height - 1)] {
+        assert_eq!(
+            capture.pixel(x, y),
+            [0, 0, 0, 255],
+            "the harness's backdrop is opaque black around the panel"
+        );
+    }
     let panel = crop_centred(&capture, DEBUG_SIZE, reference.as_ref());
     let verdict = goldens.assert("e2e", name, &panel, CAPTURE);
     eprintln!("e2e/{name}: {verdict:?}");

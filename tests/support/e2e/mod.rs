@@ -19,6 +19,7 @@
 //! harness spawned, so keys can never reach the live session.
 #![allow(dead_code)] // shared by test crates that each use only part of it
 
+pub mod backdrop;
 pub mod client;
 pub mod keyboard;
 pub mod screencopy;
@@ -80,7 +81,9 @@ impl Kind {
 }
 
 /// The generated niri config: scale 1, no animations, no startup overlay,
-/// no Xwayland, a black background so captures do not depend on it.
+/// no Xwayland. Its background is deliberately not black (sway's default
+/// is dark grey): captures must depend only on the harness's own backdrop
+/// ([`wire::Harness::connect`]), never on a compositor default.
 pub const NIRI_CONFIG: &str = r##"// logis test compositor (nested niri); generated, never the owner's config.
 output "winit" {
     scale 1.0
@@ -95,15 +98,15 @@ xwayland-satellite {
     off
 }
 layout {
-    background-color "#000000"
+    background-color "#404040"
 }
 prefer-no-csd
 "##;
 
 /// The generated sway config: one headless output at 1280x720, scale 1, no
 /// Xwayland, no bindings (injected keys must reach the client, not sway).
-/// Without an `output … bg`, sway starts no swaybg and the background is
-/// black.
+/// Without an `output … bg`, sway starts no swaybg and shows its default
+/// dark grey; the harness's backdrop covers it.
 pub const SWAY_CONFIG: &str = "# logis test compositor (headless sway); generated.
 output HEADLESS-1 mode 1280x720@60Hz scale 1
 xwayland disable

@@ -15,6 +15,13 @@ use smithay_client_toolkit::reexports::protocols_misc::zwp_virtual_keyboard_v1::
     zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
+use smithay_client_toolkit::reexports::client::protocol::{
+    wl_compositor::WlCompositor, wl_surface::WlSurface,
+};
+use smithay_client_toolkit::reexports::protocols::wp::viewporter::client::{
+    wp_viewport::WpViewport, wp_viewporter::WpViewporter,
+};
+use smithay_client_toolkit::reexports::protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLayerShellV1;
 use smithay_client_toolkit::reexports::protocols_wlr::screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1;
 
 use super::{PATIENCE, TestCompositor};
@@ -51,6 +58,7 @@ pub struct State {
     pub(super) screencopy: ZwlrScreencopyManagerV1,
     pub(super) keyboards: ZwpVirtualKeyboardManagerV1,
     pub(super) capture: super::screencopy::Capture,
+    pub(super) backdrop: Option<super::backdrop::Backdrop>,
 }
 
 /// A connection to a test compositor and nothing else.
@@ -63,7 +71,9 @@ pub struct Harness {
 
 impl Harness {
     /// Connects to `compositor`'s socket, after [`verify_peer`] proved its
-    /// server is the compositor process; panics otherwise.
+    /// server is the compositor process (panics otherwise), and paints the
+    /// black backdrop (see [`super::backdrop`]) so captures never depend on
+    /// the compositor's own background.
     pub fn connect(compositor: &TestCompositor) -> Self {
         let stream = UnixStream::connect(compositor.socket()).unwrap_or_else(|e| {
             panic!(
@@ -95,7 +105,17 @@ impl Harness {
                 .bind(&qh, 1..=1, ())
                 .unwrap_or_else(|_| missing("zwp_virtual_keyboard_manager_v1")),
             capture: Default::default(),
+            backdrop: None,
         };
+        let wl_compositor: WlCompositor = globals
+            .bind(&qh, 1..=4, ())
+            .unwrap_or_else(|_| missing("wl_compositor"));
+        let layer_shell: ZwlrLayerShellV1 = globals
+            .bind(&qh, 1..=4, ())
+            .unwrap_or_else(|_| missing("zwlr_layer_shell_v1"));
+        let viewporter: WpViewporter = globals
+            .bind(&qh, 1..=1, ())
+            .unwrap_or_else(|_| missing("wp_viewporter"));
         let mut harness = Self {
             connection,
             queue,
@@ -103,6 +123,7 @@ impl Harness {
             runtime_dir: compositor.runtime_dir().to_owned(),
         };
         harness.roundtrip();
+        harness.paint_backdrop(&wl_compositor, &layer_shell, &viewporter);
         harness
     }
 
@@ -220,6 +241,11 @@ impl Dispatch<WlOutput, ()> for State {
 }
 
 no_events!(
+    WlCompositor,
+    WlSurface,
+    ZwlrLayerShellV1,
+    WpViewporter,
+    WpViewport,
     WlShm,
     WlShmPool,
     WlBuffer,
