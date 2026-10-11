@@ -82,6 +82,7 @@ fn scene(shapes: Vec<RoundedRect>) -> Scene {
     Scene {
         clear: None,
         shapes,
+        ..Scene::default()
     }
 }
 

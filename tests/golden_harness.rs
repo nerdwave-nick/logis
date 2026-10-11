@@ -204,6 +204,8 @@ fn reference_scene() -> Scene {
     Scene {
         clear: Some(Rgba::new(0.0, 0.0, 0.0, 1.0)),
         shapes: vec![body, inset, bar],
+        images: Vec::new(),
+        texts: Vec::new(),
     }
 }
 

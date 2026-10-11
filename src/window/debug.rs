@@ -1,14 +1,14 @@
 //! The debug session: a static panel in the spirit of "forge crimson &
-//! brass", drawn only from SDF shapes (text, themes and animation come in
-//! later slices). Used to check scale handling on a live compositor and as
-//! the client of the E2E and latency harnesses: Up/Down move the selection,
+//! brass": SDF shapes and text rows (themes and animation come in later
+//! slices). Used to check scale and text on a live compositor and as the
+//! client of the E2E and latency harnesses: Up/Down move the selection,
 //! Escape closes it.
 
 use std::cell::Cell;
 use std::rc::Rc;
 
 use super::{WindowError, Windows};
-use crate::render::{BackendChoice, Border, Glow, Paint, Rgba, RoundedRect, Scene};
+use crate::render::{BackendChoice, Border, Glow, Overflow, Paint, Rgba, RoundedRect, Scene, Text};
 
 /// The panel body in logical pixels.
 const PANEL: (f32, f32) = (640.0, 360.0);
@@ -25,6 +25,7 @@ const CRIMSON: Rgba = Rgba::new(0.70, 0.06, 0.05, 1.0);
 const SOOT_TOP: Rgba = Rgba::new(0.085, 0.055, 0.045, 0.86);
 const SOOT_BOTTOM: Rgba = Rgba::new(0.045, 0.030, 0.026, 0.86);
 const ASH: Rgba = Rgba::new(0.54, 0.48, 0.40, 0.28);
+const BONE: Rgba = Rgba::hex(0xeadfc4);
 
 /// The debug panel's scene for a surface of `logical` size: the body fills
 /// it up to [`PANEL`], less the glow margin, so a smaller configure than
@@ -96,36 +97,46 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
         color: BRASS.with_alpha(0.7),
     });
 
-    let mut shapes = vec![body, rune, rule, selected, marker];
-    for (row, width) in [
-        0.62_f32, 0.48, 0.71, 0.55, 0.66, 0.40, 0.58, 0.50, 0.69, 0.44,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let dy = 75.0 + 26.0 * row as f32;
-        if dy + 20.0 > panel.1 {
+    let column = panel.0 - 44.0;
+    let line = |dy: f32, text: &str, size: f32, color: Rgba| {
+        Text::new(text, [x + 22.0, y + dy], size, color).in_column(column, Overflow::Ellipsis)
+    };
+    let title = Text::new(
+        "COGITATOR // RITE OF TESTING",
+        [x + 46.0, y + 12.0],
+        18.0,
+        BRASS,
+    );
+    let mut texts = vec![title.in_column(column - 24.0, Overflow::Ellipsis)];
+    for (row, text) in ROWS.iter().enumerate() {
+        let dy = 68.0 + 26.0 * row as f32;
+        if dy + 22.0 > panel.1 {
             break;
         }
-        let ash = if row == 0 {
-            BRASS.with_alpha(0.75)
-        } else {
-            ASH
-        };
-        shapes.push(rect(
-            22.0,
-            dy,
-            (panel.0 - 60.0) * width,
-            8.0,
-            4.0,
-            Paint::Solid(ash),
-        ));
+        let color = if row == 0 { BONE } else { ASH.with_alpha(0.9) };
+        texts.push(line(dy, text, 15.0, color));
     }
     Scene {
         clear: None,
-        shapes,
+        shapes: vec![body, rune, rule, selected, marker],
+        texts,
+        ..Scene::default()
     }
 }
+
+/// The debug rows: every script and feature the text slice covers, the
+/// last one too long for its column.
+const ROWS: [&str; 9] = [
+    "The machine spirit wakes: 0123456789",
+    "Ça déjà vu, naïve Ærø — Œuvre, Šťastný",
+    "機械の精霊 万机之神 기계 정령",
+    "logis: שָׁלוֹם and مرحبا بالعالم (42) ok",
+    "Praise 🔥⚙️💀🤖 the Omnissiah 👍🏽 🧑‍💻",
+    "fi fl ffi — ligatures, kerning: AVATAR Tolkien",
+    "Ἐν ἀρχῇ ἦν ὁ λόγος · Съешь же ещё",
+    "Ellipsis rite: this line is far too long for its column, so the cogitator cuts it short and seals it",
+    "Scale is taken from the compositor (1.0, 1.3, 2.0)",
+];
 
 /// The evdev codes the debug panel reacts to (raw codes: the keyboard
 /// slice brings xkb keysyms; until then this is enough for a debug panel).
@@ -135,8 +146,8 @@ pub const KEY_UP: u32 = 103;
 /// Down arrow.
 pub const KEY_DOWN: u32 = 108;
 
-/// The number of rows the selection can rest on.
-pub const ROWS: usize = 10;
+/// The number of rows the selection can rest on: the text rows.
+pub const SELECTABLE: usize = ROWS.len();
 /// The distance between rows in logical pixels.
 const ROW_PITCH: f32 = 26.0;
 /// Indices of the selection band and its marker in [`debug_scene`].
@@ -159,7 +170,7 @@ pub fn react(row: usize, code: u32) -> Reaction {
     match code {
         KEY_ESC => Reaction::Close,
         KEY_UP if row > 0 => Reaction::Select(row - 1),
-        KEY_DOWN if row + 1 < ROWS => Reaction::Select(row + 1),
+        KEY_DOWN if row + 1 < SELECTABLE => Reaction::Select(row + 1),
         _ => Reaction::Ignore,
     }
 }
@@ -225,7 +236,7 @@ mod tests {
         assert_eq!(react(0, KEY_DOWN), Reaction::Select(1));
         assert_eq!(react(1, KEY_UP), Reaction::Select(0));
         assert_eq!(react(0, KEY_UP), Reaction::Ignore);
-        assert_eq!(react(ROWS - 1, KEY_DOWN), Reaction::Ignore);
+        assert_eq!(react(SELECTABLE - 1, KEY_DOWN), Reaction::Ignore);
     }
 
     #[test]
@@ -251,7 +262,7 @@ mod tests {
 
     #[test]
     fn the_selection_never_leaves_a_smaller_body() {
-        let scene = debug_scene_at((466, 300), ROWS - 1);
+        let scene = debug_scene_at((466, 300), SELECTABLE - 1);
         let body = scene.shapes[0].rect;
         let selected = scene.shapes[SELECTED].rect;
         assert!(selected[1] + selected[3] <= body[1] + body[3]);

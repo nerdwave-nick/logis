@@ -35,6 +35,18 @@ serde_json = "1.0.152"
 # test trace (src/window/trace.rs), which std's opaque Instant cannot give a
 # harness in another process.
 rustix = { version = "1.1.5", features = ["stdio", "time"] }
+# SVG icons (spec §4.3/§4.7). Defaults off: icons need no <text> (no font
+# database, shaping or system font scan), no .svgz (flate2) and no embedded
+# GIF/WebP/JPEG. PNG icons decode through its re-exported tiny-skia, whose
+# default `png-format` feature is already in the tree, so no image crate.
+resvg = { version = "0.48.1", default-features = false }
+# Text (spec §4.4): glyphon's GPU glyph atlas over cosmic-text (shaping,
+# bidi, swash rasterisation with hinting); tracks wgpu 30. Fonts come from
+# libfontconfig through logis's own small FFI (src/text/fc.rs), not a crate.
+glyphon = "0.12.0"
+# Only to name `Script` in cosmic-text's `Fallback` trait; already in the tree
+# through cosmic-text (same 0.5 release), so it adds no crate.
+unicode-script = "0.5.8"
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures
