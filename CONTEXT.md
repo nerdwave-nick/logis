@@ -150,8 +150,34 @@ nothing.
 A `.desktop` file from the `applications` directories under `$XDG_DATA_HOME` and
 `$XDG_DATA_DIRS`. logis parses and launches them with its own implementation.
 
+**Desktop-file ID**:
+A desktop entry's name across directories: its path below `applications` with
+`/` turned into `-`. The first directory that has an ID wins (`$XDG_DATA_HOME`
+before `$XDG_DATA_DIRS`); without `.desktop` it is the **application ID** (the
+D-Bus name of a `DBusActivatable` app, the app_id of its window).
+
+**App index**:
+The desktop entries the launcher shows, read by the daemon and kept resident;
+read again when the `applications` directories change.
+
 **Desktop action**:
-An additional entry point declared by a desktop entry, offered as a second stage.
+An additional entry point declared by a desktop entry, offered as a second stage
+(Shift+Return on the app).
+
+**Session environment**:
+The environment a launched app runs in: the systemd user manager's (what the
+session imported), else the environment of the client that asked; never the
+daemon's own, which is frozen at its start.
+
+**Activation token**:
+An xdg-activation token the compositor issues for the window and the key that
+chose an app; passed to the app (`XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`)
+so that it opens focused.
+
+**App scope**:
+The transient systemd user scope a launched app runs in
+(`app-logis-<application ID>-<pid>.scope`), apart from logis, where a user
+manager answers.
 
 **Icon theme**:
 A freedesktop icon theme (`<base dir>/<name>/index.theme`), looked up for an item's
@@ -161,7 +187,8 @@ renderer's **image atlas**, the GPU texture all images are drawn from.
 
 **Frecency**:
 The ranking weight that combines how often and how recently an app was chosen,
-persisted in `$XDG_STATE_HOME/logis/`.
+persisted in `$XDG_STATE_HOME/logis/frecency.json`. It orders the app list and
+raises an app's match score by a bounded **boost**.
 
 ## servitor
 

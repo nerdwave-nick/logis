@@ -1,8 +1,8 @@
 # The provider protocol
 
 **Version 1.** Everything logis shows comes from a *provider* (spec §4.8): the
-built-in dmenu provider (a client's stdin), the app launcher and servitor mode
-(built in, to come), and external providers: any program that speaks this
+built-in dmenu provider (a client's stdin), the app launcher (built in) and
+servitor mode (built in, to come), and external providers: any program that speaks this
 protocol. An external provider fills one window with one or more *stages* (lists),
 is told what the user chose, and can show *toasts*. It is a process, never a
 plugin (no ABI).
@@ -93,9 +93,12 @@ The first stage sizes the window; later stages keep that size.
 | `badges` | `[]` | short labels at the row's end, such as `current` |
 | `pending` | `false` | the item's data has not settled: it is drawn dimmed with a "divining…" mark, **never activated** (Return on it does nothing) **and never preselected**; an upsert settles it |
 
-The icon column appears when any item of the stage has a glyph or icon. This
-version of logis draws glyphs; named icons are carried to the window and drawn
-once the list draws icons (the app launcher, ca5ef93c).
+The icon column appears when any item of the stage has a glyph or icon. An icon
+is looked up in the configured icon theme (then hicolor and the pixmaps) and
+drawn in place of the glyph; an item whose icon is not found shows its glyph.
+
+Shift+Return sends `activate` just as Return does (only the built-in app
+launcher gives it a meaning of its own: an app's desktop actions).
 
 ## Rules
 

@@ -16,13 +16,14 @@ logis is meant to be:
 
 ## Status
 
-**Early.** `logis --dmenu` and `logis --provider` work; the app launcher and
-servitor mode are still to come. The binary does this much:
+**Early.** `logis --dmenu`, `logis --apps` and `logis --provider` work;
+servitor mode is still to come. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
   [dmenu](#dmenu). Its window takes the [keyboard](#keyboard), the
   [pointer and paste](#pointer-and-paste).
+- `logis --apps` is the app launcher: see [App launcher](#app-launcher).
 - `logis --provider PROGRAM [ARG]...` shows what an external provider says, in
   one or more stages: see [Providers](#providers).
 - `logis daemon` is the resident daemon. It checks for a Wayland session whose
@@ -34,7 +35,7 @@ servitor mode are still to come. The binary does this much:
   config's `idle-timeout`, and `--idle-timeout 0` keeps the daemon resident
   whatever the config says. It reads its [configuration](#configuration) at
   start (an invalid one is an error, exit 2) and again whenever the file changes.
-- `logis`, `logis --dmenu` and `logis --provider` are clients. When no daemon answers they start one
+- `logis`, `logis --dmenu`, `logis --apps` and `logis --provider` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
   Plain `logis` only makes sure the daemon runs.
@@ -109,10 +110,54 @@ Where fuzzel's documentation leaves a choice open, logis decides so:
 - `--no-run-if-empty` exits 1 (nothing was chosen);
 - a format that names no column is an error, not a constant output.
 
+## App launcher
+
+```sh
+logis --apps
+```
+
+The daemon keeps an index of the installed applications resident and opens it in
+a few milliseconds. Type to filter (the name, the generic name, the keywords and
+the program are matched; matches in the name are drawn in brass), Return
+launches the selected app, and the client exits 0 (1 when dismissed, 2 on error).
+**Shift+Return** opens the app's desktop actions as a second stage in the same
+window (the app itself first, then each action); Return there launches the one
+chosen. Apps you launch often and lately come first and rank higher when you
+type (frecency, kept in `$XDG_STATE_HOME/logis/frecency.json`).
+
+- **Index:** desktop entries from `$XDG_DATA_HOME/applications`
+  (`~/.local/share/applications`), then `applications` in each of
+  `$XDG_DATA_DIRS`, read by logis's own implementation of the Desktop Entry
+  Specification (not GIO). Earlier directories override later ones by
+  desktop-file ID (`sub/app.desktop` is `sub-app.desktop`); an override with
+  `Hidden=true` deletes the entry. Hidden are `NoDisplay` entries, entries whose
+  `OnlyShowIn`/`NotShowIn` exclude the current desktops
+  (`$XDG_CURRENT_DESKTOP`) and entries whose `TryExec` program is missing.
+  Names, generic names and keywords are localised (`LC_ALL`, `LC_MESSAGES`,
+  `LANG`). The daemon watches the directories (inotify) and reads them again
+  when they change, so newly installed apps appear without a restart.
+- **Icons:** from the config's `icon-theme`, the themes it inherits, hicolor
+  and the pixmaps directories, drawn crisp at the output's scale.
+- **Exec:** field codes per the specification (`%f %F %u %U` vanish, as no files
+  are opened; `%i` is `--icon NAME`, `%c` the name, `%k` the file).
+  `Terminal=true` apps run behind the config's `terminal` (or `$TERMINAL -e`).
+- **Launch:** the app gets an xdg-activation token from the compositor
+  (`XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`), so it opens focused. It runs
+  in the session environment: the systemd user manager's
+  (`systemctl --user show-environment`), or, without one, the environment of the
+  `logis --apps` client; never the daemon's own, frozen at its start. Where a
+  systemd user manager answers, it runs in a transient scope of its own,
+  `app-logis-<app id>-<pid>.scope` in `app.slice`, so it is accounted and
+  stopped apart from logis. It runs in a session of its own with no
+  controlling terminal, so it outlives `logis` and the daemon.
+  `DBusActivatable=true` apps are started through D-Bus
+  (`org.freedesktop.Application`), or by their `Exec` if the bus cannot.
+  logis talks to the session bus itself (a few calls, no D-Bus library).
+
 ## Providers
 
 Everything logis shows comes from a provider: the built-in dmenu provider (stdin),
-the app launcher and servitor mode (to come), and external providers, programs
+the app launcher, servitor mode (to come), and external providers, programs
 that speak [the provider protocol](docs/provider-protocol.md): JSON lines over
 their stdin and stdout.
 
@@ -159,8 +204,8 @@ the daemon's log (and, once the window can show it, a themed notice).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
-follows `focus-loss`; themes, the terminal and the app launcher do not use their
-settings yet; the slices that build them will.
+follows `focus-loss` and `icon-theme`, the app launcher `terminal`; themes do not
+use their setting yet.
 
 ## Keyboard
 
@@ -174,6 +219,7 @@ when the window code starts; edits need a restart).
 |---|---|
 | Escape, Ctrl+G, Ctrl+[ | dismiss |
 | Return, keypad Enter | accept |
+| Shift+Return | open the selected app's desktop actions (elsewhere: accept) |
 | Up, Shift+Tab, Ctrl+P | select the previous item |
 | Down, Tab, Ctrl+N | select the next item |
 | Backspace / Delete | delete the character (grapheme) before / after the cursor |
@@ -317,6 +363,20 @@ with `mod support;`.
   signal rules, timeouts and protocol errors) and in the test compositor (a
   pending row Return cannot take, a second stage in the same window, a toast the
   window lingers on, Escape after an activation sparing the action).
+- **App launcher** ([`tests/launch.rs`](tests/launch.rs),
+  [`tests/apps.rs`](tests/apps.rs), [`tests/apps_window.rs`](tests/apps_window.rs)):
+  fixture desktop entries ([`tests/fixtures/apps/`](tests/fixtures/apps/)) and
+  the fixture program [`anoint`](tests/fixtures/apps/bin/anoint), which records
+  its arguments, environment, activation token and session, then waits. Launches
+  with a fake session bus ([`fake_bus.rs`](tests/support/fake_bus.rs): the user
+  manager's environment, the transient scope, D-Bus activation; the real bus is
+  never reached), through a real daemon with the scripted resolver (the launch,
+  frecency, an app installed while it runs), and in the test compositor (a real
+  activation token, the app outliving the killed daemon, desktop actions as a
+  second stage). The D-Bus messages logis writes are compared byte for byte with
+  GLib's ([`glib-reference.py`](tests/fixtures/dbus/glib-reference.py)). Test
+  daemons run without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so
+  they find no session bus.
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
@@ -330,12 +390,13 @@ default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pix
 `show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
 `update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
 `query <JSON string>`, `select <item>` (or `select none`), `accept <item>`,
-`typed <JSON string>`, `dismiss`, `linger <session>` and `hide <session>`.
+`descend <item>` (Shift+Return), `typed <JSON string>`, `dismiss`, `token
+<session>` (an activation token came), `linger <session>` and `hide <session>`.
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 
