@@ -27,7 +27,11 @@ on these foundations:
   through glyphon, with families and fallbacks resolved by libfontconfig
   in-process. `FontSystem::new()`, a full font scan costing 140 ms per launch, is
   never used (stack.md §2.1, §5.4).
-- **Input:** libxkbcommon through sctk.
+- **Input:** libxkbcommon, through the `xkbcommon` crate that sctk's own keyboard
+  integration wraps, driven directly by logis: sctk's keyboard handler hides the
+  consumed modifiers shortcuts need, never resets Compose and needs calloop for
+  key repeat. sctk remains the Wayland layer (amended 2026-10-11, owner decision
+  on b6ec83ab).
 
 The research spike (`research/proto-rust/src/bin/spike.rs`, `panel.wgsl`) drew the
 glowing brass-to-crimson panel with scanlines, grain, flicker, a travelling
