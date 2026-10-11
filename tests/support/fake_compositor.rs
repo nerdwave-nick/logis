@@ -1,11 +1,15 @@
 //! A fake Wayland compositor that speaks just enough of the wire protocol for
 //! a client to read the registry: it answers `wl_display.get_registry` with the
 //! globals it was given and `wl_display.sync` with `wl_callback.done`, and
-//! ignores every other request. It serves one client, then stops.
+//! ignores every other request. It serves every client on a thread of its
+//! own; dropping the returned [`Compositor`] hangs up on all of them, as a
+//! compositor that quits or crashes would.
 
 use std::io::{Read, Write};
+use std::net::Shutdown;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 const DISPLAY_ID: u32 = 1;
@@ -15,14 +19,43 @@ const DISPLAY_DELETE_ID: u16 = 1;
 const REGISTRY_GLOBAL: u16 = 0;
 const CALLBACK_DONE: u16 = 0;
 
-/// Listens on `<dir>/<name>` and serves one client on a background thread.
-pub fn serve(dir: &Path, name: &str, globals: &'static [(&'static str, u32)]) {
+/// The running fake compositor; dropping it hangs up on its clients.
+#[must_use = "dropping the compositor hangs up at once"]
+pub struct Compositor {
+    /// The accepted clients, and whether we hung up already.
+    clients: Arc<Mutex<(Vec<UnixStream>, bool)>>,
+}
+
+impl Drop for Compositor {
+    /// Disconnects every client, now or as soon as it connects.
+    fn drop(&mut self) {
+        let mut clients = self.clients.lock().unwrap();
+        clients.1 = true;
+        for stream in &clients.0 {
+            let _ = stream.shutdown(Shutdown::Both);
+        }
+    }
+}
+
+/// Listens on `<dir>/<name>` and serves clients on background threads.
+pub fn serve(dir: &Path, name: &str, globals: &'static [(&'static str, u32)]) -> Compositor {
     let listener = UnixListener::bind(dir.join(name)).unwrap();
+    let clients = Arc::new(Mutex::new((Vec::new(), false)));
+    let shared = Arc::clone(&clients);
     thread::spawn(move || {
-        if let Ok((stream, _)) = listener.accept() {
-            serve_client(stream, globals);
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { return };
+            {
+                let mut shared = shared.lock().unwrap();
+                if shared.1 {
+                    let _ = stream.shutdown(Shutdown::Both);
+                }
+                shared.0.extend(stream.try_clone());
+            }
+            thread::spawn(move || serve_client(stream, globals));
         }
     });
+    Compositor { clients }
 }
 
 fn serve_client(mut stream: UnixStream, globals: &[(&str, u32)]) {

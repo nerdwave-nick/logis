@@ -115,6 +115,7 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
         clear: None,
         shapes: vec![body, rune, rule, selected, marker],
         texts,
+        ..Scene::default()
     }
 }
 

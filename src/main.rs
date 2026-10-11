@@ -1,8 +1,12 @@
 //! logis: a grimdark Wayland launcher and dmenu-compatible picker.
 
 mod cli;
+mod client;
+mod daemon;
+mod protocol;
 mod wayland;
 
+use std::io::Write;
 use std::process::ExitCode;
 
 /// Exit status for every error (spec §4.6): the message goes to stderr.
@@ -14,18 +18,19 @@ fn main() -> ExitCode {
             println!("logis {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(cli::Command::Run) => match wayland::preflight() {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => fail(&e.to_string()),
+        Ok(cli::Command::Run) => match client::connect() {
+            Ok(_) => ExitCode::SUCCESS,
+            Err(e) => fail(&e),
         },
-        Ok(cli::Command::DebugPanel) => debug_panel(),
-        Err(arg) => fail(&format!(
-            "the rune '{arg}' is unknown to this cogitator. It knows only --version."
-        )),
+        Ok(cli::Command::Dmenu) => client::dmenu::run(),
+        Ok(cli::Command::Daemon(options)) if options.debug_panel => debug_panel(),
+        Ok(cli::Command::Daemon(options)) => daemon::run(options),
+        Err(e) => fail(&e.to_string()),
     }
 }
 
 /// `logis daemon --debug-panel`; `LOGIS_GPU_BACKEND` forces a backend.
+/// It is not the session daemon: it neither listens nor serves sessions.
 fn debug_panel() -> ExitCode {
     if let Err(e) = wayland::preflight() {
         return fail(&e.to_string());
@@ -39,7 +44,9 @@ fn debug_panel() -> ExitCode {
     }
 }
 
+/// Reports an error on stderr and returns the error exit status. A closed
+/// stderr (a daemon whose starter is gone) must not turn into a panic.
 fn fail(message: &str) -> ExitCode {
-    eprintln!("logis: {message}");
+    let _ = writeln!(std::io::stderr(), "logis: {message}");
     ExitCode::from(EXIT_ERROR)
 }

@@ -2,6 +2,8 @@
 //! render pass into a caller's command encoder. Nothing here waits on the GPU.
 
 use super::Gpu;
+use super::atlas::ImageAtlas;
+use super::images::ImagePass;
 use super::scale::Scale;
 use super::scene::{INSTANCE_FLOATS, Scene, pack};
 use super::text_pass::TextPass;
@@ -30,6 +32,7 @@ pub struct Renderer {
     frame: wgpu::Buffer,
     bind: wgpu::BindGroup,
     instances: wgpu::Buffer,
+    images: ImagePass,
     text: Option<TextPass>,
 }
 
@@ -75,6 +78,7 @@ impl Renderer {
         });
         let instances = instance_buffer(device, 16);
         Self {
+            images: ImagePass::new(gpu),
             shader,
             layout,
             pipelines: Vec::new(),
@@ -94,12 +98,24 @@ impl Renderer {
     /// Builds the pipeline for `format` now rather than on its first frame.
     pub fn prepare(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         self.pipeline(gpu, format);
+        self.images.prepare(gpu, format);
         if let Some(text) = &mut self.text {
             text.prepare_format(gpu, format);
         }
     }
 
-    /// Encodes `scene` into `target`: clears it, then paints every shape.
+    /// The image atlas the scene's [`super::ImageQuad`]s refer to.
+    pub fn atlas(&self) -> &ImageAtlas {
+        self.images.atlas()
+    }
+
+    /// The image atlas, to add images.
+    pub fn atlas_mut(&mut self) -> &mut ImageAtlas {
+        self.images.atlas_mut()
+    }
+
+    /// Encodes `scene` into `target`: clears it, then paints every shape,
+    /// then every image, then every line of text (the top layer).
     /// Buffers are written through the queue, so submit `encoder` before
     /// encoding the next frame.
     pub fn encode(
@@ -137,6 +153,7 @@ impl Renderer {
             b: f64::from(clear[2]),
             a: f64::from(clear[3]),
         };
+        self.images.upload(gpu, target, &scene.images);
         let pipeline = self.pipeline(gpu, target.format).clone();
         let text = self.prepare_text(gpu, target, scene);
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -158,6 +175,7 @@ impl Renderer {
             pass.set_vertex_buffer(0, self.instances.slice(..INSTANCE_BYTES * count as u64));
             pass.draw(0..4, 0..count as u32);
         }
+        self.images.draw(&mut pass, target.format);
         if let Some(text) = self.text.as_ref().filter(|_| text) {
             text.render(target.format, &mut pass);
         }
@@ -246,6 +264,6 @@ fn instance_buffer(device: &wgpu::Device, shapes: usize) -> wgpu::Buffer {
 }
 
 /// Native-endian bytes of `f32`s, as the GPU reads them; no unsafe casts.
-fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
+pub(super) fn floats_to_bytes(floats: &[f32]) -> Vec<u8> {
     floats.iter().flat_map(|f| f.to_ne_bytes()).collect()
 }

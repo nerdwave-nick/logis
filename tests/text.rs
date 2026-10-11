@@ -14,8 +14,8 @@ mod golden;
 use std::path::{Path, PathBuf};
 
 use logis::render::{
-    BackendChoice, Gpu, Image, OFFSCREEN_FORMAT, Overflow, Paint, Renderer, Rgba, RoundedRect,
-    Scale, Scene, Text, render_offscreen,
+    BackendChoice, Gpu, Image, ImageQuad, OFFSCREEN_FORMAT, Overflow, Paint, Renderer, Rgba,
+    RoundedRect, Scale, Scene, Text, render_offscreen,
 };
 
 use logis::text::{FontConfig, Fonts};
@@ -194,6 +194,7 @@ fn texts(texts: Vec<Text>) -> Scene {
     Scene {
         clear: None,
         shapes: Vec::new(),
+        images: Vec::new(),
         texts,
     }
 }
@@ -353,6 +354,40 @@ fn a_line_that_fits_its_column_is_unchanged() {
     }
 }
 
+#[test]
+fn text_is_drawn_over_images() {
+    let Some(gpu) = gpu() else { return };
+    let mut renderer = Renderer::new(&gpu);
+    renderer.set_fonts(&gpu, pinned_fonts());
+    let red = Image {
+        width: 60,
+        height: 30,
+        pixels: [255, 0, 0, 255].repeat(60 * 30),
+    };
+    let id = renderer.atlas_mut().insert(&gpu, &red).unwrap();
+    let scene = Scene {
+        images: vec![ImageQuad {
+            image: id,
+            origin: [0.0, 0.0],
+        }],
+        ..texts(vec![Text::new("MMM", [4.0, 2.0], 20.0, WHITE)])
+    };
+    let image = render_offscreen(
+        &gpu,
+        &mut renderer,
+        &scene,
+        (60, 30),
+        Scale::ONE,
+        OFFSCREEN_FORMAT,
+    )
+    .unwrap();
+    let white = image.pixels.chunks(4).filter(|px| *px == [255; 4]).count();
+    assert!(
+        white > 30,
+        "only {white} white text pixels over the red image"
+    );
+}
+
 // --------------------------------------------------------------- goldens
 
 const CORPUS: &str = include_str!("fonts/corpus.txt");
@@ -381,6 +416,7 @@ fn corpus_scene() -> Scene {
     Scene {
         clear: Some(Rgba::hex(0x140c0a)),
         shapes: vec![column(126.0), column(150.0)],
+        images: Vec::new(),
         texts,
     }
 }

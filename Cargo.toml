@@ -22,6 +22,22 @@ smithay-client-toolkit = { version = "0.21.1", default-features = false, feature
 # The GPU (ADR 0001): Vulkan first, then GL (gles), shaders in WGSL only. No
 # DX12/Metal/WebGPU backends; `raw-window-handle` comes re-exported as `wgpu::rwh`.
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "vulkan", "gles", "wgsl"] }
+# The client <-> daemon session protocol is length-prefixed JSON frames
+# (src/protocol). serde is in the decided core set (spec §4.11) and the provider
+# protocol (§4.8) and the JSONC config (§4.9) need it too; serde_json saves a
+# hand-written JSON parser and escaper.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.152"
+# Already in the tree through wayland-client; the `stdio` feature adds dup2 so
+# a daemon started by a client can move its stderr off the client's pipe once
+# listening (libraries such as wayland-backend print to stderr, and printing
+# to a broken pipe panics).
+rustix = { version = "1.1.5", features = ["stdio"] }
+# SVG icons (spec §4.3/§4.7). Defaults off: icons need no <text> (no font
+# database, shaping or system font scan), no .svgz (flate2) and no embedded
+# GIF/WebP/JPEG. PNG icons decode through its re-exported tiny-skia, whose
+# default `png-format` feature is already in the tree, so no image crate.
+resvg = { version = "0.48.1", default-features = false }
 # Text (spec §4.4): glyphon's GPU glyph atlas over cosmic-text (shaping,
 # bidi, swash rasterisation with hinting); tracks wgpu 30. Fonts come from
 # libfontconfig through logis's own small FFI (src/text/fc.rs), not a crate.

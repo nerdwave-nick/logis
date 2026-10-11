@@ -1,0 +1,14 @@
+# Starts the logis daemon on the first connection to its socket.
+# Enable with: systemctl --user enable --now logis.socket
+# Without it, the first `logis` client starts the daemon itself.
+
+[Unit]
+Description=logis machine spirit socket
+Documentation=https://github.com/nerdwave-nick/logis
+
+[Socket]
+ListenStream=%t/logis.sock
+SocketMode=0600
+
+[Install]
+WantedBy=sockets.target

@@ -16,22 +16,37 @@ logis is meant to be:
 
 ## Status
 
-**Bootstrap. Nothing usable yet.** The repository holds the accepted decisions, the
-research behind them, and a binary that only does this:
+**Early. Nothing usable yet.** The repository holds the accepted decisions, the
+research behind them, and a binary that does this much:
 
 - `logis --version` prints the version.
-- `logis` checks for a Wayland session whose compositor offers wlr-layer-shell. If
-  there is none, it exits 2 with a message on stderr; otherwise it exits 0 and shows
-  nothing. Any other argument exits 2.
+- `logis daemon` is the resident daemon. It checks for a Wayland session whose
+  compositor offers wlr-layer-shell (exit 2 with a message on stderr if there is
+  none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and keeps the compositor
+  connection open: when the compositor goes away it exits 2.
+  `--idle-timeout SECONDS` lets it exit once no client has been connected for that
+  long (off by default).
+- `logis` and `logis --dmenu` are clients. When no daemon answers they start one
+  (`logis daemon --detach`, whose later diagnostics go to
+  `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
+  Plain `logis` only makes sure the daemon runs. `logis --dmenu` streams stdin lines
+  to the daemon and prints the chosen line's original bytes (exit 0), or nothing on
+  dismissal (exit 1).
+- `logis daemon --debug-panel` does not serve sessions: it shows a static panel drawn
+  by the renderer core (a GPU-rendered overlay layer surface at the compositor's
+  fractional scale, with text rows in several scripts and colour emoji) until the
+  compositor closes it or the process is ended. It takes
+  exclusive keyboard focus and has no input handling yet, so end it from elsewhere
+  (for example `timeout 5 logis daemon --debug-panel`).
 
-- `logis daemon --debug-panel` shows a static panel drawn by the renderer core (a
-  GPU-rendered overlay layer surface at the compositor's fractional scale, with
-  text rows in several scripts and colour emoji) until the
-  compositor closes it or the process is ended. It takes exclusive keyboard focus
-  and has no input handling yet, so end it from elsewhere (for example
-  `timeout 5 logis daemon --debug-panel`).
+The session daemon does not show the renderer's window yet, so it refuses every
+session. The list view, the dmenu flags, the app launcher and servitor mode
+are still to come.
 
-The real daemon, dmenu mode, app launcher and servitor mode are still to come.
+Client and daemon speak length-prefixed JSON frames, one session per connection;
+the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
+session is visible, a new dmenu session queues and a new app or servitor session
+replaces it.
 
 ## Building
 
@@ -69,6 +84,11 @@ LOGIS_UPDATE_GOLDENS=1 cargo test --test text
 A mismatch leaves the render and a difference image under
 `target/tmp/golden-failures/`.
 
+`tests/icons.rs` compares icon renders with the PNG goldens in
+`tests/goldens/icons/` (a mismatching render is written to
+`target/golden-failures/`); `LOGIS_UPDATE_GOLDENS=1 cargo test --test icons`
+rewrites them after an intended change.
+
 ### GPU backends
 
 logis tries Vulkan hardware, then GL hardware, then lavapipe, then llvmpipe.
@@ -86,6 +106,22 @@ LIBGL_ALWAYS_SOFTWARE=1 LOGIS_GPU_BACKEND=gl timeout 3 logis daemon --debug-pane
 logis targets the niri compositor; other compositors with wlr-layer-shell are best
 effort. X11 and compositors without layer shell (such as GNOME/Mutter) are not
 supported.
+
+### Starting the daemon with systemd (optional)
+
+The first client starts the daemon by itself. To have systemd start it on the
+first connection instead, install the user units from
+[`contrib/systemd/`](contrib/systemd/) (they expect the binary at
+`/usr/bin/logis`; adjust `ExecStart` otherwise) and enable the socket:
+
+```sh
+cp contrib/systemd/logis.socket contrib/systemd/logis.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now logis.socket
+```
+
+The daemon needs `WAYLAND_DISPLAY` in the user manager's environment, which niri
+and most session setups import.
 
 ## Repository
 
