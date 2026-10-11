@@ -6,7 +6,9 @@
 //!
 //! The daemon runs with the test trace on, so the tests wait for what the
 //! window did (`show`, `items`, `query`, `select`, `accept`, `typed`,
-//! `dismiss`, and the window's focus and commits) instead of sleeping.
+//! `dismiss`, and the window's focus and commits) instead of sleeping. It
+//! moves as for users (open, close and selection transitions); captures
+//! wait for `settled`, so goldens show the end state.
 
 mod support;
 
@@ -166,7 +168,9 @@ fn the_list_is_drawn_with_its_matches_highlighted() {
     c.type_text(&focused, "rite");
     c.tap(&focused, code::DOWN);
     c.next("select");
-    c.daemon.wait_for_commit();
+    // The band glides to the row; its end state is the golden.
+    c.daemon
+        .wait_for("the band at rest", |e| e.what == "settled");
     let size = scene::size(&Options {
         lines: 4,
         width: 40,
