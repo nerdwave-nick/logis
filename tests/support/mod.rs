@@ -1,6 +1,7 @@
 //! Test scaffolding: scratch directories and a fake Wayland compositor.
 
 pub mod e2e;
+pub mod fake_bus;
 pub mod fake_compositor;
 pub mod golden;
 pub mod latency;
