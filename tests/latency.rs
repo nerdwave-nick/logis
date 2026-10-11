@@ -16,6 +16,8 @@
 //! - **dmenu warm open:** with the daemon running (and warmed by one
 //!   session), `logis --dmenu` from exec to the daemon's first committed
 //!   frame of its window (≤ 15 ms).
+//! - **apps warm open:** the same for `logis --apps`, the index resident
+//!   (the system's own applications and icons; nothing is launched).
 //! - **dmenu keystroke → commit:** typing into the query and deleting it
 //!   again, each key to the frame showing the new matches; with three
 //!   items, and with 100 000 (every keystroke re-filters them all, or the
@@ -316,5 +318,51 @@ fn dmenu_latency() {
                 s.budget_ms
             );
         }
+    }
+}
+
+/// The app launcher's warm open (story 5, ≤ 15 ms): with the daemon running
+/// and its index resident (the applications of the system this runs on,
+/// and their icons, rasterised by a first session), `logis --apps` from
+/// exec to the first committed frame. Each session is dismissed by its
+/// client leaving: nothing is ever launched.
+#[test]
+fn apps_latency() {
+    let Some(mut c) = Cogitator::start() else {
+        return;
+    };
+    let runs = latency::runs();
+    // The index is read on a thread of its own at start; let it finish.
+    std::thread::sleep(Duration::from_millis(500));
+    let mut samples = Vec::with_capacity(runs);
+    for run in 0..=runs {
+        std::thread::sleep(Duration::from_millis(100));
+        let t0 = monotonic_ns();
+        let client = c.apps(&[]);
+        c.daemon.wait_for("show", |e| e.what.starts_with("show "));
+        let commit = c
+            .daemon
+            .wait_for("a first frame", |e| e.what == "commit" && e.ns >= t0);
+        if run > 0 {
+            samples.push(latency::ms_between(t0, commit.ns));
+        }
+        drop(client);
+        c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+    }
+    let series = [Series::new(
+        "apps warm open: start → first commit",
+        latency::WARM_OPEN_MS,
+        samples,
+    )];
+    latency::record(c.compositor.kind().name(), &series);
+    if latency::enforce() {
+        let s = &series[0];
+        assert!(
+            s.within_budget(),
+            "{}: median {:.2} ms over its {:.2} ms budget",
+            s.name,
+            s.median(),
+            s.budget_ms
+        );
     }
 }
