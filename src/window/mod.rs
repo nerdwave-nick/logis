@@ -6,7 +6,10 @@
 //! [`EventQueue`].
 
 mod activation;
+mod blur;
+mod clock;
 mod debug;
+mod drawing;
 mod handle;
 mod input;
 mod panel;
@@ -28,9 +31,12 @@ use smithay_client_toolkit::reexports::protocols::wp::viewporter::client::wp_vie
 use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::shell::wlr_layer::LayerShell;
 
+pub use blur::{Backdrop, region_rects};
+pub use clock::{FrameClock, FrameTime};
 pub use debug::{DEBUG_SIZE, debug_scene, debug_scene_at, run_debug_panel};
+pub use drawing::{Drawing, Frame, SceneFn};
 pub use handle::{SurfaceHandle, WaylandDisplay};
-pub use panel::{NAMESPACE, Panel, SceneFn};
+pub use panel::{NAMESPACE, Panel};
 pub use state::{Geometry, SurfaceState};
 pub use windows::Windows;
 

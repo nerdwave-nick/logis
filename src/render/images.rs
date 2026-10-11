@@ -8,7 +8,7 @@ use super::pipeline::{Target, floats_to_bytes};
 use super::scale::Scale;
 use super::scene::ImageQuad;
 
-/// Floats per image instance: rect and atlas texel.
+/// Floats per image instance: rect, then atlas texel and opacity.
 const QUAD_FLOATS: usize = 8;
 const QUAD_BYTES: u64 = (QUAD_FLOATS * 4) as u64;
 
@@ -122,7 +122,11 @@ impl ImagePass {
 
         let packed: Vec<f32> = quads
             .iter()
-            .filter_map(|q| Some(pack(q.origin, self.atlas.rect(q.image)?, target.scale)))
+            .filter(|q| q.opacity > 0.0)
+            .filter_map(|q| {
+                let rect = self.atlas.rect(q.image)?;
+                Some(pack(q.origin, rect, target.scale, q.opacity))
+            })
             .flatten()
             .collect();
         self.count = (packed.len() / QUAD_FLOATS) as u32;
@@ -155,8 +159,9 @@ impl ImagePass {
 }
 
 /// One instance: the image's rect in buffer pixels (its corner snapped to
-/// the pixel grid, its size its own pixel size) and its top-left atlas texel.
-fn pack(origin: [f32; 2], rect: [u32; 4], scale: Scale) -> [f32; QUAD_FLOATS] {
+/// the pixel grid, its size its own pixel size), its top-left atlas texel
+/// and its opacity.
+fn pack(origin: [f32; 2], rect: [u32; 4], scale: Scale, opacity: f32) -> [f32; QUAD_FLOATS] {
     let s = scale.factor();
     let [ax, ay, w, h] = rect.map(|v| v as f32);
     [
@@ -166,7 +171,7 @@ fn pack(origin: [f32; 2], rect: [u32; 4], scale: Scale) -> [f32; QUAD_FLOATS] {
         h,
         ax,
         ay,
-        0.0,
+        opacity.clamp(0.0, 1.0),
         0.0,
     ]
 }
@@ -252,14 +257,14 @@ mod tests {
 
     #[test]
     fn pack_snaps_the_corner_and_keeps_the_pixel_size() {
-        let packed = pack([10.0, 7.0], [64, 32, 42, 40], Scale::from_120ths(156));
+        let packed = pack([10.0, 7.0], [64, 32, 42, 40], Scale::from_120ths(156), 0.5);
         // 10 × 1.3 = 13, 7 × 1.3 = 9.1 → 9; the size stays 42×40 texels.
-        assert_eq!(packed, [13.0, 9.0, 42.0, 40.0, 64.0, 32.0, 0.0, 0.0]);
+        assert_eq!(packed, [13.0, 9.0, 42.0, 40.0, 64.0, 32.0, 0.5, 0.0]);
     }
 
     #[test]
     fn pack_rounds_half_pixels_away_from_zero() {
-        let packed = pack([2.5, 0.0], [0, 0, 4, 4], Scale::ONE);
+        let packed = pack([2.5, 0.0], [0, 0, 4, 4], Scale::ONE, 1.0);
         assert_eq!(packed[0..2], [3.0, 0.0]);
     }
 }

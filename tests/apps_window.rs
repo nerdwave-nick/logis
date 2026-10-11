@@ -32,14 +32,13 @@ fn start(dir: &Path) -> Option<Cogitator> {
         std::env::join_paths([fixtures().join("apps/e2e"), fixtures().join("icons/share")])
             .unwrap();
     let (home, state) = (dir.join("data-home"), dir.join("state"));
-    Cogitator::start_with(|daemon| {
-        daemon
-            .arg("--config")
-            .arg(fixtures().join("apps/e2e/logis.jsonc"))
-            .env("XDG_DATA_DIRS", &data_dirs)
-            .env("XDG_DATA_HOME", &home)
-            .env("XDG_STATE_HOME", &state);
-    })
+    let config = std::fs::read_to_string(fixtures().join("apps/e2e/logis.jsonc")).unwrap();
+    let env = [
+        ("XDG_DATA_DIRS", data_dirs.to_str().unwrap()),
+        ("XDG_DATA_HOME", home.to_str().unwrap()),
+        ("XDG_STATE_HOME", state.to_str().unwrap()),
+    ];
+    Cogitator::start_with(&env, Some(&config))
 }
 
 /// The client's environment: the fixture program on the PATH, where it

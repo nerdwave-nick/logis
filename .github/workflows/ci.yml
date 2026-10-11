@@ -110,6 +110,12 @@ jobs:
       - name: Pointer and paste E2E (cargo test --test pointer)
         run: cargo test --locked --test pointer -- --nocapture
 
+      # Open/close transitions and the gliding selection, paced by this
+      # compositor's frame callbacks; an idle window wakes nothing. sway
+      # offers no ext-background-effect, so no blur region may be set.
+      - name: Motion E2E (cargo test --test motion)
+        run: cargo test --locked --test motion -- --nocapture
+
       # Relative trend only: budgets are recorded, never enforced here
       # (absolute budgets are checked on the owner's machine with
       # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.

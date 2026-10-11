@@ -1,8 +1,9 @@
 //! The input side of [`Windows`]: the [`Action`]s for the visible panel,
 //! the focus-loss policy, and waiting for the compositor without busy
 //! loops. The event queue's socket is polled with no timeout, unless a held
-//! key's next repeat is due, in which case the wait ends at that deadline;
-//! a paste being read adds its pipe to the poll. No timer thread, no async
+//! key's next repeat is due (or a closing panel's frame callbacks stopped
+//! and its time is up), in which case the wait ends at that deadline; a
+//! paste being read adds its pipe to the poll. No timer thread, no async
 //! runtime: an idle window sleeps in `poll` until the compositor speaks.
 
 use std::os::fd::BorrowedFd;
@@ -57,7 +58,11 @@ impl Windows {
         if queue.dispatch_pending(self).map_err(|e| lost(&e))? == 0 {
             queue.flush().map_err(|e| lost(&e))?;
             if let Some(guard) = queue.prepare_read() {
-                let timeout = self.keyboard_mut().deadline().map(until);
+                let deadline = match (self.keyboard_mut().deadline(), self.motion_deadline()) {
+                    (Some(a), Some(b)) => Some(a.min(b)),
+                    (a, b) => a.or(b),
+                };
+                let timeout = deadline.map(until);
                 let ready = {
                     let fd = guard.connection_fd();
                     let mut fds = vec![PollFd::new(&fd, PollFlags::IN)];
@@ -85,6 +90,7 @@ impl Windows {
         if let Some(edit) = self.clipboard.pump() {
             self.actions.push(Action::Edit(edit));
         }
+        self.expire_closing();
         Ok(())
     }
 }

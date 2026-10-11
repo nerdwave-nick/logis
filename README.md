@@ -506,6 +506,7 @@ the defaults.
   "terminal": ["foot", "-e"],      // runs Terminal=true apps; absent: $TERMINAL -e
   "icon-theme": "hicolor",         // freedesktop icon theme, falling back to hicolor
   "focus-loss": "dismiss",         // or "keep": what losing keyboard focus does
+  "blur": true,                    // blur what lies behind the panel, where offered
 }
 ```
 
@@ -517,8 +518,43 @@ the daemon's log (and, once the window can show it, a themed notice).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
-follows `focus-loss` and `icon-theme`, the app launcher `terminal`; themes do not
-use their setting yet.
+follows `focus-loss`, `blur` and `icon-theme`, the app launcher `terminal`; themes
+do not use their setting yet.
+
+## Motion and blur
+
+The window moves only when something changes, paced by the compositor's frame
+callbacks (and timed by wp_presentation where offered); once a movement has
+settled it draws nothing until the next change.
+
+- **Open:** the panel rises 10 px into place and fades in from 40 % over 150 ms
+  (ease out). Its first frame already shows it; the open starts when that frame
+  is on screen.
+- **Close:** when a session ends, its answer goes to the caller at once; then the
+  panel gives up keyboard and pointer, sinks 6 px and fades out over 110 ms (ease
+  in). A session that comes next is shown at once, cutting the fade short.
+- **Selection:** the selection band glides to the newly selected row in 90 ms
+  (ease out).
+
+- **Provider stages and toasts:** a provider's next stage is not a close and an
+  open: the window stays in place, only its list changes, and the band takes the
+  new list's row at once. A toast is drawn inside the panel, so it opens, moves
+  and fades with it; a window lingering on its toast after the session ends
+  closes with the same close transition when the daemon takes it away.
+- **Icons** move and fade with the panel like everything else in it.
+- **Launching an app:** the activation token is asked for while the panel is
+  still shown and focused; the launch happens once it comes, then the panel
+  closes and fades. The launched app gets the keyboard at once.
+
+The durations, start and end poses and easing curves (CSS `cubic-bezier`) are the
+parameters of `logis::motion::Motion`, for themes to set later; they are not
+config keys yet. `LOGIS_MOTION=off` in the daemon's environment turns motion off,
+and `LOGIS_MOTION=4` runs it four times slower (any factor up to 100).
+
+With `"blur": true` (the default) the compositor blurs what lies behind the
+panel's body, a rounded rectangle, through ext-background-effect-v1 (niri offers
+it). A compositor without that protocol shows the panel unblurred; the setting
+changes the visible window at once.
 
 ## Keyboard
 
@@ -656,7 +692,19 @@ with `mod support;`.
   JSON lines and `LOGIS_LATENCY_BUDGETS=enforce` fails a median over budget.
   The dmenu series run a real daemon: warm open (`logis --dmenu` from exec to
   the window's first committed frame, ≤ 15 ms) and keystroke → commit with 3
-  and with 100 000 items (one frame).
+  and with 100 000 items (one frame). With motion, "first committed frame" is
+  the first frame of the open transition, not its end; the end is a series of
+  its own (warm open → open settled). Each warm open starts 100 ms after the
+  previous window is gone (`faded`), not merely hidden: a nested niri that is
+  still drawing a closing window answers the new window's setup round trips
+  up to two parent frames late (a real niri does not).
+- **Motion** ([`tests/motion.rs`](tests/motion.rs)): the open and the band's
+  glide take several frames and then nothing is drawn, the caller has its
+  answer while the window still fades, a queued session does not wait for the
+  fade, blur follows the body where offered (not when the config says no), and
+  an idle window wakes no thread of the daemon (context switches unchanged).
+  `Cogitator::start_with(env, config)` starts the daemon with extra
+  environment (`LOGIS_MOTION`) or a config.
 - **dmenu** ([`tests/dmenu.rs`](tests/dmenu.rs),
   [`cogitator.rs`](tests/support/e2e/cogitator.rs)): a traced `logis daemon` in
   the test compositor and `logis --dmenu` clients with piped stdin and stdout:
@@ -708,7 +756,11 @@ pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>`,
 `pointer-enter <x> <y>`, `pointer-motion <x> <y>`, `pointer-leave`, `cursor
 default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pixels
 <px>|stop`, `paste <selection> <MIME type>|none|unavailable`, `pasted <selection>
-<bytes>` and `commit`; the debug panel adds what each key did: `query <JSON string>`, `select
+<bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
+one fading out), `settled` (the first frame after which nothing moves), `faded` (a
+closed window is gone, at once without motion), `blur <rectangles>` (a blur region was set) and
+`blur-capable true|false` (the compositor's word), `cut` (a window still closing
+was dropped after the next window's first frame); the debug panel adds what each key did: `query <JSON string>`, `select
 <row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
 `show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
 `update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
@@ -719,7 +771,7 @@ default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pix
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 

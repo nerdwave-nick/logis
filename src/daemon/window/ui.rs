@@ -4,8 +4,12 @@
 //! `poll`).
 //!
 //! An answer goes to the daemon. A dmenu answer ends its session, so the
-//! window goes at once; after a provider's answer the window stays and Return
-//! waits for the provider's next stage or `ready` (Escape still dismisses).
+//! window closes at once (its close transition is only for the eye: the
+//! answer is sent first); after a provider's answer the window stays and
+//! Return waits for the provider's next stage or `ready` (Escape still
+//! dismisses). A provider's next stage is not a close and an open: the
+//! window stays where it is and only its list changes, the selection band
+//! taking the new list's row at once rather than gliding there.
 //!
 //! With the test trace on (`LOGIS_TEST_TRACE=1`, see
 //! [`logis::window::trace`]) it reports `show <session>`, `stage <session>`
@@ -24,8 +28,9 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use logis::icons::IconSource;
 use logis::input::Action;
 use logis::list::{Choice, Entry, ListView, Notice, Reaction, scene};
+use logis::motion::Glide;
 use logis::window::trace::emit;
-use logis::window::{WindowQueue, Windows};
+use logis::window::{Backdrop, Drawing, Frame, SceneFn, WindowQueue, Windows};
 use wayland_client::QueueHandle;
 
 use super::Command;
@@ -42,6 +47,8 @@ struct Shown {
     size: (u32, u32),
     view: Rc<RefCell<ListView>>,
     toast: Rc<RefCell<Option<Notice>>>,
+    /// The selection band's movement, reset by a new stage.
+    glide: Rc<RefCell<Glide>>,
     /// How many items the stage has had.
     count: usize,
     /// A dmenu answer ends the session: the window goes at once.
@@ -114,14 +121,10 @@ fn apply(
             let count = entries.len();
             view.borrow_mut().push(entries);
             let toast = Rc::new(RefCell::new(None));
-            let (drawn, said) = (Rc::clone(&view), Rc::clone(&toast));
-            let draw = move |logical, icons: &mut dyn IconSource| {
-                let mut look = drawn.borrow_mut().look();
-                look.toast = said.borrow().clone();
-                scene::scene_with(&look, logical, icons)
-            };
+            let glide = Rc::new(RefCell::new(Glide::new(windows.motion().selection)));
+            let draw = drawing(Rc::clone(&view), Rc::clone(&toast), Rc::clone(&glide));
             *shown = None;
-            match windows.show(qh, size, Box::new(draw)) {
+            match windows.show(qh, size, draw) {
                 Ok(()) => {
                     emit(format_args!("show {session}"));
                     emit(format_args!("items {count}"));
@@ -130,6 +133,7 @@ fn apply(
                         size: (lines, width),
                         view,
                         toast,
+                        glide,
                         count,
                         ends_on_answer: mode == Mode::Dmenu,
                         waiting: false,
@@ -156,7 +160,7 @@ fn apply(
         Command::Hide { session } => {
             if mine(session, shown) {
                 *shown = None;
-                windows.hide();
+                windows.close();
                 emit(format_args!("hide {session}"));
             }
         }
@@ -186,7 +190,29 @@ fn apply(
                 });
             }
         }
+        Command::Blur(blur) => windows.set_blur(blur, qh),
     }
+}
+
+/// Draws the shown list each frame with its toast: the selection band
+/// glides to the selected row, and the body is blurred behind.
+fn drawing(
+    view: Rc<RefCell<ListView>>,
+    toast: Rc<RefCell<Option<Notice>>>,
+    glide: Rc<RefCell<Glide>>,
+) -> SceneFn {
+    Box::new(move |frame: &Frame, icons: &mut dyn IconSource| {
+        let mut look = view.borrow_mut().look();
+        look.toast = toast.borrow().clone();
+        let target = scene::band_top(&look, frame.logical);
+        let (band, moving) = glide.borrow_mut().toward(target, frame.at, frame.interval);
+        let (rect, radius) = scene::body(frame.logical);
+        Drawing {
+            scene: scene::scene_at(&look, frame.logical, band, icons),
+            backdrop: Some(Backdrop { rect, radius }),
+            moving,
+        }
+    })
 }
 
 impl Shown {
@@ -201,6 +227,8 @@ impl Shown {
                 // The window keeps its size: the list scrolls within it.
                 (options.lines, options.width) = self.size;
                 *view = ListView::new(options);
+                // A new list: the band takes its row at once.
+                self.glide.borrow_mut().reset();
                 self.count = entries.len();
                 view.push(entries);
                 self.waiting = false;
@@ -288,14 +316,16 @@ fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event
         };
         let session = s.session;
         if s.ends_on_answer || given == Answer::Dismissed {
-            // The session ends: the window goes at once, the daemon answers
-            // the client and shows the next session, if one waits.
+            // The session ends: the daemon answers the client at once (and
+            // shows the next session, if one waits), then the window closes;
+            // its close transition delays nothing.
             *shown = None;
-            windows.hide();
+            answer(events, session, given);
+            windows.close();
         } else {
             s.waiting = true;
+            answer(events, session, given);
         }
-        answer(events, session, given);
     }
 }
 
@@ -314,6 +344,7 @@ mod tests {
             size: (options.lines, options.width),
             view: Rc::new(RefCell::new(ListView::new(options))),
             toast: Rc::new(RefCell::new(None)),
+            glide: Rc::new(RefCell::new(Glide::new(logis::motion::Curve::INSTANT))),
             count: 0,
             ends_on_answer: false,
             waiting: true,

@@ -246,6 +246,18 @@ theme of the same name. The theme model itself is still being designed (6217c721
 `schema/logis.schema.json`. The daemon applies a sound edit at once; an invalid edit
 leaves the **last sound config** in force and is reported in the log and as a toast.
 
+**Motion**:
+The window's movement (spec §4.3, v1): the **open transition** (the panel rises
+and fades in from its first frame on), the **close transition** (it sinks and
+fades out after its session is answered, holding neither keyboard nor pointer),
+and the **selection glide** (the band moves to the newly selected row). Frame
+callbacks pace it; once it has **settled**, nothing is drawn until the next
+change. Its durations, poses and easing curves are the `Motion` parameters.
+
+**Blur behind**:
+The compositor blurring what lies behind the panel's body (ext-background-effect),
+the config's `blur`; where the compositor does not offer it, there is none.
+
 **Forge crimson & brass / cogitator phosphor**:
 The two bundled themes of v1: the default glowing brass-to-crimson panel of the
 research spike, and a green CRT look.

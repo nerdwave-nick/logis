@@ -27,6 +27,8 @@ const PAD_X: f32 = 18.0;
 pub const PROMPT_BLOCK: f32 = 40.0;
 /// From the rule to the first row, and below the last.
 pub const LIST_PAD: f32 = 8.0;
+/// The body's corner radius.
+const RADIUS: f32 = 14.0;
 /// The icon column's width, when some item has a glyph or icon.
 pub const GLYPH_COLUMN: f32 = 24.0;
 /// What a pending row says at its end.
@@ -102,12 +104,40 @@ pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
 /// The scene for `look`, rows' icons drawn from `icons` (a row whose icon
 /// is not found shows its glyph, if it has one).
 pub fn scene_with(look: &Look, logical: (u32, u32), icons: &mut dyn IconSource) -> Scene {
+    scene_at(look, logical, band_top(look, logical), icons)
+}
+
+/// The panel's body (left, top, width, height) and its corner radius on a
+/// surface of `logical` size: what blur goes behind.
+pub fn body(logical: (u32, u32)) -> ([f32; 4], f32) {
+    (layout(logical).body, RADIUS)
+}
+
+/// Where the selection band rests: the top of the selected row in view,
+/// or `None` when no row in view is selected.
+pub fn band_top(look: &Look, logical: (u32, u32)) -> Option<f32> {
+    let l = layout(logical);
+    look.rows
+        .iter()
+        .take(l.room)
+        .position(|row| row.selected)
+        .map(|i| l.first + i as f32 * ROW_PITCH)
+}
+
+/// [`scene_with`] with the selection band at `band_top` (its glide toward
+/// the selected row) instead of on the selected row; `None` draws no band.
+pub fn scene_at(
+    look: &Look,
+    logical: (u32, u32),
+    band_top: Option<f32>,
+    icons: &mut dyn IconSource,
+) -> Scene {
     let Layout {
         body: [x, y, body_w, body_h],
         first,
         room,
     } = layout(logical);
-    let mut shapes = vec![body([x, y, body_w, body_h])];
+    let mut shapes = vec![panel([x, y, body_w, body_h])];
     let mut images = Vec::new();
     let mut texts = prompt_line(look, x + PAD_X, y, body_w - 2.0 * PAD_X);
     if look.lines > 0 {
@@ -117,11 +147,11 @@ pub fn scene_with(look: &Look, logical: (u32, u32), icons: &mut dyn IconSource) 
             BRASS.with_alpha(0.8),
         ));
     }
+    if let Some(top) = band_top {
+        shapes.extend(band([x + 2.0, top, body_w - 4.0, ROW_PITCH], x, body_w));
+    }
     for (i, row) in look.rows.iter().take(room).enumerate() {
         let top = first + i as f32 * ROW_PITCH;
-        if row.selected {
-            shapes.extend(band([x + 2.0, top, body_w - 4.0, ROW_PITCH], x, body_w));
-        }
         let mut left = x + PAD_X + 8.0;
         let mut width = body_w - 2.0 * PAD_X - 8.0;
         if look.glyphs {
@@ -130,6 +160,7 @@ pub fn scene_with(look: &Look, logical: (u32, u32), icons: &mut dyn IconSource) 
                 (Some(image), _) => images.push(ImageQuad {
                     image,
                     origin: [left, top + (ROW_PITCH - ICON as f32) / 2.0],
+                    opacity: 1.0,
                 }),
                 (None, Some(glyph)) => texts.push(glyph_text(glyph, row.selected, left, top)),
                 (None, None) => {}
@@ -233,7 +264,7 @@ fn solid(rect: [f32; 4], radius: f32, color: Rgba) -> RoundedRect {
     }
 }
 
-fn body(rect: [f32; 4]) -> RoundedRect {
+fn panel(rect: [f32; 4]) -> RoundedRect {
     let [_, y, _, h] = rect;
     let vertical = |from, to| Paint::Linear {
         start: [0.0, y],
@@ -243,7 +274,7 @@ fn body(rect: [f32; 4]) -> RoundedRect {
     };
     RoundedRect {
         rect,
-        radius: 14.0,
+        radius: RADIUS,
         fill: vertical(SOOT_TOP, SOOT_BOTTOM),
         border: Some(Border {
             width: 2.0,
@@ -445,6 +476,53 @@ mod tests {
         let text = with.texts.last().unwrap();
         assert_eq!(text.text, "the rite is begun");
         assert!(text.origin[1] >= strip[1]);
+    }
+
+    #[test]
+    fn the_band_rests_on_the_selected_row_in_view() {
+        let logical = size(&options(5, 30));
+        let l = look(3, 2);
+        let top = band_top(&l, logical).unwrap();
+        let scene = scene(&l, logical);
+        assert_eq!(scene.shapes[2].rect[1], top + 1.0, "the band's inset top");
+        assert_eq!(
+            top,
+            scene.texts[4].origin[1] - (ROW_PITCH - FONT * 1.3) / 2.0
+        );
+        assert_eq!(band_top(&look(3, 7), logical), None, "no row selected");
+    }
+
+    #[test]
+    fn a_gliding_band_moves_alone() {
+        let logical = size(&options(5, 30));
+        let l = look(3, 2);
+        let rest = scene(&l, logical);
+        let top = band_top(&l, logical).unwrap();
+        let gliding = scene_at(&l, logical, Some(top - 10.0), &mut NoIcons);
+        assert_eq!(gliding.texts, rest.texts);
+        assert_eq!(gliding.shapes.len(), 4, "body, rule, band and marker");
+        assert_eq!(gliding.shapes[..2], rest.shapes[..2]);
+        for (g, r) in gliding.shapes[2..].iter().zip(&rest.shapes[2..]) {
+            assert_eq!(g.rect[1], r.rect[1] - 10.0);
+        }
+        assert_eq!(
+            scene_at(&l, logical, None, &mut NoIcons).shapes.len(),
+            2,
+            "no band"
+        );
+        assert_eq!(
+            scene_at(&l, logical, Some(top), &mut NoIcons),
+            rest,
+            "at rest"
+        );
+    }
+
+    #[test]
+    fn the_body_is_the_first_shape() {
+        let logical = size(&options(5, 30));
+        let (rect, radius) = body(logical);
+        let shape = scene(&look(3, 0), logical).shapes[0];
+        assert_eq!((shape.rect, shape.radius), (rect, radius));
     }
 
     #[test]

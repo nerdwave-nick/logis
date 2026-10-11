@@ -20,6 +20,7 @@ use std::thread;
 use logis::config::Config;
 use logis::input::FocusLoss;
 use logis::list::Entry;
+use logis::motion::Motion;
 use logis::render::BackendChoice;
 use logis::window::Windows;
 use rustix::event::{EventfdFlags, eventfd};
@@ -54,6 +55,8 @@ pub enum Command {
     IconTheme(String),
     /// An xdg-activation token for the shown session's launch of `app_id`.
     Activation { session: SessionId, app_id: String },
+    /// Whether to blur behind the window (the config's `blur`).
+    Blur(bool),
 }
 
 /// The resolver the daemon holds; the window thread does the work.
@@ -64,9 +67,11 @@ pub struct WindowResolver {
 
 /// Starts the window thread on `connection`: binds the globals, wakes the
 /// GPU (`LOGIS_GPU_BACKEND` may force a backend) and resolves the fonts.
+/// `LOGIS_MOTION` may turn motion off or slow it ([`Motion::from_env`]).
 /// Returns once that is done, or why it failed.
 pub fn start(connection: Connection, events: Sender<Event>) -> Result<WindowResolver, String> {
     let choice = BackendChoice::from_env().map_err(|e| e.to_string())?;
+    let motion = Motion::from_env()?;
     let wake = eventfd(0, EventfdFlags::CLOEXEC | EventfdFlags::NONBLOCK)
         .map_err(|e| format!("the cogitator cannot be summoned: eventfd: {e}"))?;
     let wake = Arc::new(wake);
@@ -77,7 +82,7 @@ pub fn start(connection: Connection, events: Sender<Event>) -> Result<WindowReso
         .name("cogitator".into())
         .spawn(move || {
             let mut departure = Departure(Some(events.clone()));
-            let (windows, queue) = match Windows::with_connection(connection, choice) {
+            let (mut windows, queue) = match Windows::with_connection(connection, choice) {
                 Ok(windows) => windows,
                 Err(e) => {
                     departure.0 = None;
@@ -85,6 +90,7 @@ pub fn start(connection: Connection, events: Sender<Event>) -> Result<WindowReso
                     return;
                 }
             };
+            windows.set_motion(motion);
             let _ = ready.send(Ok(()));
             let lost = ui::run(windows, queue, &inbox, theirs.as_fd(), &events);
             // An orderly end: the compositor is gone, or the daemon dropped
@@ -165,6 +171,7 @@ impl Resolver for WindowResolver {
     fn configure(&mut self, config: &Config) {
         self.send(Command::FocusLoss(config.focus_loss));
         self.send(Command::IconTheme(config.icon_theme.clone()));
+        self.send(Command::Blur(config.blur));
     }
 
     fn activation(&mut self, session: SessionId, app_id: &str) {

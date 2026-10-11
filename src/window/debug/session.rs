@@ -11,7 +11,7 @@ use super::{DEBUG_SIZE, ROWS, SELECTABLE, debug_scene_at};
 use crate::input::{Action, FocusLoss, Query, Step};
 use crate::render::BackendChoice;
 use crate::window::trace::emit;
-use crate::window::{WindowError, Windows};
+use crate::window::{Drawing, Frame, WindowError, Windows};
 
 /// The debug panel's state: the selected row and the query.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -85,9 +85,9 @@ pub fn run_debug_panel(choice: BackendChoice, focus_loss: FocusLoss) -> Result<(
     windows.set_focus_loss(focus_loss);
     let session = Rc::new(RefCell::new(DebugSession::default()));
     let shown = Rc::clone(&session);
-    let scene = move |logical, _: &mut dyn crate::icons::IconSource| {
+    let scene = move |frame: &Frame, _: &mut dyn crate::icons::IconSource| {
         let s = shown.borrow();
-        debug_scene_at(logical, s.row(), s.query())
+        Drawing::still(debug_scene_at(frame.logical, s.row(), s.query()))
     };
     windows.show(&queue.handle(), DEBUG_SIZE, Box::new(scene))?;
     let qh = queue.handle();
