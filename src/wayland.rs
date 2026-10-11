@@ -73,7 +73,7 @@ pub fn preflight() -> Result<Noosphere, PreflightError> {
         .contents()
         .with_list(|list| offers_layer_shell(list.iter().map(|g| g.interface.as_str())));
     if offered {
-        Ok(Noosphere { _conn: conn, queue })
+        Ok(Noosphere { conn, queue })
     } else {
         Err(PreflightError::NoLayerShell)
     }
@@ -81,11 +81,16 @@ pub fn preflight() -> Result<Noosphere, PreflightError> {
 
 /// A compositor connection that passed the preflight.
 pub struct Noosphere {
-    _conn: Connection,
+    conn: Connection,
     queue: EventQueue<Registry>,
 }
 
 impl Noosphere {
+    /// The connection itself, for the window to own and watch.
+    pub fn into_connection(self) -> Connection {
+        self.conn
+    }
+
     /// Blocks until the compositor connection breaks; returns why.
     pub fn wait_for_loss(mut self) -> String {
         loop {

@@ -1,7 +1,7 @@
 //! The seam between the daemon's session bookkeeping and whatever lets the
-//! user answer a session. The real one is the cogitator window (later slices);
-//! until then, [`Windowless`] refuses sessions and [`Scripted`] answers them by
-//! rule, so the daemon can be driven end to end without a compositor window.
+//! user answer a session. The real one is the cogitator window
+//! ([`super::window`]); [`Scripted`] answers sessions by rule, so the daemon
+//! can be driven end to end without a compositor window.
 
 use std::sync::mpsc::Sender;
 
@@ -84,9 +84,11 @@ impl<R: Resolver + ?Sized> Resolver for Box<R> {
     }
 }
 
-/// The resolver while logis has no window: it refuses every session.
+/// A resolver that refuses every session (unit tests of the daemon).
+#[cfg(test)]
 pub struct Windowless;
 
+#[cfg(test)]
 impl Resolver for Windowless {
     fn accepts(&self, _: Mode) -> Result<(), String> {
         Err("the cogitator has no window to manifest in yet; \

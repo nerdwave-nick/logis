@@ -5,6 +5,7 @@
 //! No timer thread, no async runtime: an idle window sleeps in `poll` until
 //! the compositor speaks.
 
+use std::os::fd::BorrowedFd;
 use std::time::Instant;
 
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
@@ -31,6 +32,17 @@ impl Windows {
     /// queued, and emits the key repeats that are due. Call it in the event
     /// loop in place of `blocking_dispatch`.
     pub fn dispatch(&mut self, queue: &mut WindowQueue) -> Result<(), WindowError> {
+        self.dispatch_or_wake(queue, None)
+    }
+
+    /// As [`Self::dispatch`], but the wait also ends when `wake` becomes
+    /// readable (another thread has work for this one); reading it is the
+    /// caller's.
+    pub fn dispatch_or_wake(
+        &mut self,
+        queue: &mut WindowQueue,
+        wake: Option<BorrowedFd<'_>>,
+    ) -> Result<(), WindowError> {
         let lost = |e: &dyn std::fmt::Display| WindowError::Disconnected(e.to_string());
         if queue.dispatch_pending(self).map_err(|e| lost(&e))? == 0 {
             queue.flush().map_err(|e| lost(&e))?;
@@ -38,12 +50,15 @@ impl Windows {
                 let timeout = self.keyboard_mut().deadline().map(until);
                 let ready = {
                     let fd = guard.connection_fd();
-                    poll(&mut [PollFd::new(&fd, PollFlags::IN)], timeout.as_ref())
+                    let mut fds = vec![PollFd::new(&fd, PollFlags::IN)];
+                    fds.extend(wake.as_ref().map(|w| PollFd::new(w, PollFlags::IN)));
+                    poll(&mut fds, timeout.as_ref()).map(|n| (n, !fds[0].revents().is_empty()))
                 };
                 match ready {
-                    // The deadline passed: drop the guard, nothing to read.
-                    Ok(0) | Err(Errno::INTR) => {}
-                    Ok(_) => match guard.read() {
+                    // The deadline passed or only `wake` is ready: drop the
+                    // guard, nothing to read.
+                    Ok((0, _) | (_, false)) | Err(Errno::INTR) => {}
+                    Ok((_, true)) => match guard.read() {
                         Ok(_) => {}
                         Err(WaylandError::Io(e)) if e.kind() == std::io::ErrorKind::WouldBlock => {}
                         Err(e) => return Err(lost(&e)),

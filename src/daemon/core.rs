@@ -29,6 +29,8 @@ pub enum Event {
         session: SessionId,
         outcome: Outcome,
     },
+    /// The resolver could not show a session; its client gets the error.
+    Failed { session: SessionId, message: String },
     /// The compositor connection is gone (spec §4.2: exit non-zero).
     WaylandLost { reason: String },
     /// The config file changed and was read again.
@@ -195,6 +197,14 @@ impl<R: Resolver> Core<R> {
     pub fn resolve(&mut self, session: SessionId, outcome: Outcome) {
         if self.sessions.visible() == Some(session) {
             self.finish(session, outcome);
+        }
+    }
+
+    /// The resolver could not show `session`: its client gets `message`
+    /// (and exits 2), and the next session is shown.
+    pub fn failed(&mut self, session: SessionId, message: String) {
+        if self.sessions.visible() == Some(session) {
+            self.fail(session, message);
         }
     }
 
@@ -378,6 +388,28 @@ mod tests {
             mode,
             options: Options::default(),
         }
+    }
+
+    #[test]
+    fn a_session_the_resolver_could_not_show_ends_with_its_error() {
+        let (mut core, recorder) = core();
+        let failing = open(&mut core, 1, Mode::Dmenu);
+        let waiting = open(&mut core, 2, Mode::Dmenu);
+        core.failed(2, "not visible yet".into());
+        assert!(failing.take().contains(&Reply::Visible));
+        core.failed(1, "the glass cracked".into());
+        assert_eq!(
+            failing.take(),
+            [Reply::Error {
+                message: "the glass cracked".into()
+            }]
+        );
+        assert!(failing.closed());
+        assert!(
+            waiting.take().contains(&Reply::Visible),
+            "the next is shown"
+        );
+        assert_eq!(recorder.take()[..2], ["show 1 Dmenu [] false", "hide 1"]);
     }
 
     #[test]

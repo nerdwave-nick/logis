@@ -48,6 +48,7 @@ pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: 
             Event::Received { conn, request } => core.receive(conn, request),
             Event::Disconnected { conn } => core.disconnect(conn),
             Event::Resolved { session, outcome } => core.resolve(session, outcome),
+            Event::Failed { session, message } => core.failed(session, message),
             Event::WaylandLost { reason } => return Exit::WaylandLost(reason),
             Event::Reconfigured(loaded) => reconfigure(core, config, loaded),
         }

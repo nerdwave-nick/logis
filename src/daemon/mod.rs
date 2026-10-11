@@ -1,17 +1,19 @@
 //! The daemon role: `logis daemon` (spec §4.1). It checks the Wayland
-//! session, claims `$XDG_RUNTIME_DIR/logis.sock`, reports readiness with one
-//! line on stdout, then serves sessions until it idles out (exit 0) or loses
-//! the compositor (exit 2).
+//! session, claims `$XDG_RUNTIME_DIR/logis.sock`, wakes the window (its
+//! compositor connection, the GPU and the fonts) and reports readiness with
+//! one line on stdout, then serves sessions until it idles out (exit 0) or
+//! loses the compositor (exit 2).
 //!
-//! Wiring for later slices: the window replaces the resolver ([`resolver`])
-//! and takes over the Wayland connection, reporting its loss as
-//! [`core::Event::WaylandLost`] on the same channel.
+//! The preflight's connection is the daemon's only one: the window thread
+//! ([`window`]) takes it over and reports its loss as
+//! [`core::Event::WaylandLost`] on the daemon's channel.
 
 pub mod core;
 pub mod lifecycle;
 pub mod listener;
 pub mod resolver;
 pub mod sessions;
+pub mod window;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -24,7 +26,7 @@ use logis::config::{self, Source, live::Live, watch::Watcher};
 use self::core::{Core, Event};
 use self::lifecycle::Exit;
 use self::listener::Claim;
-use self::resolver::{Resolver, Scripted, Windowless};
+use self::resolver::{Resolver, Scripted};
 use crate::cli::DaemonOptions;
 use crate::{fail, wayland};
 
@@ -57,7 +59,7 @@ pub fn run(options: DaemonOptions) -> ExitCode {
     };
 
     let (events, inbox) = channel();
-    let resolver = match resolver_from_env(&events) {
+    let resolver = match resolver_from_env(noosphere, &events) {
         Ok(resolver) => resolver,
         Err(message) => return fail(&message),
     };
@@ -65,11 +67,6 @@ pub fn run(options: DaemonOptions) -> ExitCode {
         Ok(listener) => listener::spawn_acceptor(listener, events.clone()),
         Err(e) => return fail(&format!("the machine spirit cannot listen: {e}")),
     }
-    let lost = events.clone();
-    thread::spawn(move || {
-        let reason = noosphere.wait_for_loss();
-        let _ = lost.send(Event::WaylandLost { reason });
-    });
     announce(&format!(
         "the machine spirit wakes and listens at {}",
         listening.path.display()
@@ -135,12 +132,26 @@ fn detach(runtime_dir: &std::path::Path) {
     }
 }
 
-/// `LOGIS_RESOLVER=scripted` swaps the window for the [`Scripted`] resolver
-/// (tests and measurements); unset, sessions meet the real (windowless) one.
-fn resolver_from_env(events: &Sender<Event>) -> Result<Box<dyn Resolver>, String> {
+/// The window ([`window::start`]) on the preflight's connection; with
+/// `LOGIS_RESOLVER=scripted`, the [`Scripted`] resolver instead (tests and
+/// measurements without a window), while a thread watches the connection.
+fn resolver_from_env(
+    noosphere: wayland::Noosphere,
+    events: &Sender<Event>,
+) -> Result<Box<dyn Resolver>, String> {
     match std::env::var("LOGIS_RESOLVER") {
-        Err(std::env::VarError::NotPresent) => Ok(Box::new(Windowless)),
-        Ok(name) if name == "scripted" => Ok(Box::new(Scripted::new(events.clone()))),
+        Err(std::env::VarError::NotPresent) => {
+            window::start(noosphere.into_connection(), events.clone())
+                .map(|r| Box::new(r) as Box<dyn Resolver>)
+        }
+        Ok(name) if name == "scripted" => {
+            let lost = events.clone();
+            thread::spawn(move || {
+                let reason = noosphere.wait_for_loss();
+                let _ = lost.send(Event::WaylandLost { reason });
+            });
+            Ok(Box::new(Scripted::new(events.clone())))
+        }
         Ok(name) => Err(format!("LOGIS_RESOLVER names no known resolver: '{name}'")),
         Err(e) => Err(format!("LOGIS_RESOLVER: {e}")),
     }

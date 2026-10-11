@@ -14,12 +14,23 @@ const WITHOUT_LAYER_SHELL: &[(&str, u32)] = &[
     ("xdg_wm_base", 6),
 ];
 
-/// Globals of a compositor offering layer shell (niri/sway-like).
+/// Globals of a compositor offering everything the window needs
+/// (niri/sway-like): layer shell, fractional scale and the viewporter.
 const WITH_LAYER_SHELL: &[(&str, u32)] = &[
     ("wl_compositor", 6),
     ("wl_shm", 1),
     ("zwlr_layer_shell_v1", 4),
+    ("wp_fractional_scale_manager_v1", 1),
+    ("wp_viewporter", 1),
     ("xdg_wm_base", 6),
+];
+
+/// Layer shell, but no fractional scaling: the window cannot be crisp.
+const WITHOUT_FRACTIONAL_SCALE: &[(&str, u32)] = &[
+    ("wl_compositor", 6),
+    ("wl_shm", 1),
+    ("zwlr_layer_shell_v1", 4),
+    ("wp_viewporter", 1),
 ];
 
 /// `logis` with a Wayland environment that the test fully controls.
@@ -88,6 +99,18 @@ fn on_compositor_without_layer_shell_exits_2_naming_the_protocol() {
     let msg = stderr(&out);
     assert!(msg.contains("zwlr_layer_shell_v1"), "{msg}");
     assert!(msg.contains("no altar"), "{msg}");
+}
+
+#[test]
+fn on_compositor_without_fractional_scale_exits_2_naming_the_protocol() {
+    let dir = ScratchDir::new();
+    let _compositor = fake_compositor::serve(dir.path(), "wayland-test", WITHOUT_FRACTIONAL_SCALE);
+    let out = logis(&dir, Some("wayland-test")).output().unwrap();
+
+    assert_eq!(out.status.code(), Some(2), "stderr: {}", stderr(&out));
+    assert!(out.stdout.is_empty());
+    let msg = stderr(&out);
+    assert!(msg.contains("wp_fractional_scale_manager_v1"), "{msg}");
 }
 
 #[test]
