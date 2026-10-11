@@ -8,8 +8,6 @@
 //! - a query that only grows (typing on) re-matches only the last matches;
 //! - large sets are matched on scoped threads, one matcher each.
 
-use std::ops::Range;
-
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32String};
 
@@ -33,6 +31,9 @@ pub struct Filter {
     /// Per item, whether it was removed; shorter than `haystacks` when the
     /// later items never were (a dmenu list never removes any).
     removed: Vec<bool>,
+    /// Per item, how much its matches score higher; shorter than
+    /// `haystacks` when the later items have none.
+    boosts: Vec<u32>,
     query: String,
     pattern: Pattern,
     matches: Vec<Match>,
@@ -51,6 +52,7 @@ impl Filter {
         Self {
             haystacks: Vec::new(),
             removed: Vec::new(),
+            boosts: Vec::new(),
             query: String::new(),
             pattern: parse(""),
             matches: Vec::new(),
@@ -76,6 +78,18 @@ impl Filter {
     /// The query in force.
     pub fn query(&self) -> &str {
         &self.query
+    }
+
+    /// Adds items whose matches score `boost` higher (frecency), and
+    /// matches them.
+    pub fn push_boosted<'a>(&mut self, items: impl IntoIterator<Item = (&'a str, u32)>) {
+        let first = self.haystacks.len();
+        let items: Vec<(&str, u32)> = items.into_iter().collect();
+        if items.iter().any(|&(_, boost)| boost > 0) {
+            self.boosts.resize(first, 0);
+            self.boosts.extend(items.iter().map(|&(_, boost)| boost));
+        }
+        self.push(items.into_iter().map(|(text, _)| text));
     }
 
     /// Adds items (the texts they are matched by) and matches them.
@@ -197,17 +211,23 @@ impl Filter {
                 .clamp(1, MAX_WORKERS)
         };
         self.matchers(workers);
-        let (pattern, haystacks) = (&self.pattern, &self.haystacks);
+        let (pattern, haystacks, boosts) = (&self.pattern, &self.haystacks, &self.boosts[..]);
         let chunk = candidates.len().div_ceil(workers).max(1);
         let mut found: Vec<Match> = if workers == 1 {
-            score_chunk(pattern, haystacks, candidates, &mut self.matchers[0])
+            score_chunk(
+                pattern,
+                haystacks,
+                boosts,
+                candidates,
+                &mut self.matchers[0],
+            )
         } else {
             std::thread::scope(|scope| {
                 let jobs: Vec<_> = candidates
                     .chunks(chunk)
                     .zip(self.matchers.iter_mut())
                     .map(|(part, matcher)| {
-                        scope.spawn(move || score_chunk(pattern, haystacks, part, matcher))
+                        scope.spawn(move || score_chunk(pattern, haystacks, boosts, part, matcher))
                     })
                     .collect();
                 jobs.into_iter()
@@ -244,6 +264,7 @@ fn key(m: &Match) -> (std::cmp::Reverse<u32>, u32) {
 fn score_chunk(
     pattern: &Pattern,
     haystacks: &[Utf32String],
+    boosts: &[u32],
     candidates: &[u32],
     matcher: &mut Matcher,
 ) -> Vec<Match> {
@@ -251,9 +272,10 @@ fn score_chunk(
         .iter()
         .filter_map(|&index| {
             let haystack = haystacks[index as usize].slice(..);
-            pattern
-                .score(haystack, matcher)
-                .map(|score| Match { index, score })
+            pattern.score(haystack, matcher).map(|score| Match {
+                index,
+                score: score + boosts.get(index as usize).copied().unwrap_or(0),
+            })
         })
         .collect()
 }
@@ -274,33 +296,6 @@ fn merge(a: Vec<Match>, b: Vec<Match>) -> Vec<Match> {
             None => return out,
         }
     }
-}
-
-/// The byte ranges of `text` covering the grapheme `positions` (ascending),
-/// adjacent graphemes joined into one range.
-pub fn byte_ranges(text: &str, positions: &[u32]) -> Vec<Range<usize>> {
-    use unicode_segmentation::UnicodeSegmentation;
-    let mut ranges: Vec<Range<usize>> = Vec::new();
-    let mut wanted = positions.iter().copied().peekable();
-    // ASCII text is matched byte by byte (nucleo's own convention).
-    let units: Box<dyn Iterator<Item = (usize, &str)>> = if text.is_ascii() {
-        Box::new((0..text.len()).map(|i| (i, &text[i..=i])))
-    } else {
-        Box::new(text.grapheme_indices(true))
-    };
-    for (n, (start, unit)) in units.enumerate() {
-        let Some(&next) = wanted.peek() else { break };
-        if next as usize != n {
-            continue;
-        }
-        wanted.next();
-        let end = start + unit.len();
-        match ranges.last_mut() {
-            Some(last) if last.end == start => last.end = end,
-            _ => ranges.push(start..end),
-        }
-    }
-    ranges
 }
 
 #[cfg(test)]
@@ -343,6 +338,28 @@ mod tests {
         assert_eq!(found, [0, 1]);
         f.set_query("CAFÉ");
         assert_eq!(indices(&f), [0], "a typed accent is meant");
+    }
+
+    #[test]
+    fn a_boost_raises_a_match_but_never_makes_one() {
+        let mut f = Filter::new();
+        f.push_boosted([("rite of oil", 0), ("rite of oil", 30), ("litany", 48)]);
+        f.set_query("rite");
+        assert_eq!(
+            indices(&f),
+            [1, 0],
+            "the boosted twin first; no match from a boost"
+        );
+        f.set_query("");
+        assert_eq!(indices(&f), [0, 1, 2], "an empty query keeps input order");
+        let mut g = Filter::new();
+        g.push_boosted([("firefox", 0), ("foreign rite fox", 8)]);
+        g.set_query("firefox");
+        assert_eq!(
+            indices(&g),
+            [0, 1],
+            "a much better match beats a small boost"
+        );
     }
 
     #[test]
@@ -464,13 +481,5 @@ mod tests {
         assert_eq!(f.positions(1), Vec::<u32>::new());
         f.set_query("tud");
         assert_eq!(f.positions(1), [1, 2, 3], "é is one grapheme");
-    }
-
-    #[test]
-    fn grapheme_positions_become_joined_byte_ranges() {
-        assert_eq!(byte_ranges("xaxbc", &[1, 3, 4]), [1..2, 3..5]);
-        assert_eq!(byte_ranges("e\u{301}tude", &[0, 1]), [0..4]);
-        assert_eq!(byte_ranges("öλ", &[1]), [2..4]);
-        assert_eq!(byte_ranges("ab", &[]), Vec::<Range<usize>>::new());
     }
 }

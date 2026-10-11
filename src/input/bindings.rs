@@ -56,6 +56,7 @@ pub fn binding(keysym: Keysym, mods: Mods) -> Option<Action> {
         Keysym::Escape if plain => Some(Dismiss),
         Keysym::g | Keysym::G | Keysym::bracketleft if ctrl => Some(Dismiss),
         Keysym::Return | Keysym::KP_Enter if plain => Some(Accept),
+        Keysym::Return | Keysym::KP_Enter if mods == Mods::SHIFT => Some(Action::Descend),
         Keysym::Up | Keysym::KP_Up if plain => Some(Select(Previous)),
         Keysym::Down | Keysym::KP_Down if plain => Some(Select(Next)),
         // Shift+Tab is ISO_Left_Tab with Shift consumed on most layouts;
@@ -111,6 +112,15 @@ mod tests {
     fn return_and_keypad_enter_accept() {
         assert_eq!(binding(Keysym::Return, Mods::NONE), Some(Action::Accept));
         assert_eq!(binding(Keysym::KP_Enter, Mods::NONE), Some(Action::Accept));
+    }
+
+    #[test]
+    fn shift_return_descends() {
+        assert_eq!(binding(Keysym::Return, Mods::SHIFT), Some(Action::Descend));
+        assert_eq!(
+            binding(Keysym::KP_Enter, Mods::SHIFT),
+            Some(Action::Descend)
+        );
     }
 
     #[test]

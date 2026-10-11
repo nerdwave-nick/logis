@@ -48,7 +48,7 @@ impl Dmenu {
     /// How the session ends for this answer.
     pub fn outcome(&self, answer: Answer) -> Outcome {
         match answer {
-            Answer::Item(index) => match self.items.get(index as usize) {
+            Answer::Item(index) | Answer::Descend(index) => match self.items.get(index as usize) {
                 Some(item) => Outcome::Selected {
                     index: u64::from(index),
                     item: item.clone(),
@@ -121,6 +121,7 @@ mod tests {
                 item: Item::from_raw(b"\xff y".to_vec())
             }
         );
+        assert_eq!(d.outcome(Answer::Descend(1)), d.outcome(Answer::Item(1)));
         assert_eq!(
             d.outcome(Answer::Typed("free".into())),
             Outcome::Typed {

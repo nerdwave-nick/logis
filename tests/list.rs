@@ -129,6 +129,7 @@ fn entry(text: &str, glyph: Option<&str>, badges: &[&str], pending: bool) -> Ent
             icon: None,
             badges: badges.iter().map(|b| b.to_string()).collect(),
             pending,
+            boost: 0,
         })),
     }
 }

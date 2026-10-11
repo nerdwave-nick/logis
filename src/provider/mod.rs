@@ -45,6 +45,9 @@ pub enum Step {
 pub enum Answer {
     /// Return on the item at this index.
     Item(u32),
+    /// Shift+Return on the item at this index: its next stage where it has
+    /// one (an app's desktop actions); elsewhere the same as [`Self::Item`].
+    Descend(u32),
     /// Return on typed text that matched no item.
     Typed(String),
     /// Dismissal (Escape, focus loss, or the compositor closed the window).

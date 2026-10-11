@@ -50,7 +50,7 @@ impl DebugSession {
     pub fn apply(&mut self, action: &Action) -> Outcome {
         match action {
             Action::Dismiss => Outcome::Dismissed,
-            Action::Accept => Outcome::Accepted,
+            Action::Accept | Action::Descend => Outcome::Accepted,
             Action::Select(Step::Previous) if self.row > 0 => {
                 self.row -= 1;
                 Outcome::Selected

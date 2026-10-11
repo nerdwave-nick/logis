@@ -261,6 +261,10 @@ fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event
                 emit(format_args!("accept {index}"));
                 Answer::Item(index)
             }
+            Reaction::Accept(Choice::Descend(index)) => {
+                emit(format_args!("descend {index}"));
+                Answer::Descend(index)
+            }
             Reaction::Accept(Choice::Typed(text)) => {
                 let quoted = serde_json::to_string(&text).unwrap_or_default();
                 emit(format_args!("typed {quoted}"));

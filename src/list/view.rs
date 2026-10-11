@@ -9,9 +9,12 @@
 
 use std::ops::Range;
 
+mod look;
 mod pointer;
 
-use super::filter::{Filter, byte_ranges};
+pub use look::{Look, Row};
+
+use super::filter::Filter;
 use super::{Decor, Entry, Options, Preselect};
 use crate::input::{Action, Edit, Query, Step};
 
@@ -33,47 +36,10 @@ pub enum Reaction {
 pub enum Choice {
     /// The item at this index (input order).
     Item(u32),
+    /// The item at this index, asking for its next stage (Shift+Return).
+    Descend(u32),
     /// The typed text, which matched nothing.
     Typed(String),
-}
-
-/// One row in view.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Row {
-    /// The item's text.
-    pub text: String,
-    /// The bytes of `text` the query matched (empty when the item is
-    /// matched by another text, `--match-nth`).
-    pub highlights: Vec<Range<usize>>,
-    /// Whether the row is selected.
-    pub selected: bool,
-    /// The emblem for the icon column.
-    pub glyph: Option<String>,
-    /// Labels for the row's end.
-    pub badges: Vec<String>,
-    /// Whether the item is still pending.
-    pub pending: bool,
-}
-
-/// Everything the scene shows, taken from the view at one moment.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Look {
-    /// Shown before the query.
-    pub prompt: String,
-    /// The query as shown (masked for a password), or the placeholder.
-    pub input: String,
-    /// The cursor's byte offset in `input`; `None` while the placeholder shows.
-    pub cursor: Option<usize>,
-    /// The rows in view, top first.
-    pub rows: Vec<Row>,
-    /// How many rows the list has room for.
-    pub lines: u32,
-    /// Matching and total items, when the counter is on.
-    pub counter: Option<(usize, usize)>,
-    /// Whether rows keep an icon column (some item has an emblem).
-    pub glyphs: bool,
-    /// A notice shown over the list; the view leaves it to its owner.
-    pub toast: Option<super::Notice>,
 }
 
 /// The list of one session.
@@ -141,8 +107,10 @@ impl ListView {
                 match_text,
                 decor,
             } = entry;
-            self.shown_is_matched.push(match_text.is_none());
-            matched.push(match_text.unwrap_or_else(|| text.clone()));
+            self.shown_is_matched
+                .push(highlightable(&text, match_text.as_deref()));
+            let boost = decor.as_ref().map_or(0, |d| d.boost);
+            matched.push((match_text.unwrap_or_else(|| text.clone()), boost));
             self.texts.push(text);
             self.decor.push(decor);
             self.removed.push(false);
@@ -150,7 +118,8 @@ impl ListView {
         if matched.is_empty() {
             return false;
         }
-        self.filter.push(matched.iter().map(String::as_str));
+        self.filter
+            .push_boosted(matched.iter().map(|(text, boost)| (text.as_str(), *boost)));
         self.settle(first..self.texts.len());
         true
     }
@@ -165,7 +134,7 @@ impl ListView {
         self.emblems += usize::from(entry.has_emblem());
         let match_text = entry.match_text.as_deref().unwrap_or(&entry.text);
         self.filter.update(index, match_text);
-        self.shown_is_matched[i] = entry.match_text.is_none();
+        self.shown_is_matched[i] = highlightable(&entry.text, entry.match_text.as_deref());
         self.texts[i] = entry.text;
         self.decor[i] = entry.decor;
         self.settle(i..i + 1);
@@ -238,8 +207,9 @@ impl ListView {
     pub fn apply(&mut self, action: &Action) -> Reaction {
         match action {
             Action::Dismiss => Reaction::Dismiss,
-            Action::Accept => match self.selected() {
+            Action::Accept | Action::Descend => match self.selected() {
                 Some(item) if self.pending(item) => Reaction::Unchanged,
+                Some(item) if *action == Action::Descend => Reaction::Accept(Choice::Descend(item)),
                 Some(item) => Reaction::Accept(Choice::Item(item)),
                 None if self.options.only_match => Reaction::Unchanged,
                 None if self.options.required && self.query.text().is_empty() => {
@@ -292,69 +262,6 @@ impl ListView {
         self.filter.matches().get(self.selected).map(|m| m.index)
     }
 
-    /// What to draw now.
-    pub fn look(&mut self) -> Look {
-        let lines = self.options.lines as usize;
-        let shown: Vec<u32> = self.filter.matches()[self.top..]
-            .iter()
-            .take(lines)
-            .map(|m| m.index)
-            .collect();
-        let rows = shown
-            .into_iter()
-            .enumerate()
-            .map(|(i, item)| {
-                let text = self.texts[item as usize].clone();
-                let highlights = if self.shown_is_matched[item as usize] {
-                    byte_ranges(&text, &self.filter.positions(item))
-                } else {
-                    Vec::new()
-                };
-                let decor = self.decor[item as usize].as_deref();
-                Row {
-                    text,
-                    highlights,
-                    selected: self.top + i == self.selected,
-                    glyph: decor.and_then(|d| d.glyph.clone()),
-                    badges: decor.map(|d| d.badges.clone()).unwrap_or_default(),
-                    pending: decor.is_some_and(|d| d.pending),
-                }
-            })
-            .collect();
-        let (input, cursor) = self.input();
-        Look {
-            prompt: self.options.prompt.clone(),
-            input,
-            cursor,
-            rows,
-            lines: self.options.lines,
-            counter: self
-                .options
-                .counter
-                .then(|| (self.matched(), self.filter.len())),
-            glyphs: self.emblems > 0,
-            toast: None,
-        }
-    }
-
-    /// The query as shown and its cursor, or the placeholder.
-    fn input(&self) -> (String, Option<usize>) {
-        use unicode_segmentation::UnicodeSegmentation;
-        let text = self.query.text();
-        if text.is_empty() && !self.options.placeholder.is_empty() {
-            return (self.options.placeholder.clone(), None);
-        }
-        match self.options.password {
-            None => (text.to_owned(), Some(self.query.cursor())),
-            Some(mask) => {
-                let before = text[..self.query.cursor()].graphemes(true).count();
-                let all = text.graphemes(true).count();
-                let shown: String = std::iter::repeat_n(mask, all).collect();
-                (shown, Some(before * mask.len_utf8()))
-            }
-        }
-    }
-
     fn matched(&self) -> usize {
         self.filter.matches().len()
     }
@@ -393,6 +300,12 @@ impl ListView {
             self.top = self.selected + 1 - lines;
         }
     }
+}
+
+/// Whether a match shows on the shown text: it is what is matched, or the
+/// match text begins with it (then matches beyond it are not shown).
+fn highlightable(text: &str, match_text: Option<&str>) -> bool {
+    match_text.is_none_or(|m| m.starts_with(text))
 }
 
 #[cfg(test)]
@@ -722,5 +635,62 @@ mod tests {
         assert!(look.rows[0].highlights.is_empty());
         typed(&mut v, "x");
         assert!(v.look().rows.is_empty());
+    }
+
+    #[test]
+    fn a_match_text_that_begins_with_the_shown_text_highlights_it() {
+        let mut v = ListView::new(Options::default());
+        v.push([(
+            "Anoint".to_owned(),
+            Some("Anoint\tHoly Oil unguent".to_owned()),
+        )]);
+        typed(&mut v, "ano");
+        assert_eq!(v.look().rows[0].highlights, [0..3]);
+        typed(&mut v, " ung");
+        let look = v.look();
+        assert_eq!(texts(&look), ["Anoint"], "matched beyond the shown text");
+        assert_eq!(
+            look.rows[0].highlights,
+            [0..3],
+            "only what is shown is highlighted"
+        );
+    }
+
+    #[test]
+    fn a_boost_ranks_an_item_higher_and_rows_carry_icons() {
+        let mut v = ListView::new(Options::default());
+        let boosted = Decor {
+            icon: Some("forge-cog".into()),
+            boost: 30,
+            ..Decor::default()
+        };
+        v.push([
+            Entry::from("rite of oil".to_owned()),
+            decorated("rite of oil!", boosted),
+        ]);
+        typed(&mut v, "rite");
+        let look = v.look();
+        assert_eq!(texts(&look), ["rite of oil!", "rite of oil"]);
+        assert_eq!(look.rows[0].icon.as_deref(), Some("forge-cog"));
+        assert!(look.glyphs, "an icon needs the icon column");
+    }
+
+    #[test]
+    fn descend_chooses_the_item_for_its_next_stage() {
+        let mut v = view(Options::default(), &["oil", "fire"]);
+        v.apply(&Action::Select(Step::Next));
+        assert_eq!(
+            v.apply(&Action::Descend),
+            Reaction::Accept(Choice::Descend(1))
+        );
+        typed(&mut v, "zz");
+        assert_eq!(
+            v.apply(&Action::Descend),
+            Reaction::Accept(Choice::Typed("zz".into())),
+            "typed text has no next stage: Shift+Return is Return"
+        );
+        let mut p = ListView::new(Options::default());
+        p.push([pending("oil")]);
+        assert_eq!(p.apply(&Action::Descend), Reaction::Unchanged);
     }
 }

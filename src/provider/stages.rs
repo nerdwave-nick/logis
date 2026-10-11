@@ -79,13 +79,15 @@ impl Stages {
         let current = self.current.as_ref()?;
         let stage = current.id.clone();
         match answer {
-            Answer::Item(index) => current
-                .ids
-                .get(index as usize)
-                .map(|id| ToProvider::Activate {
-                    stage,
-                    id: id.clone(),
-                }),
+            Answer::Item(index) | Answer::Descend(index) => {
+                current
+                    .ids
+                    .get(index as usize)
+                    .map(|id| ToProvider::Activate {
+                        stage,
+                        id: id.clone(),
+                    })
+            }
             Answer::Typed(text) => Some(ToProvider::Submit { stage, text }),
             Answer::Dismissed => None,
         }
@@ -190,6 +192,7 @@ fn entry(item: Item) -> Entry {
                 icon: item.icon,
                 badges: item.badges,
                 pending: item.pending,
+                boost: 0,
             })
         }),
     }
@@ -308,6 +311,11 @@ mod tests {
             })
         );
         assert_eq!(s.answer(Answer::Item(7)), None);
+        assert_eq!(
+            s.answer(Answer::Descend(1)),
+            s.answer(Answer::Item(1)),
+            "as Return"
+        );
         assert_eq!(s.answer(Answer::Dismissed), None);
     }
 
