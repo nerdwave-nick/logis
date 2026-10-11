@@ -516,3 +516,69 @@ fn text_output_stays_premultiplied() {
         }
     }
 }
+
+// ---------------------------------------------------------------- spans and alignment
+
+/// The colour of each solid pixel, left half and right half of the ink.
+fn solid_halves(image: &Image) -> (Vec<[u8; 3]>, Vec<[u8; 3]>) {
+    let ink: Vec<_> = ink(image).collect();
+    let left = ink.iter().map(|p| p.0).min().unwrap();
+    let right = ink.iter().map(|p| p.0).max().unwrap();
+    let middle = (left + right) / 2;
+    let mut halves = (Vec::new(), Vec::new());
+    for (x, y) in ink {
+        let i = ((y * image.width + x) * 4) as usize;
+        let px = &image.pixels[i..i + 4];
+        if px[3] == 255 {
+            let rgb = [px[0], px[1], px[2]];
+            if x < middle {
+                &mut halves.0
+            } else {
+                &mut halves.1
+            }
+            .push(rgb);
+        }
+    }
+    halves
+}
+
+fn near(rgb: [u8; 3], want: [u8; 3]) -> bool {
+    rgb.iter().zip(want).all(|(a, b)| a.abs_diff(b) <= 2)
+}
+
+#[test]
+fn spans_paint_their_bytes_in_their_own_colour() {
+    let Some(gpu) = gpu() else { return };
+    let mut line = Text::new("IIIIIIII", [4.0, 4.0], 48.0, WHITE);
+    line.spans = vec![(4..8, BLUE)];
+    let image = render(&gpu, &texts(vec![line]), (240, 80), Scale::ONE);
+    let (left, right) = solid_halves(&image);
+    assert!(
+        left.len() > 50 && right.len() > 50,
+        "{} / {}",
+        left.len(),
+        right.len()
+    );
+    let off = |half: &[[u8; 3]], want| half.iter().filter(|&&p| !near(p, want)).count();
+    assert_eq!(off(&left, [0xff; 3]), 0, "left half not white");
+    assert_eq!(off(&right, [0x40, 0xa0, 0xff]), 0, "right half not #40a0ff");
+}
+
+#[test]
+fn an_end_aligned_line_ends_at_its_column_edge() {
+    let Some(gpu) = gpu() else { return };
+    for scale in scales() {
+        let f = scale.factor();
+        let mut line =
+            Text::new("12/345", [10.0, 8.0], 16.0, WHITE).in_column(200.0, Overflow::Clip);
+        line.align_end = true;
+        let image = render(&gpu, &texts(vec![line]), (240, 40), scale);
+        let right = ink(&image).map(|p| p.0).max().expect("the line is drawn") as f32;
+        let left = ink(&image).map(|p| p.0).min().unwrap() as f32;
+        assert!(
+            right > 200.0 * f && right <= 210.0 * f,
+            "@{f}: right {right}"
+        );
+        assert!(left > 120.0 * f, "@{f}: left {left}");
+    }
+}

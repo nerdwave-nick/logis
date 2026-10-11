@@ -7,6 +7,8 @@ pub mod icons;
 
 pub mod input;
 
+pub mod list;
+
 pub mod render;
 
 pub mod text;

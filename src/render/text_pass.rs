@@ -4,7 +4,7 @@
 //! values as they are, `Accurate` for an sRGB target, which encodes them.
 
 use glyphon::{
-    Buffer, Cache, Color, ColorMode, PrepareError, Resolution, SwashCache, TextArea, TextAtlas,
+    Buffer, Cache, ColorMode, PrepareError, Resolution, SwashCache, TextArea, TextAtlas,
     TextBounds, TextRenderer, Viewport,
 };
 
@@ -143,8 +143,6 @@ fn area(shaped: &Shaped, scale: Scale, (width, height): (u32, u32)) -> TextArea<
     let (left, right) = text
         .column(scale)
         .unwrap_or((0, i32::try_from(width).unwrap_or(i32::MAX)));
-    let [r, g, b, a] = [text.color.r, text.color.g, text.color.b, text.color.a]
-        .map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8);
     TextArea {
         buffer: &shaped.buffer,
         left: (text.origin[0] * f).round(),
@@ -156,7 +154,7 @@ fn area(shaped: &Shaped, scale: Scale, (width, height): (u32, u32)) -> TextArea<
             right,
             bottom: i32::try_from(height).unwrap_or(i32::MAX),
         },
-        default_color: Color::rgba(r, g, b, a),
+        default_color: super::text::glyph_color(text.color),
         custom_glyphs: &[],
     }
 }

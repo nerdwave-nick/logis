@@ -3,7 +3,7 @@
 //! faces) in buffer pixels so hinting snaps to the real pixel grid.
 
 use glyphon::cosmic_text::{Align, Ellipsize, EllipsizeHeightLimit, Hinting};
-use glyphon::{Attrs, Buffer, Family, Metrics, Shaping, Wrap};
+use glyphon::{Attrs, Buffer, Color, Family, Metrics, Shaping, Wrap};
 
 use super::scale::Scale;
 use super::scene::Rgba;
@@ -36,6 +36,12 @@ pub struct Text {
     pub width: Option<f32>,
     /// What a too-wide line does in its column.
     pub overflow: Overflow,
+    /// Byte ranges of `text` painted in another colour (match highlights),
+    /// ascending and not overlapping.
+    pub spans: Vec<(std::ops::Range<usize>, Rgba)>,
+    /// Ends the line at its column's end edge instead of starting it at
+    /// the start edge.
+    pub align_end: bool,
 }
 
 impl Text {
@@ -49,6 +55,8 @@ impl Text {
             color,
             width: None,
             overflow: Overflow::default(),
+            spans: Vec::new(),
+            align_end: false,
         }
     }
 
@@ -92,17 +100,86 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
     if width.is_some() && text.overflow == Overflow::Ellipsis {
         b.set_ellipsize(Ellipsize::End(EllipsizeHeightLimit::Lines(1)));
     }
-    // One line: line breaks become spaces rather than new lines.
+    // One line: line breaks become spaces rather than new lines (one byte
+    // for one, so the spans' byte ranges still hold).
     let line = text.text.replace(['\n', '\r'], " ");
-    b.set_text(&line, &attrs, Shaping::Advanced, None::<Align>);
+    let align = text.align_end.then_some(Align::End);
+    if text.spans.is_empty() {
+        b.set_text(&line, &attrs, Shaping::Advanced, align);
+    } else {
+        let pieces = spans(&line, &text.spans).map(|(range, color)| {
+            let attrs = match color {
+                Some(c) => attrs.clone().color(glyph_color(c)),
+                None => attrs.clone(),
+            };
+            (&line[range], attrs)
+        });
+        b.set_rich_text(pieces, &attrs, Shaping::Advanced, align);
+    }
     b.shape_until_scroll(false);
     buffer
+}
+
+/// A colour as glyphon takes it: sRGB bytes, straight alpha.
+pub(crate) fn glyph_color(c: Rgba) -> Color {
+    let [r, g, b, a] = [c.r, c.g, c.b, c.a].map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+    Color::rgba(r, g, b, a)
+}
+
+/// `line` cut into consecutive pieces: the spans with their colour, the
+/// rest with none. Spans out of order, overlapping or off a character
+/// boundary are skipped.
+fn spans(
+    line: &str,
+    spans: &[(std::ops::Range<usize>, Rgba)],
+) -> impl Iterator<Item = (std::ops::Range<usize>, Option<Rgba>)> {
+    let mut pieces = Vec::new();
+    let mut at = 0;
+    for (range, color) in spans {
+        let fits = at <= range.start
+            && range.start < range.end
+            && range.end <= line.len()
+            && line.is_char_boundary(range.start)
+            && line.is_char_boundary(range.end);
+        if !fits {
+            continue;
+        }
+        if at < range.start {
+            pieces.push((at..range.start, None));
+        }
+        pieces.push((range.clone(), Some(*color)));
+        at = range.end;
+    }
+    if at < line.len() || pieces.is_empty() {
+        pieces.push((at..line.len(), None));
+    }
+    pieces.into_iter()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::text::FontConfig;
+
+    #[test]
+    fn spans_cut_a_line_into_coloured_and_plain_pieces() {
+        let red = Rgba::hex(0xff0000);
+        let cut: Vec<_> = spans("abcdef", &[(1..2, red), (4..6, red)]).collect();
+        assert_eq!(
+            cut,
+            [
+                (0..1, None),
+                (1..2, Some(red)),
+                (2..4, None),
+                (4..6, Some(red))
+            ]
+        );
+        // Off a character boundary, backwards or past the end: skipped.
+        let cut: Vec<_> = spans("öb", &[(1..2, red), (3..9, red), (2..3, red)]).collect();
+        assert_eq!(cut, [(0..2, None), (2..3, Some(red))]);
+        let cut: Vec<_> = spans("", &[]).collect();
+        assert_eq!(cut, [(0..0, None)]);
+    }
 
     pub(crate) fn pinned() -> Fonts {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fonts");

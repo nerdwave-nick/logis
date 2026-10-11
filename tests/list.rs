@@ -1,0 +1,113 @@
+//! The dmenu list as drawn (spec §3 stories 1–3): the prompt line with the
+//! query, cursor and counter, tab-separated columns lined up at tab stops,
+//! the selection band and the matched characters in brass, compared with
+//! goldens at scales 1.0, 1.3 and 2.0. The list comes from the real
+//! [`ListView`] (filtering and highlights included); fonts are pinned as in
+//! tests/text.rs. Needs a GPU adapter (see tests/render.rs).
+
+mod support;
+
+use std::path::Path;
+
+use logis::input::{Action, Edit, Step};
+use logis::list::{ListView, Options, scene};
+use logis::render::{Image, OFFSCREEN_FORMAT, Renderer, Scale, Scene, render_offscreen};
+use logis::text::{FontConfig, Fonts};
+use support::golden::{self, Goldens, Tolerance};
+
+fn pinned_fonts() -> Fonts {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fonts");
+    let files: Vec<_> = [
+        "NotoSans-Regular.ttf",
+        "NotoSansHebrew-Regular.ttf",
+        "NotoSansArabic-Regular.ttf",
+        "NotoSansCJKjp-Regular.otf",
+        "NotoColorEmoji.ttf",
+    ]
+    .map(|f| dir.join(f))
+    .to_vec();
+    let files: Vec<&Path> = files.iter().map(|p| p.as_path()).collect();
+    let rules = "<fontconfig><alias><family>sans-serif</family>\
+                 <prefer><family>Noto Sans</family></prefer></alias></fontconfig>";
+    Fonts::new(FontConfig::isolated(rules, &files).unwrap(), "sans-serif").unwrap()
+}
+
+fn scales() -> [Scale; 3] {
+    [Scale::ONE, Scale::from_120ths(156), Scale::from_integer(2)]
+}
+
+fn render(gpu: &logis::render::Gpu, scene: &Scene, logical: (u32, u32), scale: Scale) -> Image {
+    let mut renderer = Renderer::new(gpu);
+    renderer.set_fonts(gpu, pinned_fonts());
+    render_offscreen(gpu, &mut renderer, scene, logical, scale, OFFSCREEN_FORMAT).unwrap()
+}
+
+#[track_caller]
+fn check(name: &str, view: &mut ListView, options: &Options) {
+    let Some(gpu) = golden::env_gpu() else { return };
+    let logical = scene::size(options);
+    let scene = scene::scene(&view.look(), logical);
+    let goldens = Goldens::checked_in();
+    let failures: Vec<String> = scales()
+        .into_iter()
+        .filter_map(|scale| {
+            let image = render(&gpu, &scene, logical, scale);
+            let name = format!("{name}@{}", golden::scale_suffix(scale));
+            goldens
+                .check("list", &name, &image, Tolerance::OFFSCREEN)
+                .err()
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn items(texts: &[&str]) -> Vec<(String, Option<String>)> {
+    texts.iter().map(|t| (t.to_string(), None)).collect()
+}
+
+#[test]
+fn a_filtered_list_with_columns_highlights_and_a_counter() {
+    let options = Options {
+        lines: 5,
+        width: 40,
+        counter: true,
+        ..Options::default()
+    };
+    let mut view = ListView::new(options.clone());
+    view.push(items(&[
+        "rite of oil\tunguent",
+        "rite of ignition\tspark",
+        "café noir\tdrink",
+        "機械の精霊\tspirit",
+        "Ἐν ἀρχῇ ἦν ὁ λόγος",
+        "the rite of the long litany that never ends and is cut short\tlong",
+    ]));
+    view.apply(&Action::Edit(Edit::Insert("rite".into())));
+    view.apply(&Action::Select(Step::Next));
+    check("filtered", &mut view, &options);
+}
+
+#[test]
+fn a_prompt_only_password_with_its_mask() {
+    let options = Options {
+        prompt: "pin: ".into(),
+        lines: 0,
+        password: Some('*'),
+        ..Options::default()
+    };
+    let mut view = ListView::new(options.clone());
+    view.apply(&Action::Edit(Edit::Insert("1234".into())));
+    check("password", &mut view, &options);
+}
+
+#[test]
+fn an_empty_query_shows_the_placeholder_and_every_item() {
+    let options = Options {
+        lines: 3,
+        placeholder: "seek the rite".into(),
+        ..Options::default()
+    };
+    let mut view = ListView::new(options.clone());
+    view.push(items(&["alpha", "beta", "gamma", "delta"]));
+    check("placeholder", &mut view, &options);
+}

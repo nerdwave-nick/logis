@@ -56,6 +56,13 @@ xkbcommon = { version = "0.8.0", default-features = false, features = ["wayland"
 # Grapheme-aware query editing (spec §4.4: Backspace deletes a grapheme);
 # already in the tree through cosmic-text (same release).
 unicode-segmentation = "1.13.3"
+# fzf-like fuzzy matching (spec §4.5): the matcher engine of nucleo (the
+# decided crate), without nucleo's high-level worker, which would add rayon
+# and crossbeam (five crates) for what std::thread::scope does here
+# (src/list/filter.rs). Default features: Unicode case folding and
+# normalisation (case- and accent-insensitive) and grapheme segmentation
+# (unicode-segmentation, already a dependency). MPL-2.0, used unmodified.
+nucleo-matcher = "0.3.1"
 # Only to name `Script` in cosmic-text's `Fallback` trait; already in the tree
 # through cosmic-text (same 0.5 release), so it adds no crate.
 unicode-script = "0.5.8"
