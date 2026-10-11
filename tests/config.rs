@@ -4,7 +4,7 @@
 
 mod support;
 
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::sync::mpsc::{Receiver, channel};
@@ -155,6 +155,29 @@ fn a_client_hands_its_config_to_the_daemon_it_starts() {
         "{}",
         stderr(&out)
     );
+}
+
+#[test]
+fn a_running_daemon_keeps_its_config_whatever_a_caller_names() {
+    let rig = Rig::new();
+    let _daemon = rig.start_daemon(&[]);
+    let dir = ScratchDir::new();
+    let path = dir.path().join("named.jsonc");
+    write(&path, "{\"heresy\": true}");
+    let mut caller = rig
+        .logis()
+        .arg("--config")
+        .arg(&path)
+        .arg("--dmenu")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    caller.stdin.take().unwrap().write_all(b">x\n").unwrap();
+    let out = caller.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "stderr: {}", stderr(&out));
+    assert_eq!(out.stdout, b">x\n");
 }
 
 // Live reload in the daemon. The scripted resolver stands in for the window,
