@@ -38,12 +38,19 @@ pub struct Ended {
 impl Cogitator {
     /// Starts the compositor and the daemon, or `None` without `LOGIS_E2E`.
     pub fn start() -> Option<Self> {
+        Self::start_with(|_| {})
+    }
+
+    /// [`Self::start`], with `prepare` adding to the daemon's command
+    /// (environment, arguments).
+    pub fn start_with(prepare: impl FnOnce(&mut std::process::Command)) -> Option<Self> {
         let kind = Kind::requested()?;
         let compositor = TestCompositor::start(kind);
         let mut harness = Harness::connect(&compositor);
         let kb = harness.virtual_keyboard();
         let mut command = compositor.logis();
         command.arg("daemon");
+        prepare(&mut command);
         let daemon = Traced::spawn(command);
         greet(&compositor.runtime_dir().join("logis.sock"));
         Some(Self {
@@ -80,6 +87,18 @@ impl Cogitator {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         let child = command.spawn().expect("logis --provider starts");
+        Client { child, stdin: None }
+    }
+
+    /// Starts `logis --apps` with the extra environment `env`.
+    pub fn apps(&self, env: &[(&str, &std::ffi::OsStr)]) -> Client {
+        let mut command = self.compositor.logis();
+        command
+            .arg("--apps")
+            .envs(env.iter().copied())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = command.spawn().expect("logis --apps starts");
         Client { child, stdin: None }
     }
 

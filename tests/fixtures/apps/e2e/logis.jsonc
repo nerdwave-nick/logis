@@ -1,0 +1,3 @@
+// The app launcher's E2E config: icons from the fixture theme
+// (tests/fixtures/icons/share/icons/logis-forge).
+{ "icon-theme": "logis-forge" }
