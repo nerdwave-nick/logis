@@ -28,6 +28,8 @@ pub enum Command {
         config: Option<PathBuf>,
         argv: Vec<OsString>,
     },
+    /// The app launcher: desktop applications, launched by the daemon.
+    Apps { config: Option<PathBuf> },
     /// Validate the config: exit 0 if it is sound, 2 with its errors if not.
     CheckConfig { config: Option<PathBuf> },
     /// Be the daemon.
@@ -76,7 +78,7 @@ impl fmt::Display for ParseError {
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
                  It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), \
-                 --provider PROGRAM [ARG]..., --check-config, --config PATH and \
+                 --apps, --provider PROGRAM [ARG]..., --check-config, --config PATH and \
                  daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
@@ -132,6 +134,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
             Some("--dmenu" | "-d") => Started::Dmenu { nul: false },
             Some("--dmenu0") => Started::Dmenu { nul: true },
             Some("--check-config") => Started::CheckConfig,
+            Some("--apps") => Started::Apps,
             Some("--provider") => {
                 let argv: Vec<OsString> = args.by_ref().collect();
                 if argv.is_empty() {
@@ -160,6 +163,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
         None => Command::Run { config },
         Some(Started::Version) => Command::Version,
         Some(Started::CheckConfig) => Command::CheckConfig { config },
+        Some(Started::Apps) => Command::Apps { config },
         Some(Started::Provider(argv)) => Command::Provider { config, argv },
         Some(Started::Dmenu { .. }) => unreachable!("handled above"),
     })
@@ -172,6 +176,7 @@ enum Started {
         nul: bool,
     },
     CheckConfig,
+    Apps,
     /// The program and its arguments: everything after `--provider`.
     Provider(Vec<OsString>),
 }
@@ -319,6 +324,19 @@ mod tests {
         assert!(err.to_string().contains("--provider"), "{err}");
         assert!(parse_strs(&["--dmenu", "--provider", "x"]).is_err());
         assert!(parse_strs(&["--prompt", "p", "--provider", "x"]).is_err());
+    }
+
+    #[test]
+    fn apps_asks_for_the_app_launcher() {
+        assert_eq!(parse_strs(&["--apps"]), Ok(Command::Apps { config: None }));
+        assert_eq!(
+            parse_strs(&["--apps", "--config", "/c"]),
+            Ok(Command::Apps {
+                config: Some(PathBuf::from("/c"))
+            })
+        );
+        assert!(parse_strs(&["--apps", "--dmenu"]).is_err());
+        assert!(parse_strs(&["--apps", "--prompt", "x"]).is_err());
     }
 
     #[test]

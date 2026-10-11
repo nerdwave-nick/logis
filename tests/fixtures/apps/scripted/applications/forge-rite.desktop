@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=>Rite of Anointing
+Comment=The scripted resolver chooses names marked with >
+Icon=forge-cog
+Exec=anoint --rite %U --name=%c

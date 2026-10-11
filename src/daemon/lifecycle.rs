@@ -63,6 +63,8 @@ pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: 
             Event::Answered { session, answer } => core.answered(session, answer),
             Event::Failed { session, message } => core.failed(session, message),
             Event::Heard { session, heard } => core.heard(session, heard),
+            Event::Indexed(index) => core.indexed(index),
+            Event::Activation { session, token } => core.activated(session, token),
             Event::WaylandLost { reason } => return Exit::WaylandLost(reason),
             Event::Reconfigured(loaded) => reconfigure(core, config, loaded),
         }

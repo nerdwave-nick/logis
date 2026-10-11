@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use logis::config::{self, Config};
 
+use super::apps::AppsState;
 use super::providing::{Feed, Providers, Spawn};
 use super::resolver::{Resolver, Toast};
 use super::sessions::{Effect, SessionId, Sessions};
@@ -35,6 +36,13 @@ pub enum Event {
     Failed { session: SessionId, message: String },
     /// A session's provider process spoke a line, or exited.
     Heard { session: SessionId, heard: Heard },
+    /// The app index was (re)read.
+    Indexed(std::sync::Arc<logis::apps::index::Index>),
+    /// The compositor's activation token for a session's launch, or none.
+    Activation {
+        session: SessionId,
+        token: Option<String>,
+    },
     /// The compositor connection is gone (spec §4.2: exit non-zero).
     WaylandLost { reason: String },
     /// The config file changed and was read again.
@@ -66,10 +74,11 @@ pub(super) struct Conn {
 /// Connections, the session policy, their providers and the resolver.
 pub struct Core<R> {
     pub(super) resolver: R,
-    sessions: Sessions,
+    pub(super) sessions: Sessions,
     pub(super) conns: HashMap<SessionId, Conn>,
     pid: u32,
     pub(super) providers: Providers,
+    pub(super) apps: AppsState,
 }
 
 impl<R: Resolver> Core<R> {
@@ -81,6 +90,7 @@ impl<R: Resolver> Core<R> {
             conns: HashMap::new(),
             pid,
             providers: Providers::default(),
+            apps: AppsState::default(),
         }
     }
 
@@ -90,9 +100,26 @@ impl<R: Resolver> Core<R> {
         self
     }
 
+    /// Starts apps with this state (index, frecency, bus).
+    pub fn with_apps(mut self, apps: AppsState) -> Self {
+        self.apps = apps;
+        self
+    }
+
     /// Hands the config in force to the resolver (and so to the window).
     pub fn configure(&mut self, config: &Config) {
+        self.apps.terminal = config.terminal.clone();
         self.resolver.configure(config);
+    }
+
+    /// The app index was (re)read.
+    pub fn indexed(&mut self, index: std::sync::Arc<logis::apps::index::Index>) {
+        super::apps::indexed(self, index);
+    }
+
+    /// The compositor's activation token for a session's launch.
+    pub fn activated(&mut self, session: SessionId, token: Option<String>) {
+        super::apps::activated(self, session, token);
     }
 
     /// Shows the user a notice.
@@ -145,12 +172,13 @@ impl<R: Resolver> Core<R> {
                     mode,
                     options,
                     provider,
+                    env,
                 },
             ) => {
                 let feed = self
                     .resolver
                     .accepts(mode)
-                    .and_then(|()| Feed::new(mode, options, provider));
+                    .and_then(|()| Feed::new(mode, options, provider, env));
                 match feed {
                     Ok(feed) => {
                         c.phase = Phase::Open { mode, feed };
@@ -218,11 +246,14 @@ impl<R: Resolver> Core<R> {
         else {
             return;
         };
+        if matches!(feed, Feed::Apps(_)) && answer != Answer::Dismissed {
+            return super::apps::answered(self, session, answer);
+        }
         let ending = match (feed, answer) {
             (Feed::Dmenu { lines, .. }, answer) => Ok(Some(lines.outcome(answer))),
             (_, Answer::Dismissed) => Ok(Some(Outcome::Dismissed)),
             (Feed::Provider(live), answer) => live.external.answer(answer).map(|()| None),
-            (Feed::Waiting(_), _) => Ok(None),
+            (Feed::Waiting(_) | Feed::Apps(_), _) => Ok(None),
         };
         match ending {
             Ok(Some(outcome)) => self.finish(session, outcome),
@@ -246,12 +277,15 @@ impl<R: Resolver> Core<R> {
 
     /// When the next timer is due, if any.
     pub fn deadline(&self) -> Option<Instant> {
-        super::providing::deadline(self)
+        let providing = super::providing::deadline(self);
+        let apps = super::apps::deadline(self);
+        providing.into_iter().chain(apps).min()
     }
 
     /// Runs the timers due at `now`.
     pub fn tick(&mut self, now: Instant) {
         super::providing::tick(self, now);
+        super::apps::tick(self, now);
     }
 
     /// Ends a session with its result and closes its connection.
@@ -326,6 +360,7 @@ impl<R: Resolver> Core<R> {
                 }
             }
             Feed::Waiting(_) => super::providing::start(self, id),
+            Feed::Apps(_) => super::apps::show(self, id),
             Feed::Provider(_) => {}
         }
     }
@@ -338,8 +373,10 @@ impl Feed {
         mode: Mode,
         options: crate::protocol::Options,
         provider: Option<crate::protocol::Launch>,
+        env: Vec<crate::protocol::Bytes>,
     ) -> Result<Self, String> {
         match (mode, provider) {
+            (Mode::Apps, None) => Ok(Self::Apps(Box::new(super::apps::AppsFeed::new(env)))),
             (Mode::Provider, Some(launch)) => Ok(Self::Waiting(launch)),
             (Mode::Provider, None) => Err("a provider session must name its provider".to_owned()),
             (_, Some(_)) => Err("only a provider session names a provider".to_owned()),
@@ -490,6 +527,7 @@ mod tests {
             mode,
             options: Options::default(),
             provider: None,
+            env: Vec::new(),
         }
     }
 
@@ -530,6 +568,7 @@ mod tests {
                 mode: Mode::Dmenu,
                 options,
                 provider: None,
+                env: Vec::new(),
             }),
         );
         core.receive(2, Ok(items(&["b"])));
@@ -593,7 +632,10 @@ mod tests {
         assert_eq!(first.take(), [Reply::Visible, result(Outcome::Replaced)]);
         assert!(first.closed());
         assert_eq!(second.take(), [Reply::Visible]);
-        assert_eq!(log.take(), ["show 1 Dmenu []", "hide 1", "show 2 Apps []"]);
+        assert_eq!(
+            log.take(),
+            ["show 1 Dmenu []", "hide 1", "show 2 Apps '› ' []"]
+        );
     }
 
     #[test]

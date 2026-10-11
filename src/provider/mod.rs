@@ -4,6 +4,7 @@
 //! Both drive a session through the same [`Step`]s, and get the user's
 //! [`Answer`]s back.
 
+pub mod apps;
 pub mod dmenu;
 pub mod external;
 #[cfg(test)]

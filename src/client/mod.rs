@@ -5,6 +5,7 @@
 //! The Wayland preflight is the daemon's: it owns the compositor connection.
 //! A client whose daemon cannot start relays the daemon's reason and exits 2.
 
+pub mod apps;
 pub mod dmenu;
 pub mod provider;
 mod spawn;

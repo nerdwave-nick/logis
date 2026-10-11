@@ -123,6 +123,7 @@ impl Rig {
             mode: Mode::Provider,
             options: Options::default(),
             provider: Some(launch),
+            env: Vec::new(),
         };
         self.core.receive(conn, Ok(open));
         wire
@@ -375,6 +376,7 @@ fn dmenu_answers_end_the_session_with_the_chosen_line() {
         mode: Mode::Dmenu,
         options: Options::default(),
         provider: None,
+        env: Vec::new(),
     };
     rig.core.receive(1, Ok(open));
     let lines = vec![

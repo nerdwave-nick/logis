@@ -105,6 +105,10 @@ pub enum Request {
         /// What provider mode runs.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         provider: Option<Launch>,
+        /// An app session: the client's environment (`NAME=VALUE` each),
+        /// the session environment when no systemd user manager answers.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        env: Vec<Bytes>,
     },
     Items {
         items: Vec<Item>,
@@ -196,6 +200,7 @@ mod tests {
             mode,
             options: Options::default(),
             provider: None,
+            env: Vec::new(),
         };
         let shape = wire(&open(Mode::Dmenu));
         assert_eq!(shape["type"], "open");
@@ -274,6 +279,7 @@ mod tests {
             mode: Mode::Provider,
             options: Options::default(),
             provider: Some(launch),
+            env: Vec::new(),
         };
         let shape = wire(&open);
         assert_eq!(shape["mode"], "provider");

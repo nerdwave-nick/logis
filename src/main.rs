@@ -25,6 +25,7 @@ fn main() -> ExitCode {
             Err(e) => fail(&e),
         },
         Ok(cli::Command::Dmenu { config, dmenu }) => client::dmenu::run(config.as_deref(), *dmenu),
+        Ok(cli::Command::Apps { config }) => client::apps::run(config.as_deref()),
         Ok(cli::Command::Provider { config, argv }) => {
             client::provider::run(config.as_deref(), argv)
         }

@@ -278,6 +278,9 @@ impl TestCompositor {
             "SWAYSOCK",
             "LISTEN_PID",
             "LISTEN_FDS",
+            // The runtime dir is scratch, so no session bus is found there:
+            // nothing a test daemon launches reaches the real session.
+            "DBUS_SESSION_BUS_ADDRESS",
         ] {
             command.env_remove(var);
         }

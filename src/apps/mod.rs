@@ -10,6 +10,7 @@ pub mod frecency;
 pub mod index;
 pub mod keyfile;
 pub mod locale;
+pub mod plan;
 pub mod watch;
 
 pub use locale::Locale;

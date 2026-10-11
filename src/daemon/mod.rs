@@ -8,6 +8,7 @@
 //! ([`window`]) takes it over and reports its loss as
 //! [`core::Event::WaylandLost`] on the daemon's channel.
 
+pub mod apps;
 pub mod core;
 pub mod lifecycle;
 pub mod listener;
@@ -19,9 +20,13 @@ pub mod window;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
+use logis::apps::frecency::Frecency;
+use logis::apps::index::{Context, Dirs, Index};
+use logis::apps::watch::Watcher as AppsWatcher;
 use logis::config::{self, Source, live::Live, watch::Watcher};
 
 use self::core::{Core, Event};
@@ -90,9 +95,12 @@ pub fn run(options: DaemonOptions) -> ExitCode {
         None => {}
     }
     let spawn = spawner(events.clone());
+    index_apps(events.clone());
     drop(events);
 
-    let mut core = Core::new(resolver, std::process::id()).with_spawn(spawn);
+    let mut core = Core::new(resolver, std::process::id())
+        .with_spawn(spawn)
+        .with_apps(apps_state());
     core.configure(&config);
     let mut live = Live::new(config, options.idle_timeout);
     let exit = lifecycle::serve(&mut core, &inbox, &mut live);
@@ -133,6 +141,68 @@ fn detach(runtime_dir: &std::path::Path) {
     }
     if let Ok(log) = log {
         let _ = rustix::stdio::dup2_stderr(log);
+    }
+}
+
+/// The apps' state at start: frecency from `$XDG_STATE_HOME/logis/`, the
+/// session bus's address. The index comes from [`index_apps`].
+fn apps_state() -> apps::AppsState {
+    let var = |name: &str| std::env::var(name).ok();
+    let frecency_path = Frecency::path_from_vars(var);
+    let frecency = frecency_path
+        .as_deref()
+        .map(|path| {
+            Frecency::load(path).unwrap_or_else(|e| {
+                log(&format!("{e}; frecency starts anew"));
+                Frecency::default()
+            })
+        })
+        .unwrap_or_default();
+    apps::AppsState {
+        frecency,
+        frecency_path,
+        bus: logis::launch::bus::session_address(var),
+        ..apps::AppsState::default()
+    }
+}
+
+/// Reads the app index on a thread of its own (so it never delays the
+/// first frame), sends it as [`Event::Indexed`], and reads it again
+/// whenever the applications directories change. The directories, the
+/// current desktops (`OnlyShowIn`), `PATH` (`TryExec`) and the locale are
+/// the daemon's own environment's.
+fn index_apps(events: Sender<Event>) {
+    let indexer = move || {
+        let (dirs, cx) = (Dirs::from_env(), Context::from_env());
+        let mut watcher = AppsWatcher::new()
+            .inspect_err(|e| {
+                log(&format!(
+                    "applications are not watched, changes need a restart: {e}"
+                ))
+            })
+            .ok();
+        let mut read = Vec::new();
+        loop {
+            // Watched before reading, so no change falls between the two.
+            if let Some(w) = watcher.as_mut() {
+                w.arm(&read, &dirs.0);
+            }
+            let index = Index::scan(&dirs, &cx);
+            read.clone_from(&index.dirs);
+            if let Some(w) = watcher.as_mut() {
+                w.arm(&read, &dirs.0);
+            }
+            if events.send(Event::Indexed(Arc::new(index))).is_err() {
+                return;
+            }
+            match watcher.as_mut().map(|w| w.wait(None)) {
+                Some(Ok(_)) => {}
+                _ => return,
+            }
+        }
+    };
+    if let Err(e) = thread::Builder::new().name("apps".into()).spawn(indexer) {
+        log(&format!("the census of applications cannot be taken: {e}"));
     }
 }
 
