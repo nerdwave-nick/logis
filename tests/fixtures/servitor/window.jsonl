@@ -1,0 +1,9 @@
+# Derived from vigil.jsonl (recorded from servitor dbab6cb), for the window
+# test: dnd awaited until the test opens the gate, then heeded in "on";
+# the edict screenshot and theme are settled at once.
+{"herald":"rite","rite":"dnd","edict":false,"aspect":"","standing":"dormant","auspex":"awaited","aspects":["on","off"],"purpose":"Silence the vox of the desktop","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/dnd.json","canon":[{"key":"reason","purpose":"why the silence was imposed","mandatory":true,"decrees":{},"decree":null},{"key":"origin","purpose":"","mandatory":false,"decrees":{"off":"the cogitator","on":"the hotkey"},"decree":null}]}
+{"herald":"rite","rite":"screenshot","edict":true,"aspect":"","standing":"dormant","auspex":"","aspects":[],"purpose":"Capture the visage of the machine","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/screenshot.json","canon":[{"key":"region","purpose":"the slurp geometry","mandatory":false,"decrees":{},"decree":"chosen"}]}
+{"herald":"rite","rite":"theme","edict":false,"aspect":"","standing":"dormant","auspex":"","aspects":["default","finii","porpl"],"purpose":"The visage of the machine","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/theme.json","canon":[{"key":"reason","purpose":"why the visage was changed","mandatory":false,"decrees":{},"decree":null}]}
+gate
+{"herald":"rite","rite":"dnd","edict":false,"aspect":"on","standing":"performed","auspex":"heeded","aspects":["on","off"],"purpose":"Silence the vox of the desktop","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/dnd.json","canon":[{"key":"reason","purpose":"why the silence was imposed","mandatory":true,"decrees":{},"decree":null},{"key":"origin","purpose":"","mandatory":false,"decrees":{"off":"the cogitator","on":"the hotkey"},"decree":null}]}
+{"herald":"concluded"}

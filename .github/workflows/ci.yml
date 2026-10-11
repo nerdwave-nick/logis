@@ -95,6 +95,10 @@ jobs:
       - name: provider E2E (cargo test --test provider_window)
         run: cargo test --locked --test provider_window -- --nocapture
 
+      # logis --servitor with the fake servitor (tests/fixtures/servitor).
+      - name: servitor E2E (cargo test --test servitor_window)
+        run: cargo test --locked --test servitor_window -- --nocapture
+
       # Hover, click, wheel and finger scrolling through a virtual pointer,
       # and clipboard and primary paste from the harness's own selection
       # owner (wlr-data-control; no wl-clipboard on the runner).
