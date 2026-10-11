@@ -16,8 +16,9 @@ use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
 use logis::list::{Choice, ListView, Reaction, scene};
+use logis::motion::Glide;
 use logis::window::trace::emit;
-use logis::window::{WindowQueue, Windows};
+use logis::window::{Backdrop, Drawing, Frame, SceneFn, WindowQueue, Windows};
 
 use super::Command;
 use crate::daemon::core::Event;
@@ -80,10 +81,9 @@ fn apply(
             let size = scene::size(&options);
             let view = Rc::new(RefCell::new(ListView::new(options)));
             view.borrow_mut().push(items.iter().map(entry));
-            let drawn = Rc::clone(&view);
-            let draw = move |logical| scene::scene(&drawn.borrow_mut().look(), logical);
+            let draw = drawing(Rc::clone(&view), Glide::new(windows.motion().selection));
             *shown = None;
-            match windows.show(qh, size, Box::new(draw)) {
+            match windows.show(qh, size, draw) {
                 Ok(()) => {
                     emit(format_args!("show {session}"));
                     emit(format_args!("items {}", items.len()));
@@ -112,12 +112,29 @@ fn apply(
         Command::Hide { session } => {
             if shown.as_ref().is_some_and(|s| s.session == session) {
                 *shown = None;
-                windows.hide();
+                windows.close();
                 emit(format_args!("hide {session}"));
             }
         }
         Command::FocusLoss(policy) => windows.set_focus_loss(policy),
+        Command::Blur(blur) => windows.set_blur(blur, qh),
     }
+}
+
+/// Draws `view` each frame: the selection band glides to the selected row,
+/// and the body is blurred behind.
+fn drawing(view: Rc<RefCell<ListView>>, mut glide: Glide) -> SceneFn {
+    Box::new(move |frame: &Frame| {
+        let look = view.borrow_mut().look();
+        let target = scene::band_top(&look, frame.logical);
+        let (band, moving) = glide.toward(target, frame.at, frame.interval);
+        let (rect, radius) = scene::body(frame.logical);
+        Drawing {
+            scene: scene::scene_at(&look, frame.logical, band),
+            backdrop: Some(Backdrop { rect, radius }),
+            moving,
+        }
+    })
 }
 
 /// An item as the list takes it: its shown text, and its match text when
@@ -167,8 +184,9 @@ fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event
     }
 }
 
-/// Ends the shown session with `outcome`: the window goes at once, the
-/// daemon answers the client and shows the next session, if one waits.
+/// Ends the shown session with `outcome`: the daemon answers the client at
+/// once (and shows the next session, if one waits), then the window closes;
+/// its close transition is only for the eye and delays nothing.
 fn resolve(
     windows: &mut Windows,
     shown: &mut Option<Shown>,
@@ -176,10 +194,10 @@ fn resolve(
     outcome: Outcome,
 ) {
     if let Some(s) = shown.take() {
-        windows.hide();
         let _ = events.send(Event::Resolved {
             session: s.session,
             outcome,
         });
+        windows.close();
     }
 }

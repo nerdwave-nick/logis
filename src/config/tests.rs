@@ -31,6 +31,7 @@ fn the_defaults_are_the_documented_ones() {
     assert_eq!(config.terminal, None);
     assert_eq!(config.icon_theme, "hicolor");
     assert_eq!(config.focus_loss, FocusLoss::Dismiss);
+    assert!(config.blur, "blur behind when the compositor offers it");
 }
 
 #[test]
@@ -43,6 +44,7 @@ fn every_setting_is_read_from_jsonc() {
         "terminal": ["foot", "-e",],
         "icon-theme": "Papirus-Dark",
         "focus-loss": "keep",
+        "blur": false,
     }"#;
     let config = parse(text).unwrap();
     assert_eq!(
@@ -53,8 +55,19 @@ fn every_setting_is_read_from_jsonc() {
             terminal: Some(vec!["foot".into(), "-e".into()]),
             icon_theme: "Papirus-Dark".into(),
             focus_loss: FocusLoss::Keep,
+            blur: false,
         }
     );
+}
+
+#[test]
+fn blur_is_a_flag_and_anything_else_names_it() {
+    assert!(!parse(r#"{"blur": false}"#).unwrap().blur);
+    assert!(parse(r#"{"blur": true}"#).unwrap().blur);
+    for wrong in [r#""yes""#, "1", "null"] {
+        let e = err(&format!(r#"{{"blur": {wrong}}}"#));
+        assert!(e.message.contains("`blur`"), "{wrong}: {}", e.message);
+    }
 }
 
 #[test]

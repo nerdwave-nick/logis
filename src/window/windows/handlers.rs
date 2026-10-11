@@ -6,6 +6,7 @@ use smithay_client_toolkit::compositor::CompositorHandler;
 use smithay_client_toolkit::output::{OutputHandler, OutputState};
 use smithay_client_toolkit::reexports::client::protocol::{wl_output, wl_surface};
 use smithay_client_toolkit::reexports::client::{Connection, Dispatch, Proxy, QueueHandle};
+use smithay_client_toolkit::reexports::protocols::ext::background_effect::v1::client::ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1;
 use smithay_client_toolkit::reexports::protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},
@@ -26,6 +27,9 @@ impl LayerShellHandler for Windows {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, layer: &LayerSurface) {
         if self.panel.as_ref().is_some_and(|p| p.is(layer)) {
             self.panel = None;
+        }
+        if self.closing.as_ref().is_some_and(|p| p.is(layer)) {
+            self.closing = None;
         }
     }
 
@@ -51,7 +55,7 @@ impl CompositorHandler for Windows {
         surface: &wl_surface::WlSurface,
         _: u32,
     ) {
-        if let Some(panel) = self.panel.as_mut().filter(|p| p.has_surface(surface)) {
+        for panel in self.panels_mut().filter(|p| p.has_surface(surface)) {
             panel.state_mut().frame_done();
         }
     }
@@ -131,7 +135,12 @@ macro_rules! no_events {
         }
     )*};
 }
-no_events!(WpFractionalScaleManagerV1, WpViewporter, WpViewport);
+no_events!(
+    WpFractionalScaleManagerV1,
+    WpViewporter,
+    WpViewport,
+    ExtBackgroundEffectSurfaceV1
+);
 
 delegate_registry!(Windows);
 delegate_dispatch2!(Windows);
