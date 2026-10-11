@@ -65,6 +65,7 @@ pub mod code {
     pub const N: u32 = 49;
     pub const P: u32 = 25;
     pub const U: u32 = 22;
+    pub const V: u32 = 47;
     pub const W: u32 = 17;
     pub const X: u32 = 45;
 }

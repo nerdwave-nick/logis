@@ -91,6 +91,12 @@ jobs:
       - name: dmenu E2E (cargo test --test dmenu)
         run: cargo test --locked --test dmenu -- --nocapture
 
+      # Hover, click, wheel and finger scrolling through a virtual pointer,
+      # and clipboard and primary paste from the harness's own selection
+      # owner (wlr-data-control; no wl-clipboard on the runner).
+      - name: Pointer and paste E2E (cargo test --test pointer)
+        run: cargo test --locked --test pointer -- --nocapture
+
       # Relative trend only: budgets are recorded, never enforced here
       # (absolute budgets are checked on the owner's machine with
       # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
