@@ -1,0 +1,15 @@
+# Derived from vigil.jsonl (recorded from servitor dbab6cb): the same shapes,
+# renamed for the scripted resolver (src/daemon/resolver.rs), which chooses
+# the first settled row starting with ">" and types an inscription's
+# placeholder (its purpose) after its ">". ">dnd" is first told awaited with
+# the data-slate's stale aspect "off", then, once the test opens the gate,
+# heeded in ">on" (desecrated: the auspex disagrees with the data-slate).
+# A lament and a herald of a later servitor come between.
+{"herald":"rite","rite":"broken","edict":false,"aspect":"","standing":"heretical","auspex":"","aspects":[],"purpose":"","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/broken.json","canon":[]}
+{"herald":"rite","rite":">dnd","edict":false,"aspect":"off","standing":"performed","auspex":"awaited","aspects":[">on","off"],"purpose":"Silence the vox of the desktop","desecrated":false,"last_rite":{"verdict":"triumph","at":"2026-10-10T13:30:00Z"},"recorded_in":"/home/adept/.config/servitor/rites/dnd.json","canon":[{"key":"reason","purpose":">the forge demands focus","mandatory":true,"decrees":{},"decree":null},{"key":"origin","purpose":">a hotkey of the adept","mandatory":false,"decrees":{">on":"the hotkey","off":"the cogitator"},"decree":null}]}
+{"herald":"lament","lament":"the data-slate /home/adept/.local/state/servitor/data-slates/theme.json is garbled beyond the servitor's reading; strike it, and the next invocation will inscribe it anew","rite":"theme"}
+{"herald":"rite","rite":"theme","edict":false,"aspect":"","standing":"dormant","auspex":"","aspects":["default","finii","porpl"],"purpose":"The visage of the machine","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/theme.json","canon":[{"key":"reason","purpose":"why the visage was changed","mandatory":false,"decrees":{},"decree":null}]}
+{"herald":"omen","sign":"a herald of a later servitor"}
+gate
+{"herald":"rite","rite":">dnd","edict":false,"aspect":">on","standing":"desecrated","auspex":"heeded","aspects":[">on","off"],"purpose":"Silence the vox of the desktop","desecrated":true,"last_rite":{"verdict":"triumph","at":"2026-10-10T13:30:00Z"},"recorded_in":"/home/adept/.config/servitor/rites/dnd.json","canon":[{"key":"reason","purpose":">the forge demands focus","mandatory":true,"decrees":{},"decree":null},{"key":"origin","purpose":">a hotkey of the adept","mandatory":false,"decrees":{">on":"the hotkey","off":"the cogitator"},"decree":null}]}
+{"herald":"concluded"}

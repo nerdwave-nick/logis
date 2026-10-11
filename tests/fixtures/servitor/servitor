@@ -1,0 +1,76 @@
+#!/bin/sh
+# A fake servitor for logis's tests, in plain POSIX sh. It never touches the
+# machine: it tells recorded census lines and records how it was invoked.
+#
+#   servitor census --vigil
+#       Tells the file $FAKE_SERVITOR_CENSUS line by line, as written, except:
+#         empty lines and `# ...`  skipped (provenance notes)
+#         `sleep N`                waits N seconds
+#         `gate`                   waits until $FAKE_SERVITOR_DIR/gate exists
+#                                  (gives up after 15 s: a failed test)
+#         `linger`                 keeps the vigil open until its reader
+#                                  departs (a heartbeat of empty lines, as
+#                                  the real census notices a departed reader)
+#         `exit N`                 ends the census with status N
+#       Its pid goes to $FAKE_SERVITOR_DIR/census.pid; each line told is
+#       stamped (nanoseconds) into $FAKE_SERVITOR_DIR/told.
+#
+#   servitor invoke ARG...
+#       Records in $FAKE_SERVITOR_DIR/invoke/: `argv` (one per line), `pid`,
+#       `ppid`, `ids` (session id and process group), `fds` (what stdin,
+#       stdout and stderr are), `cwd`, `token` ($FAKE_TOKEN from the caller's
+#       environment), `start` (nanoseconds), then `recorded`; then sleeps $FAKE_INVOKE_SECONDS
+#       (default 0) and stamps `done`. Nothing it writes goes to stdout.
+#
+# The census lines are recorded from the real servitor (see the fixtures'
+# notes); the invoke records answer servitor's caller contract S7 (stdio on
+# /dev/null, a session of its own).
+set -u
+dir=${FAKE_SERVITOR_DIR:?FAKE_SERVITOR_DIR names where the fake keeps its records}
+now() { date +%s%N; }
+
+case ${1:-} in
+census)
+    [ "${2:-}" = --vigil ] || { echo "fake servitor: census without --vigil" >&2; exit 2; }
+    echo $$ > "$dir/census.pid"
+    while IFS= read -r line; do
+        case $line in
+        '' | '#'*) ;;
+        'sleep '*) sleep "${line#sleep }" ;;
+        gate)
+            n=0
+            while [ ! -e "$dir/gate" ]; do
+                n=$((n + 1))
+                [ $n -gt 300 ] && exit 3
+                sleep 0.05
+            done ;;
+        linger) while printf '\n'; do sleep 0.05; done; exit 0 ;;
+        'exit '*) exit "${line#exit }" ;;
+        *) printf '%s\n' "$line" || exit 0
+           now >> "$dir/told" ;;
+        esac
+    done < "${FAKE_SERVITOR_CENSUS:?FAKE_SERVITOR_CENSUS names the census to tell}"
+    ;;
+invoke)
+    shift
+    rec=$dir/invoke
+    mkdir -p "$rec"
+    now > "$rec/start.tmp" && mv "$rec/start.tmp" "$rec/start"
+    printf '%s\n' "$@" > "$rec/argv"
+    echo $$ > "$rec/pid"
+    ps -o ppid= -p $$ | tr -d ' ' > "$rec/ppid"
+    ps -o sid=,pgid= -p $$ | tr -s ' ' | sed 's/^ //' > "$rec/ids"
+    # Read from a subshell, whose $$ is still this shell, so that no
+    # redirection of this record itself is seen.
+    fds=$(for fd in 0 1 2; do readlink "/proc/$$/fd/$fd"; done)
+    printf '%s\n' "$fds" > "$rec/fds"
+    pwd > "$rec/cwd"
+    printf '%s\n' "${FAKE_TOKEN:-}" > "$rec/token"
+    : > "$rec/recorded"
+    sleep "${FAKE_INVOKE_SECONDS:-0}"
+    now > "$rec/done.tmp" && mv "$rec/done.tmp" "$rec/done"
+    ;;
+*)
+    echo "fake servitor: no such ritual: ${1:-}" >&2
+    exit 2 ;;
+esac

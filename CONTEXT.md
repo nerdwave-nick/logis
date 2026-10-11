@@ -59,7 +59,8 @@ with the message on stderr.
 
 **Provider**:
 Whatever produces the items a session shows: the built-in dmenu provider (stdin),
-the apps provider, the servitor provider, and external providers
+the apps provider, the servitor provider (logis itself run as a provider process,
+`logis provide servitor`, for `logis --servitor`), and external providers
 (`logis --provider PROGRAM`). External providers are processes speaking streaming
 JSON lines over their stdin and stdout ([provider protocol](docs/provider-protocol.md));
 there are no plugin ABIs. A provider learns the user's choice as an **activation**
@@ -136,7 +137,8 @@ A short, themed notice of an action's outcome or of an error, such as a
 provider's result or a configuration error after a live reload. It shows over the
 bottom of the list for 3 s (or as long as its provider asks); when the provider
 ends its flow meanwhile, the window **lingers** on it without the keyboard.
-(servitor mode shows none: servitor announces its own verdicts.)
+(servitor mode shows no outcome: servitor announces its own verdicts; its toasts
+only tell what logis itself could not do.)
 
 **Pending**:
 The state of an item whose data has not settled yet, such as an aspect still

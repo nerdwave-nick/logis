@@ -200,6 +200,59 @@ fn a_client_disconnect_cancels_its_session_and_the_next_one_is_shown() {
 }
 
 #[test]
+fn a_dmenu_caller_whose_daemon_dies_exits_2_with_empty_stdout() {
+    let mut rig = Rig::new();
+    let mut daemon = rig.start_daemon(&[]);
+    let mut caller = spawn_dmenu(&rig);
+    let mut stdin = caller.stdin.take().unwrap();
+    stdin.write_all(b"never chosen\n").unwrap();
+    rig.wait_for_a_visible_session();
+
+    rig.hang_up_compositor();
+    assert_eq!(daemon.wait_exit().code(), Some(2));
+    let out = caller.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(2), "stderr: {}", stderr(&out));
+    assert!(out.stdout.is_empty());
+    assert!(stderr(&out).contains("fell silent"), "{}", stderr(&out));
+}
+
+#[test]
+fn a_caller_the_daemon_refuses_exits_2_with_the_daemons_reason() {
+    use std::io::Read;
+    let rig = Rig::new();
+    // A daemon of another version, left running across an upgrade: it reads
+    // the greeting and refuses it, as `a_greeting_in_another_protocol_version_is_refused`
+    // shows the real daemon does.
+    let listener = UnixListener::bind(rig.socket()).unwrap();
+    let refuser = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut header = [0; 4];
+        stream.read_exact(&mut header).unwrap();
+        let mut hello = vec![0; u32::from_be_bytes(header) as usize];
+        stream.read_exact(&mut hello).unwrap();
+        let refusal = serde_json::to_vec(&json!({
+            "type": "error",
+            "message": "this machine spirit speaks version 1: restart the daemon",
+        }))
+        .unwrap();
+        stream
+            .write_all(&(refusal.len() as u32).to_be_bytes())
+            .unwrap();
+        stream.write_all(&refusal).unwrap();
+    });
+
+    let out = dmenu(&rig, b">x\n");
+    refuser.join().unwrap();
+    assert_eq!(out.status.code(), Some(2), "stderr: {}", stderr(&out));
+    assert!(out.stdout.is_empty());
+    assert!(
+        stderr(&out).contains("restart the daemon"),
+        "{}",
+        stderr(&out)
+    );
+}
+
+#[test]
 fn with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected() {
     let rig = Rig::new();
     let mut daemon = rig.start_daemon(&["--idle-timeout", "0.3"]);

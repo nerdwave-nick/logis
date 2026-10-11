@@ -459,6 +459,20 @@ mod tests {
     }
 
     #[test]
+    fn typing_ends_a_preselection_still_waiting_for_its_item() {
+        let options = Options {
+            select: Some(Preselect::Text("beta".into())),
+            ..Options::default()
+        };
+        let mut v = view(options, &["alpha", "alpine"]);
+        typed(&mut v, "x");
+        v.apply(&Action::Edit(Edit::Clear));
+        v.push(items(&["beta"]));
+        assert_eq!(texts(&v.look()), ["alpha", "alpine", "beta"]);
+        assert_eq!(v.selected(), Some(0), "the edit ended the preselection");
+    }
+
+    #[test]
     fn search_opens_with_a_query() {
         let options = Options {
             search: "b".into(),

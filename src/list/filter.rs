@@ -381,6 +381,19 @@ mod tests {
     }
 
     #[test]
+    fn fzf_suffix_and_exact_terms_apply() {
+        let mut f = filter(&["rite of oil", "oil rite", "orbital"]);
+        f.set_query("oil$");
+        assert_eq!(indices(&f), [0]);
+        f.set_query("'rbit");
+        assert_eq!(indices(&f), [2]);
+        f.set_query("rbt");
+        assert_eq!(indices(&f), [2], "fuzzy without the quote");
+        f.set_query("'rbt");
+        assert_eq!(indices(&f), [] as [u32; 0]);
+    }
+
+    #[test]
     fn items_pushed_later_are_matched_and_merged_in_order() {
         let mut f = filter(&["xxa", "b"]);
         f.set_query("a");

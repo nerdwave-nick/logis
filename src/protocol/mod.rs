@@ -52,7 +52,9 @@ pub enum Mode {
     Dmenu,
     /// Desktop applications, launched by the daemon.
     Apps,
-    /// servitor's rites and aspects.
+    /// servitor's rites and aspects. Unused by logis's own client:
+    /// `logis --servitor` opens a `provider` session whose provider is logis
+    /// itself (`logis provide servitor`; docs/provider-protocol.md).
     Servitor,
     /// An external provider process (`logis --provider`).
     Provider,

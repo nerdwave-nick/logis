@@ -123,6 +123,33 @@ fn on_compositor_with_layer_shell_succeeds_without_output() {
     assert!(out.stdout.is_empty());
 }
 
+/// The caller contract (README "Caller contract"): a `logis --dmenu` caller
+/// learns that logis cannot serve it from exit 2 and an empty stdout, with
+/// the plain reason on stderr, whatever stands in the way.
+#[test]
+fn a_dmenu_caller_without_a_usable_session_exits_2_naming_why() {
+    let dir = ScratchDir::new();
+    let _compositor = fake_compositor::serve(dir.path(), "wayland-test", WITHOUT_LAYER_SHELL);
+    let no_session = logis(&dir, None);
+    let no_layer_shell = logis(&dir, Some("wayland-test"));
+    let mut no_runtime_dir = logis(&dir, Some("wayland-test"));
+    no_runtime_dir.env_remove("XDG_RUNTIME_DIR");
+    for (mut command, reason) in [
+        (no_session, "WAYLAND_DISPLAY is not set"),
+        (no_layer_shell, "zwlr_layer_shell_v1"),
+        (no_runtime_dir, "XDG_RUNTIME_DIR is not set"),
+    ] {
+        let out = command
+            .arg("--dmenu")
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(2), "{reason}: {}", stderr(&out));
+        assert!(out.stdout.is_empty(), "{reason}");
+        assert!(stderr(&out).contains(reason), "{reason}: {}", stderr(&out));
+    }
+}
+
 #[test]
 fn unknown_argument_exits_2_naming_it() {
     let dir = ScratchDir::new();

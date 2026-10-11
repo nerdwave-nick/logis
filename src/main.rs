@@ -6,6 +6,7 @@ mod daemon;
 mod nth;
 mod protocol;
 mod provider;
+mod servitor;
 mod wayland;
 
 use std::io::Write;
@@ -29,6 +30,14 @@ fn main() -> ExitCode {
         Ok(cli::Command::Provider { config, argv }) => {
             client::provider::run(config.as_deref(), argv)
         }
+        Ok(cli::Command::Servitor { config }) => match std::env::current_exe() {
+            Ok(logis) => {
+                let argv = vec![logis.into_os_string(), "provide".into(), "servitor".into()];
+                client::provider::run(config.as_deref(), argv)
+            }
+            Err(e) => fail(&format!("the cogitator cannot find its own body: {e}")),
+        },
+        Ok(cli::Command::Provide(cli::Builtin::Servitor)) => servitor::run(),
         Ok(cli::Command::CheckConfig { config }) => {
             let source = logis::config::Source::new(config.as_deref());
             match logis::config::check(&source) {

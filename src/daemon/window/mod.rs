@@ -128,11 +128,9 @@ impl Resolver for WindowResolver {
     fn accepts(&self, mode: Mode) -> Result<(), String> {
         match mode {
             Mode::Dmenu | Mode::Provider | Mode::Apps => Ok(()),
-            Mode::Servitor => Err(
-                "the cogitator knows only dmenu, provider and app rites yet; \
-                 servitor mode is still to be consecrated"
-                    .to_owned(),
-            ),
+            Mode::Servitor => Err("the cogitator serves servitor mode as a provider session \
+                 (logis --servitor), never as a session of its own"
+                .to_owned()),
         }
     }
 
