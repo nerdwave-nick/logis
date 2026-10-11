@@ -43,7 +43,15 @@ case $1 in
 flow) say "$(printf '%s' "$rite" | tr -d '\n')"
       settle='{"type":"items","items":[{"id":"oil","columns":[">rite of oil","unguent"],"glyph":"⚙","badges":["current"]}]}'
       if [ -n "${FORGE_GATE:-}" ]; then
-          ( while [ ! -e "$FORGE_GATE" ]; do sleep 0.05; done; say "$settle" ) &
+          # Gives up with its provider, or after 15 s (a failed test).
+          parent=$$
+          ( n=0
+            while [ ! -e "$FORGE_GATE" ]; do
+                n=$((n + 1))
+                if [ $n -gt 300 ] || ! kill -0 "$parent" 2>/dev/null; then exit 0; fi
+                sleep 0.05
+            done
+            say "$settle" ) &
       else
           say "$settle"
       fi ;;
