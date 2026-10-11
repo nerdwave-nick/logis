@@ -301,7 +301,10 @@ with `mod support;`.
   the window's first committed frame, ≤ 15 ms) and keystroke → commit with 3
   and with 100 000 items (one frame). With motion, "first committed frame" is
   the first frame of the open transition, not its end; the end is a series of
-  its own (warm open → open settled).
+  its own (warm open → open settled). Each warm open starts 100 ms after the
+  previous window is gone (`faded`), not merely hidden: a nested niri that is
+  still drawing a closing window answers the new window's setup round trips
+  up to two parent frames late (a real niri does not).
 - **Motion** ([`tests/motion.rs`](tests/motion.rs)): the open and the band's
   glide take several frames and then nothing is drawn, the caller has its
   answer while the window still fades, a queued session does not wait for the
@@ -331,8 +334,9 @@ default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pix
 <px>|stop`, `paste <selection> <MIME type>|none|unavailable`, `pasted <selection>
 <bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
 one fading out), `settled` (the first frame after which nothing moves), `faded` (a
-closed window is gone), `blur <rectangles>` (a blur region was set) and
-`blur-capable true|false` (the compositor's word); the debug panel adds what each key did: `query <JSON string>`, `select
+closed window is gone, at once without motion), `blur <rectangles>` (a blur region was set) and
+`blur-capable true|false` (the compositor's word), `cut` (a window still closing
+was dropped after the next window's first frame); the debug panel adds what each key did: `query <JSON string>`, `select
 <row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
 `show <session>`, `items <total>`, `query <JSON string>`, `select <item>` (or
 `select none`), `accept <item>`, `typed <JSON string>`, `dismiss` and `hide

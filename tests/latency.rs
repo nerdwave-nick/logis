@@ -205,8 +205,9 @@ fn debug_panel_latency() {
 /// exec of `logis --dmenu` → the daemon's first commit for its window, and
 /// → the frame that settles its open transition, `runs` times after one
 /// warm-up session; each session is cancelled (its client killed) and gone
-/// before the next starts. A closing window's frames (`commit closing`) are
-/// not the new window's.
+/// (its close transition over, `faded`) 100 ms before the next starts, as
+/// a warm open finds nothing on screen. A closing window's frames (`commit
+/// closing`) are not the new window's.
 fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> (Vec<f64>, Vec<f64>) {
     let mut first = Vec::with_capacity(runs);
     let mut settled = Vec::with_capacity(runs);
@@ -227,6 +228,9 @@ fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> (Vec<f64>, Vec<f64>) {
         }
         drop(client);
         c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+        // Gone, not only hidden: its close transition has run (`faded`).
+        c.daemon
+            .wait_seen("the window gone", |e| e.what == "faded" && e.ns >= t0);
     }
     (first, settled)
 }
