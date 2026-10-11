@@ -352,6 +352,7 @@ fn updates_reach_the_window_and_toasts_before_it_are_only_logged() {
         1,
         FromProvider::Items {
             items: vec![item("oil")],
+            select: None,
         },
     );
     assert_eq!(rig.seen.take(), ["show 1 Provider [OIL]", "update 1 0"]);

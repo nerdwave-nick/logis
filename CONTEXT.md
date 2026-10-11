@@ -59,8 +59,11 @@ with the message on stderr.
 
 **Provider**:
 Whatever produces the items a session shows: the built-in dmenu provider (stdin),
-the apps provider, the servitor provider, and external providers later. External
-providers are processes speaking streaming JSON lines; there are no plugin ABIs.
+the apps provider, the servitor provider, and external providers
+(`logis --provider PROGRAM`). External providers are processes speaking streaming
+JSON lines over their stdin and stdout ([provider protocol](docs/provider-protocol.md));
+there are no plugin ABIs. A provider learns the user's choice as an **activation**
+(an item) or a **submission** (typed text).
 
 **Item**:
 One selectable row. It carries a stable id, its columns, an icon or glyph, badges
@@ -111,20 +114,26 @@ cursor, never part of the query and never matched.
 
 **Stage**:
 One list within a multi-stage flow in a single window, such as rite → aspect →
-inscriptions, or app → desktop action.
+inscriptions, or app → desktop action. The first stage opens and sizes the
+window; a provider's next stage replaces the list in it. Items are named by a
+stable id within their stage.
 
 **Action**:
 Something a provider performs for a chosen item (launching an app, invoking a rite).
 Its outcome may be reported as a toast.
 
 **Toast**:
-A short, themed notice of an action's outcome or of an error, such as a servitor
-verdict or a configuration error after a live reload.
+A short, themed notice of an action's outcome or of an error, such as a
+provider's result or a configuration error after a live reload. It shows over the
+bottom of the list for 3 s; when the provider ends its flow meanwhile, the window
+**lingers** on it without the keyboard. (servitor mode shows none: servitor
+announces its own verdicts.)
 
 **Pending**:
 The state of an item whose data has not settled yet, such as an aspect still
-awaiting its auspex. A pending item is shown in a themed pending state, never
-preselected and never invoked on its own.
+awaiting its auspex. A pending item is shown in a themed pending state (dimmed,
+marked "divining…"), never preselected and never activated: Return on it does
+nothing.
 
 ## Apps
 

@@ -32,8 +32,11 @@ impl Stages {
     pub fn apply(&mut self, message: FromProvider) -> Result<Vec<Step>, String> {
         match message {
             FromProvider::Stage(stage) => Ok(self.stage(stage)),
-            FromProvider::Items { items } => {
+            FromProvider::Items { items, select } => {
                 let current = self.current_mut("items")?;
+                if select.is_some() {
+                    current.select = select;
+                }
                 Ok(current.upsert(items))
             }
             FromProvider::Remove { ids } => {
@@ -245,6 +248,7 @@ mod tests {
         let steps = s
             .apply(FromProvider::Items {
                 items: vec![item("c", "C"), item("a", "A2")],
+                select: None,
             })
             .unwrap();
         assert_eq!(
@@ -345,9 +349,37 @@ mod tests {
         let steps = s
             .apply(FromProvider::Items {
                 items: vec![item("late", "L")],
+                select: None,
             })
             .unwrap();
         assert_eq!(steps.last(), Some(&Step::Preselect(0)));
+    }
+
+    #[test]
+    fn items_may_name_the_item_to_select_once_known() {
+        let mut s = Stages::default();
+        staged(
+            &mut s,
+            Stage {
+                id: "aspect".into(),
+                items: vec![item("on", "On"), item("off", "Off")],
+                ..Stage::default()
+            },
+        );
+        let steps = s
+            .apply(FromProvider::Items {
+                items: vec![item("off", "Off")],
+                select: Some("off".into()),
+            })
+            .unwrap();
+        assert_eq!(steps.last(), Some(&Step::Preselect(1)));
+        let steps = s
+            .apply(FromProvider::Items {
+                items: vec![],
+                select: Some("on".into()),
+            })
+            .unwrap();
+        assert_eq!(steps, [Step::Preselect(0)]);
     }
 
     #[test]
@@ -374,7 +406,12 @@ mod tests {
     #[test]
     fn items_before_any_stage_are_a_protocol_error() {
         let mut s = Stages::default();
-        let err = s.apply(FromProvider::Items { items: vec![] }).unwrap_err();
+        let err = s
+            .apply(FromProvider::Items {
+                items: vec![],
+                select: None,
+            })
+            .unwrap_err();
         assert!(err.contains("before any 'stage'"), "{err}");
         assert!(s.apply(FromProvider::Remove { ids: vec![] }).is_err());
     }

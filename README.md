@@ -22,6 +22,8 @@ come. The binary does this much:
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
   [dmenu](#dmenu).
+- `logis --provider PROGRAM [ARG]...` shows what an external provider says, in
+  one or more stages: see [Providers](#providers).
 - `logis daemon` is the resident daemon. It checks for a Wayland session whose
   compositor offers wlr-layer-shell (exit 2 with a message on stderr if there is
   none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and wakes its window at start:
@@ -31,7 +33,7 @@ come. The binary does this much:
   config's `idle-timeout`, and `--idle-timeout 0` keeps the daemon resident
   whatever the config says. It reads its [configuration](#configuration) at
   start (an invalid one is an error, exit 2) and again whenever the file changes.
-- `logis` and `logis --dmenu` are clients. When no daemon answers they start one
+- `logis`, `logis --dmenu` and `logis --provider` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
   Plain `logis` only makes sure the daemon runs.
@@ -50,7 +52,7 @@ come. The binary does this much:
 Client and daemon speak length-prefixed JSON frames, one session per connection;
 the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
 session is visible, a new dmenu session queues (each caller gets its own answer,
-in turn) and a new app or servitor session replaces it.
+in turn) and a new app, servitor or provider session replaces it.
 
 ## dmenu
 
@@ -105,6 +107,28 @@ Where fuzzel's documentation leaves a choice open, logis decides so:
   preselection applies when its item arrives, until you move or type;
 - `--no-run-if-empty` exits 1 (nothing was chosen);
 - a format that names no column is an error, not a constant output.
+
+## Providers
+
+Everything logis shows comes from a provider: the built-in dmenu provider (stdin),
+the app launcher and servitor mode (to come), and external providers, programs
+that speak [the provider protocol](docs/provider-protocol.md): JSON lines over
+their stdin and stdout.
+
+```sh
+logis --provider ./my-provider --some-arg
+```
+
+The daemon runs the provider as this client would (its working directory and
+environment) in a process group of its own. The provider fills the window with
+stages (lists whose items have stable ids, columns, a glyph or icon, badges and a
+pending state), updates and removes items as its data settles, learns what the
+user chose (`activate`, or `submit` for typed text), moves on to the next stage in
+the same window, and can show toasts. Pending rows are never chosen or
+preselected. The client exits 0 when the provider closes its flow, 1 when the
+user dismisses it, 2 on error. Dismissal never kills an action the provider
+started: logis signals only a provider it never sent a choice to, and never its
+children.
 
 ## Configuration
 
@@ -254,6 +278,13 @@ with `mod support;`.
   [`tests/dmenu_runes.rs`](tests/dmenu_runes.rs) checks the runes over a real
   daemon with the scripted resolver (no window), and
   [`tests/list.rs`](tests/list.rs) the list's goldens offscreen.
+- **Providers** ([`tests/provider.rs`](tests/provider.rs),
+  [`tests/provider_window.rs`](tests/provider_window.rs)): the fixture provider
+  [`forge.sh`](tests/fixtures/providers/forge.sh) (POSIX sh) through a real
+  daemon: with the scripted resolver (a two-stage flow, cancellation and the
+  signal rules, timeouts and protocol errors) and in the test compositor (a
+  pending row Return cannot take, a second stage in the same window, a toast the
+  window lingers on, Escape after an activation sparing the action).
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
@@ -261,14 +292,15 @@ with `mod support;`.
 pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>` and
 `commit`; the debug panel adds what each key did: `query <JSON string>`, `select
 <row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
-`show <session>`, `items <total>`, `query <JSON string>`, `select <item>` (or
-`select none`), `accept <item>`, `typed <JSON string>`, `dismiss` and `hide
-<session>`.
+`show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
+`update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
+`query <JSON string>`, `select <item>` (or `select none`), `accept <item>`,
+`typed <JSON string>`, `dismiss`, `linger <session>` and `hide <session>`.
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test provider_window
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 

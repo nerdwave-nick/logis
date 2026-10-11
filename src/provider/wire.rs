@@ -20,8 +20,14 @@ pub enum FromProvider {
     /// A new list in the same window: the first stage shows the window.
     Stage(Stage),
     /// Items added to the current stage, or replacing items of the same id
-    /// in their place.
-    Items { items: Vec<Item> },
+    /// in their place; `select` names the item to select once it is there
+    /// and settled (unless the user has moved).
+    Items {
+        #[serde(default)]
+        items: Vec<Item>,
+        #[serde(default)]
+        select: Option<String>,
+    },
     /// Items of the current stage that are gone.
     Remove { ids: Vec<String> },
     /// A short notice over the list.
@@ -179,13 +185,14 @@ mod tests {
                 FromProvider::Hello { protocol: 1 },
             ),
             (
-                json!({"type": "items", "items": [{"id": "a", "columns": ["A"]}]}),
+                json!({"type": "items", "items": [{"id": "a", "columns": ["A"]}], "select": "a"}),
                 FromProvider::Items {
                     items: vec![Item {
                         id: "a".into(),
                         columns: vec!["A".into()],
                         ..Item::default()
                     }],
+                    select: Some("a".into()),
                 },
             ),
             (
