@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 use std::fmt;
+use std::thread::JoinHandle;
 
 use glyphon::FontSystem;
 use glyphon::cosmic_text::{Fallback, fontdb};
@@ -114,11 +115,6 @@ impl Fonts {
         })
     }
 
-    /// The user's fontconfig and its [`DEFAULT_FAMILY`].
-    pub fn system() -> Result<Self, FontError> {
-        Self::new(FontConfig::system()?, DEFAULT_FAMILY)
-    }
-
     /// The faces loaded so far, the default family's first.
     pub fn loaded(&self) -> &[FontFile] {
         &self.loaded
@@ -137,9 +133,7 @@ impl Fonts {
             if ignorable(c) || !self.seen.insert(c) {
                 continue;
             }
-            if self.fallbacks.is_none() {
-                self.fallbacks = self.config.fallbacks(&self.requested);
-            }
+            self.sort_fallbacks();
             let Some(file) = self.fallbacks.as_ref().and_then(|s| s.first_covering(c)) else {
                 continue;
             };
@@ -149,9 +143,53 @@ impl Fonts {
         }
     }
 
+    /// Sorts fontconfig's fallback order for the family, once.
+    fn sort_fallbacks(&mut self) {
+        if self.fallbacks.is_none() {
+            self.fallbacks = self.config.fallbacks(&self.requested);
+        }
+    }
+
     /// The shaping and rasterising state.
     pub(crate) fn system_mut(&mut self) -> &mut FontSystem {
         &mut self.system
+    }
+}
+
+/// Fonts being resolved on a thread of their own, so that fontconfig's
+/// start-up overlaps the compositor's and the GPU's: loading its
+/// configuration and caches, matching the family against every installed
+/// face and sorting the fallback order each cost milliseconds per thousand
+/// faces, and none of them needs the GPU.
+pub struct PendingFonts(JoinHandle<Result<Fonts, FontError>>);
+
+impl PendingFonts {
+    /// Starts resolving `family` from the configuration `config` makes: the
+    /// default face is loaded and the fallback order sorted, so the first
+    /// text only loads the fallback faces it needs.
+    pub fn resolve(
+        config: impl FnOnce() -> Result<FontConfig, FontError> + Send + 'static,
+        family: &str,
+    ) -> Self {
+        let family = family.to_owned();
+        Self(std::thread::spawn(move || {
+            let mut fonts = Fonts::new(config()?, &family)?;
+            fonts.sort_fallbacks();
+            Ok(fonts)
+        }))
+    }
+
+    /// The user's fontconfig and its [`DEFAULT_FAMILY`].
+    pub fn system() -> Self {
+        Self::resolve(FontConfig::system, DEFAULT_FAMILY)
+    }
+
+    /// The resolved fonts, once they are ready. A resolver that panicked is
+    /// an error, not a panic of the caller.
+    pub fn wait(self) -> Result<Fonts, FontError> {
+        self.0
+            .join()
+            .unwrap_or_else(|_| Err(FontError::Config("the font thread perished".into())))
     }
 }
 

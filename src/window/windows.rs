@@ -24,7 +24,7 @@ use super::handle::WaylandDisplay;
 use super::seat::Keyboard;
 use super::{Panel, SceneFn, Shell, WindowError, WindowQueue};
 use crate::render::{BackendChoice, Gpu, Renderer, Scale};
-use crate::text::Fonts;
+use crate::text::PendingFonts;
 
 /// What the daemon owns for its windows: the connection, the bound globals,
 /// the GPU (woken at connect, never lazily), the renderer and at most one
@@ -45,6 +45,9 @@ impl Windows {
     /// Connects to the session's compositor, binds the required globals and
     /// wakes the GPU with `choice`.
     pub fn connect(choice: BackendChoice) -> Result<(Self, WindowQueue), WindowError> {
+        // Fonts are resolved at start too (spec §4.1), on their own thread:
+        // fontconfig's start-up then overlaps the compositor's and the GPU's.
+        let fonts = PendingFonts::system();
         let connection =
             Connection::connect_to_env().map_err(|e| WindowError::Connect(e.to_string()))?;
         let (globals, queue) = registry_queue_init::<Self>(&connection)
@@ -54,9 +57,8 @@ impl Windows {
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
-        // Fonts are resolved at start too (spec §4.1); without them the
-        // cogitator still opens, only without text.
-        match Fonts::system() {
+        // Without fonts the cogitator still opens, only without text.
+        match fonts.wait() {
             Ok(fonts) => renderer.set_fonts(&gpu, fonts),
             Err(e) => eprintln!("logis: {e}; the cogitator stays mute"),
         }

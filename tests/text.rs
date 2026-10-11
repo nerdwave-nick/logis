@@ -20,7 +20,7 @@ use logis::render::{
     RoundedRect, Scale, Scene, Text, render_offscreen,
 };
 
-use logis::text::{FontConfig, Fonts};
+use logis::text::{FontConfig, FontError, Fonts, PendingFonts};
 
 fn font(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -144,6 +144,42 @@ fn the_system_configuration_resolves_the_default_family() {
     assert!(file.path.is_file(), "{} is not a file", file.path.display());
 }
 
+#[test]
+fn fonts_resolved_on_their_own_thread_behave_like_inline_ones() {
+    let pending = PendingFonts::resolve(|| Ok(pinned()), "sans-serif");
+    let mut fonts = pending
+        .wait()
+        .expect("the font thread resolves the pinned fonts");
+    assert_eq!(fonts.family(), "Noto Sans");
+    assert_eq!(loaded_names(&fonts), ["NotoSans-Regular.ttf"]);
+    fonts.ensure("機械の精霊");
+    assert_eq!(
+        loaded_names(&fonts),
+        ["NotoSans-Regular.ttf", "NotoSansCJKjp-Regular.otf"]
+    );
+}
+
+#[test]
+fn a_font_thread_reports_why_it_failed() {
+    let failed = PendingFonts::resolve(|| Err(FontError::Config("no rules".into())), "sans-serif");
+    assert_eq!(
+        failed.wait().err(),
+        Some(FontError::Config("no rules".into()))
+    );
+    let missing = PendingFonts::resolve(|| Ok(pinned()), "\0");
+    assert_eq!(missing.wait().err(), Some(FontError::NoFace("\0".into())));
+}
+
+#[test]
+fn a_font_thread_that_dies_is_an_error_not_a_panic() {
+    let pending = PendingFonts::resolve(|| panic!("the font scrolls burn"), "sans-serif");
+    let error = pending
+        .wait()
+        .err()
+        .expect("a dead font thread is an error");
+    assert!(error.to_string().contains("font"), "{error}");
+}
+
 // ------------------------------------------------------------ rendering
 
 /// Scales 1.0, 1.3 and 2.0.
@@ -187,8 +223,19 @@ fn render_format(
     scale: Scale,
     format: wgpu::TextureFormat,
 ) -> Image {
+    render_with(gpu, pinned_fonts(), scene, logical, scale, format)
+}
+
+fn render_with(
+    gpu: &Gpu,
+    fonts: Fonts,
+    scene: &Scene,
+    logical: (u32, u32),
+    scale: Scale,
+    format: wgpu::TextureFormat,
+) -> Image {
     let mut renderer = Renderer::new(gpu);
-    renderer.set_fonts(gpu, pinned_fonts());
+    renderer.set_fonts(gpu, fonts);
     render_offscreen(gpu, &mut renderer, scene, logical, scale, format).unwrap()
 }
 
@@ -429,6 +476,25 @@ fn the_corpus_matches_its_goldens_at_each_scale() {
     for scale in scales() {
         let image = render(&gpu, &corpus_scene(), GOLDEN_SIZE, scale);
         assert_eq!((image.width, image.height), scale.physical(GOLDEN_SIZE));
+        golden::check("text", &format!("corpus@{:.1}", scale.factor()), &image);
+    }
+}
+
+#[test]
+fn fonts_resolved_on_their_own_thread_draw_the_same_corpus() {
+    let Some(gpu) = gpu() else { return };
+    for scale in scales() {
+        let fonts = PendingFonts::resolve(|| Ok(pinned()), "sans-serif")
+            .wait()
+            .expect("the font thread resolves the pinned fonts");
+        let image = render_with(
+            &gpu,
+            fonts,
+            &corpus_scene(),
+            GOLDEN_SIZE,
+            scale,
+            OFFSCREEN_FORMAT,
+        );
         golden::check("text", &format!("corpus@{:.1}", scale.factor()), &image);
     }
 }
