@@ -4,10 +4,13 @@
 //! same clock (the `LOGIS_TEST_TRACE` lines).
 //!
 //! - **start → first commit:** `logis daemon --debug-panel` from exec to its
-//!   first committed frame (connect, wake the GPU, show the panel). This is
-//!   the closest thing to "first open after the client starts the daemon"
-//!   (≤ 150 ms) until the daemon serves windows; warm open (≤ 15 ms) needs
-//!   a window-backed resolver and uses the same API then.
+//!   first committed frame (connect, wake the GPU, resolve the fonts, show
+//!   the panel). This is the closest thing to "first open after the client
+//!   starts the daemon" (≤ 150 ms) until the daemon serves windows; warm
+//!   open (≤ 15 ms) needs a window-backed resolver and uses the same API
+//!   then. It is measured twice, alternating run by run: with the pinned
+//!   test fonts, and with the user's own fontconfig (system fonts: on the
+//!   owner's machine, thousands of faces and the CJK and emoji fallbacks).
 //! - **keystroke → commit:** an injected Down/Up to the frame that shows
 //!   the moved selection; budget one frame at the output's refresh rate.
 //!
@@ -69,25 +72,49 @@ fn a_median_over_budget_is_out_of_budget() {
 
 // ------------------------------------------------------- measurements
 
-fn debug_panel(compositor: &TestCompositor) -> Traced {
+/// The fonts a measured client resolves.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Fonts {
+    /// The test compositor's pinned fonts (tests/fonts), the same everywhere.
+    Pinned,
+    /// The user's own fontconfig, as the daemon sees it in a session.
+    System,
+}
+
+fn debug_panel(compositor: &TestCompositor, fonts: Fonts) -> Traced {
     let mut command = compositor.logis();
     command.args(["daemon", "--debug-panel"]);
+    if fonts == Fonts::System {
+        // Back to the harness's own fontconfig: its FONTCONFIG_FILE, if any,
+        // else the default configuration (HOME and the caches are inherited).
+        match std::env::var_os("FONTCONFIG_FILE") {
+            Some(file) => command.env("FONTCONFIG_FILE", file),
+            None => command.env_remove("FONTCONFIG_FILE"),
+        };
+    }
     Traced::spawn(command)
 }
 
-/// exec → first committed frame, `runs` times, each panel ended before the
-/// next starts.
-fn start_to_first_commit(compositor: &TestCompositor, runs: usize) -> Vec<f64> {
-    (0..runs)
-        .map(|_| {
+/// exec → first committed frame, `runs` times for each of `fonts`,
+/// alternating so that every variant sees the same machine load; each panel
+/// ends before the next starts. One series of samples per variant.
+fn start_to_first_commit(
+    compositor: &TestCompositor,
+    fonts: &[Fonts],
+    runs: usize,
+) -> Vec<Vec<f64>> {
+    let mut samples = vec![Vec::with_capacity(runs); fonts.len()];
+    for _ in 0..runs {
+        for (variant, &f) in fonts.iter().enumerate() {
             let t0 = monotonic_ns();
-            let mut panel = debug_panel(compositor);
+            let mut panel = debug_panel(compositor, f);
             let commit = panel.wait_for_first_commit();
             drop(panel);
             std::thread::sleep(Duration::from_millis(100));
-            latency::ms_between(t0, commit.ns)
-        })
-        .collect()
+            samples[variant].push(latency::ms_between(t0, commit.ns));
+        }
+    }
+    samples
 }
 
 /// injected key press → the commit of the frame it caused, `runs` times.
@@ -97,7 +124,7 @@ fn keystroke_to_commit(
     runs: usize,
 ) -> Vec<f64> {
     let mut kb = harness.virtual_keyboard();
-    let mut panel = debug_panel(compositor);
+    let mut panel = debug_panel(compositor, Fonts::Pinned);
     let focused = panel.wait_for_focus();
     panel.wait_for_first_commit();
     (0..runs)
@@ -122,11 +149,20 @@ fn debug_panel_latency() {
     let compositor = TestCompositor::start(kind);
     let mut harness = Harness::connect(&compositor);
     let frame_ms = 1000.0 / harness.refresh_hz();
+    let [pinned, system] =
+        start_to_first_commit(&compositor, &[Fonts::Pinned, Fonts::System], runs)
+            .try_into()
+            .unwrap();
     let series = [
         Series::new(
-            "debug panel start → first commit",
+            "debug panel start → first commit, pinned fonts",
             latency::FIRST_OPEN_MS,
-            start_to_first_commit(&compositor, runs),
+            pinned,
+        ),
+        Series::new(
+            "debug panel start → first commit, system fonts",
+            latency::FIRST_OPEN_MS,
+            system,
         ),
         Series::new(
             "keystroke → commit",
