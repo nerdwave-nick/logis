@@ -6,14 +6,39 @@
 //!   (fuzzel-compatible: prompt, placeholder, password, lines, width,
 //!   counter, initial search, preselection, only-match).
 
+mod entry;
 pub mod filter;
 pub mod scene;
 mod view;
 
 use serde::{Deserialize, Serialize};
 
+pub use entry::{Decor, Entry};
 pub use filter::{Filter, Match};
 pub use view::{Choice, ListView, Look, Reaction, Row};
+
+/// A short themed notice over the list (a toast, vox-cast): an action's
+/// outcome or an error.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Notice {
+    /// What it says.
+    pub text: String,
+    /// How it is coloured.
+    pub level: Level,
+}
+
+/// What kind of news a notice brings.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Level {
+    /// Plain word.
+    #[default]
+    Info,
+    /// Something succeeded.
+    Success,
+    /// Something failed.
+    Error,
+}
 
 /// How a session's list looks and behaves. Every field has a default, so a
 /// client names only what it changes.
@@ -38,6 +63,9 @@ pub struct Options {
     pub select: Option<Preselect>,
     /// Return accepts only an item, never the typed text.
     pub only_match: bool,
+    /// Return accepts typed text only when it is not empty (a provider's
+    /// required inscription).
+    pub required: bool,
 }
 
 impl Default for Options {
@@ -52,6 +80,7 @@ impl Default for Options {
             search: String::new(),
             select: None,
             only_match: false,
+            required: false,
         }
     }
 }

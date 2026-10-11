@@ -30,6 +30,9 @@ pub struct Match {
 /// The items, the query and what matches it.
 pub struct Filter {
     haystacks: Vec<Utf32String>,
+    /// Per item, whether it was removed; shorter than `haystacks` when the
+    /// later items never were (a dmenu list never removes any).
+    removed: Vec<bool>,
     query: String,
     pattern: Pattern,
     matches: Vec<Match>,
@@ -47,6 +50,7 @@ impl Filter {
     pub fn new() -> Self {
         Self {
             haystacks: Vec::new(),
+            removed: Vec::new(),
             query: String::new(),
             pattern: parse(""),
             matches: Vec::new(),
@@ -89,6 +93,47 @@ impl Filter {
         self.matches = merge(std::mem::take(&mut self.matches), found);
     }
 
+    /// Removes item `index` for good: it never matches again, and the other
+    /// items keep their indices.
+    pub fn remove(&mut self, index: u32) {
+        if !self.alive(index) {
+            return;
+        }
+        self.removed.resize(self.haystacks.len(), false);
+        self.removed[index as usize] = true;
+        self.haystacks[index as usize] = Utf32String::default();
+        self.matches.retain(|m| m.index != index);
+    }
+
+    /// Gives item `index` a new text to be matched by, in its place.
+    pub fn update(&mut self, index: u32, text: &str) {
+        if !self.alive(index) {
+            return;
+        }
+        self.haystacks[index as usize] = Utf32String::from(text);
+        self.matches.retain(|m| m.index != index);
+        let found = if self.pattern.atoms.is_empty() {
+            vec![Match { index, score: 0 }]
+        } else {
+            self.score(&[index])
+        };
+        self.matches = merge(std::mem::take(&mut self.matches), found);
+    }
+
+    /// Whether item `index` exists and was not removed.
+    fn alive(&self, index: u32) -> bool {
+        let i = index as usize;
+        i < self.haystacks.len() && !self.removed.get(i).copied().unwrap_or(false)
+    }
+
+    /// Every item that was not removed, ascending.
+    fn every(&self) -> Vec<u32> {
+        (0..self.haystacks.len())
+            .map(index)
+            .filter(|&i| self.alive(i))
+            .collect()
+    }
+
     /// Matches every item against `query`; nothing happens if it is the
     /// query in force.
     pub fn set_query(&mut self, query: &str) {
@@ -103,11 +148,10 @@ impl Filter {
         self.query = query.to_owned();
         self.pattern = parse(query);
         if self.pattern.atoms.is_empty() {
-            self.matches = (0..self.haystacks.len())
-                .map(|i| Match {
-                    index: index(i),
-                    score: 0,
-                })
+            self.matches = self
+                .every()
+                .into_iter()
+                .map(|index| Match { index, score: 0 })
                 .collect();
             return;
         }
@@ -116,7 +160,7 @@ impl Filter {
             previous.sort_unstable();
             previous
         } else {
-            (0..self.haystacks.len()).map(index).collect()
+            self.every()
         };
         self.matches = self.score(&candidates);
     }
@@ -375,6 +419,41 @@ mod tests {
             .map(|m| items[m.index as usize].as_str())
             .collect();
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn a_removed_item_never_matches_again() {
+        let mut f = filter(&["abc", "abd", "xyz"]);
+        f.remove(1);
+        assert_eq!(indices(&f), [0, 2], "gone at once from an empty query");
+        f.set_query("ab");
+        assert_eq!(indices(&f), [0]);
+        f.set_query("");
+        assert_eq!(indices(&f), [0, 2]);
+        f.set_query("x");
+        f.set_query("");
+        assert_eq!(indices(&f), [0, 2], "and after a full rematch");
+        assert_eq!(f.len(), 3, "indices stay stable");
+        f.push(["abe"]);
+        f.set_query("ab");
+        assert_eq!(indices(&f), [0, 3]);
+    }
+
+    #[test]
+    fn an_updated_item_is_matched_by_its_new_text_in_its_place() {
+        let mut f = filter(&["x-x-ab", "xyz", "x-x-abd"]);
+        f.set_query("ab");
+        f.update(1, "ab");
+        assert_eq!(indices(&f)[0], 1, "the exact match ranks first");
+        assert_eq!(f.matches().len(), 3);
+        f.update(1, "nothing");
+        assert_eq!(indices(&f), [0, 2]);
+        f.set_query("");
+        f.update(2, "q");
+        assert_eq!(indices(&f), [0, 1, 2], "input order kept");
+        f.remove(0);
+        f.update(0, "ab");
+        assert_eq!(indices(&f), [1, 2], "a removed item stays removed");
     }
 
     #[test]
