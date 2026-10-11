@@ -3,6 +3,7 @@
 pub mod e2e;
 pub mod fake_compositor;
 pub mod golden;
+pub mod latency;
 pub mod rig;
 
 use std::path::{Path, PathBuf};

@@ -44,6 +44,8 @@ pub struct State {
     /// The output's transform: screencopy delivers buffer contents, which
     /// a capture must turn upright (niri's nested output is flipped).
     pub(super) transform: wl_output::Transform,
+    /// The current mode's refresh rate in mHz, once announced.
+    pub(super) refresh_mhz: i32,
     pub(super) shm: WlShm,
     pub(super) seat: WlSeat,
     pub(super) screencopy: ZwlrScreencopyManagerV1,
@@ -79,6 +81,7 @@ impl Harness {
                 .bind(&qh, 1..=4, ())
                 .unwrap_or_else(|_| missing("wl_output")),
             transform: wl_output::Transform::Normal,
+            refresh_mhz: 0,
             shm: globals
                 .bind(&qh, 1..=1, ())
                 .unwrap_or_else(|_| missing("wl_shm")),
@@ -101,6 +104,14 @@ impl Harness {
         };
         harness.roundtrip();
         harness
+    }
+
+    /// The output's refresh rate (60 Hz if it announces none).
+    pub fn refresh_hz(&self) -> f64 {
+        match self.state.refresh_mhz {
+            mhz if mhz > 0 => f64::from(mhz) / 1000.0,
+            _ => 60.0,
+        }
     }
 
     /// The queue handle for new objects.
@@ -192,12 +203,18 @@ impl Dispatch<WlOutput, ()> for State {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        if let wl_output::Event::Geometry {
-            transform: smithay_client_toolkit::reexports::client::WEnum::Value(transform),
-            ..
-        } = event
-        {
-            state.transform = transform;
+        use smithay_client_toolkit::reexports::client::WEnum::Value;
+        match event {
+            wl_output::Event::Geometry {
+                transform: Value(transform),
+                ..
+            } => state.transform = transform,
+            wl_output::Event::Mode {
+                flags: Value(flags),
+                refresh,
+                ..
+            } if flags.contains(wl_output::Mode::Current) => state.refresh_mhz = refresh,
+            _ => {}
         }
     }
 }
