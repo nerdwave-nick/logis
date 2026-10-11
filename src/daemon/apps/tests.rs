@@ -137,7 +137,7 @@ fn a_session_before_the_index_shows_a_placeholder_then_the_apps() {
     let seen = log.take();
     assert_eq!(seen.len(), 1);
     assert!(
-        seen[0].starts_with("stage 1 '› ' [Anoint,Broken in home"),
+        seen[0].starts_with("stage 1 '> ' [Anoint,Broken in home"),
         "{seen:?}"
     );
     open(&mut core, 2, &[]);

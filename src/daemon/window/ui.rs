@@ -21,6 +21,7 @@ use std::os::fd::BorrowedFd;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
+use logis::icons::IconSource;
 use logis::input::Action;
 use logis::list::{Choice, Entry, ListView, Notice, Reaction, scene};
 use logis::window::trace::emit;
@@ -71,6 +72,9 @@ pub fn run(
             }
         }
         react(&mut windows, &mut shown, events);
+        for (session, token) in windows.take_tokens() {
+            let _ = events.send(Event::Activation { session, token });
+        }
         if shown.is_some() && !windows.is_visible() {
             // The compositor closed the surface (its output went away).
             let gone = shown.take().filter(|s| !s.lingering);
@@ -111,10 +115,10 @@ fn apply(
             view.borrow_mut().push(entries);
             let toast = Rc::new(RefCell::new(None));
             let (drawn, said) = (Rc::clone(&view), Rc::clone(&toast));
-            let draw = move |logical| {
+            let draw = move |logical, icons: &mut dyn IconSource| {
                 let mut look = drawn.borrow_mut().look();
                 look.toast = said.borrow().clone();
-                scene::scene(&look, logical)
+                scene::scene_with(&look, logical, icons)
             };
             *shown = None;
             match windows.show(qh, size, Box::new(draw)) {
@@ -171,6 +175,17 @@ fn apply(
             }
         }
         Command::FocusLoss(policy) => windows.set_focus_loss(policy),
+        Command::IconTheme(name) => windows.set_icon_theme(&name),
+        Command::Activation { session, app_id } => {
+            if mine(session, shown) {
+                windows.request_token(qh, session, &app_id);
+            } else {
+                let _ = events.send(Event::Activation {
+                    session,
+                    token: None,
+                });
+            }
+        }
     }
 }
 

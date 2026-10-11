@@ -7,7 +7,8 @@
 
 use super::view::{Look, Row};
 use super::{Level, Notice, Options};
-use crate::render::{Border, Glow, Overflow, Paint, Rgba, RoundedRect, Scene, Text};
+use crate::icons::{IconSource, NoIcons};
+use crate::render::{Border, Glow, ImageQuad, Overflow, Paint, Rgba, RoundedRect, Scene, Text};
 
 /// Room around the body for its glow.
 pub const MARGIN: f32 = 24.0;
@@ -86,14 +87,25 @@ pub fn row_at(logical: (u32, u32), lines: u32, (x, y): (f64, f64)) -> Option<usi
     inside.then_some(i as usize)
 }
 
-/// The scene for `look` on a surface of `logical` size (see [`layout`]).
+/// An icon's side in the icon column, in logical pixels.
+pub const ICON: u32 = 20;
+
+/// The scene for `look` on a surface of `logical` size (see [`layout`]),
+/// without icons (glyphs only).
 pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
+    scene_with(look, logical, &mut NoIcons)
+}
+
+/// The scene for `look`, rows' icons drawn from `icons` (a row whose icon
+/// is not found shows its glyph, if it has one).
+pub fn scene_with(look: &Look, logical: (u32, u32), icons: &mut dyn IconSource) -> Scene {
     let Layout {
         body: [x, y, body_w, body_h],
         first,
         room,
     } = layout(logical);
     let mut shapes = vec![body([x, y, body_w, body_h])];
+    let mut images = Vec::new();
     let mut texts = prompt_line(look, x + PAD_X, y, body_w - 2.0 * PAD_X);
     if look.lines > 0 {
         shapes.push(solid(
@@ -110,8 +122,14 @@ pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
         let mut left = x + PAD_X + 8.0;
         let mut width = body_w - 2.0 * PAD_X - 8.0;
         if look.glyphs {
-            if let Some(glyph) = &row.glyph {
-                texts.push(glyph_text(glyph, row.selected, left, top));
+            let icon = row.icon.as_deref().and_then(|name| icons.image(name, ICON));
+            match (icon, &row.glyph) {
+                (Some(image), _) => images.push(ImageQuad {
+                    image,
+                    origin: [left, top + (ROW_PITCH - ICON as f32) / 2.0],
+                }),
+                (None, Some(glyph)) => texts.push(glyph_text(glyph, row.selected, left, top)),
+                (None, None) => {}
             }
             left += GLYPH_COLUMN;
             width -= GLYPH_COLUMN;
@@ -130,8 +148,8 @@ pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
     Scene {
         clear: None,
         shapes,
+        images,
         texts,
-        ..Scene::default()
     }
 }
 

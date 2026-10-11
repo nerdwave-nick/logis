@@ -156,3 +156,80 @@ fn a_provider_stage_with_glyphs_badges_a_pending_row_and_a_toast() {
     };
     check_with("provider", &mut view, &options, Some(toast));
 }
+
+fn with_icon(text: &str, icon: &str, glyph: Option<&str>) -> Entry {
+    Entry {
+        text: text.into(),
+        match_text: None,
+        decor: Some(Box::new(Decor {
+            glyph: glyph.map(str::to_owned),
+            icon: Some(icon.into()),
+            ..Decor::default()
+        })),
+    }
+}
+
+/// The app launcher's list: icons from the fixture icon theme
+/// (tests/fixtures/icons) in the icon column, a glyph where an icon is
+/// missing, nothing where neither is.
+#[test]
+fn an_app_list_draws_its_icons() {
+    use logis::icons::{FrameIcons, IconCache, IconThemes, SearchPaths};
+    let Some(gpu) = golden::env_gpu() else { return };
+    let icons = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/icons");
+    let paths = SearchPaths {
+        icon_dirs: vec![icons.join("home-icons"), icons.join("share/icons")],
+        pixmap_dirs: vec![icons.join("pixmaps")],
+    };
+    let options = Options {
+        lines: 5,
+        width: 40,
+        ..Options::default()
+    };
+    let mut view = ListView::new(options.clone());
+    view.push([
+        with_icon("Anoint", "forge-cog", None),
+        with_icon("Banner of the forge", "forge-banner", None),
+        with_icon("Cogitator skull", "cogitator-skull", None),
+        with_icon("Missing, with a glyph", "forge-absent", Some("⚙")),
+        with_icon("Missing, without", "forge-absent", None),
+    ]);
+    view.apply(&Action::Select(Step::Next));
+    let logical = scene::size(&options);
+    let look = view.look();
+    let goldens = Goldens::checked_in();
+    let mut failures = Vec::new();
+    for scale in scales() {
+        let mut renderer = Renderer::new(&gpu);
+        renderer.set_fonts(&gpu, pinned_fonts());
+        let mut cache = IconCache::new(IconThemes::load(&paths, "logis-forge"));
+        let mut source = FrameIcons {
+            cache: &mut cache,
+            gpu: &gpu,
+            atlas: renderer.atlas_mut(),
+            scale,
+        };
+        let scene = scene::scene_with(&look, logical, &mut source);
+        assert_eq!(scene.images.len(), 3, "three icons are found");
+        assert!(
+            scene.texts.iter().any(|t| t.text == "⚙"),
+            "the glyph stands in"
+        );
+        let image = render_offscreen(
+            &gpu,
+            &mut renderer,
+            &scene,
+            logical,
+            scale,
+            OFFSCREEN_FORMAT,
+        )
+        .unwrap();
+        let name = format!("apps@{}", golden::scale_suffix(scale));
+        failures.extend(
+            goldens
+                .check("list", &name, &image, Tolerance::OFFSCREEN)
+                .err(),
+        );
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

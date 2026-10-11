@@ -632,10 +632,7 @@ mod tests {
         assert_eq!(first.take(), [Reply::Visible, result(Outcome::Replaced)]);
         assert!(first.closed());
         assert_eq!(second.take(), [Reply::Visible]);
-        assert_eq!(
-            log.take(),
-            ["show 1 Dmenu []", "hide 1", "show 2 Apps '› ' []"]
-        );
+        assert_eq!(log.take(), ["show 1 Dmenu []", "hide 1", "show 2 Apps []"]);
     }
 
     #[test]

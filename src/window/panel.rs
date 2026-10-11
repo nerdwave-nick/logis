@@ -11,13 +11,14 @@ use super::handle::SurfaceHandle;
 use super::present::{choose_alpha_mode, choose_format, choose_present_mode};
 use super::state::{Geometry, SurfaceState};
 use super::{Shell, WindowError, Windows};
+use crate::icons::{FrameIcons, IconCache, IconSource, NoIcons};
 use crate::render::{Gpu, Renderer, Scale, Scene, Target};
 
 /// The layer-shell namespace compositors see (spec §4.2).
 pub const NAMESPACE: &str = "logis";
 
-/// Builds the scene for a logical surface size.
-pub type SceneFn = Box<dyn Fn((u32, u32)) -> Scene>;
+/// Builds the scene for a logical surface size, its icons from the source.
+pub type SceneFn = Box<dyn Fn((u32, u32), &mut dyn IconSource) -> Scene>;
 
 /// The scaling objects of a surface, destroyed with it.
 struct Scaling {
@@ -127,6 +128,13 @@ impl Panel {
         self.layer.wl_surface() == surface
     }
 
+    /// The panel's `wl_surface`.
+    pub(super) fn surface(
+        &self,
+    ) -> &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface {
+        self.layer.wl_surface()
+    }
+
     /// Gives up keyboard focus while staying on screen.
     pub(super) fn release_keyboard(&self) {
         self.layer
@@ -166,6 +174,7 @@ impl Panel {
         &mut self,
         gpu: &Gpu,
         renderer: &mut Renderer,
+        icons: Option<&mut IconCache>,
         qh: &QueueHandle<Windows>,
     ) -> Option<Geometry> {
         if !self.state.should_draw() {
@@ -205,7 +214,18 @@ impl Panel {
             size: geometry.physical,
             scale: geometry.scale,
         };
-        let scene = (self.scene)(geometry.logical);
+        let scene = match icons {
+            Some(cache) => {
+                let mut source = FrameIcons {
+                    cache,
+                    gpu,
+                    atlas: renderer.atlas_mut(),
+                    scale: geometry.scale,
+                };
+                (self.scene)(geometry.logical, &mut source)
+            }
+            None => (self.scene)(geometry.logical, &mut NoIcons),
+        };
         let mut encoder = gpu
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());

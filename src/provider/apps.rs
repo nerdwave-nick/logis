@@ -51,7 +51,6 @@ enum Stage {
 /// The first stage's options.
 pub fn options() -> Options {
     Options {
-        prompt: "› ".into(),
         placeholder: "summon an application".into(),
         width: 40,
         only_match: true,
@@ -175,7 +174,7 @@ fn actions(app: &App) -> (Vec<Option<String>>, Step) {
         entries.push(decorated(action.name.clone(), None, icon, 0));
     }
     let options = Options {
-        prompt: format!("{} › ", e.name),
+        prompt: format!("{}: ", e.name),
         placeholder: String::new(),
         ..options()
     };
@@ -290,7 +289,7 @@ mod tests {
         else {
             panic!("{steps:?}");
         };
-        assert_eq!(options.prompt, "Anoint › ");
+        assert_eq!(options.prompt, "Anoint: ");
         assert_eq!(texts(actions), ["Anoint", "Purge", "Bless"]);
         let icons: Vec<_> = actions
             .iter()

@@ -50,6 +50,10 @@ pub enum Command {
     Untoast { session: SessionId },
     /// What losing keyboard focus does (the config's `focus-loss`).
     FocusLoss(FocusLoss),
+    /// The icon theme for icons (the config's `icon-theme`).
+    IconTheme(String),
+    /// An xdg-activation token for the shown session's launch of `app_id`.
+    Activation { session: SessionId, app_id: String },
 }
 
 /// The resolver the daemon holds; the window thread does the work.
@@ -123,10 +127,10 @@ impl WindowResolver {
 impl Resolver for WindowResolver {
     fn accepts(&self, mode: Mode) -> Result<(), String> {
         match mode {
-            Mode::Dmenu | Mode::Provider => Ok(()),
-            Mode::Apps | Mode::Servitor => Err(
-                "the cogitator knows only dmenu and provider rites yet; the app \
-                 launcher and servitor mode are still to be consecrated"
+            Mode::Dmenu | Mode::Provider | Mode::Apps => Ok(()),
+            Mode::Servitor => Err(
+                "the cogitator knows only dmenu, provider and app rites yet; \
+                 servitor mode is still to be consecrated"
                     .to_owned(),
             ),
         }
@@ -162,5 +166,11 @@ impl Resolver for WindowResolver {
 
     fn configure(&mut self, config: &Config) {
         self.send(Command::FocusLoss(config.focus_loss));
+        self.send(Command::IconTheme(config.icon_theme.clone()));
+    }
+
+    fn activation(&mut self, session: SessionId, app_id: &str) {
+        let app_id = app_id.to_owned();
+        self.send(Command::Activation { session, app_id });
     }
 }

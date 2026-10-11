@@ -27,7 +27,7 @@ use crate::text::PendingFonts;
 pub struct Windows {
     // Drop order: the panel (and its wgpu surface) before the GPU it was
     // created on, then the globals, then the connection.
-    panel: Option<Panel>,
+    pub(super) panel: Option<Panel>,
     verbose: bool,
     renderer: Renderer,
     gpu: Gpu,
@@ -36,6 +36,9 @@ pub struct Windows {
     pub(super) clipboard: Clipboard,
     pub(super) pointer: Pointer,
     keyboard: Keyboard,
+    pub(super) activation: super::activation::Activation,
+    /// The icon theme's name and its cache, once a theme is set.
+    icons: Option<(String, crate::icons::IconCache)>,
     shell: Shell,
     connection: Connection,
 }
@@ -72,6 +75,7 @@ impl Windows {
         let keyboard = Keyboard::bind(&globals, &queue.handle());
         let pointer = Pointer::bind(&globals, &queue.handle());
         let clipboard = Clipboard::bind(&globals, &queue.handle(), keyboard.seat());
+        let activation = super::activation::Activation::bind(&globals, &queue.handle());
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
@@ -91,10 +95,23 @@ impl Windows {
             clipboard,
             pointer,
             keyboard,
+            activation,
+            icons: None,
             shell,
             connection,
         };
         Ok((windows, queue))
+    }
+
+    /// Looks icons up in theme `name` (then its parents, hicolor and the
+    /// pixmaps). The theme's index files are read now, once per change.
+    pub fn set_icon_theme(&mut self, name: &str) {
+        if self.icons.as_ref().is_some_and(|(n, _)| n == name) {
+            return;
+        }
+        let themes = crate::icons::IconThemes::load(&crate::icons::SearchPaths::from_env(), name);
+        self.icons = Some((name.to_owned(), crate::icons::IconCache::new(themes)));
+        self.request_redraw();
     }
 
     /// Reports every swapchain (re)configuration on stderr.
@@ -163,6 +180,10 @@ impl Windows {
         self.panel.as_ref().is_some_and(|p| p.has_surface(surface))
     }
 
+    pub(super) fn keyboard(&self) -> &Keyboard {
+        &self.keyboard
+    }
+
     pub(super) fn keyboard_mut(&mut self) -> &mut Keyboard {
         &mut self.keyboard
     }
@@ -181,7 +202,8 @@ impl Windows {
     /// produce one frame, not two.
     pub fn draw_pending(&mut self, qh: &QueueHandle<Self>) {
         let Some(panel) = &mut self.panel else { return };
-        let reconfigured = panel.draw_if_needed(&self.gpu, &mut self.renderer, qh);
+        let icons = self.icons.as_mut().map(|(_, cache)| cache);
+        let reconfigured = panel.draw_if_needed(&self.gpu, &mut self.renderer, icons, qh);
         if let Some(g) = reconfigured.filter(|_| self.verbose) {
             let config = panel.config();
             eprintln!(

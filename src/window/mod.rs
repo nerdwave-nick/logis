@@ -5,6 +5,7 @@
 //! at start, then shows and hides panels per session while dispatching its
 //! [`EventQueue`].
 
+mod activation;
 mod debug;
 mod handle;
 mod input;
