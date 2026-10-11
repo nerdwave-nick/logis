@@ -3,10 +3,12 @@
 //! take any [`Image`], such as an E2E screen capture) and compare it with a
 //! checked-in PNG under a [`Tolerance`], or write it in update mode.
 //!
-//! - **Files:** `tests/goldens/<set>/<name>.png`, 8-bit RGBA, the image bytes
-//!   as they are (the renderer's are premultiplied; give golden scenes an
-//!   opaque clear colour so the files also look right in a viewer). Scaled
-//!   variants are named `<name>@<scale>`, e.g. `reference@1.3`.
+//! - **Files:** `tests/goldens/<set>/<name>.png`, 8-bit RGBA, by default the
+//!   image bytes as they are (the renderer's are premultiplied; give golden
+//!   scenes an opaque clear colour so the files also look right in a
+//!   viewer). [`Alpha::Straight`] stores PNG's straight alpha instead (the
+//!   icon goldens, written by tiny-skia). Scaled variants are named
+//!   `<name>@<scale>`, e.g. `reference@1.3`.
 //! - **Tolerance:** a pixel is an outlier when any channel differs by more
 //!   than `channel`; a check passes when outliers are at most `outliers`
 //!   (a fraction of all pixels). [`Tolerance::OFFSCREEN`] (2, none) absorbs
@@ -197,11 +199,46 @@ pub fn read_png(path: &Path) -> std::io::Result<Image> {
     })
 }
 
+/// How a golden file stores alpha.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Alpha {
+    /// The renderer's premultiplied bytes as they are (the default).
+    Premultiplied,
+    /// Straight alpha, as PNG defines it and tiny-skia writes it.
+    Straight,
+}
+
+/// Straight alpha to premultiplied, rounding to nearest.
+pub fn premultiply(mut image: Image) -> Image {
+    for px in image.pixels.chunks_mut(4) {
+        let a = u16::from(px[3]);
+        for c in &mut px[..3] {
+            *c = ((u16::from(*c) * a + 127) / 255) as u8;
+        }
+    }
+    image
+}
+
+/// Premultiplied alpha to straight, rounding to nearest.
+pub fn demultiply(mut image: Image) -> Image {
+    for px in image.pixels.chunks_mut(4) {
+        let a = u16::from(px[3]);
+        for c in &mut px[..3] {
+            *c = match a {
+                0 => 0,
+                a => ((u16::from(*c) * 255 + a / 2) / a).min(255) as u8,
+            };
+        }
+    }
+    image
+}
+
 /// A directory of goldens and where failure artefacts go.
 pub struct Goldens {
     root: PathBuf,
     failures: PathBuf,
     update: bool,
+    alpha: Alpha,
 }
 
 impl Goldens {
@@ -219,7 +256,14 @@ impl Goldens {
             root,
             failures,
             update: false,
+            alpha: Alpha::Premultiplied,
         }
+    }
+
+    /// Reads and writes goldens with `alpha`.
+    pub fn with_alpha(mut self, alpha: Alpha) -> Self {
+        self.alpha = alpha;
+        self
     }
 
     /// Writes instead of comparing when `update` is true.
@@ -241,11 +285,15 @@ impl Goldens {
     /// The golden `set/name`, if it exists.
     pub fn load(&self, set: &str, name: &str) -> Result<Image, String> {
         let path = self.path(set, name);
-        read_png(&path).map_err(|e| {
+        let image = read_png(&path).map_err(|e| {
             format!(
                 "golden {} cannot be read ({e}); render it with {UPDATE}=1 and review it",
                 path.display()
             )
+        })?;
+        Ok(match self.alpha {
+            Alpha::Premultiplied => image,
+            Alpha::Straight => premultiply(image),
         })
     }
 
@@ -261,8 +309,12 @@ impl Goldens {
     ) -> Result<Verdict, String> {
         let path = self.path(set, name);
         if self.update {
+            let stored = match self.alpha {
+                Alpha::Premultiplied => image.clone(),
+                Alpha::Straight => demultiply(image.clone()),
+            };
             std::fs::create_dir_all(path.parent().expect("goldens live in a set"))
-                .and_then(|()| write_png(&path, image))
+                .and_then(|()| write_png(&path, &stored))
                 .map_err(|e| format!("cannot write golden {}: {e}", path.display()))?;
             eprintln!("updated golden {}", path.display());
             return Ok(Verdict::Updated);

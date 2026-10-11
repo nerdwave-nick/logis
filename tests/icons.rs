@@ -6,11 +6,12 @@
 //! unless `auto` is listed in `LOGIS_TEST_REQUIRE_BACKENDS` (CI requires it,
 //! on Mesa lavapipe).
 //!
-//! Goldens live in `tests/goldens/icons/` as PNG. A render matches when no
-//! channel of any pixel differs by more than [`GOLDEN_TOLERANCE`]. On a
-//! mismatch the render is written to `target/golden-failures/`.
+//! Goldens live in `tests/goldens/icons/` as straight-alpha PNG and are
+//! checked by the shared harness (tests/support/golden.rs): a render matches
+//! when no channel of any pixel differs by more than [`GOLDEN_TOLERANCE`].
 //! `LOGIS_UPDATE_GOLDENS=1 cargo test --test icons` rewrites the goldens.
-//! (A minimal harness local to this file; ticket e32f9347 consolidates.)
+
+mod support;
 
 use std::path::{Path, PathBuf};
 
@@ -19,7 +20,7 @@ use logis::render::{
     AtlasError, BackendChoice, Gpu, Image, ImageQuad, OFFSCREEN_FORMAT, Paint, Renderer, Rgba,
     RoundedRect, Scale, Scene, render_offscreen,
 };
-use resvg::tiny_skia::{IntSize, Pixmap};
+use support::golden::{Alpha, Goldens, Tolerance};
 
 const SCALE_1_0: Scale = Scale::ONE;
 
@@ -358,73 +359,17 @@ fn golden_scene(gpu: &Gpu, renderer: &mut Renderer, scale: Scale) -> (Scene, (u3
     (scene, logical)
 }
 
-fn golden_path(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/goldens/icons")
-        .join(format!("{name}.png"))
-}
-
-fn to_png(image: &Image) -> Vec<u8> {
-    let size = IntSize::from_wh(image.width, image.height).unwrap();
-    let pixmap = Pixmap::from_vec(image.pixels.clone(), size).unwrap();
-    pixmap.encode_png().unwrap()
-}
-
-/// Compares `image` with the golden `name`, or rewrites the golden when
-/// `LOGIS_UPDATE_GOLDENS` is set.
+/// Compares `image` with the golden `icons/name` (straight alpha, as
+/// tiny-skia wrote them), or rewrites it when `LOGIS_UPDATE_GOLDENS` is set.
 #[track_caller]
 fn assert_golden(name: &str, image: &Image) {
-    let path = golden_path(name);
-    if std::env::var_os("LOGIS_UPDATE_GOLDENS").is_some() {
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, to_png(image)).unwrap();
-        eprintln!("updated golden {}", path.display());
-        return;
-    }
-    let data = std::fs::read(&path).unwrap_or_else(|e| {
-        panic!(
-            "golden {} is unreadable ({e}); set LOGIS_UPDATE_GOLDENS=1 to write it",
-            path.display()
-        )
-    });
-    let golden = Pixmap::decode_png(&data).unwrap();
-    let mismatch = |why: String| {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/golden-failures");
-        std::fs::create_dir_all(&dir).unwrap();
-        let actual = dir.join(format!("{name}.png"));
-        std::fs::write(&actual, to_png(image)).unwrap();
-        panic!("{name}: {why}; the render is at {}", actual.display());
+    let tolerance = Tolerance {
+        channel: GOLDEN_TOLERANCE,
+        outliers: 0.0,
     };
-    if (golden.width(), golden.height()) != (image.width, image.height) {
-        mismatch(format!(
-            "size {}x{} differs from the golden's {}x{}",
-            image.width,
-            image.height,
-            golden.width(),
-            golden.height()
-        ));
-    }
-    // Both sides are premultiplied; the golden went through PNG's straight
-    // alpha and back, which the tolerance absorbs.
-    let (mut worst, mut worst_at, mut over) = (0, 0, 0);
-    for (i, (a, b)) in image
-        .pixels
-        .chunks(4)
-        .zip(golden.data().chunks(4))
-        .enumerate()
-    {
-        let diff = a.iter().zip(b).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
-        if diff > worst {
-            (worst, worst_at) = (diff, i);
-        }
-        over += usize::from(diff > GOLDEN_TOLERANCE);
-    }
-    if worst > GOLDEN_TOLERANCE {
-        let (x, y) = (worst_at as u32 % image.width, worst_at as u32 / image.width);
-        mismatch(format!(
-            "{over} pixels differ by more than {GOLDEN_TOLERANCE}; the worst, ({x}, {y}), by {worst}"
-        ));
-    }
+    Goldens::checked_in()
+        .with_alpha(Alpha::Straight)
+        .assert("icons", name, image, tolerance);
 }
 
 #[test]

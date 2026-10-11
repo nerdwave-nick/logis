@@ -7,7 +7,7 @@ mod support;
 
 use logis::render::{Border, Glow, Image, Paint, Rgba, RoundedRect, Scale, Scene};
 use support::ScratchDir;
-use support::golden::{self, Goldens, Tolerance, Verdict};
+use support::golden::{self, Alpha, Goldens, Tolerance, Verdict};
 
 fn solid(width: u32, height: u32, rgba: [u8; 4]) -> Image {
     Image {
@@ -146,6 +146,30 @@ fn a_mismatch_fails_and_leaves_the_render_and_a_difference_image() {
         golden::read_png(&diff).unwrap().pixel(2, 2),
         [255, 0, 255, 255]
     );
+}
+
+#[test]
+fn straight_alpha_goldens_are_premultiplied_when_read_and_demultiplied_when_written() {
+    let dir = ScratchDir::new();
+    // A straight-alpha file, as tiny-skia's encoder writes them.
+    std::fs::create_dir_all(dir.path().join("goldens/set")).unwrap();
+    let straight = solid(1, 1, [255, 64, 0, 128]);
+    golden::write_png(&dir.path().join("goldens/set/s.png"), &straight).unwrap();
+    let premultiplied = solid(1, 1, [128, 32, 0, 128]);
+    let goldens = goldens(&dir, false).with_alpha(Alpha::Straight);
+    let verdict = goldens
+        .check("set", "s", &premultiplied, Tolerance::OFFSCREEN)
+        .unwrap();
+    assert!(
+        matches!(verdict, Verdict::Matched(c) if c.worst <= 1),
+        "{verdict:?}"
+    );
+    goldens
+        .with_update(true)
+        .check("set", "t", &premultiplied, Tolerance::OFFSCREEN)
+        .unwrap();
+    let written = golden::read_png(&dir.path().join("goldens/set/t.png")).unwrap();
+    assert!(golden::compare(&written, &straight).unwrap().worst <= 1);
 }
 
 #[test]

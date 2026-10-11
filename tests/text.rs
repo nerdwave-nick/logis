@@ -9,7 +9,9 @@
 //! GPU adapter and follow tests/render.rs: `SKIPPED` without one unless
 //! `LOGIS_TEST_REQUIRE_BACKENDS` lists `auto`.
 
-mod golden;
+mod support;
+
+use support::golden;
 
 use std::path::{Path, PathBuf};
 
