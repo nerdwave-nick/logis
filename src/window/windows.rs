@@ -21,6 +21,7 @@ use smithay_client_toolkit::shell::wlr_layer::{
 use smithay_client_toolkit::{delegate_dispatch2, delegate_registry, registry_handlers};
 
 use super::handle::WaylandDisplay;
+use super::seat::Keyboard;
 use super::{Panel, SceneFn, Shell, WindowError, WindowQueue};
 use crate::render::{BackendChoice, Gpu, Renderer, Scale};
 
@@ -34,6 +35,7 @@ pub struct Windows {
     verbose: bool,
     renderer: Renderer,
     gpu: Gpu,
+    keyboard: Keyboard,
     shell: Shell,
     connection: Connection,
 }
@@ -47,6 +49,7 @@ impl Windows {
         let (globals, queue) = registry_queue_init::<Self>(&connection)
             .map_err(|e| WindowError::Connect(e.to_string()))?;
         let shell = bind(&globals, &queue.handle())?;
+        let keyboard = Keyboard::bind(&globals, &queue.handle());
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
@@ -57,6 +60,7 @@ impl Windows {
             verbose: false,
             renderer,
             gpu,
+            keyboard,
             shell,
             connection,
         };
@@ -96,6 +100,21 @@ impl Windows {
     /// Whether a panel is shown.
     pub fn is_visible(&self) -> bool {
         self.panel.is_some()
+    }
+
+    /// Whether `surface` is the visible panel's.
+    pub(super) fn shows(&self, surface: &wl_surface::WlSurface) -> bool {
+        self.panel.as_ref().is_some_and(|p| p.has_surface(surface))
+    }
+
+    pub(super) fn keyboard_mut(&mut self) -> &mut Keyboard {
+        &mut self.keyboard
+    }
+
+    /// The evdev codes of keys pressed since the last call, oldest first
+    /// (raw codes until the keyboard slice brings keysyms).
+    pub fn take_key_presses(&mut self) -> Vec<u32> {
+        self.keyboard.take_presses()
     }
 
     /// Asks the visible panel to redraw (its scene changed); it is drawn by

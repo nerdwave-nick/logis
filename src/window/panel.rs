@@ -202,6 +202,7 @@ impl Panel {
         let wl_surface = self.layer.wl_surface();
         wl_surface.frame(qh, FrameCallbackData(wl_surface.clone()));
         gpu.queue.present(frame);
+        super::trace::emit(format_args!("commit"));
         self.state.drew();
         reconfigured
     }

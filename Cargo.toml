@@ -31,8 +31,10 @@ serde_json = "1.0.152"
 # Already in the tree through wayland-client; the `stdio` feature adds dup2 so
 # a daemon started by a client can move its stderr off the client's pipe once
 # listening (libraries such as wayland-backend print to stderr, and printing
-# to a broken pipe panics).
-rustix = { version = "1.1.5", features = ["stdio"] }
+# to a broken pipe panics). The `time` feature reads CLOCK_MONOTONIC for the
+# test trace (src/window/trace.rs), which std's opaque Instant cannot give a
+# harness in another process.
+rustix = { version = "1.1.5", features = ["stdio", "time"] }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures
@@ -45,3 +47,7 @@ exclude = ["research/proto-rust"]
 # GitHub); a PNG decoder needs inflate, which std lacks. The same release the
 # text and icon slices use, so the tree holds one copy.
 png = "0.18"
+# Already in the tree; for the E2E harness's isolation guard (`net`: the
+# peer credentials of the compositor socket) and its dispatch deadline
+# (`event`: poll), which std does not offer.
+rustix = { version = "1.1.5", features = ["net", "event"] }
