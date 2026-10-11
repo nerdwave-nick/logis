@@ -8,6 +8,7 @@
 
 mod support;
 
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -80,7 +81,11 @@ impl World {
         wait_until("the census to start", || {
             std::fs::read_to_string(&path).is_ok_and(|t| t.ends_with('\n'))
         });
-        std::fs::read_to_string(path).unwrap().trim().parse().unwrap()
+        std::fs::read_to_string(path)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap()
     }
 }
 
@@ -201,7 +206,10 @@ fn a_rite_that_never_settles_is_never_invoked_and_leaving_ends_the_census() {
     let rig = Rig::new();
     let _daemon = rig.start_daemon(&[]);
     let world = World::new();
-    let mut client = world.servitor(&rig, "lingering.jsonl", "0").spawn().unwrap();
+    let mut client = world
+        .servitor(&rig, "lingering.jsonl", "0")
+        .spawn()
+        .unwrap();
     let census = world.census_pid();
     std::thread::sleep(Duration::from_millis(500));
     // The caller leaves, as a dismissal ends a session: logis cancels it.
@@ -227,7 +235,10 @@ fn no_dismissal_or_departure_of_logis_aborts_a_running_invocation() {
     // servitor mode opened again and dismissed (its caller leaves), then
     // the daemon itself goes: the invocation labours on.
     let again = World::new();
-    let mut client = again.servitor(&rig, "lingering.jsonl", "0").spawn().unwrap();
+    let mut client = again
+        .servitor(&rig, "lingering.jsonl", "0")
+        .spawn()
+        .unwrap();
     again.census_pid();
     client.kill().unwrap();
     client.wait().unwrap();
@@ -236,7 +247,10 @@ fn no_dismissal_or_departure_of_logis_aborts_a_running_invocation() {
         .status()
         .unwrap();
     daemon.wait_exit();
-    assert!(alive(invocation) && !world.done(), "the invocation was cut short");
+    assert!(
+        alive(invocation) && !world.done(),
+        "the invocation was cut short"
+    );
     wait_until("the invocation to finish", || world.done());
 }
 
@@ -260,16 +274,19 @@ fn servitor_mode_runs_logis_itself_as_its_provider() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    use std::io::{BufRead, BufReader, Write};
     let mut stdin = provider.stdin.take().unwrap();
-    stdin.write_all(b"{\"type\":\"hello\",\"protocol\":1}\n").unwrap();
+    stdin
+        .write_all(b"{\"type\":\"hello\",\"protocol\":1}\n")
+        .unwrap();
     let mut lines = BufReader::new(provider.stdout.take().unwrap()).lines();
-    let mut next = || -> serde_json::Value {
-        serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap()
-    };
+    let mut next =
+        || -> serde_json::Value { serde_json::from_str(&lines.next().unwrap().unwrap()).unwrap() };
     assert_eq!(next()["type"], "hello");
     let stage = next();
-    assert_eq!((stage["type"].as_str(), stage["id"].as_str()), (Some("stage"), Some("rite")));
+    assert_eq!(
+        (stage["type"].as_str(), stage["id"].as_str()),
+        (Some("stage"), Some("rite"))
+    );
     let items = next();
     assert_eq!(items["type"], "items");
     assert_eq!(items["items"][0]["id"], ">screenshot");
