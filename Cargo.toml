@@ -22,9 +22,19 @@ smithay-client-toolkit = { version = "0.21.1", default-features = false, feature
 # The GPU (ADR 0001): Vulkan first, then GL (gles), shaders in WGSL only. No
 # DX12/Metal/WebGPU backends; `raw-window-handle` comes re-exported as `wgpu::rwh`.
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "vulkan", "gles", "wgsl"] }
+# Text (spec §4.4): glyphon's GPU glyph atlas over cosmic-text (shaping,
+# bidi, swash rasterisation with hinting); tracks wgpu 30. Fonts come from
+# libfontconfig through logis's own small FFI (src/text/fc.rs), not a crate.
+glyphon = "0.12.0"
+# Only to name `Script` in cosmic-text's `Fallback` trait; already in the tree
+# through cosmic-text (same 0.5 release), so it adds no crate.
+unicode-script = "0.5.8"
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures
 # the other.
 [workspace]
 exclude = ["research/proto-rust"]
+
+[dev-dependencies]
+png = "0.18"

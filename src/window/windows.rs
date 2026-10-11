@@ -23,6 +23,7 @@ use smithay_client_toolkit::{delegate_dispatch2, delegate_registry, registry_han
 use super::handle::WaylandDisplay;
 use super::{Panel, SceneFn, Shell, WindowError, WindowQueue};
 use crate::render::{BackendChoice, Gpu, Renderer, Scale};
+use crate::text::Fonts;
 
 /// What the daemon owns for its windows: the connection, the bound globals,
 /// the GPU (woken at connect, never lazily), the renderer and at most one
@@ -50,6 +51,12 @@ impl Windows {
         let gpu =
             Gpu::new(choice, Some(WaylandDisplay(connection.clone()))).map_err(WindowError::Gpu)?;
         let mut renderer = Renderer::new(&gpu);
+        // Fonts are resolved at start too (spec §4.1); without them the
+        // cogitator still opens, only without text.
+        match Fonts::system() {
+            Ok(fonts) => renderer.set_fonts(&gpu, fonts),
+            Err(e) => eprintln!("logis: {e}; the cogitator stays mute"),
+        }
         // The usual Wayland swapchain format, so the first open compiles nothing.
         renderer.prepare(&gpu, wgpu::TextureFormat::Bgra8Unorm);
         let windows = Self {

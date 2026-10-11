@@ -4,6 +4,8 @@
 use super::Gpu;
 use super::scale::Scale;
 use super::scene::{INSTANCE_FLOATS, Scene, pack};
+use super::text_pass::TextPass;
+use crate::text::Fonts;
 
 /// Bytes per shape instance.
 const INSTANCE_BYTES: u64 = (INSTANCE_FLOATS * 4) as u64;
@@ -28,6 +30,7 @@ pub struct Renderer {
     frame: wgpu::Buffer,
     bind: wgpu::BindGroup,
     instances: wgpu::Buffer,
+    text: Option<TextPass>,
 }
 
 impl Renderer {
@@ -78,12 +81,22 @@ impl Renderer {
             frame,
             bind,
             instances,
+            text: None,
         }
+    }
+
+    /// Gives the renderer fonts, so that scenes' texts are drawn. Without
+    /// fonts, texts are skipped.
+    pub fn set_fonts(&mut self, gpu: &Gpu, fonts: Fonts) {
+        self.text = Some(TextPass::new(gpu, fonts));
     }
 
     /// Builds the pipeline for `format` now rather than on its first frame.
     pub fn prepare(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         self.pipeline(gpu, format);
+        if let Some(text) = &mut self.text {
+            text.prepare_format(gpu, format);
+        }
     }
 
     /// Encodes `scene` into `target`: clears it, then paints every shape.
@@ -125,6 +138,7 @@ impl Renderer {
             a: f64::from(clear[3]),
         };
         let pipeline = self.pipeline(gpu, target.format).clone();
+        let text = self.prepare_text(gpu, target, scene);
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("logis sdf"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -143,6 +157,24 @@ impl Renderer {
             pass.set_bind_group(0, &self.bind, &[]);
             pass.set_vertex_buffer(0, self.instances.slice(..INSTANCE_BYTES * count as u64));
             pass.draw(0..4, 0..count as u32);
+        }
+        if let Some(text) = self.text.as_ref().filter(|_| text) {
+            text.render(target.format, &mut pass);
+        }
+    }
+
+    /// Shapes and uploads the scene's text. False when there is none to
+    /// draw: no fonts, no text, or the atlas could not take it.
+    fn prepare_text(&mut self, gpu: &Gpu, target: &Target<'_>, scene: &Scene) -> bool {
+        let Some(text) = self.text.as_mut().filter(|_| !scene.texts.is_empty()) else {
+            return false;
+        };
+        match text.prepare(gpu, target, &scene.texts) {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("logis: the glyphs would not be inscribed: {e}");
+                false
+            }
         }
     }
 

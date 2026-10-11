@@ -100,13 +100,16 @@ pub struct RoundedRect {
     pub glow: Option<Glow>,
 }
 
-/// Everything one frame shows: a clear colour and shapes in paint order.
+/// Everything one frame shows: a clear colour, shapes in paint order, then
+/// text above them.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
     /// The colour the frame starts from (transparent for a layer surface).
     pub clear: Option<Rgba>,
     /// Shapes, back to front.
     pub shapes: Vec<RoundedRect>,
+    /// Lines of text, drawn over the shapes when the renderer has fonts.
+    pub texts: Vec<super::text::Text>,
 }
 
 /// Floats per shape instance: nine `vec4f` vertex attributes.

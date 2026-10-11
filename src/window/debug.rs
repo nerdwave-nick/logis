@@ -1,9 +1,9 @@
 //! The debug session: a static panel in the spirit of "forge crimson &
-//! brass", drawn only from SDF shapes (text, input, themes and animation come
-//! in later slices). Used to check scale handling on a live compositor.
+//! brass": SDF shapes and text rows (input, themes and animation come in
+//! later slices). Used to check scale and text on a live compositor.
 
 use super::{WindowError, Windows};
-use crate::render::{BackendChoice, Border, Glow, Paint, Rgba, RoundedRect, Scene};
+use crate::render::{BackendChoice, Border, Glow, Overflow, Paint, Rgba, RoundedRect, Scene, Text};
 
 /// The panel body in logical pixels.
 const PANEL: (f32, f32) = (640.0, 360.0);
@@ -20,6 +20,7 @@ const CRIMSON: Rgba = Rgba::new(0.70, 0.06, 0.05, 1.0);
 const SOOT_TOP: Rgba = Rgba::new(0.085, 0.055, 0.045, 0.86);
 const SOOT_BOTTOM: Rgba = Rgba::new(0.045, 0.030, 0.026, 0.86);
 const ASH: Rgba = Rgba::new(0.54, 0.48, 0.40, 0.28);
+const BONE: Rgba = Rgba::hex(0xeadfc4);
 
 /// The debug panel's scene for a surface of `logical` size: the body fills
 /// it up to [`PANEL`], less the glow margin, so a smaller configure than
@@ -91,36 +92,45 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
         color: BRASS.with_alpha(0.7),
     });
 
-    let mut shapes = vec![body, rune, rule, selected, marker];
-    for (row, width) in [
-        0.62_f32, 0.48, 0.71, 0.55, 0.66, 0.40, 0.58, 0.50, 0.69, 0.44,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let dy = 75.0 + 26.0 * row as f32;
-        if dy + 20.0 > panel.1 {
+    let column = panel.0 - 44.0;
+    let line = |dy: f32, text: &str, size: f32, color: Rgba| {
+        Text::new(text, [x + 22.0, y + dy], size, color).in_column(column, Overflow::Ellipsis)
+    };
+    let title = Text::new(
+        "COGITATOR // RITE OF TESTING",
+        [x + 46.0, y + 12.0],
+        18.0,
+        BRASS,
+    );
+    let mut texts = vec![title.in_column(column - 24.0, Overflow::Ellipsis)];
+    for (row, text) in ROWS.iter().enumerate() {
+        let dy = 68.0 + 26.0 * row as f32;
+        if dy + 22.0 > panel.1 {
             break;
         }
-        let ash = if row == 0 {
-            BRASS.with_alpha(0.75)
-        } else {
-            ASH
-        };
-        shapes.push(rect(
-            22.0,
-            dy,
-            (panel.0 - 60.0) * width,
-            8.0,
-            4.0,
-            Paint::Solid(ash),
-        ));
+        let color = if row == 0 { BONE } else { ASH.with_alpha(0.9) };
+        texts.push(line(dy, text, 15.0, color));
     }
     Scene {
         clear: None,
-        shapes,
+        shapes: vec![body, rune, rule, selected, marker],
+        texts,
     }
 }
+
+/// The debug rows: every script and feature the text slice covers, the
+/// last one too long for its column.
+const ROWS: [&str; 9] = [
+    "The machine spirit wakes: 0123456789",
+    "Ça déjà vu, naïve Ærø — Œuvre, Šťastný",
+    "機械の精霊 万机之神 기계 정령",
+    "logis: שָׁלוֹם and مرحبا بالعالم (42) ok",
+    "Praise 🔥⚙️💀🤖 the Omnissiah 👍🏽 🧑‍💻",
+    "fi fl ffi — ligatures, kerning: AVATAR Tolkien",
+    "Ἐν ἀρχῇ ἦν ὁ λόγος · Съешь же ещё",
+    "Ellipsis rite: this line is far too long for its column, so the cogitator cuts it short and seals it",
+    "Scale is taken from the compositor (1.0, 1.3, 2.0)",
+];
 
 /// `logis daemon --debug-panel`: wakes the GPU, shows the static panel and
 /// keeps it, re-rendering only on configure or scale changes, until the
