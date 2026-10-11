@@ -6,6 +6,7 @@
 //! A client whose daemon cannot start relays the daemon's reason and exits 2.
 
 pub mod dmenu;
+pub mod provider;
 mod spawn;
 
 use std::io;

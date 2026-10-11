@@ -118,7 +118,7 @@ impl Cogitator {
 fn greet(socket: &std::path::Path) {
     use std::os::unix::net::UnixStream;
     let deadline = Instant::now() + PATIENCE;
-    let hello = br#"{"type":"hello","version":2}"#;
+    let hello = br#"{"type":"hello","version":3}"#;
     loop {
         assert!(Instant::now() < deadline, "the daemon never greeted");
         let Ok(mut stream) = UnixStream::connect(socket) else {

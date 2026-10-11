@@ -24,19 +24,32 @@ pub enum Exit {
 }
 
 /// Feeds events to `core` until the daemon must stop. `config` holds the
-/// config in force and decides the idle timeout.
+/// config in force and decides the idle timeout; between events the loop
+/// sleeps until the next event, or the next of `core`'s timers.
 pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: &mut Live) -> Exit {
     let mut idle_since = Instant::now();
     loop {
-        let event = match config.idle_timeout().filter(|_| core.is_idle()) {
-            Some(timeout) => {
-                let left = timeout.saturating_sub(idle_since.elapsed());
-                match events.recv_timeout(left) {
-                    Ok(event) => event,
-                    Err(RecvTimeoutError::Timeout) => return Exit::Idle,
-                    Err(RecvTimeoutError::Disconnected) => return Exit::Deaf,
+        core.tick(Instant::now());
+        let idle_until = config
+            .idle_timeout()
+            .filter(|_| core.is_idle())
+            .map(|timeout| idle_since + timeout);
+        let wake = match (idle_until, core.deadline()) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        let event = match wake {
+            Some(wake) => match events.recv_timeout(wake.saturating_duration_since(Instant::now()))
+            {
+                Ok(event) => event,
+                Err(RecvTimeoutError::Timeout) => {
+                    if idle_until.is_some_and(|until| Instant::now() >= until) {
+                        return Exit::Idle;
+                    }
+                    continue;
                 }
-            }
+                Err(RecvTimeoutError::Disconnected) => return Exit::Deaf,
+            },
             None => match events.recv() {
                 Ok(event) => event,
                 Err(_) => return Exit::Deaf,
@@ -47,8 +60,9 @@ pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: 
             Event::Connected { conn, peer } => core.connect(conn, peer),
             Event::Received { conn, request } => core.receive(conn, request),
             Event::Disconnected { conn } => core.disconnect(conn),
-            Event::Resolved { session, outcome } => core.resolve(session, outcome),
+            Event::Answered { session, answer } => core.answered(session, answer),
             Event::Failed { session, message } => core.failed(session, message),
+            Event::Heard { session, heard } => core.heard(session, heard),
             Event::WaylandLost { reason } => return Exit::WaylandLost(reason),
             Event::Reconfigured(loaded) => reconfigure(core, config, loaded),
         }
@@ -87,8 +101,10 @@ mod tests {
     use super::*;
     use crate::daemon::resolver::{Toast, Windowless};
     use crate::daemon::sessions::SessionId;
-    use crate::protocol::{Item, Mode, Options, Reply};
+    use crate::protocol::{Mode, Options, Reply};
+    use crate::provider::Step;
     use logis::config::{Config, Error, Invalid, Problem};
+    use logis::list::Entry;
     use std::sync::mpsc::channel;
     use std::sync::{Arc, Mutex};
     use std::thread;
@@ -131,8 +147,8 @@ mod tests {
         fn accepts(&self, _: Mode) -> Result<(), String> {
             Ok(())
         }
-        fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Item>, _: bool) {}
-        fn append(&mut self, _: SessionId, _: Vec<Item>) {}
+        fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Entry>) {}
+        fn step(&mut self, _: SessionId, _: Step) {}
         fn end(&mut self, _: SessionId) {}
         fn hide(&mut self, _: SessionId) {}
         fn configure(&mut self, config: &Config) {

@@ -22,6 +22,12 @@ pub enum Command {
         config: Option<PathBuf>,
         dmenu: Box<Dmenu>,
     },
+    /// A provider session: the daemon runs this program and shows what it
+    /// says (spec §4.8).
+    Provider {
+        config: Option<PathBuf>,
+        argv: Vec<OsString>,
+    },
     /// Validate the config: exit 0 if it is sound, 2 with its errors if not.
     CheckConfig { config: Option<PathBuf> },
     /// Be the daemon.
@@ -70,7 +76,7 @@ impl fmt::Display for ParseError {
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
                  It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), \
-                 --check-config, --config PATH and \
+                 --provider PROGRAM [ARG]..., --check-config, --config PATH and \
                  daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
@@ -126,6 +132,17 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
             Some("--dmenu" | "-d") => Started::Dmenu { nul: false },
             Some("--dmenu0") => Started::Dmenu { nul: true },
             Some("--check-config") => Started::CheckConfig,
+            Some("--provider") => {
+                let argv: Vec<OsString> = args.by_ref().collect();
+                if argv.is_empty() {
+                    return Err(ParseError::BadValue {
+                        flag: "--provider",
+                        value: None,
+                        expected: "a program to run, then its arguments",
+                    });
+                }
+                Started::Provider(argv)
+            }
             // dmenu's case-insensitivity switch: logis always ignores case.
             Some("-i") => continue,
             _ => return Err(unknown(&arg)),
@@ -143,6 +160,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
         None => Command::Run { config },
         Some(Started::Version) => Command::Version,
         Some(Started::CheckConfig) => Command::CheckConfig { config },
+        Some(Started::Provider(argv)) => Command::Provider { config, argv },
         Some(Started::Dmenu { .. }) => unreachable!("handled above"),
     })
 }
@@ -150,8 +168,12 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
 /// The command a flag named, before its options are complete.
 enum Started {
     Version,
-    Dmenu { nul: bool },
+    Dmenu {
+        nul: bool,
+    },
     CheckConfig,
+    /// The program and its arguments: everything after `--provider`.
+    Provider(Vec<OsString>),
 }
 
 /// Takes `--config PATH` or `--config=PATH` into `config`; `false` if `arg`
@@ -281,6 +303,22 @@ mod tests {
             Err(ParseError::DmenuOnly("--prompt".into()))
         );
         assert!(parse_strs(&["--check-config", "--index"]).is_err());
+    }
+
+    #[test]
+    fn provider_takes_every_argument_after_it_as_the_program_and_its_arguments() {
+        let argv = |a: &[&str]| a.iter().map(OsString::from).collect::<Vec<_>>();
+        assert_eq!(
+            parse_strs(&["--config", "/c", "--provider", "rite", "--dmenu", "-x"]),
+            Ok(Command::Provider {
+                config: Some(PathBuf::from("/c")),
+                argv: argv(&["rite", "--dmenu", "-x"]),
+            })
+        );
+        let err = parse_strs(&["--provider"]).unwrap_err();
+        assert!(err.to_string().contains("--provider"), "{err}");
+        assert!(parse_strs(&["--dmenu", "--provider", "x"]).is_err());
+        assert!(parse_strs(&["--prompt", "p", "--provider", "x"]).is_err());
     }
 
     #[test]

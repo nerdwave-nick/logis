@@ -94,6 +94,9 @@ pub struct ListView {
     /// The item the user moved the selection to; it stays selected while
     /// more items stream in.
     follow: Option<u32>,
+    /// Whether the user has moved the selection or edited the query: no
+    /// preselection applies after that.
+    touched: bool,
 }
 
 impl ListView {
@@ -116,6 +119,7 @@ impl ListView {
             selected: 0,
             top: 0,
             follow: None,
+            touched: false,
         }
     }
 
@@ -210,6 +214,21 @@ impl ListView {
             .is_some_and(|d| d.pending)
     }
 
+    /// Selects item `index` once it is there and settled, unless the user
+    /// has moved the selection or edited the query; whether it is selected
+    /// now.
+    pub fn preselect(&mut self, index: u32) -> bool {
+        if self.touched {
+            return false;
+        }
+        self.preselect = Some(Preselect::Index(u64::from(index)));
+        let i = index as usize;
+        if i < self.texts.len() {
+            self.settle(i..i + 1);
+        }
+        self.preselect.is_none()
+    }
+
     /// Applies a key's action.
     pub fn apply(&mut self, action: &Action) -> Reaction {
         match action {
@@ -232,6 +251,7 @@ impl ListView {
                     return Reaction::Unchanged;
                 };
                 self.preselect = None;
+                self.touched = true;
                 self.selected = row;
                 self.follow = self.selected();
                 self.clamp();
@@ -243,6 +263,7 @@ impl ListView {
                 }
                 if self.query.text() != self.filter.query() {
                     self.preselect = None;
+                    self.touched = true;
                     self.follow = None;
                     self.filter.set_query(self.query.text());
                     self.selected = 0;
@@ -606,6 +627,20 @@ mod tests {
         assert_eq!(v.selected(), Some(0), "pending: not preselected");
         v.update(1, Entry::from("current".to_owned()));
         assert_eq!(v.selected(), Some(1), "settled: preselected");
+    }
+
+    #[test]
+    fn a_late_preselection_applies_until_the_user_moves() {
+        let mut v = view(Options::default(), &["a", "b", "c"]);
+        assert!(v.preselect(2));
+        assert_eq!(v.selected(), Some(2));
+        v.push([pending("d")]);
+        assert!(!v.preselect(3), "pending");
+        v.update(3, Entry::from("d".to_owned()));
+        assert_eq!(v.selected(), Some(3), "applied once settled");
+        v.apply(&UP);
+        assert!(!v.preselect(0), "the user moved");
+        assert_eq!(v.selected(), Some(2));
     }
 
     #[test]

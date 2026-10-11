@@ -117,6 +117,15 @@ impl Windows {
         self.keyboard.reset();
     }
 
+    /// Lets the visible panel go of the keyboard: it stays in view, but
+    /// keys go to whatever has focus beneath it (a toast left to read).
+    pub fn release_keyboard(&mut self) {
+        if let Some(panel) = &self.panel {
+            panel.release_keyboard();
+        }
+        self.keyboard.reset();
+    }
+
     /// Whether a panel is shown.
     pub fn is_visible(&self) -> bool {
         self.panel.is_some()

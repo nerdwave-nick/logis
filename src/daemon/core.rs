@@ -1,14 +1,19 @@
-//! The daemon's protocol state machine: connections, their sessions, and the
-//! resolver. It does no I/O of its own; the event loop feeds it [`Event`]s and
-//! it answers through each connection's [`Peer`].
+//! The daemon's protocol state machine: connections, their sessions, their
+//! providers and the resolver. It does no I/O of its own; the event loop
+//! feeds it [`Event`]s, it answers through each connection's [`Peer`], and
+//! its timers ([`Core::deadline`], [`Core::tick`]) run on the loop's clock.
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use logis::config::{self, Config};
 
+use super::providing::{Feed, Providers, Spawn};
 use super::resolver::{Resolver, Toast};
 use super::sessions::{Effect, SessionId, Sessions};
-use crate::protocol::{self, Item, Mode, Options, Outcome, Reply, Request};
+use crate::protocol::{self, Mode, Outcome, Reply, Request};
+use crate::provider::process::Heard;
+use crate::provider::{Answer, Step, dmenu::Dmenu};
 
 /// Everything the daemon's event loop reacts to.
 pub enum Event {
@@ -24,13 +29,12 @@ pub enum Event {
     },
     /// The client hung up.
     Disconnected { conn: SessionId },
-    /// The resolver's answer for a session.
-    Resolved {
-        session: SessionId,
-        outcome: Outcome,
-    },
+    /// The user's answer for a visible session (from the resolver).
+    Answered { session: SessionId, answer: Answer },
     /// The resolver could not show a session; its client gets the error.
     Failed { session: SessionId, message: String },
+    /// A session's provider process spoke a line, or exited.
+    Heard { session: SessionId, heard: Heard },
     /// The compositor connection is gone (spec §4.2: exit non-zero).
     WaylandLost { reason: String },
     /// The config file changed and was read again.
@@ -45,42 +49,45 @@ pub trait Peer: Send {
     fn close(&mut self);
 }
 
-enum Phase {
+pub(super) enum Phase {
     /// Waiting for `hello`.
     Greeting,
     /// Greeted; waiting for `open`.
     Ready,
-    /// A session is open. `pending` holds items while it waits in the
-    /// queue; `options` go to the resolver when it is shown.
-    Open {
-        mode: Mode,
-        options: Box<Options>,
-        pending: Vec<Item>,
-        ended: bool,
-    },
+    /// A session is open, fed by its provider.
+    Open { mode: Mode, feed: Feed },
 }
 
-struct Conn {
+pub(super) struct Conn {
     peer: Box<dyn Peer>,
-    phase: Phase,
+    pub(super) phase: Phase,
 }
 
-/// Connections, the session policy and the resolver.
+/// Connections, the session policy, their providers and the resolver.
 pub struct Core<R> {
-    resolver: R,
+    pub(super) resolver: R,
     sessions: Sessions,
-    conns: HashMap<SessionId, Conn>,
+    pub(super) conns: HashMap<SessionId, Conn>,
     pid: u32,
+    pub(super) providers: Providers,
 }
 
 impl<R: Resolver> Core<R> {
+    /// A core whose provider sessions cannot start (see [`Self::with_spawn`]).
     pub fn new(resolver: R, pid: u32) -> Self {
         Self {
             resolver,
             sessions: Sessions::default(),
             conns: HashMap::new(),
             pid,
+            providers: Providers::default(),
         }
+    }
+
+    /// Starts provider processes with `spawn`.
+    pub fn with_spawn(mut self, spawn: Spawn) -> Self {
+        self.providers.spawn = spawn;
+        self
     }
 
     /// Hands the config in force to the resolver (and so to the window).
@@ -93,9 +100,9 @@ impl<R: Resolver> Core<R> {
         self.resolver.toast(toast);
     }
 
-    /// No client is connected.
+    /// No client is connected and no provider is being ended.
     pub fn is_idle(&self) -> bool {
-        self.conns.is_empty()
+        self.conns.is_empty() && self.providers.is_idle()
     }
 
     pub fn connect(&mut self, conn: SessionId, peer: Box<dyn Peer>) {
@@ -132,71 +139,95 @@ impl<R: Resolver> Core<R> {
                     protocol::VERSION
                 ),
             ),
-            (Phase::Ready, Request::Open { mode, options }) => match self.resolver.accepts(mode) {
-                Ok(()) => {
-                    c.phase = Phase::Open {
-                        mode,
-                        options: Box::new(options),
-                        pending: Vec::new(),
-                        ended: false,
-                    };
-                    let effects = self.sessions.open(conn, mode.is_interactive());
-                    self.apply(effects);
-                }
-                Err(message) => self.fail(conn, message),
-            },
             (
-                Phase::Open {
+                Phase::Ready,
+                Request::Open {
                     mode,
-                    pending,
-                    ended,
-                    ..
+                    options,
+                    provider,
                 },
-                Request::Items { items },
             ) => {
-                if *mode != Mode::Dmenu {
-                    return self.fail(conn, "only dmenu sessions take items".to_owned());
+                let feed = self
+                    .resolver
+                    .accepts(mode)
+                    .and_then(|()| Feed::new(mode, options, provider));
+                match feed {
+                    Ok(feed) => {
+                        c.phase = Phase::Open { mode, feed };
+                        let effects = self.sessions.open(conn, mode.is_interactive());
+                        self.apply(effects);
+                    }
+                    Err(message) => self.fail(conn, message),
                 }
+            }
+            (Phase::Open { mode, feed }, Request::Items { items }) => {
+                let (Mode::Dmenu, Feed::Dmenu { lines, ended }) = (*mode, feed) else {
+                    return self.fail(conn, "only dmenu sessions take items".to_owned());
+                };
                 if *ended {
                     return self.fail(conn, "items arrived after end".to_owned());
                 }
-                if self.sessions.visible() == Some(conn) {
-                    self.resolver.append(conn, items);
-                } else {
-                    pending.extend(items);
+                if let Some(step) = lines.push(items) {
+                    self.resolver.step(conn, step);
                 }
             }
-            (Phase::Open { ended, .. }, Request::End) if !*ended => {
-                *ended = true;
-                if self.sessions.visible() == Some(conn) {
-                    self.resolver.end(conn);
+            (Phase::Open { feed, .. }, Request::End) => match feed {
+                Feed::Dmenu { ended, .. } if !*ended => {
+                    *ended = true;
+                    if self.sessions.visible() == Some(conn) {
+                        self.resolver.end(conn);
+                    }
                 }
-            }
+                _ => self.out_of_place(conn, "end"),
+            },
             (Phase::Open { .. }, Request::Cancel) => self.finish(conn, Outcome::Cancelled),
-            (phase, request) => {
+            (_, request) => {
                 let name = serde_json::to_value(&request)
                     .ok()
                     .and_then(|v| v["type"].as_str().map(str::to_owned))
                     .unwrap_or_default();
-                let expected = match phase {
-                    Phase::Greeting => "the first word must be 'hello'",
-                    Phase::Ready => "a session begins with 'open'",
-                    Phase::Open { .. } => "the session is already open",
-                };
-                self.fail(conn, format!("'{name}' is out of place: {expected}"));
+                self.out_of_place(conn, &name);
             }
         }
     }
 
+    fn out_of_place(&mut self, conn: SessionId, name: &str) {
+        let expected = match self.conns.get(&conn).map(|c| &c.phase) {
+            Some(Phase::Greeting) => "the first word must be 'hello'",
+            Some(Phase::Ready) => "a session begins with 'open'",
+            _ => "the session is already open",
+        };
+        self.fail(conn, format!("'{name}' is out of place: {expected}"));
+    }
+
     pub fn disconnect(&mut self, conn: SessionId) {
-        if self.conns.remove(&conn).is_some() {
-            self.close_session(conn);
+        if let Some(c) = self.conns.remove(&conn) {
+            self.close_session(conn, c, false);
         }
     }
 
-    pub fn resolve(&mut self, session: SessionId, outcome: Outcome) {
-        if self.sessions.visible() == Some(session) {
-            self.finish(session, outcome);
+    /// The user answered the visible session.
+    pub fn answered(&mut self, session: SessionId, answer: Answer) {
+        if self.sessions.visible() != Some(session) {
+            return;
+        }
+        let Some(Conn {
+            phase: Phase::Open { feed, .. },
+            ..
+        }) = self.conns.get_mut(&session)
+        else {
+            return;
+        };
+        let ending = match (feed, answer) {
+            (Feed::Dmenu { lines, .. }, answer) => Ok(Some(lines.outcome(answer))),
+            (_, Answer::Dismissed) => Ok(Some(Outcome::Dismissed)),
+            (Feed::Provider(live), answer) => live.external.answer(answer).map(|()| None),
+            (Feed::Waiting(_), _) => Ok(None),
+        };
+        match ending {
+            Ok(Some(outcome)) => self.finish(session, outcome),
+            Ok(None) => {}
+            Err(e) => self.fail(session, format!("the provider was lost: {e}")),
         }
     }
 
@@ -208,26 +239,55 @@ impl<R: Resolver> Core<R> {
         }
     }
 
+    /// A provider process spoke or exited.
+    pub fn heard(&mut self, session: SessionId, heard: Heard) {
+        super::providing::heard(self, session, heard);
+    }
+
+    /// When the next timer is due, if any.
+    pub fn deadline(&self) -> Option<Instant> {
+        super::providing::deadline(self)
+    }
+
+    /// Runs the timers due at `now`.
+    pub fn tick(&mut self, now: Instant) {
+        super::providing::tick(self, now);
+    }
+
     /// Ends a session with its result and closes its connection.
-    fn finish(&mut self, conn: SessionId, outcome: Outcome) {
+    pub(super) fn finish(&mut self, conn: SessionId, outcome: Outcome) {
         if let Some(mut c) = self.conns.remove(&conn) {
+            let closed = outcome == Outcome::Closed;
             c.peer.send(&Reply::Result { outcome });
             c.peer.close();
-            self.close_session(conn);
+            self.close_session(conn, c, closed);
         }
     }
 
     /// Ends a connection with an error, cancelling any session it had.
-    fn fail(&mut self, conn: SessionId, message: String) {
+    pub(super) fn fail(&mut self, conn: SessionId, message: String) {
         if let Some(mut c) = self.conns.remove(&conn) {
             c.peer.send(&Reply::Error { message });
             c.peer.close();
-            self.close_session(conn);
+            self.close_session(conn, c, false);
         }
     }
 
-    fn close_session(&mut self, conn: SessionId) {
-        let effects = self.sessions.close(conn);
+    /// The session of `c` is over: its provider retires, and the window
+    /// hides (or lingers on a toast after the provider's own `close`).
+    fn close_session(&mut self, conn: SessionId, c: Conn, closed: bool) {
+        let linger = match c.phase {
+            Phase::Open {
+                feed: Feed::Provider(live),
+                ..
+            } => self.providers.retire(conn, *live, closed),
+            _ => false,
+        };
+        let mut effects = self.sessions.close(conn);
+        if linger && effects.contains(&Effect::Hide(conn)) {
+            effects.retain(|e| *e != Effect::Hide(conn));
+            self.resolver.linger(conn);
+        }
         self.apply(effects);
     }
 
@@ -250,17 +310,43 @@ impl<R: Resolver> Core<R> {
         let Some(c) = self.conns.get_mut(&id) else {
             return;
         };
-        if let Phase::Open {
-            mode,
-            options,
-            pending,
-            ended,
-        } = &mut c.phase
-        {
-            c.peer.send(&Reply::Visible);
-            let items = std::mem::take(pending);
-            let options = std::mem::take(&mut **options);
-            self.resolver.show(id, *mode, options, items, *ended);
+        let Phase::Open { mode, feed } = &mut c.phase else {
+            return;
+        };
+        c.peer.send(&Reply::Visible);
+        let mode = *mode;
+        match feed {
+            Feed::Dmenu { lines, ended } => {
+                let ended = *ended;
+                if let Step::Stage { options, entries } = lines.show() {
+                    self.resolver.show(id, mode, options, entries);
+                }
+                if ended {
+                    self.resolver.end(id);
+                }
+            }
+            Feed::Waiting(_) => super::providing::start(self, id),
+            Feed::Provider(_) => {}
+        }
+    }
+}
+
+/// A dmenu session's feed: the lines so far, and whether the client sent
+/// them all.
+impl Feed {
+    fn new(
+        mode: Mode,
+        options: crate::protocol::Options,
+        provider: Option<crate::protocol::Launch>,
+    ) -> Result<Self, String> {
+        match (mode, provider) {
+            (Mode::Provider, Some(launch)) => Ok(Self::Waiting(launch)),
+            (Mode::Provider, None) => Err("a provider session must name its provider".to_owned()),
+            (_, Some(_)) => Err("only a provider session names a provider".to_owned()),
+            (_, None) => Ok(Self::Dmenu {
+                lines: Dmenu::new(options),
+                ended: false,
+            }),
         }
     }
 }
@@ -268,6 +354,8 @@ impl<R: Resolver> Core<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::{Item, Options};
+    use logis::list::Entry;
     use std::sync::{Arc, Mutex};
 
     /// What a peer was sent, and whether it was closed.
@@ -308,10 +396,10 @@ mod tests {
         }
     }
 
-    fn texts(items: &[Item]) -> String {
-        items
+    fn texts(entries: &[Entry]) -> String {
+        entries
             .iter()
-            .map(|i| i.text.as_str())
+            .map(|e| e.text.as_str())
             .collect::<Vec<_>>()
             .join(",")
     }
@@ -320,25 +408,39 @@ mod tests {
         fn accepts(&self, _: Mode) -> Result<(), String> {
             self.refuse.map_or(Ok(()), |m| Err(m.to_owned()))
         }
-        fn show(&mut self, s: SessionId, mode: Mode, o: Options, items: Vec<Item>, done: bool) {
+        fn show(&mut self, s: SessionId, mode: Mode, o: Options, entries: Vec<Entry>) {
             let prompt = if o.prompt == Options::default().prompt {
                 String::new()
             } else {
                 format!(" '{}'", o.prompt)
             };
-            self.note(format!(
-                "show {s} {mode:?}{prompt} [{}] {done}",
-                texts(&items)
-            ));
+            self.note(format!("show {s} {mode:?}{prompt} [{}]", texts(&entries)));
         }
-        fn append(&mut self, s: SessionId, items: Vec<Item>) {
-            self.note(format!("append {s} [{}]", texts(&items)));
+        fn step(&mut self, s: SessionId, step: Step) {
+            self.note(match step {
+                Step::Stage { entries, .. } => format!("stage {s} [{}]", texts(&entries)),
+                Step::Append(entries) => format!("append {s} [{}]", texts(&entries)),
+                Step::Update(changed) => format!(
+                    "update {s} {:?}",
+                    changed.iter().map(|c| c.0).collect::<Vec<_>>()
+                ),
+                Step::Remove(gone) => format!("remove {s} {gone:?}"),
+                Step::Preselect(i) => format!("preselect {s} {i}"),
+                Step::Toast(n) => format!("toast {s} {}", n.text),
+                Step::Ready => format!("ready {s}"),
+            });
         }
         fn end(&mut self, s: SessionId) {
             self.note(format!("end {s}"));
         }
         fn hide(&mut self, s: SessionId) {
             self.note(format!("hide {s}"));
+        }
+        fn linger(&mut self, s: SessionId) {
+            self.note(format!("linger {s}"));
+        }
+        fn untoast(&mut self, s: SessionId) {
+            self.note(format!("untoast {s}"));
         }
     }
 
@@ -387,6 +489,7 @@ mod tests {
         Request::Open {
             mode,
             options: Options::default(),
+            provider: None,
         }
     }
 
@@ -409,7 +512,7 @@ mod tests {
             waiting.take().contains(&Reply::Visible),
             "the next is shown"
         );
-        assert_eq!(recorder.take()[..2], ["show 1 Dmenu [] false", "hide 1"]);
+        assert_eq!(recorder.take()[..2], ["show 1 Dmenu []", "hide 1"]);
     }
 
     #[test]
@@ -426,15 +529,13 @@ mod tests {
             Ok(Request::Open {
                 mode: Mode::Dmenu,
                 options,
+                provider: None,
             }),
         );
         core.receive(2, Ok(items(&["b"])));
-        assert_eq!(recorder.take(), ["show 1 Dmenu [] false"]);
+        assert_eq!(recorder.take(), ["show 1 Dmenu []"]);
         core.receive(1, Ok(Request::Cancel));
-        assert_eq!(
-            recorder.take(),
-            ["hide 1", "show 2 Dmenu 'rite? ' [b] false"]
-        );
+        assert_eq!(recorder.take(), ["hide 1", "show 2 Dmenu 'rite? ' [b]"]);
     }
 
     fn result(outcome: Outcome) -> Reply {
@@ -463,10 +564,7 @@ mod tests {
         core.receive(1, Ok(items(&["a", "b"])));
         core.receive(1, Ok(Request::End));
         assert_eq!(wire.take(), [Reply::Visible]);
-        assert_eq!(
-            log.take(),
-            ["show 1 Dmenu [] false", "append 1 [a,b]", "end 1"]
-        );
+        assert_eq!(log.take(), ["show 1 Dmenu []", "append 1 [a,b]", "end 1"]);
     }
 
     #[test]
@@ -477,13 +575,13 @@ mod tests {
         core.receive(2, Ok(items(&["x"])));
         core.receive(2, Ok(Request::End));
         assert_eq!(second.take(), [Reply::Queued]);
-        assert_eq!(log.take(), ["show 1 Dmenu [] false"]);
+        assert_eq!(log.take(), ["show 1 Dmenu []"]);
 
-        core.resolve(1, Outcome::Dismissed);
+        core.answered(1, Answer::Dismissed);
         assert_eq!(first.take(), [Reply::Visible, result(Outcome::Dismissed)]);
         assert!(first.closed());
         assert_eq!(second.take(), [Reply::Visible]);
-        assert_eq!(log.take(), ["hide 1", "show 2 Dmenu [x] true"]);
+        assert_eq!(log.take(), ["hide 1", "show 2 Dmenu [x]", "end 2"]);
         assert!(!second.closed());
     }
 
@@ -495,10 +593,7 @@ mod tests {
         assert_eq!(first.take(), [Reply::Visible, result(Outcome::Replaced)]);
         assert!(first.closed());
         assert_eq!(second.take(), [Reply::Visible]);
-        assert_eq!(
-            log.take(),
-            ["show 1 Dmenu [] false", "hide 1", "show 2 Apps [] false"]
-        );
+        assert_eq!(log.take(), ["show 1 Dmenu []", "hide 1", "show 2 Apps []"]);
     }
 
     #[test]
@@ -508,11 +603,8 @@ mod tests {
         let second = open(&mut core, 2, Mode::Dmenu);
         core.disconnect(1);
         assert_eq!(second.take(), [Reply::Queued, Reply::Visible]);
-        assert_eq!(
-            log.take(),
-            ["show 1 Dmenu [] false", "hide 1", "show 2 Dmenu [] false"]
-        );
-        core.resolve(1, Outcome::Dismissed);
+        assert_eq!(log.take(), ["show 1 Dmenu []", "hide 1", "show 2 Dmenu []"]);
+        core.answered(1, Answer::Dismissed);
         assert!(
             log.take().is_empty(),
             "a late answer for a gone session is ignored"
@@ -526,7 +618,7 @@ mod tests {
         core.receive(1, Ok(Request::Cancel));
         assert_eq!(wire.take(), [Reply::Visible, result(Outcome::Cancelled)]);
         assert!(wire.closed());
-        assert_eq!(log.take(), ["show 1 Servitor [] false", "hide 1"]);
+        assert_eq!(log.take(), ["show 1 Servitor []", "hide 1"]);
         assert!(core.is_idle());
     }
 
@@ -535,14 +627,9 @@ mod tests {
         let (mut core, _) = core();
         let first = open(&mut core, 1, Mode::Dmenu);
         let second = open(&mut core, 2, Mode::Dmenu);
+        core.receive(1, Ok(items(&["a", "b"])));
+        core.answered(1, Answer::Item(1));
         let chosen = Item::from_raw(b"b".to_vec());
-        core.resolve(
-            1,
-            Outcome::Selected {
-                index: 1,
-                item: chosen.clone(),
-            },
-        );
         assert_eq!(
             first.take(),
             [

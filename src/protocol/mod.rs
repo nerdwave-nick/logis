@@ -4,9 +4,11 @@
 //! One connection carries at most one session:
 //!
 //! 1. client → `hello`; daemon → `welcome` (or `error` and close).
-//! 2. client → `open` (with the list's [`Options`]); daemon → `queued`
-//!    and/or `visible`.
-//! 3. dmenu sessions: client → any number of `items`, then `end`.
+//! 2. client → `open` (with the list's [`Options`], or for a provider
+//!    session the [`Launch`] of its provider); daemon → `queued` and/or
+//!    `visible`.
+//! 3. dmenu sessions: client → any number of `items`, then `end`. A
+//!    provider session's items come from its provider (docs/provider-protocol.md).
 //! 4. daemon → `result`, then the daemon closes the connection.
 //!
 //! The client may send `cancel` at any time; disconnecting cancels too.
@@ -28,7 +30,8 @@ pub use logis::list::Options;
 
 /// Bumped whenever a message changes incompatibly. 2: `open` carries the
 /// list's options, items may carry their match text, and `typed` outcomes.
-pub const VERSION: u32 = 2;
+/// 3: provider sessions (`provider` mode, `open.provider`, `closed`).
+pub const VERSION: u32 = 3;
 
 /// The socket's file name inside `$XDG_RUNTIME_DIR`.
 pub const SOCKET_NAME: &str = "logis.sock";
@@ -51,6 +54,8 @@ pub enum Mode {
     Apps,
     /// servitor's rites and aspects.
     Servitor,
+    /// An external provider process (`logis --provider`).
+    Provider,
 }
 
 impl Mode {
@@ -97,6 +102,9 @@ pub enum Request {
         mode: Mode,
         #[serde(default)]
         options: Options,
+        /// What provider mode runs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        provider: Option<Launch>,
     },
     Items {
         items: Vec<Item>,
@@ -120,6 +128,26 @@ pub enum Outcome {
     Replaced,
     /// The client asked to cancel.
     Cancelled,
+    /// The provider ended its flow (`close`).
+    Closed,
+}
+
+/// Bytes on the wire, as base64 (paths, arguments and the environment need
+/// not be UTF-8).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Bytes(#[serde(with = "base64::serde_bytes")] pub Vec<u8>);
+
+/// How the daemon starts a provider: as if the client ran it, in the
+/// client's working directory with the client's environment, never the
+/// daemon's stale one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Launch {
+    /// The program, then its arguments.
+    pub argv: Vec<Bytes>,
+    /// The working directory.
+    pub cwd: Bytes,
+    /// The environment, `NAME=VALUE` each.
+    pub env: Vec<Bytes>,
 }
 
 /// Messages from the daemon to a client.
@@ -157,7 +185,7 @@ mod tests {
             wire(&Request::Hello { version: 1 }),
             json!({"type": "hello", "version": 1})
         );
-        assert_eq!(VERSION, 2, "a changed protocol says so");
+        assert_eq!(VERSION, 3, "a changed protocol says so");
         assert_eq!(
             wire(&Reply::Result {
                 outcome: Outcome::Typed { text: "x".into() }
@@ -167,6 +195,7 @@ mod tests {
         let open = |mode| Request::Open {
             mode,
             options: Options::default(),
+            provider: None,
         };
         let shape = wire(&open(Mode::Dmenu));
         assert_eq!(shape["type"], "open");
@@ -231,6 +260,32 @@ mod tests {
         assert!(!Mode::Dmenu.is_interactive());
         assert!(Mode::Apps.is_interactive());
         assert!(Mode::Servitor.is_interactive());
+        assert!(Mode::Provider.is_interactive());
+    }
+
+    #[test]
+    fn a_provider_open_carries_its_launch_as_bytes() {
+        let launch = Launch {
+            argv: vec![Bytes(b"/bin/rite".to_vec()), Bytes(b"\xff".to_vec())],
+            cwd: Bytes(b"/".to_vec()),
+            env: vec![Bytes(b"A=1".to_vec())],
+        };
+        let open = Request::Open {
+            mode: Mode::Provider,
+            options: Options::default(),
+            provider: Some(launch),
+        };
+        let shape = wire(&open);
+        assert_eq!(shape["mode"], "provider");
+        assert_eq!(shape["provider"]["argv"], json!(["L2Jpbi9yaXRl", "/w=="]));
+        assert_eq!(shape["provider"]["env"], json!(["QT0x"]));
+        let back: Request = serde_json::from_value(shape).unwrap();
+        assert_eq!(back, open);
+        assert_eq!(
+            wire(&Outcome::Closed),
+            json!({"kind": "closed"}),
+            "the provider ended its flow"
+        );
     }
 
     #[test]

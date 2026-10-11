@@ -11,6 +11,7 @@
 pub mod core;
 pub mod lifecycle;
 pub mod listener;
+pub mod providing;
 pub mod resolver;
 pub mod sessions;
 pub mod window;
@@ -28,6 +29,8 @@ use self::lifecycle::Exit;
 use self::listener::Claim;
 use self::resolver::{Resolver, Scripted};
 use crate::cli::DaemonOptions;
+use crate::provider::external::Running;
+use crate::provider::process::{self, Process};
 use crate::{fail, wayland};
 
 /// Runs the daemon until it must stop.
@@ -86,9 +89,10 @@ pub fn run(options: DaemonOptions) -> ExitCode {
         )),
         None => {}
     }
+    let spawn = spawner(events.clone());
     drop(events);
 
-    let mut core = Core::new(resolver, std::process::id());
+    let mut core = Core::new(resolver, std::process::id()).with_spawn(spawn);
     core.configure(&config);
     let mut live = Live::new(config, options.idle_timeout);
     let exit = lifecycle::serve(&mut core, &inbox, &mut live);
@@ -130,6 +134,17 @@ fn detach(runtime_dir: &std::path::Path) {
     if let Ok(log) = log {
         let _ = rustix::stdio::dup2_stderr(log);
     }
+}
+
+/// Starts provider processes; what each says comes back as
+/// [`Event::Heard`] for its session.
+fn spawner(events: Sender<Event>) -> providing::Spawn {
+    Box::new(move |session, launch| {
+        let events = events.clone();
+        let heard = move |heard| events.send(Event::Heard { session, heard }).is_ok();
+        let process = Process::spawn(&process::Launch::from(launch), heard)?;
+        Ok(Box::new(process) as Box<dyn Running>)
+    })
 }
 
 /// The window ([`window::start`]) on the preflight's connection; with

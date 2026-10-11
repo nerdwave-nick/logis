@@ -7,7 +7,7 @@
 //! [`Command`] on a channel plus a write to an eventfd that the window
 //! thread polls beside the compositor's socket, so neither thread busy-waits
 //! and an idle window sleeps in `poll`. Answers come back as
-//! [`Event::Resolved`] (or [`Event::Failed`]) on the daemon's channel; a
+//! [`Event::Answered`] (or [`Event::Failed`]) on the daemon's channel; a
 //! lost compositor, or a window thread that dies, is [`Event::WaylandLost`].
 
 mod ui;
@@ -19,6 +19,7 @@ use std::thread;
 
 use logis::config::Config;
 use logis::input::FocusLoss;
+use logis::list::Entry;
 use logis::render::BackendChoice;
 use logis::window::Windows;
 use rustix::event::{EventfdFlags, eventfd};
@@ -27,23 +28,26 @@ use wayland_client::Connection;
 use super::core::Event;
 use super::resolver::Resolver;
 use super::sessions::SessionId;
-use crate::protocol::{Item, Mode, Options};
+use crate::protocol::{Mode, Options};
+use crate::provider::Step;
 
 /// What the daemon asks of the window thread.
 pub enum Command {
-    /// Show a session's list with the items so far.
+    /// Show a session's first stage.
     Show {
         session: SessionId,
+        mode: Mode,
         options: Options,
-        items: Vec<Item>,
+        entries: Vec<Entry>,
     },
-    /// More items for a shown session.
-    Append {
-        session: SessionId,
-        items: Vec<Item>,
-    },
+    /// What the shown session's provider asks next.
+    Step { session: SessionId, step: Step },
     /// The session is no longer shown.
     Hide { session: SessionId },
+    /// The session is over; keep its toast in view, without the keyboard.
+    Linger { session: SessionId },
+    /// The shown session's toast has had its time.
+    Untoast { session: SessionId },
     /// What losing keyboard focus does (the config's `focus-loss`).
     FocusLoss(FocusLoss),
 }
@@ -119,25 +123,26 @@ impl WindowResolver {
 impl Resolver for WindowResolver {
     fn accepts(&self, mode: Mode) -> Result<(), String> {
         match mode {
-            Mode::Dmenu => Ok(()),
+            Mode::Dmenu | Mode::Provider => Ok(()),
             Mode::Apps | Mode::Servitor => Err(
-                "the cogitator knows only dmenu rites yet; the app launcher and \
-                 servitor mode are still to be consecrated"
+                "the cogitator knows only dmenu and provider rites yet; the app \
+                 launcher and servitor mode are still to be consecrated"
                     .to_owned(),
             ),
         }
     }
 
-    fn show(&mut self, session: SessionId, _: Mode, options: Options, items: Vec<Item>, _: bool) {
+    fn show(&mut self, session: SessionId, mode: Mode, options: Options, entries: Vec<Entry>) {
         self.send(Command::Show {
             session,
+            mode,
             options,
-            items,
+            entries,
         });
     }
 
-    fn append(&mut self, session: SessionId, items: Vec<Item>) {
-        self.send(Command::Append { session, items });
+    fn step(&mut self, session: SessionId, step: Step) {
+        self.send(Command::Step { session, step });
     }
 
     /// The list needs no word that the input ended.
@@ -145,6 +150,14 @@ impl Resolver for WindowResolver {
 
     fn hide(&mut self, session: SessionId) {
         self.send(Command::Hide { session });
+    }
+
+    fn linger(&mut self, session: SessionId) {
+        self.send(Command::Linger { session });
+    }
+
+    fn untoast(&mut self, session: SessionId) {
+        self.send(Command::Untoast { session });
     }
 
     fn configure(&mut self, config: &Config) {
