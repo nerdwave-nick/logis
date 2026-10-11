@@ -71,7 +71,8 @@ jobs:
       - uses: actions/checkout@v5
 
       # sway brings wlroots and xkb-data (the injector's keymap includes
-      # resolve there); no swaybg, so the background stays black.
+      # resolve there). No swaybg: sway shows its default dark grey, which the
+      # harness covers with its own black backdrop surface.
       - name: Install sway and system libraries
         run: |
           sudo apt-get update

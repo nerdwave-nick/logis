@@ -4,7 +4,7 @@
 //!
 //! - Locally: a **nested niri** (`LOGIS_E2E=niri`), opened as a window in
 //!   the running session with its own generated config (never the owner's,
-//!   never `--session`), scale 1, animations off, black background.
+//!   never `--session`), scale 1, animations off.
 //! - On the CI runner: **sway with `WLR_BACKENDS=headless`**
 //!   (`LOGIS_E2E=sway`), pixman renderer, no input devices, one 1280x720
 //!   output at scale 1.
@@ -16,7 +16,9 @@
 //! socket, logis's daemon socket and every client live there. The harness's
 //! own Wayland connection ([`wire::Harness`]) is only made to that socket and
 //! is refused unless the socket's server is the compositor process the
-//! harness spawned, so keys can never reach the live session.
+//! harness spawned, so keys can never reach the live session. That
+//! connection also puts an opaque black backdrop under everything
+//! ([`backdrop`]), so captures look the same in both compositors.
 #![allow(dead_code)] // shared by test crates that each use only part of it
 
 pub mod backdrop;

@@ -15,9 +15,11 @@ subset() {
     uvx --from fonttools pyftsubset "$@" \
         --layout-features='*' --notdef-outline --name-IDs=0,1,2,3,4,5,6,13,14
 }
-# Latin: ASCII, Latin-1, Latin Extended-A and general punctuation (… — ’).
+# Latin: ASCII, Latin-1, Latin Extended-A and general punctuation (… — ’);
+# Greek (with the polytonic Greek Extended block) and Cyrillic for the debug
+# panel's rows, which the E2E goldens show.
 subset "$src/noto/NotoSans-Regular.ttf" --output-file=NotoSans-Regular.ttf \
-    --unicodes=U+0020-007E,U+00A0-017F,U+2010-2027
+    --unicodes=U+0020-007E,U+00A0-017F,U+2010-2027,U+0370-03FF,U+0400-04FF,U+1F00-1FFF
 # The other scripts: only what the corpus uses.
 subset "$src/noto/NotoSansHebrew-Regular.ttf" --output-file=NotoSansHebrew-Regular.ttf \
     --text-file=corpus.txt
