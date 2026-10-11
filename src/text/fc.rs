@@ -182,6 +182,12 @@ impl Config {
     }
 }
 
+// SAFETY: fontconfig objects have no thread affinity, and fontconfig has
+// been thread-safe since 2.10.91 (reference counts and its cache use atomics
+// and locks). A `Config` is moved, never shared: it is not `Sync`, so one
+// thread at a time calls into it, and it is freed once, by its owner.
+unsafe impl Send for Config {}
+
 impl Drop for Config {
     fn drop(&mut self) {
         // SAFETY: we own the only reference; patterns and sets we hand out
@@ -226,6 +232,10 @@ impl FontSet {
         (0..count).map(move |i| unsafe { *set.fonts.add(i) } as *const FcPattern)
     }
 }
+
+// SAFETY: as for `Config`: the set and its patterns are owned here alone,
+// moved between threads but never shared, and freed once.
+unsafe impl Send for FontSet {}
 
 impl Drop for FontSet {
     fn drop(&mut self) {
