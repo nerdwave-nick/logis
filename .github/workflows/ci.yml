@@ -91,6 +91,10 @@ jobs:
       - name: dmenu E2E (cargo test --test dmenu)
         run: cargo test --locked --test dmenu -- --nocapture
 
+      # logis --provider with the fixture provider (tests/fixtures/providers).
+      - name: provider E2E (cargo test --test provider_window)
+        run: cargo test --locked --test provider_window -- --nocapture
+
       # Relative trend only: budgets are recorded, never enforced here
       # (absolute budgets are checked on the owner's machine with
       # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
