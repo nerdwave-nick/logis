@@ -87,10 +87,13 @@ fn debug_panel(compositor: &TestCompositor, fonts: Fonts) -> Traced {
     if fonts == Fonts::System {
         // Back to the harness's own fontconfig: its FONTCONFIG_FILE, if any,
         // else the default configuration (HOME and the caches are inherited).
-        match std::env::var_os("FONTCONFIG_FILE") {
-            Some(file) => command.env("FONTCONFIG_FILE", file),
-            None => command.env_remove("FONTCONFIG_FILE"),
-        };
+        // XDG_CONFIG_HOME too: fontconfig reads the user's fonts.conf there.
+        for var in ["FONTCONFIG_FILE", "XDG_CONFIG_HOME"] {
+            match std::env::var_os(var) {
+                Some(value) => command.env(var, value),
+                None => command.env_remove(var),
+            };
+        }
     }
     Traced::spawn(command)
 }

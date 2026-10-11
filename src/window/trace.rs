@@ -3,9 +3,13 @@
 //! `logis-trace: <CLOCK_MONOTONIC ns> <event>`, so a harness can wait for
 //! keyboard focus before typing and time commits against its own clock.
 //!
-//! Events: `keyboard-enter`, `keyboard-leave`, `key <evdev code>
-//! pressed|released`, `modifiers <depressed> <latched> <locked> <group>`
-//! and `commit` (a frame was presented and its surface committed).
+//! Events: `keyboard-enter`, `keyboard-leave`, `keymap` (one compiled),
+//! `repeat-info <rate> <delay>`, `key <evdev code> pressed|released`,
+//! `key <evdev code> repeated` (a client-side repeat), `modifiers
+//! <depressed> <latched> <locked> <group>` and `commit` (a frame was
+//! presented and its surface committed). The debug panel adds what each
+//! key did: `query <JSON string>`, `select <row>`, `accept <row>` and
+//! `dismiss`.
 
 use std::fmt;
 use std::sync::OnceLock;

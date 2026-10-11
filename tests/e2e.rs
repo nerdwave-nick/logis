@@ -6,14 +6,19 @@
 //! The client is `logis daemon --debug-panel` (the only window logis shows
 //! yet): it must report keyboard focus, receive injected keys with real
 //! modifiers and masks, and show the result on screen, compared with the
-//! goldens in tests/goldens/e2e/.
+//! goldens in tests/goldens/e2e/. Its trace reports what each key did
+//! (`query <JSON string>`, `select <row>`, `accept <row>`, `dismiss`), so the
+//! keyboard model is checked end to end: Compose with a real Shift press,
+//! Caps Lock, the Num Lock keypad, key repeat and every shortcut.
 
 mod support;
 
 use logis::render::Image;
 use logis::window::DEBUG_SIZE;
-use support::e2e::client::{self, Traced};
-use support::e2e::keyboard::{self, Modifier, code};
+use std::time::Duration;
+use support::e2e::client::{self, Focused, Traced};
+
+use support::e2e::keyboard::{self, Lock, Modifier, VirtualKeyboard, code};
 use support::e2e::screencopy::{self, crop_centred};
 use support::e2e::wire::{Harness, verify_peer};
 use support::e2e::{Kind, TestCompositor};
@@ -206,5 +211,306 @@ fn the_debug_panel_takes_focus_receives_keys_and_shows_them() {
     harness.tap(&mut kb, &focused, code::ESC);
     let status = panel.wait_exit();
     assert!(status.success(), "Escape closes the panel: {status}");
+    drop(compositor);
+}
+
+// ------------------------------------------------------- the keyboard model
+
+/// A debug panel in `compositor`, focused and drawn, with a virtual
+/// keyboard made before it (a headless seat gains its keyboard from it).
+struct Typing {
+    harness: Harness,
+    kb: VirtualKeyboard,
+    panel: Traced,
+    focused: Focused,
+}
+
+impl Typing {
+    fn start(compositor: &TestCompositor) -> Self {
+        Self::start_with(compositor, |_| {})
+    }
+
+    fn start_with(
+        compositor: &TestCompositor,
+        adjust: impl FnOnce(&mut std::process::Command),
+    ) -> Self {
+        let mut harness = Harness::connect(compositor);
+        let kb = harness.virtual_keyboard();
+        let mut command = compositor.logis();
+        command.args(["daemon", "--debug-panel"]);
+        adjust(&mut command);
+        let mut panel = Traced::spawn(command);
+        let focused = panel.wait_for_focus();
+        panel.wait_for_first_commit();
+        Self {
+            harness,
+            kb,
+            panel,
+            focused,
+        }
+    }
+
+    fn tap(&mut self, code: u32) {
+        self.harness.tap(&mut self.kb, &self.focused, code);
+    }
+
+    fn type_text(&mut self, text: &str) {
+        self.harness.type_text(&mut self.kb, &self.focused, text);
+    }
+
+    /// `code` with a real `modifier` press around it.
+    fn chord(&mut self, modifier: Modifier, code: u32) {
+        self.harness.hold(&mut self.kb, &self.focused, modifier);
+        self.tap(code);
+        self.harness.release(&mut self.kb, &self.focused, modifier);
+    }
+
+    fn toggle(&mut self, lock: Lock) {
+        self.harness.toggle(&mut self.kb, &self.focused, lock);
+    }
+
+    /// The next report starting with `word ` (the sequence cursor moves
+    /// past it), without its word: what the last key did.
+    fn next(&mut self, word: &str) -> String {
+        let prefix = format!("{word} ");
+        let event = self.panel.wait_for(word, |e| e.what.starts_with(&prefix));
+        event.what[prefix.len()..].to_owned()
+    }
+
+    /// The next query report, unquoted.
+    fn query(&mut self) -> String {
+        let quoted = self.next("query");
+        serde_json::from_str(&quoted).unwrap_or_else(|_| panic!("a quoted query: {quoted}"))
+    }
+
+    /// Waits until the panel reported `what` and exited successfully.
+    fn ends_with(mut self, what: &str) {
+        self.panel.wait_for(what, |e| e.what == what);
+        let status = self.panel.wait_exit();
+        assert!(status.success(), "{what} closes the panel: {status}");
+    }
+}
+
+#[test]
+fn compose_locks_and_the_keypad_type_what_the_layout_says() {
+    let Some(kind) = Kind::requested() else {
+        return;
+    };
+    let compositor = TestCompositor::start(kind);
+    let mut t = Typing::start(&compositor);
+
+    // Menu o " with a real Shift press for the quote, as a user types it.
+    t.tap(code::COMPOSE);
+    t.type_text("o\"");
+    for step in [
+        "key 127 pressed",
+        "key 24 pressed",
+        "key 42 pressed",
+        "modifiers 1 0 0 0",
+        "key 40 pressed",
+    ] {
+        t.panel.wait_for(step, |e| e.what == step);
+    }
+    assert_eq!(
+        t.query(),
+        "ö",
+        "Shift inside the sequence did not cancel it"
+    );
+
+    // A sequence only the harness's XCOMPOSEFILE knows.
+    t.tap(code::COMPOSE);
+    t.type_text("lg");
+    assert_eq!(t.query(), "öλ");
+    check_panel(&mut t.harness, "debug-panel-query");
+
+    // One grapheme of two code points; Backspace deletes it whole.
+    t.tap(code::COMPOSE);
+    t.type_text("ee");
+    assert_eq!(t.query(), "öλe\u{301}");
+    t.tap(code::BACKSPACE);
+    assert_eq!(t.query(), "öλ");
+
+    // Caps Lock: a letter typed without Shift is upper case, until it is off.
+    t.toggle(Lock::Caps);
+    t.type_text("a");
+    assert_eq!(t.query(), "öλA");
+    t.toggle(Lock::Caps);
+    t.type_text("a");
+    assert_eq!(t.query(), "öλAa");
+
+    // Num Lock: the keypad types digits; without it KP_3 is Page Down
+    // (nothing) and KP_1 is End (the cursor is there already).
+    t.toggle(Lock::Num);
+    t.tap(code::KP_1);
+    assert_eq!(t.query(), "öλAa1");
+    t.tap(code::KP_2);
+    assert_eq!(t.query(), "öλAa12");
+    t.toggle(Lock::Num);
+    t.tap(code::KP_3);
+    t.tap(code::KP_1);
+    t.type_text("b");
+    assert_eq!(
+        t.query(),
+        "öλAa12b",
+        "the keypad typed nothing without Num Lock"
+    );
+
+    drop(t);
+    drop(compositor);
+}
+
+#[test]
+fn every_editing_and_selection_key_does_its_work() {
+    let Some(kind) = Kind::requested() else {
+        return;
+    };
+    let compositor = TestCompositor::start(kind);
+    let mut t = Typing::start(&compositor);
+
+    t.type_text("rite of");
+    assert_eq!(t.query(), "r");
+    let typed = (0.."rite of".len() - 1).map(|_| t.query()).last();
+    assert_eq!(typed.as_deref(), Some("rite of"));
+    t.type_text("  ");
+    t.query();
+    assert_eq!(t.query(), "rite of  ");
+    t.chord(Modifier::Control, code::W);
+    assert_eq!(t.query(), "rite ", "Ctrl+W: the spaces, then the word");
+    t.tap(code::BACKSPACE);
+    assert_eq!(t.query(), "rite");
+    t.chord(Modifier::Control, code::U);
+    assert_eq!(t.query(), "", "Ctrl+U clears");
+
+    // Down, Tab, Ctrl+N move on; Up, Shift+Tab, Ctrl+P move back.
+    t.tap(code::DOWN);
+    assert_eq!(t.next("select"), "1");
+    t.tap(code::TAB);
+    assert_eq!(t.next("select"), "2");
+    t.chord(Modifier::Control, code::N);
+    assert_eq!(t.next("select"), "3");
+    t.tap(code::UP);
+    assert_eq!(t.next("select"), "2");
+    t.chord(Modifier::Shift, code::TAB);
+    assert_eq!(t.next("select"), "1");
+    t.chord(Modifier::Control, code::P);
+    assert_eq!(t.next("select"), "0");
+    // Caps Lock changes no shortcut.
+    t.toggle(Lock::Caps);
+    t.chord(Modifier::Control, code::N);
+    assert_eq!(t.next("select"), "1");
+    t.toggle(Lock::Caps);
+
+    t.tap(code::ENTER);
+    t.ends_with("accept 1");
+    drop(compositor);
+}
+
+#[test]
+fn escape_ctrl_g_and_ctrl_bracket_each_dismiss() {
+    let Some(kind) = Kind::requested() else {
+        return;
+    };
+    let compositor = TestCompositor::start(kind);
+    for (name, modifier, key) in [
+        ("Escape", None, code::ESC),
+        ("Ctrl+G", Some(Modifier::Control), code::G),
+        ("Ctrl+[", Some(Modifier::Control), code::LEFT_BRACE),
+    ] {
+        let mut t = Typing::start(&compositor);
+        match modifier {
+            Some(m) => t.chord(m, key),
+            None => t.tap(key),
+        }
+        eprintln!("{name}");
+        t.ends_with("dismiss");
+    }
+    drop(compositor);
+}
+
+#[test]
+fn a_held_key_repeats_at_the_compositors_rate_and_stops_on_release() {
+    let Some(kind) = Kind::requested() else {
+        return;
+    };
+    let compositor = TestCompositor::start(kind);
+    let mut t = Typing::start(&compositor);
+    let info = t
+        .panel
+        .wait_seen("repeat info", |e| e.what.starts_with("repeat-info "));
+    let mut info = info
+        .what
+        .split(' ')
+        .skip(1)
+        .map(|v| v.parse::<u64>().unwrap());
+    let (rate, delay) = (info.next().unwrap(), info.next().unwrap());
+    eprintln!(
+        "repeat-info from the {}: rate {rate}, delay {delay} ms",
+        kind.name()
+    );
+    assert!(rate > 0, "the test compositors enable repeat");
+
+    t.harness.key(&mut t.kb, &t.focused, code::X, true);
+    let pressed = t
+        .panel
+        .wait_for("x pressed", |e| e.what == "key 45 pressed");
+    assert_eq!(t.query(), "x");
+    let first = t
+        .panel
+        .wait_for("a repeat", |e| e.what == "key 45 repeated");
+    assert!(
+        first.ns - pressed.ns >= delay * 1_000_000,
+        "the first repeat waits the delay"
+    );
+    for n in 2..=3 {
+        assert_eq!(t.query(), "x".repeat(n));
+    }
+    t.harness.key(&mut t.kb, &t.focused, code::X, false);
+    t.panel
+        .wait_for("x released", |e| e.what == "key 45 released");
+    let interval = 1000 / rate;
+    std::thread::sleep(Duration::from_millis(delay + 5 * interval));
+    t.panel.stderr();
+    let events = t.panel.events();
+    let released = events
+        .iter()
+        .position(|e| e.what == "key 45 released")
+        .unwrap();
+    let repeats = events[..released]
+        .iter()
+        .filter(|e| e.what == "key 45 repeated")
+        .count();
+    assert!(
+        !events[released..]
+            .iter()
+            .any(|e| e.what == "key 45 repeated"),
+        "no repeat after the release"
+    );
+    let last = events
+        .iter()
+        .rev()
+        .find_map(|e| e.what.strip_prefix("query "))
+        .unwrap();
+    let last: String = serde_json::from_str(last).unwrap();
+    assert_eq!(last, "x".repeat(repeats + 1), "one x per press and repeat");
+    drop(t);
+    drop(compositor);
+}
+
+#[test]
+fn home_xcompose_is_honoured_when_xcomposefile_is_unset() {
+    let Some(kind) = Kind::requested() else {
+        return;
+    };
+    let compositor = TestCompositor::start(kind);
+    let home = compositor.runtime_dir().join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::write(home.join(".XCompose"), "<Multi_key> <l> <g> : \"Ψ\"\n").unwrap();
+    let mut t = Typing::start_with(&compositor, |c| {
+        c.env_remove("XCOMPOSEFILE").env("HOME", &home);
+    });
+    t.tap(code::COMPOSE);
+    t.type_text("lg");
+    assert_eq!(t.query(), "Ψ");
+    drop(t);
     drop(compositor);
 }

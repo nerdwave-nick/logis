@@ -1,38 +1,90 @@
-//! The seat's keyboard, at its smallest: raw evdev key presses for whoever
-//! shows a panel, and the test trace of focus, keys and modifiers (see
-//! [`super::trace`]). The keyboard slice replaces this with xkbcommon
-//! (keysyms, compose, repeat) and must keep the trace events.
+//! The seat's keyboard: forwards `wl_keyboard` events to the input model
+//! ([`crate::input::Keyboard`]) and collects the [`Action`]s it yields for
+//! whoever shows a panel, plus the test trace (see [`super::trace`]) of
+//! focus, keys, modifiers, repeat info and repeats.
+
+use std::os::fd::OwnedFd;
+use std::time::Instant;
 
 use smithay_client_toolkit::reexports::client::globals::GlobalList;
 use smithay_client_toolkit::reexports::client::protocol::wl_keyboard::{self, WlKeyboard};
 use smithay_client_toolkit::reexports::client::protocol::wl_seat::{self, WlSeat};
 use smithay_client_toolkit::reexports::client::{Connection, Dispatch, Proxy, QueueHandle, WEnum};
+use xkbcommon::xkb;
 
 use super::Windows;
 use super::trace::emit;
+use crate::input::{self, Action, FocusLoss};
 
-/// The first seat the compositor offers, its keyboard while it has one, and
-/// the key presses not yet taken.
+/// The first seat the compositor offers, its keyboard while it has one, the
+/// input model, and the actions not yet taken.
 pub(super) struct Keyboard {
     seat: Option<WlSeat>,
     keyboard: Option<WlKeyboard>,
-    presses: Vec<u32>,
+    input: input::Keyboard,
+    actions: Vec<Action>,
 }
 
 impl Keyboard {
     /// Binds the first seat, if the compositor offers one; its keyboard
-    /// follows once the seat announces the capability.
+    /// follows once the seat announces the capability. The Compose table is
+    /// loaded now, at start, not on the first key.
     pub(super) fn bind(globals: &GlobalList, qh: &QueueHandle<Windows>) -> Self {
         Self {
             seat: globals.bind(qh, 1..=7, ()).ok(),
             keyboard: None,
-            presses: Vec::new(),
+            input: input::Keyboard::from_env(),
+            actions: Vec::new(),
         }
     }
 
-    /// The evdev codes pressed since the last call, oldest first.
-    pub(super) fn take_presses(&mut self) -> Vec<u32> {
-        std::mem::take(&mut self.presses)
+    /// The actions since the last call, oldest first.
+    pub(super) fn take_actions(&mut self) -> Vec<Action> {
+        std::mem::take(&mut self.actions)
+    }
+
+    pub(super) fn set_focus_loss(&mut self, policy: FocusLoss) {
+        self.input.set_focus_loss(policy);
+    }
+
+    /// Ends a repeat or Compose sequence (the panel was shown or hidden).
+    pub(super) fn reset(&mut self) {
+        self.input.reset();
+    }
+
+    /// When the next key repeat is due, if a key repeats.
+    pub(super) fn deadline(&self) -> Option<Instant> {
+        self.input.deadline()
+    }
+
+    /// Emits the repeats due at `now`.
+    pub(super) fn repeat(&mut self, now: Instant) {
+        for (code, action) in self.input.repeats_due(now) {
+            emit(format_args!("key {code} repeated"));
+            self.actions.extend(action);
+        }
+    }
+
+    fn keymap(&mut self, format: WEnum<wl_keyboard::KeymapFormat>, fd: OwnedFd, size: u32) {
+        if format != WEnum::Value(wl_keyboard::KeymapFormat::XkbV1) || size == 0 {
+            return;
+        }
+        // SAFETY: the fd is the compositor's keymap of `size` bytes, which
+        // xkbcommon maps privately and read-only (wl_keyboard v7+).
+        let keymap = unsafe {
+            xkb::Keymap::new_from_fd(
+                self.input.context(),
+                fd,
+                size as usize,
+                xkb::KEYMAP_FORMAT_TEXT_V1,
+                xkb::KEYMAP_COMPILE_NO_FLAGS,
+            )
+        };
+        // A broken keymap leaves the last one in force.
+        if let Ok(Some(keymap)) = keymap {
+            self.input.set_keymap(keymap);
+            emit(format_args!("keymap"));
+        }
     }
 }
 
@@ -67,8 +119,13 @@ impl Dispatch<WlSeat, ()> for Windows {
         match (has, state.keyboard.take()) {
             (true, None) => state.keyboard = Some(seat.get_keyboard(qh, ())),
             (true, kept) => state.keyboard = kept,
-            (false, Some(gone)) if gone.version() >= 3 => gone.release(),
-            (false, _) => {}
+            (false, Some(gone)) => {
+                state.input.reset();
+                if gone.version() >= 3 {
+                    gone.release();
+                }
+            }
+            (false, None) => {}
         }
     }
 }
@@ -83,11 +140,18 @@ impl Dispatch<WlKeyboard, ()> for Windows {
         _: &QueueHandle<Self>,
     ) {
         match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                windows.keyboard_mut().keymap(format, fd, size);
+            }
             wl_keyboard::Event::Enter { surface, .. } if windows.shows(&surface) => {
                 emit(format_args!("keyboard-enter"));
+                windows.keyboard_mut().input.enter();
             }
             wl_keyboard::Event::Leave { surface, .. } if windows.shows(&surface) => {
                 emit(format_args!("keyboard-leave"));
+                let state = windows.keyboard_mut();
+                let action = state.input.leave();
+                state.actions.extend(action);
             }
             wl_keyboard::Event::Key {
                 key,
@@ -97,8 +161,12 @@ impl Dispatch<WlKeyboard, ()> for Windows {
                 let pressed = state == wl_keyboard::KeyState::Pressed;
                 let word = if pressed { "pressed" } else { "released" };
                 emit(format_args!("key {key} {word}"));
+                let keyboard = windows.keyboard_mut();
                 if pressed {
-                    windows.keyboard_mut().presses.push(key);
+                    let action = keyboard.input.press(key, Instant::now());
+                    keyboard.actions.extend(action);
+                } else {
+                    keyboard.input.release(key);
                 }
             }
             wl_keyboard::Event::Modifiers {
@@ -107,11 +175,17 @@ impl Dispatch<WlKeyboard, ()> for Windows {
                 mods_locked,
                 group,
                 ..
-            } => emit(format_args!(
-                "modifiers {mods_depressed} {mods_latched} {mods_locked} {group}"
-            )),
-            // The keymap fd is closed on drop; repeat comes with the
-            // keyboard slice.
+            } => {
+                emit(format_args!(
+                    "modifiers {mods_depressed} {mods_latched} {mods_locked} {group}"
+                ));
+                let input = &mut windows.keyboard_mut().input;
+                input.modifiers(mods_depressed, mods_latched, mods_locked, group);
+            }
+            wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                emit(format_args!("repeat-info {rate} {delay}"));
+                windows.keyboard_mut().input.set_repeat(rate, delay);
+            }
             _ => {}
         }
     }

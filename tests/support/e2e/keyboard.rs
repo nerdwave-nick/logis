@@ -14,12 +14,15 @@ use super::client::Focused;
 use super::wire::Harness;
 
 /// The keymap: evdev keycodes, the "complete" types and compat, and the US
-/// layout, resolved by the compositor from its xkeyboard-config.
+/// layout with the Menu key as Compose (XKB option `compose:menu`),
+/// resolved by the compositor from its xkeyboard-config. The test
+/// compositors' own keymaps say the same (see [`super::NIRI_CONFIG`]), so
+/// a client sees one meaning whichever keymap reaches it.
 pub const KEYMAP: &str = r#"xkb_keymap {
     xkb_keycodes { include "evdev+aliases(qwerty)" };
     xkb_types { include "complete" };
     xkb_compat { include "complete" };
-    xkb_symbols { include "pc+us+inet(evdev)" };
+    xkb_symbols { include "pc+us+inet(evdev)+compose(menu)" };
     xkb_geometry { include "pc(pc105)" };
 };
 "#;
@@ -57,6 +60,13 @@ pub mod code {
     pub const DELETE: u32 = 111;
     pub const LEFT_META: u32 = 125;
     pub const COMPOSE: u32 = 127;
+    pub const LEFT_BRACE: u32 = 26;
+    pub const G: u32 = 34;
+    pub const N: u32 = 49;
+    pub const P: u32 = 25;
+    pub const U: u32 = 22;
+    pub const W: u32 = 17;
+    pub const X: u32 = 45;
 }
 
 /// A held modifier: its key and its real-modifier bit in the keymap
@@ -232,10 +242,14 @@ impl Harness {
         self.send_key(kb, code, pressed);
     }
 
-    /// Presses and releases key `code`.
-    pub fn tap(&mut self, kb: &mut VirtualKeyboard, focused: &Focused, code: u32) {
-        self.key(kb, focused, code, true);
-        self.key(kb, focused, code, false);
+    /// Presses and releases key `code` in one go: both requests leave in
+    /// one flush, so a stalled compositor cannot hold the key down long
+    /// enough to repeat it (a tap is never a hold).
+    pub fn tap(&mut self, kb: &mut VirtualKeyboard, _: &Focused, code: u32) {
+        let time = kb.epoch.elapsed().as_millis() as u32;
+        kb.keyboard.key(time, code, 1);
+        kb.keyboard.key(time, code, 0);
+        self.roundtrip();
     }
 
     /// Presses a modifier key and then sends its mask.

@@ -95,6 +95,7 @@ impl Windows {
         scene: SceneFn,
     ) -> Result<(), WindowError> {
         self.panel = None;
+        self.keyboard.reset();
         let panel = Panel::new(&self.shell, &self.gpu, &self.connection, qh, size, scene)?;
         self.renderer.prepare(&self.gpu, panel.format());
         self.panel = Some(panel);
@@ -104,6 +105,7 @@ impl Windows {
     /// Hides the visible panel, if any.
     pub fn hide(&mut self) {
         self.panel = None;
+        self.keyboard.reset();
     }
 
     /// Whether a panel is shown.
@@ -118,12 +120,6 @@ impl Windows {
 
     pub(super) fn keyboard_mut(&mut self) -> &mut Keyboard {
         &mut self.keyboard
-    }
-
-    /// The evdev codes of keys pressed since the last call, oldest first
-    /// (raw codes until the keyboard slice brings keysyms).
-    pub fn take_key_presses(&mut self) -> Vec<u32> {
-        self.keyboard.take_presses()
     }
 
     /// Asks the visible panel to redraw (its scene changed); it is drawn by

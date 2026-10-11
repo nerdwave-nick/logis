@@ -75,7 +75,31 @@ default) and chosen with `--with-nth` (display), `--match-nth` (matching) and
 
 **Query**:
 The text typed into the input line. It filters the items with fuzzy, case- and
-accent-insensitive matching; matched characters are highlighted.
+accent-insensitive matching; matched characters are highlighted. It is edited at a
+cursor that always sits between graphemes, so Backspace deletes what a reader sees
+as one character.
+
+**Shortcut**:
+A key bound to an action (dismiss, accept, select, edit). It is matched with
+**consumed-modifier** semantics: only the modifiers the key did not need to produce
+its keysym count, so Shift+Tab, Ctrl+[ on any layout and Ctrl+N under Caps Lock all
+mean what they say.
+
+**Compose sequence**:
+Keys that together type one character (Menu o " → ö), from the locale's Compose
+table or the user's (`XCOMPOSEFILE`, `~/.XCompose`). Modifier keys never cancel one.
+
+**Key repeat**:
+A held key typed again at the compositor's rate after its delay; the client repeats
+it, and a rate of 0 means no repeat.
+
+**Focus loss**:
+The visible window losing keyboard focus. It dismisses the session by default; the
+config's `"focus-loss": "keep"` leaves it open.
+
+**Preedit**:
+Text an input method is still composing (text-input-v3, after v1): shown at the
+cursor, never part of the query and never matched.
 
 **Stage**:
 One list within a multi-stage flow in a single window, such as rite → aspect →

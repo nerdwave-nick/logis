@@ -7,6 +7,7 @@
 
 mod debug;
 mod handle;
+mod input;
 mod panel;
 mod present;
 mod seat;
@@ -24,7 +25,7 @@ use smithay_client_toolkit::reexports::protocols::wp::viewporter::client::wp_vie
 use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::shell::wlr_layer::LayerShell;
 
-pub use debug::{DEBUG_SIZE, Reaction, debug_scene, debug_scene_at, react, run_debug_panel};
+pub use debug::{DEBUG_SIZE, debug_scene, debug_scene_at, run_debug_panel};
 pub use handle::{SurfaceHandle, WaylandDisplay};
 pub use panel::{NAMESPACE, Panel, SceneFn};
 pub use state::{Geometry, SurfaceState};

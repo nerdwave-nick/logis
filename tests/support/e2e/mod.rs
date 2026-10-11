@@ -83,7 +83,8 @@ impl Kind {
 }
 
 /// The generated niri config: scale 1, no animations, no startup overlay,
-/// no Xwayland. Its background is deliberately not black (sway's default
+/// no Xwayland, the injector's keymap ([`keyboard::KEYMAP`]: US, Menu as
+/// Compose) and a key repeat of its own ([`REPEAT`]). Its background is deliberately not black (sway's default
 /// is dark grey): captures must depend only on the harness's own backdrop
 /// ([`wire::Harness::connect`]), never on a compositor default.
 pub const NIRI_CONFIG: &str = r##"// logis test compositor (nested niri); generated, never the owner's config.
@@ -102,18 +103,51 @@ xwayland-satellite {
 layout {
     background-color "#404040"
 }
+input {
+    keyboard {
+        xkb {
+            layout "us"
+            options "compose:menu"
+        }
+        repeat-delay 300
+        repeat-rate 30
+    }
+}
 prefer-no-csd
 "##;
 
 /// The generated sway config: one headless output at 1280x720, scale 1, no
 /// Xwayland, no bindings (injected keys must reach the client, not sway).
 /// Without an `output … bg`, sway starts no swaybg and shows its default
-/// dark grey; the harness's backdrop covers it.
+/// dark grey; the harness's backdrop covers it. Keyboards get the
+/// injector's keymap and [`REPEAT`] too: should sway apply its own input
+/// config to the virtual keyboard, it is the same.
 pub const SWAY_CONFIG: &str = "# logis test compositor (headless sway); generated.
 output HEADLESS-1 mode 1280x720@60Hz scale 1
 xwayland disable
 default_border none
 focus_follows_mouse no
+input type:keyboard {
+    xkb_layout us
+    xkb_options compose:menu
+    repeat_delay 300
+    repeat_rate 30
+}
+";
+
+/// The key repeat both test compositors configure: (rate per second,
+/// delay in ms). Tests read what the client actually received from its
+/// `repeat-info` trace rather than assuming it.
+pub const REPEAT: (u32, u32) = (30, 300);
+
+/// The Compose table of every client (`XCOMPOSEFILE`), so no test depends
+/// on the machine's locale tables or on anyone's ~/.XCompose. The last two
+/// sequences give what no system table gives: one proves this file is the
+/// one in use, the other composes one grapheme of two code points.
+pub const XCOMPOSE: &str = "# logis test Compose table; generated.
+<Multi_key> <o> <quotedbl> : \"ö\" odiaeresis
+<Multi_key> <l> <g> : \"λ\"
+<Multi_key> <e> <e> : \"e\u{301}\"
 ";
 
 /// The fontconfig configuration of every client: only the pinned fonts in
@@ -154,6 +188,8 @@ impl TestCompositor {
                 &dir.path().join("fontconfig").display().to_string(),
             );
         std::fs::write(dir.path().join("fonts.conf"), fonts_conf).unwrap();
+        std::fs::write(dir.path().join("XCompose"), XCOMPOSE).unwrap();
+        std::fs::create_dir_all(dir.path().join("config")).unwrap();
         let mut command = match kind {
             Kind::NestedNiri => niri(dir.path()),
             Kind::HeadlessSway => sway(dir.path()),
@@ -225,7 +261,9 @@ impl TestCompositor {
     }
 
     /// `program` as a client of this compositor: its runtime directory and
-    /// socket, the pinned fonts, and nothing that points at another session.
+    /// socket, the pinned fonts, the harness's Compose table ([`XCOMPOSE`]),
+    /// a scratch `XDG_CONFIG_HOME` (never the owner's logis config), and
+    /// nothing that points at another session.
     pub fn command(&self, program: impl AsRef<std::ffi::OsStr>) -> Command {
         let mut command = Command::new(program);
         for var in [
@@ -242,8 +280,16 @@ impl TestCompositor {
             .env("XDG_RUNTIME_DIR", self.dir.path())
             .env("WAYLAND_DISPLAY", self.socket.file_name().unwrap())
             .env("FONTCONFIG_FILE", self.dir.path().join("fonts.conf"))
+            .env("XCOMPOSEFILE", self.dir.path().join("XCompose"))
+            .env("XDG_CONFIG_HOME", self.config_home())
             .stdin(Stdio::null());
         command
+    }
+
+    /// The clients' scratch `XDG_CONFIG_HOME`; `logis/logis.jsonc` in it is
+    /// their config.
+    pub fn config_home(&self) -> PathBuf {
+        self.dir.path().join("config")
     }
 
     /// `logis` as a client of this compositor.

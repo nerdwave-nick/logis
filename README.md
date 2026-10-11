@@ -38,11 +38,14 @@ research behind them, and a binary that does this much:
 - `logis --check-config [--config PATH]` validates the configuration without
   touching Wayland or the daemon: exit 0 if it is sound (or absent), 2 with the
   error's file, line and column on stderr.
-- `logis daemon --debug-panel` does not serve sessions: it shows a static panel drawn
-  by the renderer core (a GPU-rendered overlay layer surface at the compositor's
-  fractional scale, with text rows in several scripts and colour emoji). It takes
-  exclusive keyboard focus: Up and Down move its selection, Escape closes it (as
-  does the compositor, or ending the process).
+- `logis daemon --debug-panel [--config PATH]` does not serve sessions: it shows a
+  static panel drawn by the renderer core (a GPU-rendered overlay layer surface at
+  the compositor's fractional scale, with text rows in several scripts and colour
+  emoji) and a query line. It takes exclusive keyboard focus and uses the whole
+  [keyboard model](#keyboard): typing edits the query, the selection keys move,
+  Return prints the selected row and closes it, and the dismissal keys (or focus
+  loss, per the config's `focus-loss`) close it, as does the compositor or ending
+  the process.
 
 The session daemon does not show the renderer's window yet, so it refuses every
 session. The list view, the dmenu flags, the app launcher and servitor mode
@@ -84,11 +87,38 @@ it; a daemon already running keeps the file it was started with. Themes, the
 window and the app launcher do not use these settings yet; the slices that build
 them will.
 
+## Keyboard
+
+The keyboard follows your layout as the compositor sends it (libxkbcommon), with
+key repeat at the compositor's rate (a rate of 0 turns it off) and Compose
+sequences from your locale's Compose table, or `XCOMPOSEFILE`, or
+`$XDG_CONFIG_HOME/XCompose`, or `~/.XCompose`, as libxkbcommon finds them (read
+when the window code starts; edits need a restart).
+
+| Keys | Action |
+|---|---|
+| Escape, Ctrl+G, Ctrl+[ | dismiss |
+| Return, keypad Enter | accept |
+| Up, Shift+Tab, Ctrl+P | select the previous item |
+| Down, Tab, Ctrl+N | select the next item |
+| Backspace / Delete | delete the character (grapheme) before / after the cursor |
+| Ctrl+W | delete the word before the cursor |
+| Ctrl+U | clear the query |
+| Left, Right, Home, End | move the cursor |
+
+Shortcuts ignore modifiers the key itself needs (consumed modifiers): Ctrl+[ works
+where `[` is AltGr+8, Caps Lock and Num Lock never change a shortcut, and while a
+second layout is active the first layout's letters still work with Ctrl. Losing
+keyboard focus dismisses unless the config says `"focus-loss": "keep"`. Pasting is
+not there yet.
+
 ## Building
 
-Requires Rust 1.91 or later, `pkg-config`, and the libwayland-client and
-libfontconfig development files (`wayland` and `fontconfig` on Arch,
-`libwayland-dev` and `libfontconfig-dev` on Debian/Ubuntu).
+Requires Rust 1.91 or later, `pkg-config`, and the libwayland-client,
+libfontconfig and libxkbcommon development files (`wayland`, `fontconfig` and
+`libxkbcommon` on Arch; `libwayland-dev`, `libfontconfig-dev` and
+`libxkbcommon-dev` on Debian/Ubuntu). The keyboard's unit tests compile keymaps
+from xkeyboard-config (`xkeyboard-config` / `xkb-data`).
 
 ```sh
 cargo build --release
@@ -147,7 +177,10 @@ with `mod support;`.
   `--session`), sway on wlroots' headless backend in CI (`LOGIS_E2E=sway`).
   `compositor.logis()` is a `logis` command inside it (pinned fonts);
   `Traced::spawn(command)` runs it with `LOGIS_TEST_TRACE=1` and waits for its
-  trace (`wait_for_focus()`, `wait_for_commit()` …). `Harness::connect(&compositor)`
+  trace (`wait_for_focus()`, `wait_for_commit()` …). Clients get a Compose table
+  of the harness's own (`XCOMPOSEFILE`, never anyone's `~/.XCompose`) and a
+  scratch `XDG_CONFIG_HOME`; both compositors and the injector use the US layout
+  with Menu as Compose (`compose:menu`) and a repeat of 30/s after 300 ms. `Harness::connect(&compositor)`
   refuses any socket whose server is not that compositor process (peer
   credentials), then offers `virtual_keyboard()`, `type_text`, `tap`, `hold`/
   `release` (real modifier keys plus masks), `toggle` (Caps/Num Lock) — all
@@ -163,8 +196,10 @@ with `mod support;`.
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
-`key <evdev code> pressed|released`, `modifiers <depressed> <latched> <locked>
-<group>` and `commit`.
+`keymap`, `repeat-info <rate> <delay>`, `key <evdev code>
+pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>` and
+`commit`; the debug panel adds what each key did: `query <JSON string>`, `select
+<row>`, `accept <row>` and `dismiss`.
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
