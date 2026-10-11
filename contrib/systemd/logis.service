@@ -1,0 +1,15 @@
+# The logis daemon, started by logis.socket. It needs WAYLAND_DISPLAY in the
+# user manager's environment (niri and most session setups import it).
+# It exits non-zero when the compositor goes away; the next connection to the
+# socket starts it again, so it is not restarted here.
+
+[Unit]
+Description=logis machine spirit (launcher and dmenu daemon)
+Documentation=https://github.com/nerdwave-nick/logis
+Requires=logis.socket
+After=logis.socket graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/logis daemon
