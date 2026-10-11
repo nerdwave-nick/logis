@@ -31,6 +31,9 @@ impl LayerShellHandler for Windows {
         if self.closing.as_ref().is_some_and(|p| p.is(layer)) {
             self.closing = None;
         }
+        if self.retired.as_ref().is_some_and(|p| p.is(layer)) {
+            self.retired = None;
+        }
     }
 
     fn configure(

@@ -35,6 +35,7 @@ pub struct Windows {
     // were created on, then the globals, then the connection.
     panel: Option<Panel>,
     closing: Option<Panel>,
+    retired: Option<Panel>,
     verbose: bool,
     motion: Motion,
     clock: FrameClock,
@@ -110,6 +111,7 @@ impl Windows {
         let windows = Self {
             panel: None,
             closing: None,
+            retired: None,
             verbose: false,
             motion: Motion::OFF,
             clock: FrameClock::default(),
@@ -141,6 +143,11 @@ impl Windows {
     /// Shows a panel of `size` logical pixels drawing `scene`, replacing any
     /// visible one and cutting short any still closing. It draws once the
     /// compositor configures it, opening with the [`Motion`] in force.
+    ///
+    /// A panel still closing stops where it is and goes only after the new
+    /// panel's first frame (trace `cut`): destroying it blocks on its
+    /// swapchain and makes the compositor draw a frame, which would delay
+    /// that first frame (the warm-open budget).
     pub fn show(
         &mut self,
         qh: &QueueHandle<Self>,
@@ -148,7 +155,9 @@ impl Windows {
         scene: SceneFn,
     ) -> Result<(), WindowError> {
         self.panel = None;
-        self.closing = None;
+        if let Some(closing) = self.closing.take() {
+            self.retired = Some(closing);
+        }
         self.reset_input();
         let transition = if self.motion.open.duration.is_zero() {
             Transition::resting()
@@ -165,7 +174,14 @@ impl Windows {
             scene,
             transition,
             effects,
-        )?;
+        );
+        let panel = match panel {
+            Ok(panel) => panel,
+            Err(e) => {
+                self.cut_retired();
+                return Err(e);
+            }
+        };
         self.renderer.prepare(&self.gpu, panel.format());
         self.panel = Some(panel);
         Ok(())
@@ -174,6 +190,7 @@ impl Windows {
     /// Hides the visible panel at once, if any (no close transition).
     pub fn hide(&mut self) {
         self.panel = None;
+        self.cut_retired();
         self.reset_input();
     }
 
@@ -238,8 +255,11 @@ impl Windows {
             self.closing = None;
             super::trace::emit(format_args!("faded"));
         }
-        let Some(panel) = &mut self.panel else { return };
+        let Some(panel) = &mut self.panel else {
+            return;
+        };
         let reconfigured = panel.draw_if_needed(&mut painter).reconfigured;
+        let shown = panel.was_shown();
         if let Some(g) = reconfigured.filter(|_| self.verbose) {
             let config = panel.config();
             eprintln!(
@@ -253,6 +273,9 @@ impl Windows {
                 config.present_mode,
                 config.alpha_mode,
             );
+        }
+        if shown {
+            self.cut_retired();
         }
     }
 }

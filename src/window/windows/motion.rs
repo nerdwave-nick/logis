@@ -45,11 +45,21 @@ impl Windows {
         let Some(mut panel) = self.panel.take() else {
             return;
         };
+        self.cut_retired();
         if self.motion.close.duration.is_zero() || !panel.was_shown() {
+            drop(panel);
+            emit(format_args!("faded"));
             return;
         }
         panel.close(&self.motion, monotonic_ns(), &self.shell.compositor);
         self.closing = Some(panel);
+    }
+
+    /// Drops the panel that was closing when the visible one was shown.
+    pub(in crate::window) fn cut_retired(&mut self) {
+        if self.retired.take().is_some() {
+            emit(format_args!("cut"));
+        }
     }
 
     /// When the closing panel must go even without a frame callback.

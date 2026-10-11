@@ -178,6 +178,18 @@ fn a_waiting_session_is_shown_without_waiting_for_the_close() {
             .any(|e| e.what == "faded" && e.ns < shown.ns),
         "the closing window was cut short, not waited for"
     );
+    // Destroying the old window costs the compositor a frame and the GPU a
+    // swapchain: it goes only once the new window's first frame is out.
+    let new_frame = c.daemon.wait_seen("the new first frame", |e| {
+        e.what == "commit" && e.ns > shown.ns
+    });
+    let cut = c
+        .daemon
+        .wait_seen("the old window cut", |e| e.what == "cut");
+    assert!(
+        cut.ns > new_frame.ns,
+        "cut before the new window's first frame"
+    );
     assert_eq!(first.ended().stdout, b"one\n");
     c.tap(&focused, code::ENTER);
     assert_eq!(second.ended().stdout, b"three\n");
