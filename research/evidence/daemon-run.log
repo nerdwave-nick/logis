@@ -1,0 +1,9 @@
+background effect capabilities: Capabilities { flags: Value(Capability(Blur)) }
+daemon ready (13.8 ms after start)
+request -> committed          36.24 ms  (buffer 894x530, scale 1.300)
+request -> committed           6.59 ms  (buffer 894x530, scale 1.300)
+request -> committed           6.00 ms  (buffer 894x530, scale 1.300)
+request -> committed           6.87 ms  (buffer 894x530, scale 1.300)
+request -> committed           6.86 ms  (buffer 894x530, scale 1.300)
+request -> committed           6.74 ms  (buffer 894x530, scale 1.300)
+frames 230: cpu encode median 0.140 p99 0.528 ms | gpu wait median 1.223 p99 1.750 ms | interval median 16.66 ms

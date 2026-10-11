@@ -1,0 +1,2 @@
+request -> committed          74.37 ms  (buffer 894x530, scale 1.300)
+frames 235: cpu encode median 0.133 p99 0.300 ms | gpu wait median 1.113 p99 1.607 ms | interval median 16.65 ms

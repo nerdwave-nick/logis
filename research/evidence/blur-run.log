@@ -1,0 +1,3 @@
+background effect capabilities: Capabilities { flags: Value(Capability(Blur)) }
+request -> committed         147.62 ms  (buffer 894x530, scale 1.300)
+frames 235: cpu encode median 0.138 p99 0.365 ms | gpu wait median 1.200 p99 1.625 ms | interval median 16.66 ms
