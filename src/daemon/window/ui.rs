@@ -36,6 +36,9 @@ use crate::provider::{Answer, Step};
 /// The session on screen: its list and its toast, as drawn.
 struct Shown {
     session: SessionId,
+    /// The first stage's lines and width: the window's size, which later
+    /// stages keep.
+    size: (u32, u32),
     view: Rc<RefCell<ListView>>,
     toast: Rc<RefCell<Option<Notice>>>,
     /// How many items the stage has had.
@@ -102,6 +105,7 @@ fn apply(
             entries,
         } => {
             let size = scene::size(&options);
+            let (lines, width) = (options.lines, options.width);
             let view = Rc::new(RefCell::new(ListView::new(options)));
             let count = entries.len();
             view.borrow_mut().push(entries);
@@ -119,6 +123,7 @@ fn apply(
                     emit(format_args!("items {count}"));
                     *shown = Some(Shown {
                         session,
+                        size: (lines, width),
                         view,
                         toast,
                         count,
@@ -174,7 +179,12 @@ impl Shown {
     fn step(&mut self, step: Step) -> bool {
         let mut view = self.view.borrow_mut();
         match step {
-            Step::Stage { options, entries } => {
+            Step::Stage {
+                mut options,
+                entries,
+            } => {
+                // The window keeps its size: the list scrolls within it.
+                (options.lines, options.width) = self.size;
                 *view = ListView::new(options);
                 self.count = entries.len();
                 view.push(entries);
@@ -272,4 +282,46 @@ fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event
 
 fn answer(events: &Sender<Event>, session: SessionId, answer: Answer) {
     let _ = events.send(Event::Answered { session, answer });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use logis::list::Options;
+
+    fn shown(options: Options) -> Shown {
+        Shown {
+            session: 1,
+            size: (options.lines, options.width),
+            view: Rc::new(RefCell::new(ListView::new(options))),
+            toast: Rc::new(RefCell::new(None)),
+            count: 0,
+            ends_on_answer: false,
+            waiting: true,
+            lingering: false,
+        }
+    }
+
+    #[test]
+    fn a_later_stage_keeps_the_rows_the_window_has_room_for() {
+        let first = Options {
+            lines: 6,
+            width: 44,
+            ..Options::default()
+        };
+        let mut s = shown(first);
+        let next = Options {
+            lines: 15,
+            prompt: "aspect: ".into(),
+            ..Options::default()
+        };
+        let entries = vec![Entry::from("on".to_owned())];
+        assert!(s.step(Step::Stage {
+            options: next,
+            entries
+        }));
+        let look = s.view.borrow_mut().look();
+        assert_eq!((look.lines, look.prompt.as_str()), (6, "aspect: "));
+        assert!(!s.waiting, "a new stage takes Return again");
+    }
 }

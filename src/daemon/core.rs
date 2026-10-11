@@ -331,9 +331,9 @@ impl<R: Resolver> Core<R> {
     }
 }
 
-/// A dmenu session's feed: the lines so far, and whether the client sent
-/// them all.
 impl Feed {
+    /// What feeds a new session of `mode`: an external provider (named by
+    /// a provider session alone), or the client's own lines.
     fn new(
         mode: Mode,
         options: crate::protocol::Options,
