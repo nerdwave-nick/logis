@@ -6,7 +6,8 @@
 //! Events: `keyboard-enter`, `keyboard-leave`, `keymap` (one compiled),
 //! `repeat-info <rate> <delay>`, `key <evdev code> pressed|released`,
 //! `key <evdev code> repeated` (a client-side repeat), `modifiers
-//! <depressed> <latched> <locked> <group>` and `commit` (a frame was
+//! <depressed> <latched> <locked> <group>`, the pointer's and paste's
+//! events (see the `pointer` and `paste` modules) and `commit` (a frame was
 //! presented and its surface committed). The debug panel adds what each
 //! key did: `query <JSON string>`, `select <row>`, `accept <row>` and
 //! `dismiss`.

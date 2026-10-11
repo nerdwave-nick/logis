@@ -1,7 +1,8 @@
-//! The seat's keyboard: forwards `wl_keyboard` events to the input model
-//! ([`crate::input::Keyboard`]) and collects the [`Action`]s it yields for
-//! whoever shows a panel, plus the test trace (see [`super::trace`]) of
-//! focus, keys, modifiers, repeat info and repeats.
+//! The seat and its keyboard: forwards `wl_keyboard` events to the input
+//! model ([`crate::input::Keyboard`]) and queues the [`Action`]s it yields
+//! for whoever shows a panel, plus the test trace (see [`super::trace`]) of
+//! focus, keys, modifiers, repeat info and repeats. The seat's pointer is
+//! [`super::pointer`]'s.
 
 use std::os::fd::OwnedFd;
 use std::time::Instant;
@@ -16,31 +17,30 @@ use super::Windows;
 use super::trace::emit;
 use crate::input::{self, Action, FocusLoss};
 
-/// The first seat the compositor offers, its keyboard while it has one, the
-/// input model, and the actions not yet taken.
+/// The first seat the compositor offers, its keyboard while it has one, and
+/// the input model.
 pub(super) struct Keyboard {
     seat: Option<WlSeat>,
     keyboard: Option<WlKeyboard>,
     input: input::Keyboard,
-    actions: Vec<Action>,
 }
 
 impl Keyboard {
-    /// Binds the first seat, if the compositor offers one; its keyboard
-    /// follows once the seat announces the capability. The Compose table is
-    /// loaded now, at start, not on the first key.
+    /// Binds the first seat, if the compositor offers one (up to v9, for
+    /// the pointer's high-resolution `axis_value120`); its keyboard follows
+    /// once the seat announces the capability. The Compose table is loaded
+    /// now, at start, not on the first key.
     pub(super) fn bind(globals: &GlobalList, qh: &QueueHandle<Windows>) -> Self {
         Self {
-            seat: globals.bind(qh, 1..=7, ()).ok(),
+            seat: globals.bind(qh, 1..=9, ()).ok(),
             keyboard: None,
             input: input::Keyboard::from_env(),
-            actions: Vec::new(),
         }
     }
 
-    /// The actions since the last call, oldest first.
-    pub(super) fn take_actions(&mut self) -> Vec<Action> {
-        std::mem::take(&mut self.actions)
+    /// The seat, if the compositor offers one.
+    pub(super) fn seat(&self) -> Option<&WlSeat> {
+        self.seat.as_ref()
     }
 
     pub(super) fn set_focus_loss(&mut self, policy: FocusLoss) {
@@ -57,12 +57,14 @@ impl Keyboard {
         self.input.deadline()
     }
 
-    /// Emits the repeats due at `now`.
-    pub(super) fn repeat(&mut self, now: Instant) {
+    /// The repeats due at `now`.
+    pub(super) fn repeat(&mut self, now: Instant) -> Vec<Action> {
+        let mut actions = Vec::new();
         for (code, action) in self.input.repeats_due(now) {
             emit(format_args!("key {code} repeated"));
-            self.actions.extend(action);
+            actions.extend(action);
         }
+        actions
     }
 
     fn keymap(&mut self, format: WEnum<wl_keyboard::KeymapFormat>, fd: OwnedFd, size: u32) {
@@ -114,6 +116,8 @@ impl Dispatch<WlSeat, ()> for Windows {
         else {
             return;
         };
+        let has_pointer = capabilities.contains(wl_seat::Capability::Pointer);
+        windows.pointer.capability(seat, has_pointer, qh);
         let state = windows.keyboard_mut();
         let has = capabilities.contains(wl_seat::Capability::Keyboard);
         match (has, state.keyboard.take()) {
@@ -149,9 +153,8 @@ impl Dispatch<WlKeyboard, ()> for Windows {
             }
             wl_keyboard::Event::Leave { surface, .. } if windows.shows(&surface) => {
                 emit(format_args!("keyboard-leave"));
-                let state = windows.keyboard_mut();
-                let action = state.input.leave();
-                state.actions.extend(action);
+                let action = windows.keyboard_mut().input.leave();
+                windows.actions.extend(action);
             }
             wl_keyboard::Event::Key {
                 key,
@@ -164,7 +167,7 @@ impl Dispatch<WlKeyboard, ()> for Windows {
                 let keyboard = windows.keyboard_mut();
                 if pressed {
                     let action = keyboard.input.press(key, Instant::now());
-                    keyboard.actions.extend(action);
+                    windows.actions.extend(action);
                 } else {
                     keyboard.input.release(key);
                 }

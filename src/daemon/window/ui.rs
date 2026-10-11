@@ -21,6 +21,7 @@ use std::os::fd::BorrowedFd;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
+use logis::input::Action;
 use logis::list::{Choice, Entry, ListView, Notice, Reaction, scene};
 use logis::window::trace::emit;
 use logis::window::{WindowQueue, Windows};
@@ -216,13 +217,18 @@ impl Shown {
     }
 }
 
-/// Applies the keys since the last call to the shown list.
+/// Applies the keys, pointer and pastes since the last call to the shown
+/// list. A point means the row drawn under it, on the panel's current size.
+/// A lingering window (its session over) takes none of them.
 fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event>) {
     for action in windows.take_actions() {
         let Some(s) = shown.as_mut().filter(|s| !s.lingering) else {
             continue;
         };
-        let reaction = s.view.borrow_mut().apply(&action);
+        let reaction = match (&action, windows.size()) {
+            (Action::Point(point), Some(size)) => s.view.borrow_mut().point(point, size),
+            _ => s.view.borrow_mut().apply(&action),
+        };
         let given = match reaction {
             Reaction::Unchanged => continue,
             Reaction::Changed => {

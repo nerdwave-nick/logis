@@ -9,6 +9,8 @@ mod debug;
 mod handle;
 mod input;
 mod panel;
+mod paste;
+mod pointer;
 mod present;
 mod seat;
 mod state;

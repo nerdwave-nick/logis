@@ -108,6 +108,15 @@ it, and a rate of 0 means no repeat.
 The visible window losing keyboard focus. It dismisses the session by default; the
 config's `"focus-loss": "keep"` leaves it open.
 
+**Hover**:
+The pointer moving over a row selects it. A window that opens under a pointer at
+rest does not: only a pointer that moves points.
+
+**Paste**:
+Inserting a selection's text at the query's cursor: the **clipboard** (Ctrl+V,
+Shift+Insert) or the **primary selection** (the middle button). Only the first
+non-empty line is inserted, since the query is one line.
+
 **Preedit**:
 Text an input method is still composing (text-input-v3, after v1): shown at the
 cursor, never part of the query and never matched.

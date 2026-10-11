@@ -1,6 +1,8 @@
 //! The harness's own Wayland connection to a [`TestCompositor`]: the
-//! isolation guard, the globals the injector and screen capture need, and
-//! dispatching with a deadline.
+//! isolation guard, the globals the injectors (keyboard and pointer) and
+//! screen capture need, and dispatching with a deadline. Every connection
+//! the harness makes, this one and the selection owner's
+//! ([`super::selection`]), goes through [`connect_verified`].
 
 use std::os::unix::net::UnixStream;
 use std::time::{Duration, Instant};
@@ -23,6 +25,10 @@ use smithay_client_toolkit::reexports::protocols::wp::viewporter::client::{
 };
 use smithay_client_toolkit::reexports::protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLayerShellV1;
 use smithay_client_toolkit::reexports::protocols_wlr::screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1;
+use smithay_client_toolkit::reexports::protocols_wlr::virtual_pointer::v1::client::{
+    zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
+    zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
+};
 
 use super::{PATIENCE, TestCompositor};
 
@@ -45,6 +51,19 @@ pub fn verify_peer(stream: &UnixStream, expected: u32) -> Result<(), String> {
     }
 }
 
+/// Connects to the Wayland socket at `socket` only if [`verify_peer`] proves
+/// its server is process `expected` (the compositor the harness spawned).
+pub fn connect_verified(socket: &std::path::Path, expected: u32) -> Result<Connection, String> {
+    let stream = UnixStream::connect(socket).map_err(|e| {
+        format!(
+            "cannot reach the test compositor at {}: {e}",
+            socket.display()
+        )
+    })?;
+    verify_peer(&stream, expected)?;
+    Connection::from_socket(stream).map_err(|e| format!("libwayland-client cannot connect: {e}"))
+}
+
 /// Event-queue state of the harness connection.
 pub struct State {
     pub(super) output: WlOutput,
@@ -53,10 +72,14 @@ pub struct State {
     pub(super) transform: wl_output::Transform,
     /// The current mode's refresh rate in mHz, once announced.
     pub(super) refresh_mhz: i32,
+    /// The current mode's size in pixels (the output is at scale 1).
+    pub(super) mode: (i32, i32),
     pub(super) shm: WlShm,
     pub(super) seat: WlSeat,
     pub(super) screencopy: ZwlrScreencopyManagerV1,
     pub(super) keyboards: ZwpVirtualKeyboardManagerV1,
+    /// The virtual pointer manager, for the tests that point.
+    pub(super) pointers: Option<ZwlrVirtualPointerManagerV1>,
     pub(super) capture: super::screencopy::Capture,
     pub(super) backdrop: Option<super::backdrop::Backdrop>,
 }
@@ -75,14 +98,8 @@ impl Harness {
     /// black backdrop (see [`super::backdrop`]) so captures never depend on
     /// the compositor's own background.
     pub fn connect(compositor: &TestCompositor) -> Self {
-        let stream = UnixStream::connect(compositor.socket()).unwrap_or_else(|e| {
-            panic!(
-                "cannot reach the test compositor at {}: {e}",
-                compositor.socket().display()
-            )
-        });
-        verify_peer(&stream, compositor.pid()).unwrap_or_else(|e| panic!("{e}"));
-        let connection = Connection::from_socket(stream).expect("libwayland-client connects");
+        let connection = connect_verified(compositor.socket(), compositor.pid())
+            .unwrap_or_else(|e| panic!("{e}"));
         let (globals, queue) =
             registry_queue_init::<State>(&connection).expect("the compositor lists its globals");
         let qh = queue.handle();
@@ -92,6 +109,7 @@ impl Harness {
                 .unwrap_or_else(|_| missing("wl_output")),
             transform: wl_output::Transform::Normal,
             refresh_mhz: 0,
+            mode: (0, 0),
             shm: globals
                 .bind(&qh, 1..=1, ())
                 .unwrap_or_else(|_| missing("wl_shm")),
@@ -104,6 +122,7 @@ impl Harness {
             keyboards: globals
                 .bind(&qh, 1..=1, ())
                 .unwrap_or_else(|_| missing("zwp_virtual_keyboard_manager_v1")),
+            pointers: globals.bind(&qh, 1..=2, ()).ok(),
             capture: Default::default(),
             backdrop: None,
         };
@@ -233,8 +252,12 @@ impl Dispatch<WlOutput, ()> for State {
             wl_output::Event::Mode {
                 flags: Value(flags),
                 refresh,
-                ..
-            } if flags.contains(wl_output::Mode::Current) => state.refresh_mhz = refresh,
+                width,
+                height,
+            } if flags.contains(wl_output::Mode::Current) => {
+                state.refresh_mhz = refresh;
+                state.mode = (width, height);
+            }
             _ => {}
         }
     }
@@ -252,5 +275,7 @@ no_events!(
     WlSeat,
     ZwlrScreencopyManagerV1,
     ZwpVirtualKeyboardManagerV1,
-    ZwpVirtualKeyboardV1
+    ZwpVirtualKeyboardV1,
+    ZwlrVirtualPointerManagerV1,
+    ZwlrVirtualPointerV1
 );

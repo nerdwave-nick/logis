@@ -1,4 +1,5 @@
-//! The key bindings (spec §4.5), matched with consumed-modifier semantics:
+//! The key bindings (spec §4.5; Ctrl+V and Shift+Insert paste the
+//! clipboard, as the ticket for pointer and paste names them), matched with consumed-modifier semantics:
 //! a binding sees the keysym the layout produced and only the modifiers
 //! the key did not consume ([`Mods`]). Lock and Num Lock are never part of
 //! a binding, so Caps Lock leaves Ctrl+N alone and Num Lock only decides
@@ -6,7 +7,7 @@
 
 use xkbcommon::xkb::Keysym;
 
-use super::{Action, Edit, Step};
+use super::{Action, Edit, Selection, Step};
 
 /// The modifiers that are active and were not consumed by the key.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -68,6 +69,10 @@ pub fn binding(keysym: Keysym, mods: Mods) -> Option<Action> {
         Keysym::Delete | Keysym::KP_Delete if plain => edit(Edit::DeleteForward),
         Keysym::w | Keysym::W if ctrl => edit(Edit::DeleteWordBack),
         Keysym::u | Keysym::U if ctrl => edit(Edit::Clear),
+        Keysym::v | Keysym::V if ctrl => Some(Action::Paste(Selection::Clipboard)),
+        Keysym::Insert | Keysym::KP_Insert if mods == Mods::SHIFT => {
+            Some(Action::Paste(Selection::Clipboard))
+        }
         Keysym::Left | Keysym::KP_Left if plain => edit(Edit::Left),
         Keysym::Right | Keysym::KP_Right if plain => edit(Edit::Right),
         Keysym::Home | Keysym::KP_Home if plain => edit(Edit::Home),
@@ -143,6 +148,17 @@ mod tests {
         );
         assert_eq!(binding(Keysym::Left, Mods::NONE), edit(Edit::Left));
         assert_eq!(binding(Keysym::KP_End, Mods::NONE), edit(Edit::End));
+    }
+
+    #[test]
+    fn ctrl_v_and_shift_insert_paste_the_clipboard() {
+        let paste = Some(Action::Paste(super::super::Selection::Clipboard));
+        assert_eq!(binding(Keysym::v, Mods::CTRL), paste);
+        assert_eq!(binding(Keysym::V, Mods::CTRL), paste, "Caps Lock on");
+        assert_eq!(binding(Keysym::Insert, Mods::SHIFT), paste);
+        assert_eq!(binding(Keysym::KP_Insert, Mods::SHIFT), paste);
+        assert_eq!(binding(Keysym::v, Mods::NONE), None, "v types");
+        assert_eq!(binding(Keysym::Insert, Mods::NONE), None);
     }
 
     #[test]

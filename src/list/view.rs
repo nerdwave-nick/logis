@@ -9,6 +9,8 @@
 
 use std::ops::Range;
 
+mod pointer;
+
 use super::filter::{Filter, byte_ranges};
 use super::{Decor, Entry, Options, Preselect};
 use crate::input::{Action, Edit, Query, Step};
@@ -97,6 +99,8 @@ pub struct ListView {
     /// Whether the user has moved the selection or edited the query: no
     /// preselection applies after that.
     touched: bool,
+    /// The pointer's state (see [`Self::point`]).
+    pointing: pointer::Pointing,
 }
 
 impl ListView {
@@ -120,6 +124,7 @@ impl ListView {
             top: 0,
             follow: None,
             touched: false,
+            pointing: pointer::Pointing::default(),
         }
     }
 
@@ -271,6 +276,9 @@ impl ListView {
                 }
                 Reaction::Changed
             }
+            // The window turns pastes into edits, and a point needs the
+            // surface it was made on: see [`Self::point`].
+            Action::Paste(_) | Action::Point(_) => Reaction::Unchanged,
         }
     }
 

@@ -46,13 +46,26 @@
 //!   beside [`Keyboard::enter`] and [`Keyboard::leave`] in the seat.
 //!
 //! Nothing here assumes keys are the only source of edits, so adding the
-//! protocol adds a feeder, not a rewrite.
+//! protocol adds a feeder, not a rewrite. Paste is already such a feeder:
+//! Ctrl+V and Shift+Insert (and the middle button) ask for an
+//! [`Action::Paste`]; the window reads the selection ([`paste`]) and hands
+//! the text back as an [`Edit::Insert`].
+//!
+//! # The pointer
+//!
+//! [`Pointer`] is fed the `wl_pointer` events and yields [`Point`]s
+//! (position, the primary button, scrolling) as [`Action::Point`], in the
+//! same queue as the keys, so their order is kept. What a point means (which
+//! row it is over) is the list's to decide, since only the list knows its
+//! layout.
 
 pub mod bindings;
 mod compose;
 mod editor;
 mod keyboard;
 mod layout;
+pub mod paste;
+pub mod pointer;
 mod repeat;
 
 pub use bindings::Mods;
@@ -60,12 +73,14 @@ pub use compose::{Compose, compose_locale};
 pub use editor::{Edit, Query};
 pub use keyboard::Keyboard;
 pub use layout::{Key, Layout};
+pub use paste::Selection;
+pub use pointer::{Point, Pointer, Scroll};
 pub use repeat::Repeat;
 
 pub use crate::config::FocusLoss;
 
-/// What a key (or focus loss) asks of the visible session.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// What a key, the pointer (or focus loss) asks of the visible session.
+#[derive(Clone, Debug, PartialEq)]
 pub enum Action {
     /// End the session without a choice (Escape, Ctrl+G, Ctrl+[, or
     /// focus loss under the default policy).
@@ -76,6 +91,12 @@ pub enum Action {
     Select(Step),
     /// Change the query.
     Edit(Edit),
+    /// Insert a selection's text at the cursor (Ctrl+V, Shift+Insert, the
+    /// middle button). The window reads it and turns it into
+    /// [`Edit::Insert`]; sessions never see this action.
+    Paste(Selection),
+    /// The pointer moved, clicked or scrolled over the window.
+    Point(Point),
 }
 
 /// A direction for the selection.
