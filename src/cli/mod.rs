@@ -28,10 +28,22 @@ pub enum Command {
         config: Option<PathBuf>,
         argv: Vec<OsString>,
     },
+    /// servitor mode (spec §4.8): a provider session whose provider is
+    /// logis itself (`logis provide servitor`).
+    Servitor { config: Option<PathBuf> },
+    /// Be a built-in provider, on stdin and stdout (what the daemon runs
+    /// for servitor mode; docs/provider-protocol.md).
+    Provide(Builtin),
     /// Validate the config: exit 0 if it is sound, 2 with its errors if not.
     CheckConfig { config: Option<PathBuf> },
     /// Be the daemon.
     Daemon(DaemonOptions),
+}
+
+/// The providers built into logis, run as `logis provide NAME`.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Builtin {
+    Servitor,
 }
 
 /// Options of `logis daemon`.
@@ -76,7 +88,7 @@ impl fmt::Display for ParseError {
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
                  It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), \
-                 --provider PROGRAM [ARG]..., --check-config, --config PATH and \
+                 --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and \
                  daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
@@ -115,6 +127,10 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
         args.next();
         return parse_daemon(args).map(Command::Daemon);
     }
+    if args.peek().and_then(|a| a.to_str()) == Some("provide") {
+        args.next();
+        return parse_provide(args).map(Command::Provide);
+    }
     let mut config = None;
     let mut command = None;
     let mut runes = dmenu::Runes::default();
@@ -132,6 +148,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
             Some("--dmenu" | "-d") => Started::Dmenu { nul: false },
             Some("--dmenu0") => Started::Dmenu { nul: true },
             Some("--check-config") => Started::CheckConfig,
+            Some("--servitor") => Started::Servitor,
             Some("--provider") => {
                 let argv: Vec<OsString> = args.by_ref().collect();
                 if argv.is_empty() {
@@ -161,6 +178,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
         Some(Started::Version) => Command::Version,
         Some(Started::CheckConfig) => Command::CheckConfig { config },
         Some(Started::Provider(argv)) => Command::Provider { config, argv },
+        Some(Started::Servitor) => Command::Servitor { config },
         Some(Started::Dmenu { .. }) => unreachable!("handled above"),
     })
 }
@@ -172,6 +190,7 @@ enum Started {
         nul: bool,
     },
     CheckConfig,
+    Servitor,
     /// The program and its arguments: everything after `--provider`.
     Provider(Vec<OsString>),
 }
@@ -198,6 +217,20 @@ fn config_flag(
     }
     *config = Some(PathBuf::from(path));
     Ok(true)
+}
+
+/// `provide NAME`: exactly one built-in provider.
+fn parse_provide(mut args: impl Iterator<Item = OsString>) -> Result<Builtin, ParseError> {
+    let name = args.next().map(|a| a.to_string_lossy().into_owned());
+    match (name.as_deref(), args.next()) {
+        (Some("servitor"), None) => Ok(Builtin::Servitor),
+        (Some("servitor"), Some(extra)) => Err(unknown(&extra)),
+        (name, _) => Err(ParseError::BadValue {
+            flag: "provide",
+            value: name.map(str::to_owned),
+            expected: "the name of a built-in provider: servitor",
+        }),
+    }
 }
 
 fn parse_daemon(mut args: impl Iterator<Item = OsString>) -> Result<DaemonOptions, ParseError> {
@@ -319,6 +352,43 @@ mod tests {
         assert!(err.to_string().contains("--provider"), "{err}");
         assert!(parse_strs(&["--dmenu", "--provider", "x"]).is_err());
         assert!(parse_strs(&["--prompt", "p", "--provider", "x"]).is_err());
+    }
+
+    #[test]
+    fn servitor_asks_for_servitor_mode() {
+        assert_eq!(
+            parse_strs(&["--servitor"]),
+            Ok(Command::Servitor { config: None })
+        );
+        assert_eq!(
+            parse_strs(&["--servitor", "--config", "/c"]),
+            Ok(Command::Servitor {
+                config: Some(PathBuf::from("/c"))
+            })
+        );
+        assert!(parse_strs(&["--servitor", "--dmenu"]).is_err());
+        assert!(
+            parse_strs(&["--provider", "x", "--servitor"])
+                .is_ok_and(|c| matches!(c, Command::Provider { argv, .. } if argv.len() == 2))
+        );
+        let err = parse_strs(&["--servitor", "--prompt", "x"]).unwrap_err();
+        assert_eq!(err, ParseError::DmenuOnly("--prompt".into()));
+    }
+
+    #[test]
+    fn provide_names_a_built_in_provider() {
+        assert_eq!(
+            parse_strs(&["provide", "servitor"]),
+            Ok(Command::Provide(Builtin::Servitor))
+        );
+        for args in [
+            &["provide"][..],
+            &["provide", "apps"],
+            &["provide", "servitor", "x"],
+        ] {
+            let err = parse_strs(args).unwrap_err();
+            assert!(err.to_string().contains("provide"), "{args:?}: {err}");
+        }
     }
 
     #[test]
