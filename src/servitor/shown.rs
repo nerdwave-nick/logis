@@ -43,7 +43,7 @@ pub fn rites() -> Stage {
 /// standing is shown yet.
 pub fn rite(entry: &Entry) -> Item {
     let pending = entry.awaited();
-    let aspect = entry.current().filter(|_| !pending).unwrap_or(UNKNOWN);
+    let aspect = entry.current().unwrap_or(UNKNOWN);
     let mut badges = Vec::new();
     if entry.edict {
         badges.push("edict".to_owned());
