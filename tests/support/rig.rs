@@ -127,10 +127,18 @@ impl Rig {
     /// cancellation. Merely dropping it would not do: the daemon handles each
     /// connection on its own thread, so another connection's next request may
     /// be served before the dropped probe's hang-up, and see it still there.
+    /// A queued probe may also be shown before its cancel lands, when the
+    /// session ahead of it ends meanwhile.
     pub fn probe(&self) -> String {
         let (mut probe, state) = self.open("dmenu");
         probe.send(json!({"type": "cancel"}));
-        assert_eq!(probe.outcome(), json!({"kind": "cancelled"}));
+        let mut message = probe.recv().expect("the daemon hung up on a probe");
+        if state == "queued" && message["type"] == "visible" {
+            message = probe.recv().expect("the daemon hung up on a probe");
+        }
+        assert_eq!(message["type"], "result", "{message}");
+        assert_eq!(message["outcome"], json!({"kind": "cancelled"}));
+        assert_eq!(probe.recv(), None, "the daemon kept the probe open");
         state
     }
 
