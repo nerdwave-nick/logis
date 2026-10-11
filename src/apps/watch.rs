@@ -202,7 +202,10 @@ mod tests {
         let apps = dir.join("applications");
         std::fs::create_dir_all(apps.join("sub")).unwrap();
         let mut w = Watcher::new().unwrap();
-        w.arm(&[apps.clone(), apps.join("sub")], std::slice::from_ref(&apps));
+        w.arm(
+            &[apps.clone(), apps.join("sub")],
+            std::slice::from_ref(&apps),
+        );
         assert!(!w.wait(QUIET).unwrap(), "nothing changed yet");
         let file = apps.join("sub/oil.desktop");
         let writer = after({
