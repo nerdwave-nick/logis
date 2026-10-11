@@ -234,6 +234,26 @@ fn blur_off_in_the_config_sets_no_region() {
 }
 
 #[test]
+fn a_config_edit_turns_blur_on_for_the_visible_window() {
+    let _turn = turn();
+    let Some(mut c) = Cogitator::start_with(&[], Some(r#"{ "blur": false }"#)) else {
+        return;
+    };
+    if c.compositor.kind() != Kind::NestedNiri {
+        return; // only niri offers blur
+    }
+    let client = c.dmenu_all(&[], ITEMS);
+    c.shown(3);
+    c.daemon
+        .wait_for("the open settles", |e| e.what == "settled");
+    let file = c.compositor.config_home().join("logis/logis.jsonc");
+    std::fs::write(file, r#"{ "blur": true }"#).unwrap();
+    c.daemon
+        .wait_for("a blur region", |e| e.what.starts_with("blur "));
+    drop(client);
+}
+
+#[test]
 fn an_idle_window_wakes_no_thread_of_the_daemon() {
     let _turn = turn();
     let Some(mut c) = Cogitator::start() else {
