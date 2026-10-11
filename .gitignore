@@ -1,0 +1,5 @@
+# Cargo build output (root package and the research prototypes)
+target/
+
+# lit tracker session state (local, never committed)
+.lit/
