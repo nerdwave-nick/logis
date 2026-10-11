@@ -103,6 +103,12 @@ A `.desktop` file from the `applications` directories under `$XDG_DATA_HOME` and
 **Desktop action**:
 An additional entry point declared by a desktop entry, offered as a second stage.
 
+**Icon theme**:
+A freedesktop icon theme (`<base dir>/<name>/index.theme`), looked up for an item's
+icon by name: the configured theme, the themes it inherits, then hicolor, then the
+pixmaps directories. Each icon is rasterised once per pixel size into the
+renderer's **image atlas**, the GPU texture all images are drawn from.
+
 **Frecency**:
 The ranking weight that combines how often and how recently an app was chosen,
 persisted in `$XDG_STATE_HOME/logis/`.

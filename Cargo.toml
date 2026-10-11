@@ -22,6 +22,11 @@ smithay-client-toolkit = { version = "0.21.1", default-features = false, feature
 # The GPU (ADR 0001): Vulkan first, then GL (gles), shaders in WGSL only. No
 # DX12/Metal/WebGPU backends; `raw-window-handle` comes re-exported as `wgpu::rwh`.
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "vulkan", "gles", "wgsl"] }
+# SVG icons (spec §4.3/§4.7). Defaults off: icons need no <text> (no font
+# database, shaping or system font scan), no .svgz (flate2) and no embedded
+# GIF/WebP/JPEG. PNG icons decode through its re-exported tiny-skia, whose
+# default `png-format` feature is already in the tree, so no image crate.
+resvg = { version = "0.48.1", default-features = false }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures
