@@ -1,6 +1,7 @@
 //! Test scaffolding: scratch directories and a fake Wayland compositor.
 
 pub mod fake_compositor;
+pub mod rig;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};

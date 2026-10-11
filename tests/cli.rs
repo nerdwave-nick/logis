@@ -79,7 +79,7 @@ fn with_nonexistent_wayland_socket_exits_2_naming_the_socket() {
 #[test]
 fn on_compositor_without_layer_shell_exits_2_naming_the_protocol() {
     let dir = ScratchDir::new();
-    fake_compositor::serve(dir.path(), "wayland-test", WITHOUT_LAYER_SHELL);
+    let _compositor = fake_compositor::serve(dir.path(), "wayland-test", WITHOUT_LAYER_SHELL);
     let out = logis(&dir, Some("wayland-test")).output().unwrap();
 
     assert_eq!(out.status.code(), Some(2), "stderr: {}", stderr(&out));
@@ -92,7 +92,7 @@ fn on_compositor_without_layer_shell_exits_2_naming_the_protocol() {
 #[test]
 fn on_compositor_with_layer_shell_succeeds_without_output() {
     let dir = ScratchDir::new();
-    fake_compositor::serve(dir.path(), "wayland-test", WITH_LAYER_SHELL);
+    let _compositor = fake_compositor::serve(dir.path(), "wayland-test", WITH_LAYER_SHELL);
     let out = logis(&dir, Some("wayland-test")).output().unwrap();
 
     assert_eq!(out.status.code(), Some(0), "stderr: {}", stderr(&out));

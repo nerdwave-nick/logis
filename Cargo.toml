@@ -14,6 +14,17 @@ exclude = ["/research", "/.github"]
 # The Wayland client of the decided stack (ADR 0001), lowest layer only: the
 # system backend (libwayland-client) that GPU presentation will need.
 wayland-client = { version = "0.31.15", features = ["system"] }
+# The client <-> daemon session protocol is length-prefixed JSON frames
+# (src/protocol). serde is in the decided core set (spec §4.11) and the provider
+# protocol (§4.8) and the JSONC config (§4.9) need it too; serde_json saves a
+# hand-written JSON parser and escaper.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.152"
+# Already in the tree through wayland-client; the `stdio` feature adds dup2 so
+# a daemon started by a client can move its stderr off the client's pipe once
+# listening (libraries such as wayland-backend print to stderr, and printing
+# to a broken pipe panics).
+rustix = { version = "1.1.5", features = ["stdio"] }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures

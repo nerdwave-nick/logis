@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use wayland_client::globals::{GlobalListContents, registry_queue_init};
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
-use wayland_client::{Connection, Dispatch, QueueHandle};
+use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle};
 
 /// The global a compositor must offer for logis to raise its window.
 pub const LAYER_SHELL: &str = "zwlr_layer_shell_v1";
@@ -63,18 +63,36 @@ impl fmt::Display for PreflightError {
 }
 
 /// Connects to the session's compositor and checks that it offers layer shell.
-pub fn preflight() -> Result<(), PreflightError> {
+/// The connection stays open for as long as the returned [`Noosphere`] lives.
+pub fn preflight() -> Result<Noosphere, PreflightError> {
     let conn = connect()?;
-    let (globals, _queue) = registry_queue_init::<Registry>(&conn).map_err(|e| {
+    let (globals, queue) = registry_queue_init::<Registry>(&conn).map_err(|e| {
         PreflightError::NoSession(format!("the compositor broke off the greeting: {e}"))
     })?;
     let offered = globals
         .contents()
         .with_list(|list| offers_layer_shell(list.iter().map(|g| g.interface.as_str())));
     if offered {
-        Ok(())
+        Ok(Noosphere { _conn: conn, queue })
     } else {
         Err(PreflightError::NoLayerShell)
+    }
+}
+
+/// A compositor connection that passed the preflight.
+pub struct Noosphere {
+    _conn: Connection,
+    queue: EventQueue<Registry>,
+}
+
+impl Noosphere {
+    /// Blocks until the compositor connection breaks; returns why.
+    pub fn wait_for_loss(mut self) -> String {
+        loop {
+            if let Err(e) = self.queue.blocking_dispatch(&mut Registry) {
+                return e.to_string();
+            }
+        }
     }
 }
 
