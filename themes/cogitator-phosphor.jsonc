@@ -1,0 +1,73 @@
+// Cogitator phosphor: a green CRT (spec §4.9). Curved glass, bloom,
+// scanlines and grain; the selection is inverse video, matches are
+// underlined. Whatever is left out comes from forge-crimson-brass.
+{
+  "$schema": "../schema/theme.schema.json",
+  "palette": {
+    "void": "#020904",
+    "glass": ["#061a0c", "#000301"],
+    "dim": "#1f9e4c",
+    "edge": "#2fd36a",
+    "text": "#36d96a",
+    "phosphor": "#46ff7a",
+    "faint": "#7fe89c",
+    "hot": "#c8ffd6",
+    "ink": "#021006",
+    "error": "#ff5a3c"
+  },
+  "fonts": {
+    "body": { "family": ["VT323", "Terminus", "monospace"], "size": 24, "weight": 400, "tracking": 0 },
+    "query": { "family": ["VT323", "Terminus", "monospace"], "size": 28, "weight": 400, "tracking": 0 },
+    "label": { "family": ["VT323", "Terminus", "monospace"], "size": 28, "weight": 400, "tracking": 0 },
+    "small": { "family": ["VT323", "Terminus", "monospace"], "size": 22, "weight": 400, "tracking": 0 },
+    "badge": { "family": ["VT323", "Terminus", "monospace"], "size": 24, "weight": 400, "tracking": 0 }
+  },
+  "glow": { "color": "edge/0.35", "radius": 20, "pulse": 0.1, "period-ms": 4000 },
+  "border": { "width": 1, "paint": "edge", "highlight": false },
+  "panel": { "fill": ["glass.0/0.95", "glass.1/0.98"], "radius": 26, "padding": 34, "blur": true },
+  "decorations": { "rivets": false },
+  "prompt": { "height": 58, "label": "SUMMON>", "font": "label", "color": "edge", "gap": 14, "sigil": false },
+  "query": {
+    "font": "query",
+    "color": "phosphor",
+    "placeholder": "dim",
+    "caret": { "shape": "block", "width": 12, "color": "phosphor", "glow": "phosphor/0.8" }
+  },
+  "counter": { "font": "small", "color": "dim", "format": "[{matched}/{total}]" },
+  "rule": { "paint": "dim", "thickness": 2, "inset": 30, "dash": [8, 6], "ornament": false },
+  "row": {
+    "font": "body",
+    "height": 38,
+    "gap": 12,
+    "padding": 34,
+    "columns": ["text", "phosphor", "dim"],
+    "glyph": "phosphor"
+  },
+  "selection": {
+    "band": "phosphor",
+    "outline": "transparent",
+    "edge": "transparent",
+    "glow": "phosphor/0.55",
+    "columns": ["ink"],
+    "inset": 22
+  },
+  "match": { "color": "hot", "selected": "ink", "weight": 400, "underline": true },
+  "badge": {
+    "font": "body",
+    "style": "bracket",
+    "ink": "phosphor",
+    "edge": "transparent",
+    "fill": "transparent",
+    "uppercase": true
+  },
+  "pending": { "color": "dim", "opacity": 1, "shimmer": 0.5, "period-ms": 1200, "mark": "▒▒▒ AUGURING" },
+  "effects": {
+    "scanlines": 0.34,
+    "grain": 0.1,
+    "flicker": 0.03,
+    "vignette": 0.5,
+    "bloom": 0.45,
+    "curvature": 0.12,
+    "aberration": 0.5
+  }
+}

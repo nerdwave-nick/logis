@@ -50,6 +50,12 @@
       "type": "boolean",
       "default": true,
       "examples": [true, false]
+    },
+    "reduce-motion": {
+      "description": "Stills the theme's continuous effects: the glow's pulse, the travelling highlight, the flicker and a pending row's shimmer. Opening, closing and the selection's glide stay (LOGIS_MOTION=off stills those too).",
+      "type": "boolean",
+      "default": false,
+      "examples": [false, true]
     }
   }
 }

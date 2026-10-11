@@ -56,6 +56,7 @@ fn every_setting_is_read_from_jsonc() {
             icon_theme: "Papirus-Dark".into(),
             focus_loss: FocusLoss::Keep,
             blur: false,
+            reduce_motion: false,
         }
     );
 }
@@ -203,4 +204,16 @@ fn the_message_carries_no_second_position() {
     let e = err(r#"{"thme": 1}"#);
     assert!(!e.message.contains("line"), "{e}");
     assert_eq!(e.to_string(), format!("1:{}: {}", e.column, e.message));
+}
+
+#[test]
+fn reduce_motion_is_a_flag_and_off_by_default() {
+    assert!(
+        !Config::default().reduce_motion,
+        "continuous effects on by default"
+    );
+    assert!(parse(r#"{"reduce-motion": true}"#).unwrap().reduce_motion);
+    assert!(!parse(r#"{"reduce-motion": false}"#).unwrap().reduce_motion);
+    let e = err(r#"{"reduce-motion": "yes"}"#);
+    assert!(e.message.contains("`reduce-motion`"), "{}", e.message);
 }

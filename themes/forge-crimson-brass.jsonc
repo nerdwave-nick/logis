@@ -1,0 +1,104 @@
+// Forge crimson & brass: the default look of logis (spec §4.9), after the
+// research spike (research/evidence/spike.png): a soot-dark translucent
+// panel, a brass-to-crimson border with a travelling highlight, a pulsing
+// crimson glow, scanlines, grain and a subtle flicker.
+//
+// This theme gives every key: any other theme falls back to it for what it
+// leaves out. Lengths are logical pixels, durations milliseconds, strengths
+// 0 to 1. Original motifs only (a generic gear, corner rivets).
+{
+  "$schema": "../schema/theme.schema.json",
+  "palette": {
+    "soot": ["#170e0b", "#0b0807"],
+    "brass": "#d4a017",
+    "gold": "#f2c14e",
+    "ember": "#c4651a",
+    "crimson": "#b30f0d",
+    "bone": "#f1e6cc",
+    "parchment": "#d8c9ae",
+    "ash": "#94836c",
+    "smoke": "#6e5f4c",
+    "umber": "#c9b894",
+    "verdigris": "#8a6a14",
+    "flare": "#ffe296",
+    "band": ["#54140e", "#2e0d0a"],
+    "boss": "#0f0a08",
+    "error": "#eb2919"
+  },
+  "fonts": {
+    "body": { "family": ["IBM Plex Mono", "monospace"], "size": 16, "weight": 400, "tracking": 0 },
+    "query": { "family": ["IBM Plex Mono", "monospace"], "size": 19, "weight": 400, "tracking": 0 },
+    "label": { "family": ["Cinzel", "serif"], "size": 13, "weight": 600, "tracking": 0.2 },
+    "small": { "family": ["IBM Plex Mono", "monospace"], "size": 13, "weight": 400, "tracking": 0.06 },
+    "badge": { "family": ["IBM Plex Mono", "monospace"], "size": 11, "weight": 400, "tracking": 0.12 }
+  },
+  "window": { "width": 820, "height": 520, "rows": 9, "margin": 32 },
+  "glow": { "color": "crimson/0.55", "radius": 26, "pulse": 0.15, "period-ms": 3000 },
+  "border": {
+    "width": 2,
+    "paint": ["brass", "ember", "crimson"],
+    "highlight": { "color": "flare/0.9", "length": 70, "period-ms": 7000 }
+  },
+  "panel": { "fill": ["soot.0/0.9", "soot.1/0.92"], "radius": 14, "padding": 26, "blur": true },
+  "decorations": {
+    "rivets": { "size": 6, "inset": 10, "top": ["#f2d27a", "#6b4a0c"], "bottom": ["#c86a4a", "#4a0c08"] }
+  },
+  "prompt": {
+    "height": 54,
+    "label": "INVOKE",
+    "font": "label",
+    "color": "brass",
+    "gap": 12,
+    "sigil": { "image": "gear", "size": 20, "color": "brass" }
+  },
+  "query": {
+    "font": "query",
+    "color": "bone",
+    "placeholder": "smoke",
+    "caret": { "shape": "bar", "width": 2, "color": "gold", "glow": "gold/0.8" }
+  },
+  "counter": { "font": "small", "color": "ash", "format": "{matched}/{total}" },
+  "rule": {
+    "paint": ["brass/0", "brass/0.85", "brass/0.85", "brass/0"],
+    "thickness": 1,
+    "inset": 20,
+    "dash": false,
+    "ornament": { "size": 9, "fill": "boss", "edge": "brass" }
+  },
+  "row": {
+    "font": "body",
+    "height": 38,
+    "gap": 12,
+    "padding": 26,
+    "columns": ["parchment", "brass", "ash"],
+    "glyph": "brass"
+  },
+  "selection": {
+    "band": ["band.0/0.92", "band.1/0.5"],
+    "outline": "crimson/0.55",
+    "edge": "gold",
+    "glow": "transparent",
+    "columns": ["bone", "gold", "umber"],
+    "inset": 2
+  },
+  "match": { "color": "gold", "selected": "gold", "weight": 600, "underline": false },
+  "badge": {
+    "font": "badge",
+    "style": "outline",
+    "ink": "brass",
+    "edge": "verdigris",
+    "fill": "soot.1/0.9",
+    "uppercase": true
+  },
+  "pending": { "color": "ash", "opacity": 0.72, "shimmer": 0.3, "period-ms": 1600, "mark": "divining…" },
+  "effects": {
+    "scanlines": 0.16,
+    "grain": 0.08,
+    "flicker": 0.015,
+    "vignette": 0.42,
+    "bloom": 0,
+    "curvature": 0,
+    "aberration": 0
+  },
+  "motion": { "open-ms": 150, "close-ms": 110, "select-ms": 90 }
+}

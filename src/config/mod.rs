@@ -35,6 +35,9 @@ pub struct Config {
     /// Whether the compositor blurs behind the panel (when it offers
     /// ext-background-effect).
     pub blur: bool,
+    /// Stills the theme's continuous effects (glow pulse, travelling
+    /// highlight, flicker, shimmer); transitions stay.
+    pub reduce_motion: bool,
 }
 
 /// What losing keyboard focus does to a visible session (spec §4.5).
@@ -63,6 +66,7 @@ impl Default for Config {
             icon_theme: Self::DEFAULT_ICON_THEME.to_owned(),
             focus_loss: FocusLoss::default(),
             blur: true,
+            reduce_motion: false,
         }
     }
 }
@@ -86,14 +90,23 @@ impl fmt::Display for Invalid {
 /// `--check-config`: the verdict on the config `source` names, or the
 /// flavoured error.
 pub fn check(source: &Source) -> Result<String, String> {
-    source.load().map_err(|e| heresy(&e))?;
-    Ok(match source.path() {
+    let config = source.load().map_err(|e| heresy(&e))?;
+    let theme = crate::theme::Themes::beside(source.path())
+        .load(&config.theme)
+        .map_err(|e| theme_heresy(&e.to_string()))?;
+    let verdict = match source.path() {
         Some(path) if source.exists() => format!("the config at {} is sound", path.display()),
         Some(path) => format!("no config at {}; the defaults stand", path.display()),
         None => "no config to be found (neither XDG_CONFIG_HOME nor HOME is set); \
                  the defaults stand"
             .to_owned(),
-    })
+    };
+    Ok(format!("{verdict}; the theme '{}' is sound", theme.name))
+}
+
+/// How an invalid theme is reported on the command line and in the log.
+pub fn theme_heresy(error: &str) -> String {
+    format!("the theme is heretical: {error}")
 }
 
 /// How an invalid config is reported on the command line and in the log.
@@ -108,13 +121,23 @@ pub fn heresy_text(error: &str) -> String {
 
 /// Parses a config text. Only whitespace and comments mean the defaults.
 pub fn parse(text: &str) -> Result<Config, Invalid> {
+    Ok(parse_jsonc::<fields::Document>(text, "config")?.map_or_else(Config::default, Into::into))
+}
+
+/// Reads a JSONC object of `what` (a config or a theme) into `T`;
+/// `None` when the text holds only whitespace and comments. Errors point
+/// into `text` by line and character column.
+pub(crate) fn parse_jsonc<T: serde::de::DeserializeOwned>(
+    text: &str,
+    what: &str,
+) -> Result<Option<T>, Invalid> {
     let json = jsonc::strip(text).map_err(|at| Invalid {
         line: at.line,
         column: char_column(text, at.line, at.column),
         message: "this comment never closes: '/*' wants its '*/'".to_owned(),
     })?;
     let Some(start) = json.find(|c: char| !c.is_ascii_whitespace()) else {
-        return Ok(Config::default());
+        return Ok(None);
     };
     if !json[start..].starts_with('{') {
         let before = &json[..start];
@@ -123,22 +146,19 @@ pub fn parse(text: &str) -> Result<Config, Invalid> {
         return Err(Invalid {
             line,
             column: char_column(text, line, column),
-            message: "the config must be a JSON object: { \"key\": value, … }".to_owned(),
+            message: format!("the {what} must be a JSON object: {{ \"key\": value, … }}"),
         });
     }
-    match serde_json::from_str::<fields::Document>(&json) {
-        Ok(doc) => Ok(doc.into()),
-        Err(e) => {
-            let message = e.to_string();
-            let position = format!(" at line {} column {}", e.line(), e.column());
-            let message = message.strip_suffix(&position).unwrap_or(&message);
-            Err(Invalid {
-                line: e.line(),
-                column: char_column(text, e.line(), e.column()),
-                message: message.to_owned(),
-            })
+    serde_json::from_str::<T>(&json).map(Some).map_err(|e| {
+        let message = e.to_string();
+        let position = format!(" at line {} column {}", e.line(), e.column());
+        let message = message.strip_suffix(&position).unwrap_or(&message);
+        Invalid {
+            line: e.line(),
+            column: char_column(text, e.line(), e.column()),
+            message: message.to_owned(),
         }
-    }
+    })
 }
 
 /// The 1-based character column of a 1-based byte column on `line`.

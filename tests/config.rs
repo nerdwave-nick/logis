@@ -113,6 +113,46 @@ fn check_config_names_the_key_of_a_wrong_value() {
 }
 
 #[test]
+fn check_config_checks_the_theme_it_names() {
+    let dir = ScratchDir::new();
+    let config = dir.path().join("config/logis/logis.jsonc");
+    let theme = dir.path().join("config/logis/themes/mine.jsonc");
+    write(&config, "{\"theme\": \"mine\"}");
+    write(
+        &theme,
+        "{\"extends\": \"cogitator-phosphor\", \"glow\": {\"radius\": 9}}",
+    );
+    let out = logis(&dir).arg("--check-config").output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "stderr: {}", stderr(&out));
+    assert!(stdout(&out).contains("'mine'"), "{}", stdout(&out));
+
+    write(&theme, "{\n  \"glow\": {\"radius\": \"wide\"}\n}");
+    let out = logis(&dir).arg("--check-config").output().unwrap();
+    assert_eq!(out.status.code(), Some(2), "stdout: {}", stdout(&out));
+    let located = format!("{}:2:", theme.display());
+    assert!(stderr(&out).contains(&located), "{}", stderr(&out));
+    assert!(
+        stderr(&out).contains("the theme is heretical"),
+        "{}",
+        stderr(&out)
+    );
+
+    write(&theme, "{\"border\": {\"paint\": \"embr\"}}");
+    let out = logis(&dir).arg("--check-config").output().unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    assert!(
+        stderr(&out).contains("border.paint[0]: no colour named 'embr'"),
+        "{}",
+        stderr(&out)
+    );
+
+    write(&config, "{\"theme\": \"purple\"}");
+    let out = logis(&dir).arg("--check-config").output().unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    assert!(stderr(&out).contains("theme 'purple'"), "{}", stderr(&out));
+}
+
+#[test]
 fn check_config_with_a_missing_named_file_exits_2() {
     let dir = ScratchDir::new();
     let path = dir.path().join("nowhere.jsonc");

@@ -28,6 +28,8 @@ pub(super) struct Document {
     focus_loss: Option<FocusLoss>,
     #[serde(default, deserialize_with = "blur")]
     blur: Option<bool>,
+    #[serde(rename = "reduce-motion", default, deserialize_with = "reduce_motion")]
+    reduce_motion: Option<bool>,
 }
 
 impl From<Document> for Config {
@@ -40,6 +42,7 @@ impl From<Document> for Config {
             icon_theme: doc.icon_theme.unwrap_or(defaults.icon_theme),
             focus_loss: doc.focus_loss.unwrap_or(defaults.focus_loss),
             blur: doc.blur.unwrap_or(defaults.blur),
+            reduce_motion: doc.reduce_motion.unwrap_or(defaults.reduce_motion),
         }
     }
 }
@@ -94,6 +97,13 @@ fn focus_loss<'de, D: Deserializer<'de>>(d: D) -> Result<Option<FocusLoss>, D::E
 
 fn blur<'de, D: Deserializer<'de>>(d: D) -> Result<Option<bool>, D::Error> {
     d.deserialize_any(Flag { key: "blur" }).map(Some)
+}
+
+fn reduce_motion<'de, D: Deserializer<'de>>(d: D) -> Result<Option<bool>, D::Error> {
+    d.deserialize_any(Flag {
+        key: "reduce-motion",
+    })
+    .map(Some)
 }
 
 fn idle_timeout<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Option<Duration>>, D::Error> {

@@ -1,0 +1,970 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/nerdwave-nick/logis/main/schema/theme.schema.json",
+  "title": "logis theme",
+  "description": "The vestments of the cogitator, kept as themes/<name>.jsonc beside logis.jsonc and chosen by its \"theme\". JSONC: comments and trailing commas are allowed. Every key is optional: what a theme leaves out comes from the theme it extends, then from the bundled forge-crimson-brass, whose values are the defaults below. Three layers: a palette of named colours, the elements that refer to it, and effects and motion. The machine spirit heeds edits at once; a theme it cannot read leaves the last sound one in force.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "The schema this theme is written against, for the editors of the faithful. logis accepts it and heeds it not.",
+      "type": "string"
+    },
+    "extends": {
+      "description": "Another theme (bundled, or a file in this directory) whose keys this one starts from; one level only. A theme extending its own name amends the bundled theme of that name.",
+      "type": "string",
+      "pattern": "^[^/.][^/]*$"
+    },
+    "palette": {
+      "description": "Named colours: \"#rrggbb\" or \"#rrggbbaa\", or an array of them (named \"name.0\", \"name.1\" …). Everything else refers to them by name; \"error\" colours error notices.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+            }
+          }
+        ]
+      },
+      "default": {
+        "soot": [
+          "#170e0b",
+          "#0b0807"
+        ],
+        "brass": "#d4a017",
+        "gold": "#f2c14e",
+        "ember": "#c4651a",
+        "crimson": "#b30f0d",
+        "bone": "#f1e6cc",
+        "parchment": "#d8c9ae",
+        "ash": "#94836c",
+        "smoke": "#6e5f4c",
+        "umber": "#c9b894",
+        "verdigris": "#8a6a14",
+        "flare": "#ffe296",
+        "band": [
+          "#54140e",
+          "#2e0d0a"
+        ],
+        "boss": "#0f0a08",
+        "error": "#eb2919"
+      }
+    },
+    "fonts": {
+      "description": "Font roles by name; elements name a role. \"body\" is the default face.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/font"
+      },
+      "default": {
+        "body": {
+          "family": [
+            "IBM Plex Mono",
+            "monospace"
+          ],
+          "size": 16,
+          "weight": 400,
+          "tracking": 0
+        },
+        "query": {
+          "family": [
+            "IBM Plex Mono",
+            "monospace"
+          ],
+          "size": 19,
+          "weight": 400,
+          "tracking": 0
+        },
+        "label": {
+          "family": [
+            "Cinzel",
+            "serif"
+          ],
+          "size": 13,
+          "weight": 600,
+          "tracking": 0.2
+        },
+        "small": {
+          "family": [
+            "IBM Plex Mono",
+            "monospace"
+          ],
+          "size": 13,
+          "weight": 400,
+          "tracking": 0.06
+        },
+        "badge": {
+          "family": [
+            "IBM Plex Mono",
+            "monospace"
+          ],
+          "size": 11,
+          "weight": 400,
+          "tracking": 0.12
+        }
+      }
+    },
+    "window": {
+      "description": "The window when the session asks for no size of its own.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "description": "The panel's width (border box) when no --width is given.",
+          "$ref": "#/$defs/positive"
+        },
+        "height": {
+          "description": "The panel's height when no --lines is given.",
+          "$ref": "#/$defs/positive"
+        },
+        "rows": {
+          "description": "The most rows shown at once when no --lines is given.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "margin": {
+          "description": "Room around the panel for its glow.",
+          "$ref": "#/$defs/length"
+        }
+      },
+      "default": {
+        "width": 820,
+        "height": 520,
+        "rows": 9,
+        "margin": 32
+      }
+    },
+    "glow": {
+      "description": "The glow around the panel.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "description": "Its colour at the edge; the alpha is its strength.",
+          "$ref": "#/$defs/colour"
+        },
+        "radius": {
+          "description": "How far it reaches.",
+          "$ref": "#/$defs/length"
+        },
+        "pulse": {
+          "description": "How far its strength swings (a continuous effect).",
+          "$ref": "#/$defs/strength"
+        },
+        "period-ms": {
+          "description": "One swing.",
+          "$ref": "#/$defs/millis"
+        }
+      },
+      "default": {
+        "color": "crimson/0.55",
+        "radius": 26,
+        "pulse": 0.15,
+        "period-ms": 3000
+      }
+    },
+    "border": {
+      "description": "The panel's edge.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "description": "Its width.",
+          "$ref": "#/$defs/length"
+        },
+        "paint": {
+          "description": "Top to bottom.",
+          "$ref": "#/$defs/paint"
+        },
+        "highlight": {
+          "description": "A bright spot travelling round the border (a continuous effect), or false.",
+          "oneOf": [
+            {
+              "const": false,
+              "description": "Off: not drawn."
+            },
+            {
+              "description": "The travelling highlight.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "description": "Its colour at the centre.",
+                  "$ref": "#/$defs/colour"
+                },
+                "length": {
+                  "description": "Its reach along the border either side of its centre.",
+                  "$ref": "#/$defs/length"
+                },
+                "period-ms": {
+                  "description": "One round of the border.",
+                  "$ref": "#/$defs/millis"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "default": {
+        "width": 2,
+        "paint": [
+          "brass",
+          "ember",
+          "crimson"
+        ],
+        "highlight": {
+          "color": "flare/0.9",
+          "length": 70,
+          "period-ms": 7000
+        }
+      }
+    },
+    "panel": {
+      "description": "The panel's body.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fill": {
+          "description": "Top to bottom; translucent colours let the blur show.",
+          "$ref": "#/$defs/paint"
+        },
+        "radius": {
+          "description": "Corner radius.",
+          "$ref": "#/$defs/length"
+        },
+        "padding": {
+          "description": "Left and right of the prompt line and the rows.",
+          "$ref": "#/$defs/length"
+        },
+        "blur": {
+          "description": "Blur behind the body (when the config's blur allows it and the compositor offers it).",
+          "type": "boolean"
+        }
+      },
+      "default": {
+        "fill": [
+          "soot.0/0.9",
+          "soot.1/0.92"
+        ],
+        "radius": 14,
+        "padding": 26,
+        "blur": true
+      }
+    },
+    "decorations": {
+      "description": "Ornaments of the body.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rivets": {
+          "description": "A rivet in each corner, or false.",
+          "oneOf": [
+            {
+              "const": false,
+              "description": "Off: not drawn."
+            },
+            {
+              "description": "Corner rivets.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "size": {
+                  "description": "Their diameter.",
+                  "$ref": "#/$defs/length"
+                },
+                "inset": {
+                  "description": "From the body's edges.",
+                  "$ref": "#/$defs/length"
+                },
+                "top": {
+                  "description": "The upper pair, top-left to bottom-right.",
+                  "$ref": "#/$defs/paint"
+                },
+                "bottom": {
+                  "description": "The lower pair, top-left to bottom-right.",
+                  "$ref": "#/$defs/paint"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "default": {
+        "rivets": {
+          "size": 6,
+          "inset": 10,
+          "top": [
+            "#f2d27a",
+            "#6b4a0c"
+          ],
+          "bottom": [
+            "#c86a4a",
+            "#4a0c08"
+          ]
+        }
+      }
+    },
+    "prompt": {
+      "description": "The start of the prompt line.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "description": "The prompt line's height, from the body's top to the rule.",
+          "$ref": "#/$defs/positive"
+        },
+        "label": {
+          "description": "A word before the session's prompt, \"\" for none.",
+          "type": "string"
+        },
+        "font": {
+          "description": "The label's font role.",
+          "$ref": "#/$defs/role"
+        },
+        "color": {
+          "description": "The label's and the session prompt's colour.",
+          "$ref": "#/$defs/colour"
+        },
+        "gap": {
+          "description": "Between the sigil, the label and the query.",
+          "$ref": "#/$defs/length"
+        },
+        "sigil": {
+          "description": "An image before the label, or false.",
+          "oneOf": [
+            {
+              "const": false,
+              "description": "Off: not drawn."
+            },
+            {
+              "description": "The sigil.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "image": {
+                  "description": "\"gear\" (drawn by logis in its colour), or an SVG or PNG file relative to this theme's directory.",
+                  "type": "string",
+                  "minLength": 1,
+                  "examples": [
+                    "gear",
+                    "sigils/skull.svg"
+                  ]
+                },
+                "size": {
+                  "description": "Its side.",
+                  "$ref": "#/$defs/positive"
+                },
+                "color": {
+                  "description": "The colour of a sigil logis draws.",
+                  "$ref": "#/$defs/colour"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "default": {
+        "height": 54,
+        "label": "INVOKE",
+        "font": "label",
+        "color": "brass",
+        "gap": 12,
+        "sigil": {
+          "image": "gear",
+          "size": 20,
+          "color": "brass"
+        }
+      }
+    },
+    "query": {
+      "description": "What the user types.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": {
+          "description": "Its font role.",
+          "$ref": "#/$defs/role"
+        },
+        "color": {
+          "description": "Its colour.",
+          "$ref": "#/$defs/colour"
+        },
+        "placeholder": {
+          "description": "The placeholder's colour.",
+          "$ref": "#/$defs/colour"
+        },
+        "caret": {
+          "description": "Where the next character goes.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "shape": {
+              "description": "A thin bar, a block or an underscore.",
+              "enum": [
+                "bar",
+                "block",
+                "underscore"
+              ]
+            },
+            "width": {
+              "description": "A bar's width (a block or an underscore is a character wide).",
+              "$ref": "#/$defs/length"
+            },
+            "color": {
+              "description": "Its colour.",
+              "$ref": "#/$defs/colour"
+            },
+            "glow": {
+              "description": "Its glow.",
+              "$ref": "#/$defs/colour"
+            }
+          }
+        }
+      },
+      "default": {
+        "font": "query",
+        "color": "bone",
+        "placeholder": "smoke",
+        "caret": {
+          "shape": "bar",
+          "width": 2,
+          "color": "gold",
+          "glow": "gold/0.8"
+        }
+      }
+    },
+    "counter": {
+      "description": "How many items match.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": {
+          "description": "Its font role.",
+          "$ref": "#/$defs/role"
+        },
+        "color": {
+          "description": "Its colour.",
+          "$ref": "#/$defs/colour"
+        },
+        "format": {
+          "description": "Its text; {matched} and {total} are replaced.",
+          "type": "string"
+        }
+      },
+      "default": {
+        "font": "small",
+        "color": "ash",
+        "format": "{matched}/{total}"
+      }
+    },
+    "rule": {
+      "description": "The line under the prompt line.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paint": {
+          "description": "Left to right.",
+          "$ref": "#/$defs/paint"
+        },
+        "thickness": {
+          "description": "Its thickness.",
+          "$ref": "#/$defs/length"
+        },
+        "inset": {
+          "description": "From the body's left and right edges.",
+          "$ref": "#/$defs/length"
+        },
+        "dash": {
+          "description": "Dash and gap lengths, or false for a solid line.",
+          "oneOf": [
+            {
+              "const": false,
+              "description": "Off: not drawn."
+            },
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/positive"
+                },
+                {
+                  "$ref": "#/$defs/length"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ]
+        },
+        "ornament": {
+          "description": "A boss at the rule's middle, or false.",
+          "oneOf": [
+            {
+              "const": false,
+              "description": "Off: not drawn."
+            },
+            {
+              "description": "The ornament.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "size": {
+                  "description": "Its diameter.",
+                  "$ref": "#/$defs/length"
+                },
+                "fill": {
+                  "description": "Its inside.",
+                  "$ref": "#/$defs/colour"
+                },
+                "edge": {
+                  "description": "Its edge.",
+                  "$ref": "#/$defs/colour"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "default": {
+        "paint": [
+          "brass/0",
+          "brass/0.85",
+          "brass/0.85",
+          "brass/0"
+        ],
+        "thickness": 1,
+        "inset": 20,
+        "dash": false,
+        "ornament": {
+          "size": 9,
+          "fill": "boss",
+          "edge": "brass"
+        }
+      }
+    },
+    "row": {
+      "description": "A row of the list.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": {
+          "description": "Its font role.",
+          "$ref": "#/$defs/role"
+        },
+        "height": {
+          "description": "From one row's top to the next.",
+          "$ref": "#/$defs/positive"
+        },
+        "gap": {
+          "description": "Above the first row and below the last.",
+          "$ref": "#/$defs/length"
+        },
+        "padding": {
+          "description": "From the body's left edge to the row's text.",
+          "$ref": "#/$defs/length"
+        },
+        "columns": {
+          "description": "Per tab-separated column.",
+          "$ref": "#/$defs/colours"
+        },
+        "glyph": {
+          "description": "An emblem's colour.",
+          "$ref": "#/$defs/colour"
+        }
+      },
+      "default": {
+        "font": "body",
+        "height": 38,
+        "gap": 12,
+        "padding": 26,
+        "columns": [
+          "parchment",
+          "brass",
+          "ash"
+        ],
+        "glyph": "brass"
+      }
+    },
+    "selection": {
+      "description": "The selected row.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "description": "The band behind it, left to right.",
+          "$ref": "#/$defs/paint"
+        },
+        "outline": {
+          "description": "Lines above and below the band.",
+          "$ref": "#/$defs/colour"
+        },
+        "edge": {
+          "description": "The bar at the band's start (transparent for none).",
+          "$ref": "#/$defs/colour"
+        },
+        "glow": {
+          "description": "The band's glow (transparent for none).",
+          "$ref": "#/$defs/colour"
+        },
+        "columns": {
+          "description": "The selected row's column colours.",
+          "$ref": "#/$defs/colours"
+        },
+        "inset": {
+          "description": "From the body's left and right edges.",
+          "$ref": "#/$defs/length"
+        }
+      },
+      "default": {
+        "band": [
+          "band.0/0.92",
+          "band.1/0.5"
+        ],
+        "outline": "crimson/0.55",
+        "edge": "gold",
+        "glow": "transparent",
+        "columns": [
+          "bone",
+          "gold",
+          "umber"
+        ],
+        "inset": 2
+      }
+    },
+    "match": {
+      "description": "Matched characters.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "description": "Their colour.",
+          "$ref": "#/$defs/colour"
+        },
+        "selected": {
+          "description": "Their colour on the selected row.",
+          "$ref": "#/$defs/colour"
+        },
+        "weight": {
+          "description": "Their weight (the row's families at this weight).",
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900
+        },
+        "underline": {
+          "description": "Underline them.",
+          "type": "boolean"
+        }
+      },
+      "default": {
+        "color": "gold",
+        "selected": "gold",
+        "weight": 600,
+        "underline": false
+      }
+    },
+    "badge": {
+      "description": "Labels at a row's end.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": {
+          "description": "Their font role.",
+          "$ref": "#/$defs/role"
+        },
+        "style": {
+          "description": "A pill with an edge, a filled pill, or the text in square brackets.",
+          "enum": [
+            "outline",
+            "fill",
+            "bracket"
+          ]
+        },
+        "ink": {
+          "description": "The text.",
+          "$ref": "#/$defs/colour"
+        },
+        "edge": {
+          "description": "An outline pill's edge.",
+          "$ref": "#/$defs/colour"
+        },
+        "fill": {
+          "description": "The pill's inside.",
+          "$ref": "#/$defs/colour"
+        },
+        "uppercase": {
+          "description": "Shout them.",
+          "type": "boolean"
+        }
+      },
+      "default": {
+        "font": "badge",
+        "style": "outline",
+        "ink": "brass",
+        "edge": "verdigris",
+        "fill": "soot.1/0.9",
+        "uppercase": true
+      }
+    },
+    "pending": {
+      "description": "A row whose data has not settled.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "description": "Its text.",
+          "$ref": "#/$defs/colour"
+        },
+        "opacity": {
+          "description": "The whole row's opacity.",
+          "$ref": "#/$defs/strength"
+        },
+        "shimmer": {
+          "description": "How far its mark's opacity swings (a continuous effect while one shows).",
+          "$ref": "#/$defs/strength"
+        },
+        "period-ms": {
+          "description": "One swing.",
+          "$ref": "#/$defs/millis"
+        },
+        "mark": {
+          "description": "What the row says at its end.",
+          "type": "string"
+        }
+      },
+      "default": {
+        "color": "ash",
+        "opacity": 0.72,
+        "shimmer": 0.3,
+        "period-ms": 1600,
+        "mark": "divining…"
+      }
+    },
+    "effects": {
+      "description": "The post-processing pass over the body; each a strength, 0 is off. Flicker is a continuous effect; reduce-motion stills it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scanlines": {
+          "description": "Dark lines every few pixels.",
+          "$ref": "#/$defs/strength"
+        },
+        "grain": {
+          "description": "Film grain.",
+          "$ref": "#/$defs/strength"
+        },
+        "flicker": {
+          "description": "The brightness trembling (keep it subtle).",
+          "$ref": "#/$defs/strength"
+        },
+        "vignette": {
+          "description": "Darkened edges.",
+          "$ref": "#/$defs/strength"
+        },
+        "bloom": {
+          "description": "Bright parts bleeding light.",
+          "$ref": "#/$defs/strength"
+        },
+        "curvature": {
+          "description": "Curved glass.",
+          "$ref": "#/$defs/strength"
+        },
+        "aberration": {
+          "description": "Red and blue fringes apart (chromatic aberration).",
+          "$ref": "#/$defs/strength"
+        }
+      },
+      "default": {
+        "scanlines": 0.16,
+        "grain": 0.08,
+        "flicker": 0.015,
+        "vignette": 0.42,
+        "bloom": 0,
+        "curvature": 0,
+        "aberration": 0
+      }
+    },
+    "motion": {
+      "description": "Transition timings. LOGIS_MOTION and reduce-motion do not change them; reduce-motion stills only continuous effects.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "open-ms": {
+          "description": "The open transition.",
+          "$ref": "#/$defs/millis"
+        },
+        "close-ms": {
+          "description": "The close transition.",
+          "$ref": "#/$defs/millis"
+        },
+        "select-ms": {
+          "description": "The selection band's glide.",
+          "$ref": "#/$defs/millis"
+        }
+      },
+      "default": {
+        "open-ms": 150,
+        "close-ms": 110,
+        "select-ms": 90
+      }
+    }
+  },
+  "$defs": {
+    "colour": {
+      "description": "A colour: \"#rrggbb\", \"#rrggbbaa\", \"transparent\", or a palette name (\"brass\"; \"soot.1\" for the second colour of a palette entry), optionally followed by \"/alpha\" from 0 to 1, which multiplies its alpha (\"crimson/0.55\").",
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?|transparent|[a-z][a-z0-9_-]*(\\.[0-9]+)?)(/(0|1|0\\.[0-9]+|1\\.0+))?$",
+      "examples": [
+        "#d4a017",
+        "#2e0d0a80",
+        "brass",
+        "soot.1",
+        "crimson/0.55",
+        "transparent"
+      ]
+    },
+    "paint": {
+      "description": "One colour, or 1 to 4 colours as evenly spaced gradient stops. Each element says which way its gradient runs.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/colour"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/colour"
+          }
+        }
+      ]
+    },
+    "colours": {
+      "description": "Colours per column; the last repeats for further columns.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/colour"
+      }
+    },
+    "length": {
+      "description": "Logical pixels (the renderer multiplies by the output's scale).",
+      "type": "number",
+      "minimum": 0
+    },
+    "positive": {
+      "description": "Logical pixels, more than 0.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "strength": {
+      "description": "A strength from 0 (off) to 1.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "millis": {
+      "description": "Milliseconds; 0 stills it.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "role": {
+      "description": "The name of a font role in \"fonts\".",
+      "type": "string",
+      "minLength": 1
+    },
+    "families": {
+      "description": "Font families in order of preference, resolved by fontconfig (aliases and generic families such as monospace, serif and sans-serif included). A family that is not installed falls through to the next.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "font": {
+      "description": "A font role: families, size, weight and letter spacing.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "description": "Families, the most wanted first; the last is usually generic.",
+          "$ref": "#/$defs/families"
+        },
+        "size": {
+          "description": "The em in logical pixels.",
+          "$ref": "#/$defs/positive"
+        },
+        "weight": {
+          "description": "The OpenType weight: 400 regular, 600 semibold, 700 bold.",
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900
+        },
+        "tracking": {
+          "description": "Letter spacing in ems.",
+          "type": "number",
+          "minimum": -0.5,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "extends": "cogitator-phosphor",
+      "palette": {
+        "phosphor": "#ffb000",
+        "text": "#e0a000",
+        "dim": "#8a6000",
+        "edge": "#ffb000",
+        "hot": "#fff0c0"
+      }
+    },
+    {
+      "glow": {
+        "pulse": 0
+      },
+      "border": {
+        "highlight": false
+      },
+      "effects": {
+        "scanlines": 0,
+        "grain": 0,
+        "flicker": 0
+      }
+    },
+    {
+      "prompt": {
+        "label": "",
+        "sigil": {
+          "image": "sigils/skull.svg",
+          "size": 22
+        }
+      },
+      "window": {
+        "width": 640,
+        "height": 400,
+        "rows": 7
+      }
+    }
+  ]
+}
