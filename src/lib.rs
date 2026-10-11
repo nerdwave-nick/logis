@@ -5,6 +5,8 @@ pub mod config;
 
 pub mod icons;
 
+pub mod input;
+
 pub mod render;
 
 pub mod text;

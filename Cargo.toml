@@ -45,6 +45,17 @@ resvg = { version = "0.48.1", default-features = false }
 # bidi, swash rasterisation with hinting); tracks wgpu 30. Fonts come from
 # libfontconfig through logis's own small FFI (src/text/fc.rs), not a crate.
 glyphon = "0.12.0"
+# Keyboard input (spec §4.5): libxkbcommon through the binding sctk's own
+# keyboard integration uses (the decided stack: "libxkbcommon (sctk),
+# xkbcommon crate"). Used directly rather than through sctk's `xkbcommon`
+# feature: shortcuts need the xkb state's consumed modifiers, Compose must be
+# reset on focus and keymap changes, and repeat must run without sctk's
+# calloop timers; sctk's KeyboardHandler exposes none of that. `wayland`
+# maps the compositor's keymap fd (memmap2, already in the tree).
+xkbcommon = { version = "0.8.0", default-features = false, features = ["wayland"] }
+# Grapheme-aware query editing (spec §4.4: Backspace deletes a grapheme);
+# already in the tree through cosmic-text (same release).
+unicode-segmentation = "1.13.3"
 # Only to name `Script` in cosmic-text's `Fallback` trait; already in the tree
 # through cosmic-text (same 0.5 release), so it adds no crate.
 unicode-script = "0.5.8"
