@@ -41,7 +41,7 @@ impl Windows {
     /// short. The caller answers its session before calling this; nothing
     /// here waits.
     pub fn close(&mut self) {
-        self.keyboard.reset();
+        self.reset_input();
         let Some(mut panel) = self.panel.take() else {
             return;
         };

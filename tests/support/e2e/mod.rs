@@ -16,7 +16,9 @@
 //! socket, logis's daemon socket and every client live there. The harness's
 //! own Wayland connection ([`wire::Harness`]) is only made to that socket and
 //! is refused unless the socket's server is the compositor process the
-//! harness spawned, so keys can never reach the live session. That
+//! harness spawned, so keys and pointer events can never reach the live
+//! session; the selection owner ([`selection`]) connects through the same
+//! guard, so it never touches the live clipboard. The harness
 //! connection also puts an opaque black backdrop under everything
 //! ([`backdrop`]), so captures look the same in both compositors.
 #![allow(dead_code)] // shared by test crates that each use only part of it
@@ -25,7 +27,9 @@ pub mod backdrop;
 pub mod client;
 pub mod cogitator;
 pub mod keyboard;
+pub mod pointer;
 pub mod screencopy;
+pub mod selection;
 pub mod wire;
 
 use std::io::Write;

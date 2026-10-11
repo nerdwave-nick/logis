@@ -62,6 +62,9 @@ impl DebugSession {
             Action::Select(_) => Outcome::Unchanged,
             Action::Edit(edit) if self.query.apply(edit) => Outcome::Edited,
             Action::Edit(_) => Outcome::Unchanged,
+            // The window turns pastes into edits; the debug panel has no
+            // pointer rows.
+            Action::Paste(_) | Action::Point(_) => Outcome::Unchanged,
         }
     }
 }

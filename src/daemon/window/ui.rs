@@ -15,6 +15,7 @@ use std::os::fd::BorrowedFd;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
+use logis::input::Action;
 use logis::list::{Choice, ListView, Reaction, scene};
 use logis::motion::Glide;
 use logis::window::trace::emit;
@@ -143,11 +144,15 @@ fn entry(item: &Item) -> (String, Option<String>) {
     (item.text.clone(), item.match_text.clone())
 }
 
-/// Applies the keys since the last call to the shown list.
+/// Applies the keys, pointer and pastes since the last call to the shown
+/// list. A point means the row drawn under it, on the panel's current size.
 fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event>) {
     for action in windows.take_actions() {
         let Some(s) = shown.as_ref() else { return };
-        let reaction = s.view.borrow_mut().apply(&action);
+        let reaction = match (&action, windows.size()) {
+            (Action::Point(point), Some(size)) => s.view.borrow_mut().point(point, size),
+            _ => s.view.borrow_mut().apply(&action),
+        };
         let outcome = match reaction {
             Reaction::Unchanged => continue,
             Reaction::Changed => {

@@ -21,7 +21,8 @@ come. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
-  [dmenu](#dmenu).
+  [dmenu](#dmenu). Its window takes the [keyboard](#keyboard), the
+  [pointer and paste](#pointer-and-paste).
 - `logis daemon` is the resident daemon. It checks for a Wayland session whose
   compositor offers wlr-layer-shell (exit 2 with a message on stderr if there is
   none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and wakes its window at start:
@@ -180,13 +181,33 @@ when the window code starts; edits need a restart).
 | Backspace / Delete | delete the character (grapheme) before / after the cursor |
 | Ctrl+W | delete the word before the cursor |
 | Ctrl+U | clear the query |
+| Ctrl+V, Shift+Insert | paste the clipboard at the cursor |
 | Left, Right, Home, End | move the cursor |
 
 Shortcuts ignore modifiers the key itself needs (consumed modifiers): Ctrl+[ works
 where `[` is AltGr+8, Caps Lock and Num Lock never change a shortcut, and while a
 second layout is active the first layout's letters still work with Ctrl. Losing
-keyboard focus dismisses unless the config says `"focus-loss": "keep"`. Pasting is
-not there yet.
+keyboard focus dismisses unless the config says `"focus-loss": "keep"`.
+
+## Pointer and paste
+
+- **Hover** selects the row under the pointer once the pointer moves; a window
+  that opens under a pointer at rest keeps its selection (and a `--select`).
+- **Click** (primary button pressed and released on the same row) accepts that
+  row. A press dragged to another row accepts nothing.
+- **Scroll** moves the rows in view, and the selection stays on the row under
+  the pointer: a wheel notch scrolls three rows (high-resolution wheels add up
+  their fractions), a touchpad finger one row per row height, so the rows follow
+  the finger.
+- **Middle button** pastes the primary selection; **Ctrl+V** and
+  **Shift+Insert** paste the clipboard. A paste inserts at the query's cursor
+  the first non-empty line of the text (dmenu's rule; tabs become spaces, other
+  control characters are dropped, at most 64 KiB are read), choosing
+  `text/plain;charset=utf-8` over `UTF8_STRING`, `text/plain`, `TEXT` and
+  `STRING`. The text is read without ever blocking the window.
+- **Cursor**: the compositor's default arrow, through `wp_cursor_shape_v1`. A
+  compositor without it keeps showing the cursor it had (logis loads no cursor
+  theme of its own).
 
 ## Building
 
@@ -261,7 +282,14 @@ with `mod support;`.
   credentials), then offers `virtual_keyboard()`, `type_text`, `tap`, `hold`/
   `release` (real modifier keys plus masks), `toggle` (Caps/Num Lock) — all
   requiring the `Focused` proof from `wait_for_focus()` — and `capture()`
-  (wlr-screencopy, upright). Without `LOGIS_E2E` these tests print `SKIPPED`.
+  (wlr-screencopy, upright). `virtual_pointer()` (zwlr_virtual_pointer_v1) adds
+  `move_to`, `button`/`click`, `wheel` (notches) and `finger` (touchpad pixels);
+  a `Panel` maps output points onto a client's surface, calibrated from where
+  the client says the pointer entered it. `SelectionOwner::start(&compositor,
+  clipboard, primary)` owns the test compositor's clipboard and primary
+  selection (wlr-data-control, no `wl-copy`) and records which MIME types were
+  asked for; it connects through the same isolation guard
+  (`wire::connect_verified`). Without `LOGIS_E2E` these tests print `SKIPPED`.
 - **Latency** ([`tests/latency.rs`](tests/latency.rs),
   [`latency.rs`](tests/support/latency.rs)): the research/bench `T0_NS` method:
   the harness reads `CLOCK_MONOTONIC` just before starting the client, the
@@ -289,13 +317,20 @@ with `mod support;`.
   [`tests/dmenu_runes.rs`](tests/dmenu_runes.rs) checks the runes over a real
   daemon with the scripted resolver (no window), and
   [`tests/list.rs`](tests/list.rs) the list's goldens offscreen.
+- **Pointer and paste** ([`tests/pointer.rs`](tests/pointer.rs)): hover, click,
+  a press dragged off its row, wheel and finger scrolling, the cursor shape,
+  Ctrl+V and Shift+Insert, and the middle button's primary paste, against the
+  same daemon and `logis --dmenu` clients.
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
 `keymap`, `repeat-info <rate> <delay>`, `key <evdev code>
 pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>`,
-`commit` (a frame of the visible window), `commit closing` (a frame of one
-fading out), `settled` (the first frame after which nothing moves), `faded` (a
+`pointer-enter <x> <y>`, `pointer-motion <x> <y>`, `pointer-leave`, `cursor
+default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pixels
+<px>|stop`, `paste <selection> <MIME type>|none|unavailable`, `pasted <selection>
+<bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
+one fading out), `settled` (the first frame after which nothing moves), `faded` (a
 closed window is gone), `blur <rectangles>` (a blur region was set) and
 `blur-capable true|false` (the compositor's word); the debug panel adds what each key did: `query <JSON string>`, `select
 <row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
@@ -306,7 +341,7 @@ closed window is gone), `blur <rectangles>` (a blur region was set) and
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test motion
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test motion
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 

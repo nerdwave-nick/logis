@@ -16,7 +16,7 @@ use super::blur::{Blur, Effects};
 use super::drawing::SceneFn;
 use super::handle::SurfaceHandle;
 use super::present::{choose_alpha_mode, choose_format, choose_present_mode};
-use super::state::SurfaceState;
+use super::state::{Geometry, SurfaceState};
 use super::{Shell, WindowError, Windows};
 use crate::motion::{Motion, Nanos, Transition};
 use crate::render::{Gpu, Scale};
@@ -157,6 +157,11 @@ impl Panel {
     /// The compositor's preferred scale changed.
     pub(super) fn set_scale(&mut self, scale: Scale) {
         self.state.set_scale(scale);
+    }
+
+    /// What the next frame is rendered at, once configured.
+    pub(super) fn geometry(&self) -> Option<Geometry> {
+        self.state.geometry()
     }
 
     /// The negotiated swapchain configuration.
