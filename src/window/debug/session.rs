@@ -4,6 +4,7 @@
 //! and `dismiss`, so harnesses can check what each key did.
 
 use std::cell::RefCell;
+use std::io::Write;
 use std::rc::Rc;
 
 use super::{DEBUG_SIZE, ROWS, SELECTABLE, debug_scene_at};
@@ -109,7 +110,8 @@ pub fn run_debug_panel(choice: BackendChoice, focus_loss: FocusLoss) -> Result<(
                 }
                 Outcome::Accepted => {
                     emit(format_args!("accept {}", s.row()));
-                    println!("{}", ROWS[s.row()]);
+                    // A closed stdout must not turn the choice into a panic.
+                    let _ = writeln!(std::io::stdout(), "{}", ROWS[s.row()]);
                     windows.hide();
                     break;
                 }
