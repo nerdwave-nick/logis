@@ -40,6 +40,7 @@ const FC_FAMILY: &CStr = c"family";
 const FC_FILE: &CStr = c"file";
 const FC_INDEX: &CStr = c"index";
 const FC_CHARSET: &CStr = c"charset";
+const FC_WEIGHT: &CStr = c"weight";
 
 #[link(name = "fontconfig")]
 unsafe extern "C" {
@@ -57,6 +58,8 @@ unsafe extern "C" {
     fn FcPatternCreate() -> *mut FcPattern;
     fn FcPatternDestroy(p: *mut FcPattern);
     fn FcPatternAddString(p: *mut FcPattern, object: *const c_char, s: *const c_char) -> FcBool;
+    fn FcPatternAddInteger(p: *mut FcPattern, object: *const c_char, i: c_int) -> FcBool;
+    fn FcWeightFromOpenType(weight: c_int) -> c_int;
     fn FcPatternGetString(
         p: *const FcPattern,
         object: *const c_char,
@@ -136,7 +139,14 @@ impl Config {
     /// The best face for `family` after substitution (aliases, defaults),
     /// with its family name as fontconfig knows it.
     pub fn best(&self, family: &str) -> Option<(FontFile, String)> {
-        let pattern = self.query(family)?;
+        self.best_of(&[family], None)
+    }
+
+    /// The best face for the first of `families` that is installed (they
+    /// are matched as one list, in order, as fontconfig clients do), at
+    /// the OpenType `weight` if given.
+    pub fn best_of(&self, families: &[&str], weight: Option<u16>) -> Option<(FontFile, String)> {
+        let pattern = self.query(families, weight)?;
         let mut result = 0;
         // SAFETY: config and pattern are live; the match is a new pattern we own.
         let found =
@@ -148,7 +158,7 @@ impl Config {
     /// Every face that adds coverage for `family`, best first: fontconfig's
     /// own fallback order, honouring the configured aliases.
     pub fn fallbacks(&self, family: &str) -> Option<FontSet> {
-        let pattern = self.query(family)?;
+        let pattern = self.query(&[family], None)?;
         let mut result = 0;
         // SAFETY: config and pattern are live; null `csp` asks for no charset.
         let set = unsafe {
@@ -163,17 +173,29 @@ impl Config {
         NonNull::new(set).map(FontSet)
     }
 
-    /// A pattern for `family` with the configuration's substitutions applied.
-    fn query(&self, family: &str) -> Option<Pattern> {
-        let family = CString::new(family).ok()?;
+    /// A pattern for `families` (in order) at `weight`, with the
+    /// configuration's substitutions applied.
+    fn query(&self, families: &[&str], weight: Option<u16>) -> Option<Pattern> {
         // SAFETY: no preconditions; a null return means failure.
         let pattern = NonNull::new(unsafe { FcPatternCreate() }).map(Pattern)?;
-        // SAFETY: the pattern is live; fontconfig copies the string.
-        unsafe {
-            if FcPatternAddString(pattern.0.as_ptr(), FC_FAMILY.as_ptr(), family.as_ptr())
-                != FC_TRUE
-            {
+        for family in families {
+            let family = CString::new(*family).ok()?;
+            // SAFETY: the pattern is live; fontconfig copies the string and
+            // appends it to the family list.
+            let added = unsafe {
+                FcPatternAddString(pattern.0.as_ptr(), FC_FAMILY.as_ptr(), family.as_ptr())
+            };
+            if added != FC_TRUE {
                 return None;
+            }
+        }
+        // SAFETY: the pattern and config are live.
+        unsafe {
+            if let Some(weight) = weight {
+                let fc = FcWeightFromOpenType(c_int::from(weight));
+                if FcPatternAddInteger(pattern.0.as_ptr(), FC_WEIGHT.as_ptr(), fc) != FC_TRUE {
+                    return None;
+                }
             }
             FcConfigSubstitute(self.0.as_ptr(), pattern.0.as_ptr(), FC_MATCH_PATTERN);
             FcDefaultSubstitute(pattern.0.as_ptr());

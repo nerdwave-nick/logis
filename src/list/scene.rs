@@ -274,6 +274,7 @@ fn marks(row: &Row, right: f32, top: f32) -> Marks {
         pill.border = Some(Border {
             width: 1.0,
             paint: Paint::Solid(edge),
+            highlight: None,
         });
         marks.shapes.push(pill);
         let label = Text::new(text, [left + BADGE_PAD, text_top], BADGE_FONT, ink)
@@ -298,6 +299,7 @@ fn toast(notice: &Notice, [x, y, w, h]: [f32; 4]) -> (RoundedRect, Text) {
     strip.border = Some(Border {
         width: 1.5,
         paint: Paint::Solid(edge),
+        highlight: None,
     });
     strip.glow = Some(Glow {
         radius: 8.0,
@@ -334,6 +336,7 @@ fn panel(rect: [f32; 4]) -> RoundedRect {
         border: Some(Border {
             width: 2.0,
             paint: vertical(BRASS, CRIMSON),
+            highlight: None,
         }),
         glow: Some(Glow {
             radius: MARGIN - 2.0,
@@ -360,6 +363,7 @@ fn band(rect: [f32; 4], body_x: f32, body_w: f32) -> [RoundedRect; 2] {
     band.border = Some(Border {
         width: 1.0,
         paint: Paint::Solid(CRIMSON.with_alpha(0.6)),
+        highlight: None,
     });
     let mut marker = solid([body_x + 10.0, y + 5.0, 3.0, h - 10.0], 1.5, BRASS);
     marker.glow = Some(Glow {

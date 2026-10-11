@@ -205,6 +205,7 @@ fn reference_scene() -> Scene {
                 from: brass,
                 to: crimson,
             },
+            highlight: None,
         }),
         glow: Some(Glow {
             radius: 8.0,

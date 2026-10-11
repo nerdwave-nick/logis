@@ -18,5 +18,5 @@ pub use gpu::{BackendChoice, DisplaySource, Gpu, GpuError};
 pub use offscreen::{Image, OFFSCREEN_FORMAT, ReadbackError, render_offscreen};
 pub use pipeline::{Renderer, Target};
 pub use scale::Scale;
-pub use scene::{Border, Glow, ImageQuad, Paint, Rgba, RoundedRect, Scene};
+pub use scene::{Border, Glow, Highlight, ImageQuad, Paint, Ramp, Rgba, RoundedRect, Scene};
 pub use text::{Overflow, Text};

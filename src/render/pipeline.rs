@@ -95,6 +95,15 @@ impl Renderer {
         self.text = Some(TextPass::new(gpu, fonts));
     }
 
+    /// Resolves the faces texts name by index ([`crate::render::Text::face`]),
+    /// replacing any earlier ones. Without fonts it does nothing.
+    pub fn set_faces(&mut self, faces: &[crate::text::Face]) -> Result<(), crate::text::FontError> {
+        match &mut self.text {
+            Some(text) => text.set_faces(faces),
+            None => Ok(()),
+        }
+    }
+
     /// Builds the pipeline for `format` now rather than on its first frame.
     pub fn prepare(&mut self, gpu: &Gpu, format: wgpu::TextureFormat) {
         self.pipeline(gpu, format);
@@ -135,13 +144,24 @@ impl Renderer {
         gpu.queue
             .write_buffer(&self.frame, 0, &floats_to_bytes(&frame));
 
-        let count = scene.shapes.len();
+        // Text is shaped first: its underlines are drawn with the shapes.
+        let text = self.prepare_text(gpu, target, scene);
+        let underlines = match self.text.as_ref().filter(|_| text) {
+            Some(pass) => pass.underlines(),
+            None => Vec::new(),
+        };
+        let count = scene.shapes.len() + underlines.len();
         if count > 0 {
             let needed = INSTANCE_BYTES * count as u64;
             if self.instances.size() < needed {
                 self.instances = instance_buffer(&gpu.device, count.next_power_of_two());
             }
-            let packed: Vec<f32> = scene.shapes.iter().flat_map(pack).collect();
+            let packed: Vec<f32> = scene
+                .shapes
+                .iter()
+                .chain(&underlines)
+                .flat_map(pack)
+                .collect();
             gpu.queue
                 .write_buffer(&self.instances, 0, &floats_to_bytes(&packed));
         }
@@ -155,7 +175,6 @@ impl Renderer {
         };
         self.images.upload(gpu, target, &scene.images);
         let pipeline = self.pipeline(gpu, target.format).clone();
-        let text = self.prepare_text(gpu, target, scene);
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("logis sdf"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -215,9 +234,10 @@ fn create_pipeline(
     layout: &wgpu::PipelineLayout,
     format: wgpu::TextureFormat,
 ) -> wgpu::RenderPipeline {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 9] = wgpu::vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 15] = wgpu::vertex_attr_array![
         0 => Float32x4, 1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32x4,
-        5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4,
+        5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4, 9 => Float32x4,
+        10 => Float32x4, 11 => Float32x4, 12 => Float32x4, 13 => Float32x4, 14 => Float32x4,
     ];
     gpu.device
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {

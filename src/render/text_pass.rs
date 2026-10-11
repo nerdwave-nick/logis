@@ -11,8 +11,9 @@ use glyphon::{
 use super::Gpu;
 use super::pipeline::Target;
 use super::scale::Scale;
-use super::text::{Text, shape};
-use crate::text::Fonts;
+use super::scene::{Paint, RoundedRect};
+use super::text::{Text, shape, spans};
+use crate::text::{Face, FontError, Fonts};
 
 /// The glyphon colour mode that matches a target `format`.
 pub(crate) fn color_mode(format: wgpu::TextureFormat) -> ColorMode {
@@ -52,6 +53,22 @@ impl TextPass {
             atlases: Vec::new(),
             shaped: Vec::new(),
         }
+    }
+
+    /// Resolves the faces texts name by index; every line is shaped anew.
+    pub(crate) fn set_faces(&mut self, faces: &[Face]) -> Result<(), FontError> {
+        self.shaped.clear();
+        self.fonts.set_faces(faces)
+    }
+
+    /// Underlines under the spans of the lines that ask for them, as
+    /// shapes in logical pixels, from the lines [`Self::prepare`] shaped.
+    pub(crate) fn underlines(&self) -> Vec<RoundedRect> {
+        self.shaped
+            .iter()
+            .filter(|s| s.text.underline_spans && !s.text.spans.is_empty())
+            .flat_map(underlines)
+            .collect()
     }
 
     /// Creates the atlas and pipeline for `format` now rather than on the
@@ -132,6 +149,66 @@ impl TextPass {
         if let Err(e) = renderer.render(atlas, &self.viewport, pass) {
             eprintln!("logis: the glyphs would not be inscribed: {e}");
         }
+    }
+}
+
+/// The underlines of one shaped line: one bar per run of consecutive
+/// glyphs in the same span, just below the baseline, clipped to the
+/// line's column.
+fn underlines(shaped: &Shaped) -> Vec<RoundedRect> {
+    let text = &shaped.text;
+    let f = shaped.scale.factor();
+    let line = text.text.replace(['\n', '\r'], " ");
+    let pieces: Vec<_> = spans(&line, &text.spans)
+        .filter_map(|(range, color)| color.map(|c| (range, c)))
+        .collect();
+    let size = (text.size * f).max(1.0);
+    let thickness = (size * 0.06).max(1.0);
+    let left = (text.origin[0] * f).round();
+    let top = (text.origin[1] * f).round();
+    let (clip_left, clip_right) = text
+        .column(shaped.scale)
+        .map_or((f32::MIN, f32::MAX), |(l, r)| (l as f32, r as f32));
+    let mut bars: Vec<RoundedRect> = Vec::new();
+    for run in shaped.buffer.layout_runs() {
+        let y = top + run.line_y + (size * 0.12).max(1.0);
+        let mut open: Option<(usize, f32, f32)> = None;
+        let mut close = |open: &mut Option<(usize, f32, f32)>| {
+            if let Some((piece, x0, x1)) = open.take() {
+                let (x0, x1) = (x0.max(clip_left), x1.min(clip_right));
+                if x1 > x0 {
+                    bars.push(bar([x0, y, x1 - x0, thickness], f, pieces[piece].1));
+                }
+            }
+        };
+        for glyph in run.glyphs {
+            let piece = pieces.iter().position(|(r, _)| r.contains(&glyph.start));
+            let (x0, x1) = (left + glyph.x, left + glyph.x + glyph.w);
+            match (piece, &mut open) {
+                (Some(p), Some((q, a, b))) if p == *q => {
+                    *a = a.min(x0);
+                    *b = b.max(x1);
+                }
+                (Some(p), _) => {
+                    close(&mut open);
+                    open = Some((p, x0, x1));
+                }
+                (None, _) => close(&mut open),
+            }
+        }
+        close(&mut open);
+    }
+    bars
+}
+
+/// A bar from buffer pixels to logical ones.
+fn bar(rect: [f32; 4], f: f32, color: super::scene::Rgba) -> RoundedRect {
+    RoundedRect {
+        rect: rect.map(|v| v / f),
+        radius: 0.0,
+        fill: Paint::Solid(color),
+        border: None,
+        glow: None,
     }
 }
 

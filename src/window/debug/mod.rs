@@ -63,6 +63,7 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
     body.border = Some(Border {
         width: 2.0,
         paint: vertical(BRASS, CRIMSON),
+        highlight: None,
     });
     body.glow = Some(Glow {
         radius: MARGIN - 2.0,
@@ -93,6 +94,7 @@ pub fn debug_scene(logical: (u32, u32)) -> Scene {
     selected.border = Some(Border {
         width: 1.0,
         paint: Paint::Solid(CRIMSON.with_alpha(0.6)),
+        highlight: None,
     });
     let mut marker = rect(10.0, 70.0, 3.0, 18.0, 1.5, Paint::Solid(BRASS));
     marker.glow = Some(Glow {

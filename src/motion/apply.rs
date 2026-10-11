@@ -29,6 +29,7 @@ impl Pose {
                 from: fade(from),
                 to: fade(to),
             },
+            Paint::Ramp(ramp) => Paint::Ramp(ramp.map(fade, shift)),
         };
         scene.clear = scene.clear.map(fade);
         for shape in &mut scene.shapes {
@@ -36,6 +37,9 @@ impl Pose {
             shape.fill = paint(shape.fill);
             if let Some(border) = &mut shape.border {
                 border.paint = paint(border.paint);
+                if let Some(highlight) = &mut border.highlight {
+                    highlight.color = fade(highlight.color);
+                }
             }
             if let Some(glow) = &mut shape.glow {
                 glow.color = fade(glow.color);
@@ -77,6 +81,7 @@ mod tests {
             border: Some(Border {
                 width: 2.0,
                 paint: Paint::Solid(Rgba::hex(0xd4a017)),
+                highlight: None,
             }),
             glow: Some(Glow {
                 radius: 12.0,

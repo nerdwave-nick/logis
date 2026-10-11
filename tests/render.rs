@@ -214,6 +214,7 @@ fn a_border_paints_the_ring_and_the_fill_the_interior() {
     framed.border = Some(Border {
         width: 4.0,
         paint: Paint::Solid(Rgba::hex(0xd4a017)),
+        highlight: None,
     });
     let image = render_with(&gpu, "border", &scene(vec![framed]), Scale::ONE);
     assert_near(image.pixel(11, 40), [0xd4, 0xa0, 0x17, 255], 1); // in the ring

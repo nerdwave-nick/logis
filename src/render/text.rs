@@ -3,7 +3,7 @@
 //! faces) in buffer pixels so hinting snaps to the real pixel grid.
 
 use glyphon::cosmic_text::{Align, Ellipsize, EllipsizeHeightLimit, Hinting};
-use glyphon::{Attrs, Buffer, Color, Family, Metrics, Shaping, Wrap};
+use glyphon::{Attrs, Buffer, Color, Family, Metrics, Shaping, Weight, Wrap};
 
 use super::scale::Scale;
 use super::scene::Rgba;
@@ -42,6 +42,16 @@ pub struct Text {
     /// Ends the line at its column's end edge instead of starting it at
     /// the start edge.
     pub align_end: bool,
+    /// The face, by index into the renderer's faces
+    /// ([`super::Renderer::set_faces`]); 0 (or one out of range) is the
+    /// first, and without faces the default family.
+    pub face: usize,
+    /// Letter spacing in ems.
+    pub tracking: f32,
+    /// The face of the spans, if not the line's.
+    pub span_face: Option<usize>,
+    /// Underlines the spans in their colour.
+    pub underline_spans: bool,
 }
 
 impl Text {
@@ -57,6 +67,10 @@ impl Text {
             overflow: Overflow::default(),
             spans: Vec::new(),
             align_end: false,
+            face: 0,
+            tracking: 0.0,
+            span_face: None,
+            underline_spans: false,
         }
     }
 
@@ -89,8 +103,20 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
         fonts.ensure("\u{2026}");
     }
     let mut buffer = Buffer::new_empty(Metrics::new(size, line_height));
-    let family = fonts.family().to_owned();
-    let attrs = Attrs::new().family(Family::Name(&family));
+    let face = |i: usize| {
+        let (family, weight) = fonts.face(i);
+        (family.to_owned(), Weight(weight))
+    };
+    let (family, weight) = face(text.face);
+    let span_face = text.span_face.map(face);
+    let mut attrs = Attrs::new().family(Family::Name(&family)).weight(weight);
+    if text.tracking != 0.0 {
+        attrs = attrs.letter_spacing(text.tracking);
+    }
+    let span_attrs = match &span_face {
+        Some((family, weight)) => attrs.clone().family(Family::Name(family)).weight(*weight),
+        None => attrs.clone(),
+    };
     let system = fonts.system_mut();
     let mut b = buffer.borrow_with(system);
     b.set_wrap(Wrap::None);
@@ -109,7 +135,7 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
     } else {
         let pieces = spans(&line, &text.spans).map(|(range, color)| {
             let attrs = match color {
-                Some(c) => attrs.clone().color(glyph_color(c)),
+                Some(c) => span_attrs.clone().color(glyph_color(c)),
                 None => attrs.clone(),
             };
             (&line[range], attrs)
@@ -129,7 +155,7 @@ pub(crate) fn glyph_color(c: Rgba) -> Color {
 /// `line` cut into consecutive pieces: the spans with their colour, the
 /// rest with none. Spans out of order, overlapping or off a character
 /// boundary are skipped.
-fn spans(
+pub(crate) fn spans(
     line: &str,
     spans: &[(std::ops::Range<usize>, Rgba)],
 ) -> impl Iterator<Item = (std::ops::Range<usize>, Option<Rgba>)> {

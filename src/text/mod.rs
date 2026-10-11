@@ -7,4 +7,4 @@ mod fc;
 mod fonts;
 
 pub use fc::FontFile;
-pub use fonts::{DEFAULT_FAMILY, FontConfig, FontError, Fonts, PendingFonts};
+pub use fonts::{DEFAULT_FAMILY, Face, FontConfig, FontError, Fonts, PendingFonts};
