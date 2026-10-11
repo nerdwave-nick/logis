@@ -20,9 +20,9 @@ const CHAR: f32 = FONT * 0.6;
 /// Inside the body: left and right padding.
 const PAD_X: f32 = 18.0;
 /// The prompt line's height, from the body's top to the rule.
-const PROMPT_BLOCK: f32 = 40.0;
+pub const PROMPT_BLOCK: f32 = 40.0;
 /// From the rule to the first row, and below the last.
-const LIST_PAD: f32 = 8.0;
+pub const LIST_PAD: f32 = 8.0;
 
 const BRASS: Rgba = Rgba::new(0.83, 0.63, 0.09, 1.0);
 const GOLD: Rgba = Rgba::hex(0xf2c14e);
@@ -44,13 +44,51 @@ pub fn size(options: &Options) -> (u32, u32) {
     (width.ceil() as u32, height.ceil() as u32)
 }
 
-/// The scene for `look` on a surface of `logical` size: the body fills it,
-/// less the glow margin, so a smaller configure still shows a whole panel
-/// (with fewer rows).
-pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
+/// The body on a surface of `logical` size, and its rows.
+struct Layout {
+    /// The body's left edge, top, width and height.
+    body: [f32; 4],
+    /// The first row's top.
+    first: f32,
+    /// How many rows fit.
+    room: usize,
+}
+
+/// The body fills the surface, less the glow margin, so a smaller
+/// configure still shows a whole panel (with fewer rows).
+fn layout(logical: (u32, u32)) -> Layout {
     let body_w = (logical.0 as f32 - 2.0 * MARGIN).max(2.0 * PAD_X + CHAR);
     let body_h = (logical.1 as f32 - 2.0 * MARGIN).max(PROMPT_BLOCK);
-    let (x, y) = (MARGIN, MARGIN);
+    let first = MARGIN + PROMPT_BLOCK + LIST_PAD;
+    let room = ((MARGIN + body_h - LIST_PAD - first) / ROW_PITCH)
+        .floor()
+        .max(0.0) as usize;
+    Layout {
+        body: [MARGIN, MARGIN, body_w, body_h],
+        first,
+        room,
+    }
+}
+
+/// The row in view (0 is the top one) drawn under the surface-local point
+/// `(x, y)` of a surface of `logical` size showing at most `lines` rows,
+/// whether or not an item fills it: the band across the body's width.
+pub fn row_at(logical: (u32, u32), lines: u32, (x, y): (f64, f64)) -> Option<usize> {
+    let l = layout(logical);
+    let [left, _, width, _] = l.body.map(f64::from);
+    let rows = l.room.min(lines as usize);
+    let i = ((y - f64::from(l.first)) / f64::from(ROW_PITCH)).floor();
+    let inside = (left..left + width).contains(&x) && i >= 0.0 && i < rows as f64;
+    inside.then_some(i as usize)
+}
+
+/// The scene for `look` on a surface of `logical` size (see [`layout`]).
+pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
+    let Layout {
+        body: [x, y, body_w, body_h],
+        first,
+        room,
+    } = layout(logical);
     let mut shapes = vec![body([x, y, body_w, body_h])];
     let mut texts = prompt_line(look, x + PAD_X, y, body_w - 2.0 * PAD_X);
     if look.lines > 0 {
@@ -60,10 +98,6 @@ pub fn scene(look: &Look, logical: (u32, u32)) -> Scene {
             BRASS.with_alpha(0.8),
         ));
     }
-    let first = y + PROMPT_BLOCK + LIST_PAD;
-    let room = ((y + body_h - LIST_PAD - first) / ROW_PITCH)
-        .floor()
-        .max(0.0) as usize;
     for (i, row) in look.rows.iter().take(room).enumerate() {
         let top = first + i as f32 * ROW_PITCH;
         if row.selected {
@@ -302,6 +336,44 @@ mod tests {
             rows.iter()
                 .all(|t| t.origin[1] + t.line_height <= body[1] + body[3])
         );
+    }
+
+    #[test]
+    fn row_at_finds_the_drawn_row_under_a_point() {
+        let logical = size(&options(5, 30));
+        let scene = scene(&look(5, 4), logical);
+        for (i, row) in scene.texts[2..].iter().enumerate() {
+            let y = f64::from(row.origin[1] + row.line_height / 2.0);
+            let x = f64::from(row.origin[0]) + 4.0;
+            assert_eq!(row_at(logical, 5, (x, y)), Some(i), "row {i}");
+        }
+        let band = scene.shapes[2].rect;
+        let left = f64::from(band[0]);
+        let below_last = f64::from(scene.texts[6].origin[1] + ROW_PITCH);
+        assert_eq!(
+            row_at(logical, 5, (left, below_last)),
+            None,
+            "past the last row"
+        );
+        assert_eq!(row_at(logical, 5, (left, 10.0)), None, "the prompt line");
+        assert_eq!(row_at(logical, 5, (2.0, 100.0)), None, "the glow margin");
+    }
+
+    #[test]
+    fn row_at_counts_only_the_rows_that_fit_and_are_asked_for() {
+        let logical = size(&options(5, 30));
+        let y = |row: f64| {
+            f64::from(MARGIN + PROMPT_BLOCK + LIST_PAD) + (row + 0.5) * f64::from(ROW_PITCH)
+        };
+        assert_eq!(row_at(logical, 2, (100.0, y(1.0))), Some(1));
+        assert_eq!(
+            row_at(logical, 2, (100.0, y(2.0))),
+            None,
+            "two lines asked for"
+        );
+        let smaller = (logical.0, logical.1 - 2 * ROW_PITCH as u32);
+        assert_eq!(row_at(smaller, 5, (100.0, y(2.0))), Some(2));
+        assert_eq!(row_at(smaller, 5, (100.0, y(3.0))), None, "three rows fit");
     }
 
     #[test]
