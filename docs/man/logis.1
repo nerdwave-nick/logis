@@ -23,6 +23,11 @@ logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible 
 .I PROGRAM
 .RI [ ARG ...]
 .br
+.B logis
+.RB [ \-\-config
+.IR PATH ]
+.B \-\-servitor
+.br
 .B logis \-\-check\-config
 .RB [ \-\-config
 .IR PATH ]
@@ -42,9 +47,11 @@ raises a cogitator: a GPU\-rendered window on the compositor's overlay layer
 one row.
 It serves scripts as a drop\-in for
 .BR "fuzzel \-\-dmenu" ,
-and shows what external
+shows what external
 .I providers
-say.
+say, and drives
+.BR servitor :
+its rites, their aspects and inscriptions.
 .PP
 One binary plays two roles.
 The
@@ -260,6 +267,42 @@ the provider is sent
 .BR cancel .
 A provider that was never sent a choice is then ended; one that was may be
 carrying out an action and is left to finish it.
+.SH SERVITOR MODE
+.B logis \-\-servitor
+lists every rite of
+.B servitor census \-\-vigil
+at once, with the aspect each stands in and its purpose.
+A rite whose auspex has not settled yet is drawn pending and cannot be chosen;
+it settles in place.
+Choosing a rite shows its aspects, the current one marked and selected only
+once settled (an edict has none); then one prompt per inscription the rite
+declares, its decree for the chosen aspect already typed in, a mandatory one
+.RI ( key *)
+needing a word.
+Then logis starts
+.B servitor invoke
+.I rite
+.RI [ aspect ]
+.RB [ \-\- \fIkey\fP
+.IR word ]...
+detached, in a session of its own with stdin, stdout and stderr on
+.IR /dev/null ,
+and closes at once.
+It never waits for the invocation, reads its outcome or signals it; servitor
+announces the verdict itself.
+.B servitor
+is found on the caller's
+.BR PATH .
+.PP
+The client exits 0 once the invocation is started, 1 when the user dismisses
+the window or another interactive session replaces it, and 2 on error.
+Troubles of logis's own (no servitor, a census that breaks off, a heretical
+rite) show as a toast in the window.
+servitor mode is a provider session whose provider is logis itself
+.RB ( "logis provide servitor" ,
+not meant to be run by hand), so the rules of
+.B PROVIDER MODE
+hold.
 .SH KEYS
 .TP
 .B Return\fR, keypad \fBEnter\fR, a click on a row
@@ -344,6 +387,9 @@ The configuration to read instead of the default.
 an item or typed text was accepted; it is on stdout.
 .BR \-\-provider :
 the provider closed its flow.
+.BR \-\-servitor :
+.B servitor invoke
+was started.
 Plain
 .BR logis :
 a daemon answers.
@@ -430,6 +476,13 @@ Where the daemon's socket and log live; must be absolute.
 .B XDG_CONFIG_HOME
 Where the configuration is looked for (default
 .IR ~/.config ).
+.TP
+.B PATH
+Where
+.B \-\-servitor
+finds
+.BR servitor ;
+the caller's, not the daemon's.
 .SH FILES
 .TP
 .I $XDG_RUNTIME_DIR/logis.sock

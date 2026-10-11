@@ -1,16 +1,17 @@
 # The provider protocol
 
 **Version 1.** Everything logis shows comes from a *provider* (spec §4.8): the
-built-in dmenu provider (a client's stdin), the app launcher and servitor mode
-(built in, to come), and external providers: any program that speaks this
-protocol. An external provider fills one window with one or more *stages* (lists),
+built-in dmenu provider (a client's stdin), servitor mode (built in, and spoken
+over this protocol: [below](#servitor-mode-on-this-protocol)), the app launcher
+(to come), and external providers: any program that speaks this protocol. An external provider fills one window with one or more *stages* (lists),
 is told what the user chose, and can show *toasts*. It is a process, never a
 plugin (no ABI).
 
 The code is [`src/provider/`](../src/provider/): `wire.rs` (these messages),
 `stages.rs` (item ids to list rows), `process.rs` (spawning, reading, signals),
 `external.rs` (greeting and retirement rules). Built-in providers produce the same
-messages in-process.
+messages: the dmenu provider in-process, servitor mode as a process of logis
+itself ([below](#servitor-mode-on-this-protocol)).
 
 ## Running a provider
 
@@ -186,19 +187,33 @@ done
 
 ## servitor mode on this protocol
 
-The servitor provider (9dcfd937 interim, 88d4f372 full) is built into the daemon
-and speaks these messages in-process; nothing in it needs more than version 1:
+servitor mode (`logis --servitor`, spec §4.8; the code is
+[`src/servitor/`](../src/servitor/)) is a provider session whose provider is
+logis itself: the client asks the daemon to run `logis provide servitor` (its
+own executable), which the daemon starts like any provider, as the caller
+would have: the caller's working directory and environment (so `servitor` is
+found on the caller's `PATH` and its notifications reach the caller's desktop),
+a process group of its own. Everything in it is protocol version 1, and the
+rules above protect the invocation: once it was sent a choice, logis never
+signals it, nor anything it started.
 
 | servitor | provider message |
 |---|---|
-| every rite at once (`census --vigil`, or `census --binharic` interim) | a `rite` stage at once (placeholder while the census runs), one item per rite, `id` = rite name |
-| a census line that replaces an earlier one by rite name | `items` with that `id` (upsert in place) |
-| an aspect still `awaited` (auspex unsettled) | the item with `pending: true`: drawn as pending, never chosen, never preselected (story 10) |
-| the auspex settles | `items` with `pending: false` |
-| edicts, heretical rites | `badges` (`edict`, `heresy`) |
-| the aspect stage, the current aspect marked once known | `stage` `aspect`, the current one with a `current` badge and `select` once settled (never while pending or stale) |
-| an inscription from `canon` (`key`, `purpose`, `mandatory`, `decrees`, `decree`) | a stage per inscription: `prompt` = key, `placeholder` = purpose, `query` = `decrees[aspect]` (or the edict's `decree`), `input` = `required` when mandatory without a decree, else `optional` |
-| `servitor invoke <rite> [<aspect>] [--<inscription> v]...` | started detached (own session, stdio away) on the last `activate`/`submit`, then `close` **without a toast**: servitor announces the verdict itself (owner decision ae44412a) |
+| `servitor census --vigil`, started once the first stage is out | a `rite` stage at once (placeholder "choose a rite"), one item per rite as its line arrives, `id` = rite name; columns: name, aspect (`·` while unknown), purpose |
+| a later `rite` line of the same rite (it replaces the earlier one) | `items` with that `id` (upsert in place) |
+| `auspex` `"awaited"` | the item with `pending: true`: drawn as pending, never chosen, never preselected (story 10); the provider also answers `ready` to an `activate` of it |
+| the auspex settles (`heeded`, `mute`) | `items` with `pending: false` and the aspect it settled |
+| an edict, a rite whose standing is heretical, corrupted or tainted, or desecrated | `badges`: `edict`, `heresy`, `corrupted`, `tainted`, `desecrated`; glyph `⚙` for a rite, `†` for an edict |
+| `lament` lines, unknown heralds, unknown keys | passed over (laments go to the daemon's log) |
+| the aspect stage | `stage` `aspect`, the aspects in written order; the current one has the `current` badge and is the stage's `select` only when the entry is settled and its aspect is one of its own (`auspex` `""`, `heeded` or `mute`; never `awaited`, `forgone` or a marker yet unknown) |
+| a later line of the chosen rite while its aspects show | `items` with the aspects again, marked and selected by the same rule |
+| an inscription of the `canon` (`key`, `purpose`, `mandatory`, `decrees`, `decree`), in written order | a stage per inscription, `id` `inscription:<key>`: `prompt` `<key>: ` (`<key>*: ` when mandatory), `placeholder` = purpose (else "the inscription <key>"), `query` = `decrees[aspect]` (or the edict's `decree`), `input` = `required` when mandatory, else `optional` |
+| `servitor invoke <rite> [<aspect>] [--<key> <word>]...` | after the last answer: every word given, and `--<key> ""` where an empty word clears a decree; an empty word without a decree is left out. Started detached (servitor S7: `setsid`, stdin, stdout and stderr on `/dev/null`, an exec error reported at once through a pipe closed on exec), never waited for; then `close` **without a toast**: servitor announces the verdict itself (owner decision ae44412a) |
 
-Dismissing the window at any point after the invocation started never aborts it:
-logis never signals a provider it sent an answer to, nor any of its children.
+What logis itself cannot do is told as an error `toast` (6 s), never as an
+invocation's outcome: no `servitor` to start (the rite stage stays empty), a
+census that ends before `concluded`, an empty Librarium (an `info` toast), a
+heretical rite chosen (then `ready`), an empty mandatory word (then `ready`), an
+invocation that could not be started (then `ready`, so Return may try again).
+Dismissal ends the provider (`cancel`, end of input), which closes the census's
+stdout; servitor then ends the census and its auspexes itself.

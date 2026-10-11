@@ -10,14 +10,15 @@ logis is meant to be:
   exit codes);
 - an application launcher for desktop entries, with icons and frecency;
 - a first-class front end for [servitor](https://github.com/nerdwave-nick/servitor):
-  choose a rite, an aspect and its inscriptions, and see the verdict;
+  choose a rite, an aspect and its inscriptions, and set the invocation going
+  (servitor announces the verdict itself);
 - instant to open, because a resident daemon keeps the GPU, fonts and app index
   warm while every invocation is a thin client.
 
 ## Status
 
-**Early.** `logis --dmenu` and `logis --provider` work; the app launcher and
-servitor mode are still to come. The binary does this much:
+**Early.** `logis --dmenu`, `logis --provider` and `logis --servitor` work; the
+app launcher is still to come. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
@@ -25,6 +26,9 @@ servitor mode are still to come. The binary does this much:
   [pointer and paste](#pointer-and-paste).
 - `logis --provider PROGRAM [ARG]...` shows what an external provider says, in
   one or more stages: see [Providers](#providers).
+- `logis --servitor` is servitor mode: every rite at once, its aspect and its
+  inscriptions, then `servitor invoke …` started detached: see
+  [servitor mode](#servitor-mode).
 - `logis daemon` is the resident daemon. It checks for a Wayland session whose
   compositor offers wlr-layer-shell (exit 2 with a message on stderr if there is
   none), listens on `$XDG_RUNTIME_DIR/logis.sock`, and wakes its window at start:
@@ -34,7 +38,7 @@ servitor mode are still to come. The binary does this much:
   config's `idle-timeout`, and `--idle-timeout 0` keeps the daemon resident
   whatever the config says. It reads its [configuration](#configuration) at
   start (an invalid one is an error, exit 2) and again whenever the file changes.
-- `logis`, `logis --dmenu` and `logis --provider` are clients. When no daemon answers they start one
+- `logis`, `logis --dmenu`, `logis --provider` and `logis --servitor` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
   Plain `logis` only makes sure the daemon runs.
@@ -112,7 +116,8 @@ Where fuzzel's documentation leaves a choice open, logis decides so:
 ## Providers
 
 Everything logis shows comes from a provider: the built-in dmenu provider (stdin),
-the app launcher and servitor mode (to come), and external providers, programs
+servitor mode (logis itself as a provider), the app launcher (to come), and
+external providers, programs
 that speak [the provider protocol](docs/provider-protocol.md): JSON lines over
 their stdin and stdout.
 
@@ -131,6 +136,47 @@ user dismisses it, 2 on error. Dismissal never kills an action the provider
 started: logis signals only a provider it never sent a choice to, and never its
 children.
 
+## servitor mode
+
+```sh
+logis --servitor
+```
+
+opens servitor mode, built into logis and spoken to only through servitor's CLI
+(`servitor` must be on the caller's `PATH`):
+
+1. **Rites.** `servitor census --vigil` streams every rite at once: its name, the
+   aspect it stands in (`·` while unknown), its purpose, and badges for an
+   `edict` or a rite in `heresy`, `corrupted`, `tainted` or `desecrated`
+   standing. A rite whose auspex has not settled yet is drawn pending
+   ("divining…") and cannot be chosen; it settles in place as soon as servitor
+   tells it again.
+2. **Aspect.** The chosen rite's aspects in written order; the one it stands in
+   is marked `current` and selected, but only once its auspex has settled, never
+   from a stale or forgone reading. An edict has no aspect and skips this.
+3. **Inscriptions.** One prompt per inscription the rite declares (its `canon`,
+   in written order), with its purpose as the placeholder and the decree for the
+   chosen aspect (or the edict's decree) already typed in. A mandatory
+   inscription (`key*:`) needs a word before Return goes on.
+4. **Invocation.** logis starts `servitor invoke <rite> [<aspect>] [--<key>
+   <word>]...` detached (a session of its own, stdin, stdout and stderr on
+   `/dev/null`, the caller's environment and working directory) and closes at
+   once. It never waits for the invocation, reads its outcome or signals it:
+   servitor's own desktop notifications announce the verdict, and nothing that
+   happens to logis afterwards (dismissing a later window, the daemon ending)
+   cuts it short.
+
+The client exits 0 once the invocation is started, 1 when dismissed or
+replaced, 2 on error. Troubles of logis's own (no servitor on the `PATH`, a
+census that breaks off, a rite in heresy, an invocation that cannot start) show
+as a toast in the window; they are never an invocation's outcome.
+
+Under the hood `logis --servitor` is a provider session whose provider is logis
+itself, `logis provide servitor`, speaking [the provider
+protocol](docs/provider-protocol.md#servitor-mode-on-this-protocol): the daemon
+runs it as the caller would have, and its rules (never signalling a provider
+that was sent a choice, nor anything it started) protect the invocation.
+
 ## Caller contract
 
 What scripts, servitor and other callers of `logis --dmenu` and `logis
@@ -147,6 +193,7 @@ here (message wording, timings, the socket protocol) may change.
 |---|---|---|---|
 | 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
 | 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
+| 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
 | 0 | empty | plain `logis`: a daemon answers (started if need be) | `tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output` |
 | 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
@@ -294,6 +341,34 @@ breaks the protocol, shows no stage within 5 s or exits early
 (`tests/provider.rs::a_provider_that_cannot_start_is_an_error`,
 `tests/provider.rs::a_provider_that_breaks_the_protocol_or_departs_fails_its_session`,
 `tests/provider.rs::a_provider_that_shows_nothing_in_time_fails_its_session`).
+
+### servitor mode
+
+`logis --servitor` ([servitor mode](#servitor-mode)) is an interactive session
+like a provider's, with the same exit statuses, and promises:
+
+- A rite whose auspex is still awaited is never chosen nor invoked, however
+  long it takes; leaving ends the census
+  (`tests/servitor.rs::a_rite_that_never_settles_is_never_invoked_and_leaving_ends_the_census`,
+  `src/servitor/flow/tests.rs::a_pending_rite_is_never_taken`).
+- The current aspect is marked and selected only from a settled reading
+  (`src/servitor/flow/tests.rs::a_settled_rite_offers_its_aspects_with_the_current_marked_and_selected`,
+  `src/servitor/flow/tests.rs::a_stale_or_unknown_aspect_is_never_marked_or_selected`).
+- Inscriptions come from the rite's `canon`: the decree prefilled, a mandatory
+  one filled before invoking; a cleared decree is passed as `--<key> ""`, an
+  empty word without a decree is left out
+  (`src/servitor/flow/tests.rs::inscriptions_are_asked_in_written_order_from_the_canon`,
+  `src/servitor/flow/tests.rs::a_mandatory_inscription_must_be_filled_before_invoking`,
+  `src/servitor/flow/tests.rs::a_cleared_decree_is_passed_and_an_empty_word_without_one_is_left_out`,
+  `tests/servitor.rs::an_edict_is_invoked_without_an_aspect`).
+- `servitor invoke` runs detached: its own session and process group, stdio on
+  `/dev/null`, the caller's environment and working directory, unawaited
+  (`tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`,
+  `src/servitor/invoke.rs::invoke_runs_in_a_session_of_its_own_with_stdio_on_dev_null_and_unawaited`).
+- logis shows no outcome
+  (`src/servitor/flow/tests.rs::nothing_the_flow_says_is_an_outcome_toast`), and
+  neither dismissal nor the daemon's end aborts a running invocation
+  (`tests/servitor.rs::no_dismissal_or_departure_of_logis_aborts_a_running_invocation`).
 
 ### When logis cannot serve
 
@@ -555,6 +630,16 @@ with `mod support;`.
   signal rules, timeouts and protocol errors) and in the test compositor (a
   pending row Return cannot take, a second stage in the same window, a toast the
   window lingers on, Escape after an activation sparing the action).
+- **servitor mode** ([`tests/servitor.rs`](tests/servitor.rs),
+  [`tests/servitor_window.rs`](tests/servitor_window.rs)): a fake `servitor`
+  ([`tests/fixtures/servitor/servitor`](tests/fixtures/servitor/servitor), POSIX
+  sh) on the caller's `PATH` tells census lines recorded from the real servitor
+  ([`vigil.jsonl`](tests/fixtures/servitor/vigil.jsonl) and fixtures derived
+  from it, with timed and gated pending cases) and records how `servitor invoke`
+  was launched (argv, session and process group, stdio, environment, working
+  directory, when it started and ended). With the scripted resolver and in the
+  test compositor (pending rows, live settling, the current aspect, a prefilled
+  decree).
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
 `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
@@ -573,7 +658,7 @@ default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pix
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test servitor_window
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 
