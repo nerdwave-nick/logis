@@ -132,7 +132,8 @@ fn a_dmenu_caller_waits_in_the_queue_for_its_turn() {
 
     let mut waiting = spawn_dmenu(&rig);
     waiting.stdin.take().unwrap().write_all(b">mine\n").unwrap();
-    thread::sleep(Duration::from_millis(200));
+    // Whether or not it has reached the daemon yet, it cannot answer before
+    // the visible session ends. (Strict queue order: the raw-protocol test.)
     assert!(
         waiting.try_wait().unwrap().is_none(),
         "it did not wait its turn"
@@ -191,19 +192,20 @@ fn a_client_disconnect_cancels_its_session_and_the_next_one_is_shown() {
     caller.kill().unwrap();
     caller.wait().unwrap();
     assert_eq!(queued.recv_type(), "visible");
+    // Sessions on different connections have no order between them: a new
+    // session may reach the daemon before this hang-up does. It then waits in
+    // the queue until the hang-up lands; poll for that, never for a fixed time.
     drop(queued);
-    let (_next, state) = rig.open("dmenu");
-    assert_eq!(
-        state, "visible",
-        "the disconnected sessions were not cancelled"
-    );
+    rig.wait_until_no_session_remains();
 }
 
 #[test]
 fn with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected() {
     let rig = Rig::new();
     let mut daemon = rig.start_daemon(&["--idle-timeout", "0.3"]);
-    let client = rig.connect();
+    let mut client = rig.connect();
+    client.greet(); // the daemon has seen the client, not only the kernel
+    // Timing is the behaviour under test here: twice the timeout must pass.
     thread::sleep(Duration::from_millis(600));
     assert!(daemon.is_running(), "it left while a client was connected");
 
@@ -217,6 +219,7 @@ fn with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected() {
 fn without_an_idle_timeout_the_daemon_stays() {
     let rig = Rig::new();
     let mut daemon = rig.start_daemon(&[]);
+    // Timing is the behaviour under test: nothing may end it in this time.
     thread::sleep(Duration::from_millis(500));
     assert!(daemon.is_running());
 }

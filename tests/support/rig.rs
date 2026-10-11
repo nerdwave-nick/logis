@@ -111,12 +111,26 @@ impl Rig {
         (raw, state)
     }
 
-    /// Waits until some session is visible: a probe session then queues.
+    /// Opens a dmenu session only to see whether it would be shown at once
+    /// ("visible") or wait ("queued"), then cancels it and waits for the
+    /// cancellation. Merely dropping it would not do: the daemon handles each
+    /// connection on its own thread, so another connection's next request may
+    /// be served before the dropped probe's hang-up, and see it still there.
+    pub fn probe(&self) -> String {
+        let (mut probe, state) = self.open("dmenu");
+        probe.send(json!({"type": "cancel"}));
+        assert_eq!(probe.outcome(), json!({"kind": "cancelled"}));
+        state
+    }
+
+    /// Waits until some other session is visible: a probe then queues.
     pub fn wait_for_a_visible_session(&self) {
-        wait_until("a session to become visible", || {
-            let (_probe, state) = self.open("dmenu");
-            state == "queued"
-        });
+        wait_until("a session to become visible", || self.probe() == "queued");
+    }
+
+    /// Waits until no session is visible or queued: a probe is then shown.
+    pub fn wait_until_no_session_remains(&self) {
+        wait_until("every session to end", || self.probe() == "visible");
     }
 }
 

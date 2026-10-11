@@ -10,6 +10,11 @@
 //!
 //! The client may send `cancel` at any time; disconnecting cancels too.
 //! A protocol violation ends the connection with `error`.
+//!
+//! Connections are not ordered among themselves. A session opened just after
+//! another client hung up may be `queued` until the daemon has handled that
+//! hang-up, and then becomes `visible`; a `cancel` answered with its `result`
+//! is handled by the time the result arrives.
 
 pub mod base64;
 pub mod frame;
