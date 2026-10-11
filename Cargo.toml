@@ -14,6 +14,14 @@ exclude = ["/research", "/.github"]
 # The Wayland client of the decided stack (ADR 0001), lowest layer only: the
 # system backend (libwayland-client) that GPU presentation will need.
 wayland-client = { version = "0.31.15", features = ["system"] }
+# Layer shell, outputs and surfaces on top of wayland-client (ADR 0001). Its
+# default calloop and xkbcommon features stay off until a slice needs them;
+# `system` keeps the libwayland-client backend that GPU presentation requires.
+# Its `reexports::protocols` provides fractional-scale and viewporter.
+smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["system"] }
+# The GPU (ADR 0001): Vulkan first, then GL (gles), shaders in WGSL only. No
+# DX12/Metal/WebGPU backends; `raw-window-handle` comes re-exported as `wgpu::rwh`.
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "vulkan", "gles", "wgsl"] }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures
