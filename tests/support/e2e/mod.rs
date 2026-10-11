@@ -23,6 +23,7 @@
 
 pub mod backdrop;
 pub mod client;
+pub mod cogitator;
 pub mod keyboard;
 pub mod screencopy;
 pub mod wire;

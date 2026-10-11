@@ -13,6 +13,13 @@
 //!   owner's machine, thousands of faces and the CJK and emoji fallbacks).
 //! - **keystroke → commit:** an injected Down/Up to the frame that shows
 //!   the moved selection; budget one frame at the output's refresh rate.
+//! - **dmenu warm open:** with the daemon running (and warmed by one
+//!   session), `logis --dmenu` from exec to the daemon's first committed
+//!   frame of its window (≤ 15 ms).
+//! - **dmenu keystroke → commit:** typing into the query and deleting it
+//!   again, each key to the frame showing the new matches; with three
+//!   items, and with 100 000 (every keystroke re-filters them all, or the
+//!   last matches when the query grows).
 //!
 //! Runs only with `LOGIS_E2E=niri|sway`. `LOGIS_LATENCY_RUNS` (default 10)
 //! sets the samples, `LOGIS_LATENCY_REPORT=<file>` appends JSON lines, and
@@ -25,8 +32,9 @@ mod support;
 use std::time::Duration;
 
 use logis::window::trace::monotonic_ns;
-use support::e2e::client::Traced;
-use support::e2e::keyboard::code;
+use support::e2e::client::{Focused, Traced};
+use support::e2e::cogitator::Cogitator;
+use support::e2e::keyboard::{code, us_key};
 use support::e2e::wire::Harness;
 use support::e2e::{Kind, TestCompositor};
 use support::latency::{self, Series};
@@ -174,6 +182,130 @@ fn debug_panel_latency() {
         ),
     ];
     latency::record(kind.name(), &series);
+    if latency::enforce() {
+        for s in &series {
+            assert!(
+                s.within_budget(),
+                "{}: median {:.2} ms over its {:.2} ms budget",
+                s.name,
+                s.median(),
+                s.budget_ms
+            );
+        }
+    }
+}
+
+// ------------------------------------------------------- dmenu sessions
+
+/// exec of `logis --dmenu` → the daemon's first commit for its window,
+/// `runs` times after one warm-up session; each session is cancelled (its
+/// client killed) and gone before the next starts.
+fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> Vec<f64> {
+    let mut samples = Vec::with_capacity(runs);
+    for run in 0..=runs {
+        std::thread::sleep(Duration::from_millis(100));
+        let t0 = monotonic_ns();
+        let client = c.dmenu_all(&[], b"alpha\nbeta\ngamma\n");
+        c.daemon.wait_for("show", |e| e.what.starts_with("show "));
+        let commit = c
+            .daemon
+            .wait_for("a first frame", |e| e.what == "commit" && e.ns >= t0);
+        if run > 0 {
+            samples.push(latency::ms_between(t0, commit.ns));
+        }
+        drop(client);
+        c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+    }
+    samples
+}
+
+/// Each key of `keys` (cycled) → the commit of the frame it caused.
+fn dmenu_keystrokes(c: &mut Cogitator, focused: &Focused, keys: &[u32], runs: usize) -> Vec<f64> {
+    (0..runs)
+        .map(|i| {
+            // Idle first: the previous frame's callback has come back.
+            std::thread::sleep(Duration::from_millis(100));
+            let t = monotonic_ns();
+            c.harness.tap(&mut c.kb, focused, keys[i % keys.len()]);
+            let commit = c
+                .daemon
+                .wait_for("a frame commit", |e| e.what == "commit" && e.ns >= t);
+            latency::ms_between(t, commit.ns)
+        })
+        .collect()
+}
+
+/// 100 000 distinct lines, path-like, as a big dmenu input might be.
+fn many_lines() -> Vec<u8> {
+    let words = [
+        "rite",
+        "aspect",
+        "cogitator",
+        "noosphere",
+        "spirit",
+        "litany",
+        "forge",
+    ];
+    let mut out = Vec::new();
+    for i in 0..100_000usize {
+        let line = format!(
+            "/{}/{}/{}-{i}\n",
+            words[i % 7],
+            words[(i / 7) % 7],
+            words[(i / 49) % 7]
+        );
+        out.extend_from_slice(line.as_bytes());
+    }
+    out
+}
+
+#[test]
+fn dmenu_latency() {
+    let Some(mut c) = Cogitator::start() else {
+        return;
+    };
+    let runs = latency::runs();
+    let frame_ms = 1000.0 / c.harness.refresh_hz();
+    let open = dmenu_warm_open(&mut c, runs);
+
+    let letter = |ch| us_key(ch).expect("on the US layout").0;
+    let client = c.dmenu_all(&[], b"alpha\nbeta\ngamma\n");
+    let focused = c.shown(3);
+    let few = dmenu_keystrokes(&mut c, &focused, &[letter('a'), code::BACKSPACE], runs);
+    drop(client);
+    c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+
+    let mut client = c.dmenu(&[], b"");
+    let mut stdin = client.stdin.take().unwrap();
+    let feeder = std::thread::spawn(move || {
+        use std::io::Write;
+        stdin.write_all(&many_lines()).unwrap();
+    });
+    let focused = c.shown(100_000);
+    feeder.join().unwrap();
+    let keys = [
+        letter('r'),
+        letter('i'),
+        letter('t'),
+        letter('e'),
+        code::BACKSPACE,
+        code::BACKSPACE,
+        code::BACKSPACE,
+        code::BACKSPACE,
+    ];
+    let many = dmenu_keystrokes(&mut c, &focused, &keys, runs.max(keys.len()));
+    drop(client);
+
+    let series = [
+        Series::new(
+            "dmenu warm open: start → first commit",
+            latency::WARM_OPEN_MS,
+            open,
+        ),
+        Series::new("dmenu keystroke → commit, 3 items", frame_ms, few),
+        Series::new("dmenu keystroke → commit, 100 000 items", frame_ms, many),
+    ];
+    latency::record(c.compositor.kind().name(), &series);
     if latency::enforce() {
         for s in &series {
             assert!(

@@ -138,6 +138,13 @@ impl Traced {
         Focused(())
     }
 
+    /// Waits for the next keyboard focus in sequence: a daemon shows one
+    /// window per session, and each takes the focus anew.
+    pub fn wait_for_next_focus(&mut self) -> Focused {
+        self.wait_for("keyboard focus", |e| e.what == "keyboard-enter");
+        Focused(())
+    }
+
     /// Waits until the client has committed its first frame.
     pub fn wait_for_first_commit(&mut self) -> Event {
         self.wait_seen("a first frame commit", |e| e.what == "commit")

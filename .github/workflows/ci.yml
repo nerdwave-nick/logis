@@ -87,6 +87,10 @@ jobs:
       - name: E2E (cargo test --test e2e)
         run: cargo test --locked --test e2e -- --nocapture
 
+      # logis --dmenu against a real daemon whose window this compositor shows.
+      - name: dmenu E2E (cargo test --test dmenu)
+        run: cargo test --locked --test dmenu -- --nocapture
+
       # Relative trend only: budgets are recorded, never enforced here
       # (absolute budgets are checked on the owner's machine with
       # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
