@@ -1,0 +1,5 @@
+# Derived from vigil.jsonl (recorded from servitor dbab6cb): the edict
+# screenshot, renamed ">screenshot" for the scripted resolver; its region
+# inscription's purpose ">whole" makes the resolver type "whole".
+{"herald":"rite","rite":">screenshot","edict":true,"aspect":"","standing":"dormant","auspex":"","aspects":[],"purpose":"Capture the visage of the machine","desecrated":false,"last_rite":null,"recorded_in":"/home/adept/.config/servitor/rites/screenshot.json","canon":[{"key":"region","purpose":">whole","mandatory":false,"decrees":{},"decree":"chosen"}]}
+{"herald":"concluded"}
