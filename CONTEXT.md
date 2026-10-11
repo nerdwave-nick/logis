@@ -1,0 +1,180 @@
+# logis
+
+logis is a clean-room Wayland launcher and picker that looks like a cogitator of
+the Machine God. It serves scripts as a drop-in `dmenu`, launches desktop
+applications, and drives servitor through its CLI. This file records the words the
+code, the documentation and the tracker use, and what each one means. The shared
+specification is the description of the lit project `feat/logis`; the decisions
+behind it are in `docs/adr/`.
+
+Flag names, code identifiers and protocol fields use the plain terms below. The
+grimdark flavour lives only in help, error and UI text (spec §4.6).
+
+## Process and sessions
+
+**logis**:
+The single binary. Every invocation is either the daemon or a client.
+
+**Daemon**:
+The resident `logis` process. It owns the Wayland connection, the GPU device
+(created at start, not lazily), font and glyph caches, the app index and the
+providers, and shows and hides layer surfaces per session. It stays resident unless
+the optional `idle-timeout` setting (off by default) lets it exit. See ADR 0002.
+
+**Client**:
+Every user-facing invocation (`--dmenu`, app mode, servitor mode). It connects to
+the daemon's socket, starting the daemon itself if none answers, and waits for its
+session's result.
+
+**Daemon socket**:
+`$XDG_RUNTIME_DIR/logis.sock`, a framed Unix stream between client and daemon. An
+optional systemd user socket unit may start the daemon on first connect.
+
+**Session**:
+One client's request to show something and get an answer back: opened by the
+client, completed with a result or a dismissal, and cancelled when the client
+disconnects. The result goes only to the client that opened the session.
+
+**dmenu session / interactive session**:
+A session opened by `--dmenu` (or `--dmenu0`), or by the app or servitor mode. When
+a session is visible and another client opens one, dmenu sessions **queue** (each
+caller gets its answer in order) and interactive sessions **replace** the visible
+one.
+
+**Mode**:
+What a session shows and how its result is used: **dmenu mode** (lines from stdin,
+the choice printed to stdout), **app mode** (desktop applications, launched by the
+daemon) and **servitor mode** (rites and aspects, invoked through servitor's CLI).
+
+**Dismissal**:
+Ending a session without a choice (Escape, Ctrl+G, Ctrl+[, or focus loss by
+default). In dmenu mode it prints nothing and exits 1.
+
+**Exit status**:
+0 with the choice on stdout; 1 on dismissal with empty stdout; 2 on error (no
+Wayland session, no layer-shell, invalid configuration, daemon could not start …)
+with the message on stderr.
+
+## Items and providers
+
+**Provider**:
+Whatever produces the items a session shows: the built-in dmenu provider (stdin),
+the apps provider, the servitor provider, and external providers later. External
+providers are processes speaking streaming JSON lines; there are no plugin ABIs.
+
+**Item**:
+One selectable row. It carries a stable id, its columns, an icon or glyph, badges
+and an optional pending state. In dmenu mode an item keeps its original input bytes
+separately from its display text, so the bytes printed back are exactly the bytes
+read.
+
+**Column**:
+One field of an item. In dmenu mode, columns are split by the nth delimiter (tab by
+default) and chosen with `--with-nth` (display), `--match-nth` (matching) and
+`--accept-nth` (output).
+
+**Query**:
+The text typed into the input line. It filters the items with fuzzy, case- and
+accent-insensitive matching; matched characters are highlighted.
+
+**Stage**:
+One list within a multi-stage flow in a single window, such as rite → aspect →
+inscriptions, or app → desktop action.
+
+**Action**:
+Something a provider performs for a chosen item (launching an app, invoking a rite).
+Its outcome may be reported as a toast.
+
+**Toast**:
+A short, themed notice of an action's outcome or of an error, such as a servitor
+verdict or a configuration error after a live reload.
+
+**Pending**:
+The state of an item whose data has not settled yet, such as an aspect still
+awaiting its auspex. A pending item is shown in a themed pending state, never
+preselected and never invoked on its own.
+
+## Apps
+
+**Desktop entry**:
+A `.desktop` file from the `applications` directories under `$XDG_DATA_HOME` and
+`$XDG_DATA_DIRS`. logis parses and launches them with its own implementation.
+
+**Desktop action**:
+An additional entry point declared by a desktop entry, offered as a second stage.
+
+**Frecency**:
+The ranking weight that combines how often and how recently an app was chosen,
+persisted in `$XDG_STATE_HOME/logis/`.
+
+## servitor
+
+servitor's own `CONTEXT.md` is authoritative for these words; logis uses them as
+servitor defines them and talks to servitor only through its CLI.
+
+**Rite**: a named liturgy that brings the machine into one of its aspects.
+
+**Aspect**: one of the conditions a rite can bring the machine into. The current
+aspect is marked once known.
+
+**Auspex**: a rite's own scan that reports its current aspect; until it settles,
+the rite's aspects are pending.
+
+**Inscription**: a named value carried by one invocation, declared by the rite with
+whether it is mandatory, its purpose and its decreed default.
+
+**Invocation**: one performance of a rite into an aspect. Dismissing logis never
+aborts an invocation already running.
+
+**Verdict**: how an invocation ended: *triumph*, *reverted* or *faltered*, with the
+**verse** (step) it fell at and the **heresy** (error) that felled it.
+
+**Census / augury**: servitor's rituals that list every rite with its aspect, and
+read one rite's aspect, inscriptions and omens.
+
+## Wayland and rendering
+
+**Compositor**:
+The Wayland server logis runs under. The target is niri; others that offer the
+required protocols are best effort.
+
+**Layer shell**:
+The `wlr-layer-shell` protocol (`zwlr_layer_shell_v1`), which logis needs to place
+its window on the overlay layer with exclusive keyboard focus. A compositor without
+it is an error (exit 2), never a silent fallback.
+
+**Layer surface**:
+The window logis shows for a visible session, on the overlay layer, namespace
+`logis`.
+
+**Renderer**:
+logis's own small GPU renderer on wgpu: SDF primitives, glyph quads, an icon atlas
+and an optional post-processing pass. There is no CPU renderer. See ADR 0001.
+
+**Theme**:
+A named set of visual properties in `themes/<name>.jsonc`, selected by
+`"theme": "<name>"`. Bundled themes are compiled in; a user file overrides a bundled
+theme of the same name. The theme model itself is still being designed (6217c721).
+
+**Forge crimson & brass / cogitator phosphor**:
+The two bundled themes of v1: the default glowing brass-to-crimson panel of the
+research spike, and a green CRT look.
+
+## Grimdark UI vocabulary
+
+The words flavoured text draws on. Each stands for the plain term in brackets, and a
+message using one still states the plain fact (for example the missing protocol's
+name).
+
+**Cogitator** [the logis window]: what the user sees and types into.
+
+**Machine spirit** [the daemon]: the resident process behind every cogitator.
+
+**Noosphere** [the Wayland session]: the connection to the compositor; "the
+noosphere is silent" means no compositor answers.
+
+**Altar** [a compositor offering layer shell]: where a cogitator can be raised.
+
+**Vox-cast** [toast]: a themed notice, in servitor's sense of sending word.
+
+**Heresy** [an error]: what invalid configuration or a failed invocation reports.
