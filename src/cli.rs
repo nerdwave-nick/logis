@@ -2,17 +2,21 @@
 
 use std::ffi::OsString;
 use std::fmt;
+use std::path::PathBuf;
 use std::time::Duration;
 
-/// What one invocation of `logis` was asked to do.
+/// What one invocation of `logis` was asked to do. `config` is `--config
+/// PATH`; a client passes it on to a daemon it starts.
 #[derive(Debug, PartialEq)]
 pub enum Command {
     /// Print the name and version.
     Version,
     /// Rouse the daemon (starting it if none answers) without opening a session.
-    Run,
+    Run { config: Option<PathBuf> },
     /// A dmenu session: lines from stdin, the chosen line on stdout.
-    Dmenu,
+    Dmenu { config: Option<PathBuf> },
+    /// Validate the config: exit 0 if it is sound, 2 with its errors if not.
+    CheckConfig { config: Option<PathBuf> },
     /// Be the daemon.
     Daemon(DaemonOptions),
 }
@@ -20,8 +24,11 @@ pub enum Command {
 /// Options of `logis daemon`.
 #[derive(Debug, Default, PartialEq)]
 pub struct DaemonOptions {
-    /// Exit after this long without any client connected (off by default).
+    /// Exit after this long without any client connected. Given, it outranks
+    /// the config's `idle-timeout`, and `Some(0)` keeps the daemon resident.
     pub idle_timeout: Option<Duration>,
+    /// The config file instead of `$XDG_CONFIG_HOME/logis/logis.jsonc`.
+    pub config: Option<PathBuf>,
     /// Once listening, stop writing to the starter's stdout and stderr;
     /// later diagnostics go to `$XDG_RUNTIME_DIR/logis.log`.
     pub detach: bool,
@@ -49,8 +56,8 @@ impl fmt::Display for ParseError {
             Self::Unknown(arg) => write!(
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
-                 It knows only --version, --dmenu and \
-                 daemon [--idle-timeout SECONDS] [--detach] [--debug-panel]."
+                 It knows only --version, --dmenu, --check-config, --config PATH and \
+                 daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
                 flag,
@@ -73,22 +80,61 @@ impl fmt::Display for ParseError {
     }
 }
 
+const CONFIG: &str = "--config";
+
 /// Parses the arguments after the program name.
 pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseError> {
-    let mut args = args.into_iter();
-    let Some(first) = args.next() else {
-        return Ok(Command::Run);
-    };
-    let command = match first.to_str() {
-        Some("--version" | "-V") => Command::Version,
-        Some("--dmenu") => Command::Dmenu,
-        Some("daemon") => return parse_daemon(args).map(Command::Daemon),
-        _ => return Err(unknown(&first)),
-    };
-    match args.next() {
-        Some(extra) => Err(unknown(&extra)),
-        None => Ok(command),
+    let mut args = args.into_iter().peekable();
+    if args.peek().and_then(|a| a.to_str()) == Some("daemon") {
+        args.next();
+        return parse_daemon(args).map(Command::Daemon);
     }
+    let mut config = None;
+    let mut command = None;
+    while let Some(arg) = args.next() {
+        if config_flag(&arg, &mut args, &mut config)? {
+            continue;
+        }
+        let this = match arg.to_str() {
+            Some("--version" | "-V") => Command::Version,
+            Some("--dmenu") => Command::Dmenu { config: None },
+            Some("--check-config") => Command::CheckConfig { config: None },
+            _ => return Err(unknown(&arg)),
+        };
+        if command.replace(this).is_some() {
+            return Err(unknown(&arg));
+        }
+    }
+    Ok(match command {
+        None => Command::Run { config },
+        Some(Command::Dmenu { .. }) => Command::Dmenu { config },
+        Some(Command::CheckConfig { .. }) => Command::CheckConfig { config },
+        Some(other) => other,
+    })
+}
+
+/// Takes `--config PATH` or `--config=PATH` into `config`; `false` if `arg`
+/// is another flag.
+fn config_flag(
+    arg: &OsString,
+    rest: &mut impl Iterator<Item = OsString>,
+    config: &mut Option<PathBuf>,
+) -> Result<bool, ParseError> {
+    let bad = |value: Option<&OsString>| ParseError::BadValue {
+        flag: CONFIG,
+        value: value.map(|v| v.to_string_lossy().into_owned()),
+        expected: "one path to a config file",
+    };
+    let path = match arg.to_str() {
+        Some(CONFIG) => rest.next().ok_or_else(|| bad(None))?,
+        Some(a) if a.starts_with("--config=") => OsString::from(&a[CONFIG.len() + 1..]),
+        _ => return Ok(false),
+    };
+    if path.is_empty() || config.is_some() {
+        return Err(bad(Some(&path)));
+    }
+    *config = Some(PathBuf::from(path));
+    Ok(true)
 }
 
 fn parse_daemon(mut args: impl Iterator<Item = OsString>) -> Result<DaemonOptions, ParseError> {
@@ -96,6 +142,9 @@ fn parse_daemon(mut args: impl Iterator<Item = OsString>) -> Result<DaemonOption
     const SECONDS: &str = "a number of seconds (0 keeps the daemon resident)";
     let mut options = DaemonOptions::default();
     while let Some(arg) = args.next() {
+        if config_flag(&arg, &mut args, &mut options.config)? {
+            continue;
+        }
         let value = match arg.to_str() {
             Some("--detach") => {
                 options.detach = true;
@@ -120,7 +169,7 @@ fn parse_daemon(mut args: impl Iterator<Item = OsString>) -> Result<DaemonOption
             .ok()
             .and_then(|s| Duration::try_from_secs_f64(s).ok())
             .ok_or_else(|| bad(Some(text.clone())))?;
-        options.idle_timeout = Some(seconds).filter(|d| !d.is_zero());
+        options.idle_timeout = Some(seconds);
     }
     Ok(options)
 }
@@ -146,7 +195,7 @@ mod tests {
 
     #[test]
     fn no_arguments_runs() {
-        assert_eq!(parse_strs(&[]), Ok(Command::Run));
+        assert_eq!(parse_strs(&[]), Ok(Command::Run { config: None }));
     }
 
     #[test]
@@ -157,7 +206,57 @@ mod tests {
 
     #[test]
     fn dmenu_asks_for_a_dmenu_session() {
-        assert_eq!(parse_strs(&["--dmenu"]), Ok(Command::Dmenu));
+        assert_eq!(
+            parse_strs(&["--dmenu"]),
+            Ok(Command::Dmenu { config: None })
+        );
+    }
+
+    #[test]
+    fn check_config_asks_to_validate_the_config() {
+        assert_eq!(
+            parse_strs(&["--check-config"]),
+            Ok(Command::CheckConfig { config: None })
+        );
+    }
+
+    #[test]
+    fn config_names_the_config_file_before_or_after_the_command() {
+        let path = || Some(PathBuf::from("/x/logis.jsonc"));
+        assert_eq!(
+            parse_strs(&["--config", "/x/logis.jsonc", "--dmenu"]),
+            Ok(Command::Dmenu { config: path() })
+        );
+        assert_eq!(
+            parse_strs(&["--check-config", "--config=/x/logis.jsonc"]),
+            Ok(Command::CheckConfig { config: path() })
+        );
+        assert_eq!(
+            parse_strs(&["--config", "/x/logis.jsonc"]),
+            Ok(Command::Run { config: path() })
+        );
+        let options = DaemonOptions {
+            config: path(),
+            ..DaemonOptions::default()
+        };
+        assert_eq!(
+            parse_strs(&["daemon", "--config", "/x/logis.jsonc"]),
+            Ok(Command::Daemon(options))
+        );
+    }
+
+    #[test]
+    fn config_wants_one_path() {
+        for args in [
+            &["--config"][..],
+            &["--config="],
+            &["--dmenu", "--config"],
+            &["daemon", "--config"],
+            &["--config", "a", "--config", "b"],
+        ] {
+            let err = parse_strs(args).unwrap_err();
+            assert!(err.to_string().contains("--config"), "{args:?}: {err}");
+        }
     }
 
     #[test]
@@ -172,7 +271,11 @@ mod tests {
             parse_strs(&["daemon", "--idle-timeout=600"]),
             daemon(Some(Duration::from_secs(600)))
         );
-        assert_eq!(parse_strs(&["daemon", "--idle-timeout", "0"]), daemon(None));
+        // An explicit 0 is kept: it outranks the config's idle-timeout.
+        assert_eq!(
+            parse_strs(&["daemon", "--idle-timeout", "0"]),
+            daemon(Some(Duration::ZERO))
+        );
     }
 
     #[test]
@@ -180,7 +283,7 @@ mod tests {
         let options = DaemonOptions {
             idle_timeout: Some(Duration::from_secs(5)),
             detach: true,
-            debug_panel: false,
+            ..DaemonOptions::default()
         };
         let args = ["daemon", "--detach", "--idle-timeout", "5"];
         assert_eq!(parse_strs(&args), Ok(Command::Daemon(options)));
@@ -221,6 +324,10 @@ mod tests {
         assert_eq!(parse_strs(&["--heresy"]), unknown("--heresy"));
         assert_eq!(parse_strs(&["--version", "extra"]), unknown("extra"));
         assert_eq!(parse_strs(&["--dmenu", "--dmenu"]), unknown("--dmenu"));
+        assert_eq!(
+            parse_strs(&["--dmenu", "--check-config"]),
+            unknown("--check-config")
+        );
         assert_eq!(parse_strs(&["daemon", "--debug"]), unknown("--debug"));
     }
 }

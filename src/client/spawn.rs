@@ -3,21 +3,31 @@
 //! one end of a socket pair: the daemon's readiness line arrives there, and
 //! end of stream without it means the daemon gave up, its reason on stderr.
 
+use std::ffi::OsString;
 use std::io::Read;
 use std::os::fd::OwnedFd;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
 /// Starts the daemon and waits until it listens, at most until `deadline`.
-pub fn start_daemon(deadline: Instant) -> Result<(), String> {
+/// `config` (`--config`) is passed on, made absolute.
+pub fn start_daemon(deadline: Instant, config: Option<&Path>) -> Result<(), String> {
     let exe = std::env::current_exe()
         .map_err(|e| format!("cannot find its own binary to rouse the machine spirit: {e}"))?;
     let (mut ready, theirs) =
         UnixStream::pair().map_err(|e| format!("cannot rouse the machine spirit: {e}"))?;
+    let mut args = vec![OsString::from("daemon"), OsString::from("--detach")];
+    if let Some(config) = config {
+        let config = std::path::absolute(config).unwrap_or_else(|_| config.to_owned());
+        args.extend([OsString::from("--config"), config.into_os_string()]);
+    }
+    // A temporary: the command holds our copy of the daemon's stdout until
+    // dropped, and the end of that stream is how a failed start shows.
     let mut child = Command::new(exe)
-        .args(["daemon", "--detach"])
+        .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::from(OwnedFd::from(theirs)))
         .stderr(Stdio::piped())

@@ -10,7 +10,7 @@ mod spawn;
 
 use std::io;
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -52,7 +52,9 @@ impl Connection {
 }
 
 /// Connects to the daemon, starting it if none answers, and greets it.
-pub fn connect() -> Result<Connection, String> {
+/// A daemon this client starts reads `config` (`--config`); one already
+/// running keeps the config it was started with.
+pub fn connect(config: Option<&Path>) -> Result<Connection, String> {
     let runtime_dir = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from);
     let path = protocol::socket_path(runtime_dir.as_deref())
         .map_err(|e| format!("the machine spirit has no dwelling: {e}"))?;
@@ -84,7 +86,7 @@ pub fn connect() -> Result<Connection, String> {
                 ) =>
             {
                 if !started {
-                    spawn::start_daemon(deadline)?;
+                    spawn::start_daemon(deadline, config)?;
                     started = true;
                     continue;
                 }

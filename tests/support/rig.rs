@@ -1,5 +1,5 @@
-//! A test rig for the daemon: a scratch `XDG_RUNTIME_DIR` (never the real
-//! one), a fake compositor, the scripted resolver, and a raw protocol client
+//! A test rig for the daemon: a scratch `XDG_RUNTIME_DIR` and
+//! `XDG_CONFIG_HOME` (never the real ones), a fake compositor, the scripted resolver, and a raw protocol client
 //! that speaks the wire format independently of logis's own code.
 #![allow(dead_code)] // shared by test crates that each use only part of it
 
@@ -47,6 +47,16 @@ impl Rig {
         self.dir.path().join("logis.sock")
     }
 
+    /// The scratch `XDG_CONFIG_HOME`; it does not exist until a test makes it.
+    pub fn config_home(&self) -> PathBuf {
+        self.dir.path().join("config")
+    }
+
+    /// Where the daemon looks for its config by default.
+    pub fn config_file(&self) -> PathBuf {
+        self.config_home().join("logis").join("logis.jsonc")
+    }
+
     /// `logis` in this rig's environment, answering sessions by script.
     pub fn logis(&self) -> Command {
         self.command(env!("CARGO_BIN_EXE_logis"))
@@ -60,6 +70,7 @@ impl Rig {
             .env_remove("LISTEN_FDS")
             .env("WAYLAND_DISPLAY", "wayland-test")
             .env("XDG_RUNTIME_DIR", self.dir.path())
+            .env("XDG_CONFIG_HOME", self.config_home())
             .env("LOGIS_RESOLVER", "scripted");
         cmd
     }

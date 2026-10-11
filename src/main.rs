@@ -18,11 +18,21 @@ fn main() -> ExitCode {
             println!("logis {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(cli::Command::Run) => match client::connect() {
+        Ok(cli::Command::Run { config }) => match client::connect(config.as_deref()) {
             Ok(_) => ExitCode::SUCCESS,
             Err(e) => fail(&e),
         },
-        Ok(cli::Command::Dmenu) => client::dmenu::run(),
+        Ok(cli::Command::Dmenu { config }) => client::dmenu::run(config.as_deref()),
+        Ok(cli::Command::CheckConfig { config }) => {
+            let source = logis::config::Source::new(config.as_deref());
+            match logis::config::check(&source) {
+                Ok(verdict) => {
+                    println!("logis: {verdict}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => fail(&e),
+            }
+        }
         Ok(cli::Command::Daemon(options)) if options.debug_panel => debug_panel(),
         Ok(cli::Command::Daemon(options)) => daemon::run(options),
         Err(e) => fail(&e.to_string()),

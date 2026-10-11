@@ -27,7 +27,8 @@ fn logis(runtime_dir: &ScratchDir, wayland_display: Option<&str>) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_logis"));
     cmd.env_remove("WAYLAND_SOCKET")
         .env_remove("WAYLAND_DISPLAY")
-        .env("XDG_RUNTIME_DIR", runtime_dir.path());
+        .env("XDG_RUNTIME_DIR", runtime_dir.path())
+        .env("XDG_CONFIG_HOME", runtime_dir.path().join("config"));
     if let Some(display) = wayland_display {
         cmd.env("WAYLAND_DISPLAY", display);
     }

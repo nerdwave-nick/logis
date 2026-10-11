@@ -32,7 +32,7 @@ serde_json = "1.0.152"
 # a daemon started by a client can move its stderr off the client's pipe once
 # listening (libraries such as wayland-backend print to stderr, and printing
 # to a broken pipe panics).
-rustix = { version = "1.1.5", features = ["stdio"] }
+rustix = { version = "1.1.5", features = ["stdio", "fs", "event"] }
 
 # research/proto-rust is a separate, disposable Cargo package. Keeping the root
 # an explicit workspace that excludes it means neither cargo invocation captures

@@ -4,7 +4,9 @@
 
 use std::collections::HashMap;
 
-use super::resolver::Resolver;
+use logis::config::{self, Config};
+
+use super::resolver::{Resolver, Toast};
 use super::sessions::{Effect, SessionId, Sessions};
 use crate::protocol::{self, Item, Mode, Outcome, Reply, Request};
 
@@ -29,6 +31,8 @@ pub enum Event {
     },
     /// The compositor connection is gone (spec §4.2: exit non-zero).
     WaylandLost { reason: String },
+    /// The config file changed and was read again.
+    Reconfigured(Result<Config, config::Error>),
 }
 
 /// The sending half of one client connection.
@@ -73,6 +77,16 @@ impl<R: Resolver> Core<R> {
             conns: HashMap::new(),
             pid,
         }
+    }
+
+    /// Hands the config in force to the resolver (and so to the window).
+    pub fn configure(&mut self, config: &Config) {
+        self.resolver.configure(config);
+    }
+
+    /// Shows the user a notice.
+    pub fn toast(&mut self, toast: Toast) {
+        self.resolver.toast(toast);
     }
 
     /// No client is connected.

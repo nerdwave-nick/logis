@@ -5,9 +5,21 @@
 
 use std::sync::mpsc::Sender;
 
+use logis::config::Config;
+
 use super::core::Event;
 use super::sessions::SessionId;
 use crate::protocol::{Item, Mode, Outcome};
+
+/// A short themed notice for the user (CONTEXT.md: toast, vox-cast). The
+/// window shows it over a visible session, or on its own; until a window
+/// exists, the daemon's log carries the same words.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Toast {
+    /// An edit to the config was refused (the error, with its place); the
+    /// last sound config stays in force.
+    ConfigRejected { error: String },
+}
 
 /// Shows sessions and reports how each ended with [`Event::Resolved`].
 ///
@@ -26,6 +38,11 @@ pub trait Resolver {
     fn end(&mut self, session: SessionId);
     /// The session is no longer visible (resolved, replaced or cancelled).
     fn hide(&mut self, session: SessionId);
+    /// The config in force: once at start, then after every applied reload.
+    /// A visible window applies it at once.
+    fn configure(&mut self, _config: &Config) {}
+    /// A notice for the user, such as a refused config edit.
+    fn toast(&mut self, _toast: Toast) {}
 }
 
 impl<R: Resolver + ?Sized> Resolver for Box<R> {
@@ -43,6 +60,12 @@ impl<R: Resolver + ?Sized> Resolver for Box<R> {
     }
     fn hide(&mut self, session: SessionId) {
         (**self).hide(session);
+    }
+    fn configure(&mut self, config: &Config) {
+        (**self).configure(config);
+    }
+    fn toast(&mut self, toast: Toast) {
+        (**self).toast(toast);
     }
 }
 
