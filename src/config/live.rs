@@ -232,8 +232,14 @@ mod tests {
         let broken = Themed::new("start-broken");
         broken.write("mine", "{\"glow\": 1}");
         let mut live = broken.live(named("mine"));
-        assert_eq!(live.theme().name, "forge-crimson-brass", "the default instead");
-        let error = live.take_theme_error().expect("the broken theme is reported");
+        assert_eq!(
+            live.theme().name,
+            "forge-crimson-brass",
+            "the default instead"
+        );
+        let error = live
+            .take_theme_error()
+            .expect("the broken theme is reported");
         assert!(error.contains("mine.jsonc:1:"), "{error}");
         assert_eq!(live.take_theme_error(), None, "once");
     }

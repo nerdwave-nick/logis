@@ -134,6 +134,33 @@ impl Motion {
         }
     }
 
+    /// The default motion with these durations (a theme's timings): its
+    /// poses and easing curves stay.
+    pub fn timed(open: Duration, close: Duration, select: Duration) -> Self {
+        let base = Self::default();
+        Self {
+            open: Curve {
+                duration: open,
+                ..base.open
+            },
+            close: Curve {
+                duration: close,
+                ..base.close
+            },
+            selection: Curve {
+                duration: select,
+                ..base.selection
+            },
+            ..base
+        }
+    }
+
+    /// Whether `LOGIS_MOTION` asks for anything (it then outranks a
+    /// theme's timings).
+    pub fn env_is_set() -> bool {
+        std::env::var_os(Self::ENV).is_some_and(|v| !v.is_empty())
+    }
+
     /// [`Self::from_env_value`] of the process environment.
     pub fn from_env() -> Result<Self, String> {
         Self::from_env_value(std::env::var_os(Self::ENV).as_deref())
@@ -183,6 +210,22 @@ mod tests {
     fn an_instant_curve_is_always_done() {
         assert_eq!(Curve::INSTANT.progress(0), 1.0);
         assert!(Curve::INSTANT.done(0));
+    }
+
+    #[test]
+    fn a_themes_timings_keep_the_poses_and_curves() {
+        let ms = Duration::from_millis;
+        let m = Motion::timed(ms(200), ms(0), ms(60));
+        assert_eq!(m.open.duration, ms(200));
+        assert_eq!(m.close.duration, Duration::ZERO);
+        assert_eq!(m.selection.duration, ms(60));
+        assert_eq!(m.open.easing, Motion::default().open.easing);
+        assert_eq!(m.open_from, Motion::default().open_from);
+        let d = Motion::default();
+        assert_eq!(
+            Motion::timed(d.open.duration, d.close.duration, d.selection.duration),
+            d
+        );
     }
 
     #[test]

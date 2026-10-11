@@ -27,6 +27,8 @@ pub struct Decor {
     /// The item's data has not settled: it is shown as pending, never
     /// accepted and never preselected.
     pub pending: bool,
+    /// How much higher its matches score (an app's frecency).
+    pub boost: u32,
 }
 
 impl Entry {

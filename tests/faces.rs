@@ -234,18 +234,35 @@ fn a_caret_stands_between_the_characters_in_its_shape() {
     renderer.set_fonts(&gpu, pinned());
     renderer.set_faces(&forge_faces()).unwrap();
     let mut render = |s: &Scene| {
-        render_offscreen(&gpu, &mut renderer, s, (80, 36), Scale::ONE, OFFSCREEN_FORMAT).unwrap()
+        render_offscreen(
+            &gpu,
+            &mut renderer,
+            s,
+            (80, 36),
+            Scale::ONE,
+            OFFSCREEN_FORMAT,
+        )
+        .unwrap()
     };
     let mut bare = caret_line(CaretShape::Bar);
     bare.texts[0].caret = None;
     let without = render(&bare);
     // "ri" is two monospace advances of about 9.6 px from x = 8.
     let (columns, rows) = difference(&without, &render(&caret_line(CaretShape::Bar)));
-    assert!(!columns.is_empty() && columns.len() <= 3, "a bar: {columns:?}");
+    assert!(
+        !columns.is_empty() && columns.len() <= 3,
+        "a bar: {columns:?}"
+    );
     assert!((26..=30).contains(&columns[0]), "after 'ri': {columns:?}");
     assert!(rows.len() >= 14, "a bar as tall as the line: {rows:?}");
     let (columns, _) = difference(&without, &render(&caret_line(CaretShape::Block)));
-    assert!((8..=12).contains(&columns.len()), "a block a character wide: {columns:?}");
+    assert!(
+        (8..=12).contains(&columns.len()),
+        "a block a character wide: {columns:?}"
+    );
     let (_, rows) = difference(&without, &render(&caret_line(CaretShape::Underscore)));
-    assert!(rows.len() <= 3 && rows[0] >= 22, "an underscore at the baseline: {rows:?}");
+    assert!(
+        rows.len() <= 3 && rows[0] >= 22,
+        "an underscore at the baseline: {rows:?}"
+    );
 }

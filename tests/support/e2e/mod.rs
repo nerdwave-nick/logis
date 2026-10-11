@@ -167,6 +167,14 @@ const FONTS_CONF: &str = r#"<?xml version="1.0"?>
     <family>sans-serif</family>
     <prefer><family>Noto Sans</family></prefer>
   </alias>
+  <alias binding="same">
+    <family>monospace</family>
+    <prefer><family>Noto Sans Mono</family></prefer>
+  </alias>
+  <alias binding="same">
+    <family>serif</family>
+    <prefer><family>Noto Serif</family></prefer>
+  </alias>
 </fontconfig>
 "#;
 
@@ -278,6 +286,9 @@ impl TestCompositor {
             "SWAYSOCK",
             "LISTEN_PID",
             "LISTEN_FDS",
+            // The runtime dir is scratch, so no session bus is found there:
+            // nothing a test daemon launches reaches the real session.
+            "DBUS_SESSION_BUS_ADDRESS",
         ] {
             command.env_remove(var);
         }

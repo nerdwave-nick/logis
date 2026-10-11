@@ -9,10 +9,6 @@ use super::census::{Declaration, Entry};
 pub const RITE: &str = "rite";
 pub const ASPECT: &str = "aspect";
 
-/// The window: wide enough for a rite, its aspect and its purpose.
-const WIDTH: u32 = 64;
-const LINES: u32 = 10;
-
 /// How long a notice of trouble shows.
 pub const TOAST_SECONDS: u32 = 6;
 
@@ -32,8 +28,6 @@ pub fn rites() -> Stage {
         id: RITE.to_owned(),
         prompt: Some("rite: ".to_owned()),
         placeholder: "choose a rite".to_owned(),
-        width: Some(WIDTH),
-        lines: Some(LINES),
         ..Stage::default()
     }
 }

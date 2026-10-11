@@ -13,13 +13,14 @@ struct Frame {
 
 struct Quad {
     @location(0) rect: vec4f,   // x, y, w, h in whole buffer pixels
-    @location(1) texel: vec4f,  // the image's top-left texel in the atlas, -, -
+    @location(1) texel: vec4f,  // the image's top-left texel in the atlas, opacity, -
 };
 
 struct Varyings {
     @builtin(position) pos: vec4f,
     // Atlas texel minus buffer pixel: add a pixel to get its texel.
     @location(0) @interpolate(flat) offset: vec2f,
+    @location(1) @interpolate(flat) opacity: f32,
 };
 
 @vertex
@@ -30,6 +31,7 @@ fn vs(@builtin(vertex_index) vi: u32, quad: Quad) -> Varyings {
     var out: Varyings;
     out.pos = vec4f(p.x / frame.size.x * 2.0 - 1.0, 1.0 - p.y / frame.size.y * 2.0, 0.0, 1.0);
     out.offset = quad.texel.xy - quad.rect.xy;
+    out.opacity = quad.texel.z;
     return out;
 }
 
@@ -46,5 +48,6 @@ fn fs(in: Varyings) -> @location(0) vec4f {
     if (frame.srgb > 0.5 && col.a > 0.0) {
         col = vec4f(srgb_to_linear(col.rgb / col.a) * col.a, col.a);
     }
-    return col;
+    // Premultiplied: fading scales every channel.
+    return col * in.opacity;
 }

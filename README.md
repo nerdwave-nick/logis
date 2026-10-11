@@ -17,13 +17,15 @@ logis is meant to be:
 
 ## Status
 
-**Early.** `logis --dmenu`, `logis --provider` and `logis --servitor` work; the
-app launcher is still to come. The binary does this much:
+**Early.** `logis` (the app launcher), `logis --dmenu`, `logis --provider` and
+`logis --servitor` work. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
   [dmenu](#dmenu). Its window takes the [keyboard](#keyboard), the
   [pointer and paste](#pointer-and-paste).
+- `logis` (or `logis --apps`) is the app launcher, as in fuzzel: see
+  [App launcher](#app-launcher).
 - `logis --provider PROGRAM [ARG]...` shows what an external provider says, in
   one or more stages: see [Providers](#providers).
 - `logis --servitor` is servitor mode: every rite at once, its aspect and its
@@ -38,10 +40,11 @@ app launcher is still to come. The binary does this much:
   config's `idle-timeout`, and `--idle-timeout 0` keeps the daemon resident
   whatever the config says. It reads its [configuration](#configuration) at
   start (an invalid one is an error, exit 2) and again whenever the file changes.
-- `logis`, `logis --dmenu`, `logis --provider` and `logis --servitor` are clients. When no daemon answers they start one
+- `logis`, `logis --dmenu`, `logis --apps`, `logis --provider` and `logis --servitor` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
-  Plain `logis` only makes sure the daemon runs.
+  To only make sure a daemon runs, without opening a window, start it yourself:
+  `logis daemon --detach &` (it exits 0 at once if a daemon already answers).
 - `logis --check-config [--config PATH]` validates the configuration without
   touching Wayland or the daemon: exit 0 if it is sound (or absent), 2 with the
   error's file, line and column on stderr.
@@ -113,10 +116,54 @@ Where fuzzel's documentation leaves a choice open, logis decides so:
 - `--no-run-if-empty` exits 1 (nothing was chosen);
 - a format that names no column is an error, not a constant output.
 
+## App launcher
+
+```sh
+logis          # or: logis --apps
+```
+
+The daemon keeps an index of the installed applications resident and opens it in
+a few milliseconds. Type to filter (the name, the generic name, the keywords and
+the program are matched; matches in the name are drawn in brass), Return
+launches the selected app, and the client exits 0 (1 when dismissed, 2 on error).
+**Shift+Return** opens the app's desktop actions as a second stage in the same
+window (the app itself first, then each action); Return there launches the one
+chosen. Apps you launch often and lately come first and rank higher when you
+type (frecency, kept in `$XDG_STATE_HOME/logis/frecency.json`).
+
+- **Index:** desktop entries from `$XDG_DATA_HOME/applications`
+  (`~/.local/share/applications`), then `applications` in each of
+  `$XDG_DATA_DIRS`, read by logis's own implementation of the Desktop Entry
+  Specification (not GIO). Earlier directories override later ones by
+  desktop-file ID (`sub/app.desktop` is `sub-app.desktop`); an override with
+  `Hidden=true` deletes the entry. Hidden are `NoDisplay` entries, entries whose
+  `OnlyShowIn`/`NotShowIn` exclude the current desktops
+  (`$XDG_CURRENT_DESKTOP`) and entries whose `TryExec` program is missing.
+  Names, generic names and keywords are localised (`LC_ALL`, `LC_MESSAGES`,
+  `LANG`). The daemon watches the directories (inotify) and reads them again
+  when they change, so newly installed apps appear without a restart.
+- **Icons:** from the config's `icon-theme`, the themes it inherits, hicolor
+  and the pixmaps directories, drawn crisp at the output's scale.
+- **Exec:** field codes per the specification (`%f %F %u %U` vanish, as no files
+  are opened; `%i` is `--icon NAME`, `%c` the name, `%k` the file).
+  `Terminal=true` apps run behind the config's `terminal` (or `$TERMINAL -e`).
+- **Launch:** the app gets an xdg-activation token from the compositor
+  (`XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`), so it opens focused. It runs
+  in the session environment: the systemd user manager's
+  (`systemctl --user show-environment`), or, without one, the environment of the
+  `logis --apps` client; never the daemon's own, frozen at its start. Where a
+  systemd user manager answers, it runs in a transient scope of its own,
+  `app-logis-<app id>-<pid>.scope` in `app.slice`, so it is accounted and
+  stopped apart from logis. It runs in a session of its own with no
+  controlling terminal, so it outlives `logis` and the daemon.
+  `DBusActivatable=true` apps are started through D-Bus
+  (`org.freedesktop.Application`), or by their `Exec` if the bus cannot.
+  logis talks to the session bus itself (a few calls, no D-Bus library).
+
 ## Providers
 
 Everything logis shows comes from a provider: the built-in dmenu provider (stdin),
-servitor mode (logis itself as a provider), the app launcher (to come), and
+servitor mode (logis itself as a provider), the app launcher, and
 external providers, programs
 that speak [the provider protocol](docs/provider-protocol.md): JSON lines over
 their stdin and stdout.
@@ -194,8 +241,9 @@ here (message wording, timings, the socket protocol) may change.
 | 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
 | 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
 | 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
-| 0 | empty | plain `logis`: a daemon answers (started if need be) | `tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output` |
-| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
+| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers` |
+| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
 | 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
 | 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `tests/cli.rs::unknown_argument_exits_2_naming_it`, `src/cli/dmenu.rs::bad_values_are_named_with_their_flag`, `tests/dmenu_runes.rs::list_runes_without_dmenu_are_an_error`, and [below](#when-logis-cannot-serve) |
@@ -235,11 +283,11 @@ The runes, their defaults and their fuzzel semantics are in [dmenu](#dmenu)
 | Rune | Pinned by |
 |---|---|
 | `--dmenu`, `-d`, `--dmenu0` | `src/cli/mod.rs::dmenu_asks_for_a_dmenu_session`, `tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside` |
-| `--prompt`, `-p` | `src/list/scene.rs::the_prompt_line_shows_prompt_query_cursor_and_counter` |
+| `--prompt`, `-p` | `src/list/scene/tests.rs::a_session_prompt_shows_and_the_default_one_gives_way_to_the_label` |
 | `--prompt-only` | `tests/dmenu_runes.rs::prompt_only_never_waits_for_stdin`, `src/cli/dmenu.rs::prompt_only_reads_nothing_and_shows_no_rows` |
 | `--placeholder` | `src/list/view.rs::an_empty_query_shows_the_placeholder_without_a_cursor` |
 | `--password[=C]` | `src/cli/dmenu.rs::password_takes_an_optional_character`, `src/list/view.rs::a_password_is_masked_per_character` |
-| `--lines`, `-l`, `--width`, `-w` | `src/list/scene.rs::the_size_follows_lines_and_width` |
+| `--lines`, `-l`, `--width`, `-w` | `src/list/scene/tests.rs::lines_and_width_in_the_options_size_the_window`, `src/list/scene/tests.rs::without_a_size_the_window_is_the_themes` |
 | `--counter` | `src/list/view.rs::the_counter_counts_matches_of_all` |
 | `--search` | `src/list/view.rs::search_opens_with_a_query` |
 | `--select` | `src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives` |
@@ -390,20 +438,24 @@ A daemon that lost its compositor exits and removes its socket; the next
 caller starts a new one
 (`tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero`,
 `tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`).
-To ask before showing anything, run plain `logis`: it only makes sure a daemon
-answers, starting one if need be, and exits 0 if one does, 2 for each case
-above that stops a daemon starting
-(`tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output`,
+Plain `logis` is the app launcher and opens a window. To use logis where it can
+serve and fall back elsewhere, let the dmenu caller's exit status decide:
+2 means logis cannot serve here, for each case above, its reason on stderr
+(`tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`,
 `tests/cli.rs::without_wayland_display_exits_2_with_flavoured_message`,
 `tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol`).
+To start a daemon ahead of time without a window, run `logis daemon --detach &`;
+it exits 0 at once if one already answers
+(`tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers`).
 
 ```sh
-if logis 2>/dev/null; then pick='logis --dmenu'; else pick='fuzzel --dmenu'; fi
-choice=$(printf 'rite of oil\nrite of ignition\n' | $pick)
+items='rite of oil
+rite of ignition'
+choice=$(printf '%s\n' "$items" | logis --dmenu)
 case $? in
 0) printf 'chosen: %s\n' "$choice" ;;
 1) ;;   # nothing chosen: dismissed, or replaced
-*) echo 'the cogitator is silent; see stderr' >&2 ;;
+*) choice=$(printf '%s\n' "$items" | fuzzel --dmenu) ;;   # logis cannot serve here
 esac
 ```
 
@@ -473,8 +525,8 @@ the daemon's log (and, once the window can show it, a themed notice).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
-follows `focus-loss` and `blur`; themes, the terminal and the app launcher do not
-use their settings yet; the slices that build them will.
+follows `focus-loss`, `blur` and `icon-theme`, the app launcher `terminal`; themes
+do not use their setting yet.
 
 ## Motion and blur
 
@@ -496,6 +548,10 @@ settled it draws nothing until the next change.
   new list's row at once. A toast is drawn inside the panel, so it opens, moves
   and fades with it; a window lingering on its toast after the session ends
   closes with the same close transition when the daemon takes it away.
+- **Icons** move and fade with the panel like everything else in it.
+- **Launching an app:** the activation token is asked for while the panel is
+  still shown and focused; the launch happens once it comes, then the panel
+  closes and fades. The launched app gets the keyboard at once.
 
 The durations, start and end poses and easing curves (CSS `cubic-bezier`) are the
 parameters of `logis::motion::Motion`, for themes to set later; they are not
@@ -519,6 +575,7 @@ when the window code starts; edits need a restart).
 |---|---|
 | Escape, Ctrl+G, Ctrl+[ | dismiss |
 | Return, keypad Enter | accept |
+| Shift+Return | open the selected app's desktop actions (elsewhere: accept) |
 | Up, Shift+Tab, Ctrl+P | select the previous item |
 | Down, Tab, Ctrl+N | select the next item |
 | Backspace / Delete | delete the character (grapheme) before / after the cursor |
@@ -674,6 +731,20 @@ with `mod support;`.
   signal rules, timeouts and protocol errors) and in the test compositor (a
   pending row Return cannot take, a second stage in the same window, a toast the
   window lingers on, Escape after an activation sparing the action).
+- **App launcher** ([`tests/launch.rs`](tests/launch.rs),
+  [`tests/apps.rs`](tests/apps.rs), [`tests/apps_window.rs`](tests/apps_window.rs)):
+  fixture desktop entries ([`tests/fixtures/apps/`](tests/fixtures/apps/)) and
+  the fixture program [`anoint`](tests/fixtures/apps/bin/anoint), which records
+  its arguments, environment, activation token and session, then waits. Launches
+  with a fake session bus ([`fake_bus.rs`](tests/support/fake_bus.rs): the user
+  manager's environment, the transient scope, D-Bus activation; the real bus is
+  never reached), through a real daemon with the scripted resolver (the launch,
+  frecency, an app installed while it runs), and in the test compositor (a real
+  activation token, the app outliving the killed daemon, desktop actions as a
+  second stage). The D-Bus messages logis writes are compared byte for byte with
+  GLib's ([`glib-reference.py`](tests/fixtures/dbus/glib-reference.py)). Test
+  daemons run without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so
+  they find no session bus.
 - **servitor mode** ([`tests/servitor.rs`](tests/servitor.rs),
   [`tests/servitor_window.rs`](tests/servitor_window.rs)): a fake `servitor`
   ([`tests/fixtures/servitor/servitor`](tests/fixtures/servitor/servitor), POSIX
@@ -701,12 +772,13 @@ was dropped after the next window's first frame); the debug panel adds what each
 `show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
 `update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
 `query <JSON string>`, `select <item>` (or `select none`), `accept <item>`,
-`typed <JSON string>`, `dismiss`, `linger <session>` and `hide <session>`.
+`descend <item>` (Shift+Return), `typed <JSON string>`, `dismiss`, `token
+<session>` (an activation token came), `linger <session>` and `hide <session>`.
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test servitor_window --test motion
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 

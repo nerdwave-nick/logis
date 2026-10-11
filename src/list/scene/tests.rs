@@ -82,17 +82,32 @@ fn lines_and_width_in_the_options_size_the_window() {
 fn the_prompt_line_shows_sigil_label_query_caret_and_counter() {
     let theme = forge();
     let s = scene(&look(3, 0), sized(&theme), style(&theme));
-    let label = s.texts.iter().find(|t| t.text == "INVOKE").expect("the label");
+    let label = s
+        .texts
+        .iter()
+        .find(|t| t.text == "INVOKE")
+        .expect("the label");
     assert_eq!(label.face, theme.prompt.font.face);
     assert_eq!(label.tracking, 0.2);
-    let query = s.texts.iter().find(|t| t.text == "rite").expect("the query alone");
+    let query = s
+        .texts
+        .iter()
+        .find(|t| t.text == "rite")
+        .expect("the query alone");
     assert!(query.origin[0] > label.origin[0], "after the label");
     let caret = query.caret.expect("a caret");
     assert_eq!((caret.at, caret.shape), (2, CaretShape::Bar));
     assert_eq!(caret.color, Rgba::hex(0xf2c14e));
-    let counter = s.texts.iter().find(|t| t.text == "3/9").expect("the counter");
+    let counter = s
+        .texts
+        .iter()
+        .find(|t| t.text == "3/9")
+        .expect("the counter");
     assert!(counter.align_end);
-    assert!(query.width.unwrap() < counter.width.unwrap(), "the query leaves room");
+    assert!(
+        query.width.unwrap() < counter.width.unwrap(),
+        "the query leaves room"
+    );
     // The gear: a ring with eight teeth and a hub, before the label.
     let gear: Vec<_> = s
         .shapes
@@ -140,8 +155,17 @@ fn rows_take_column_colours_and_set_matches_apart() {
     let logical = sized(&theme);
     let s = scene(&look(3, 1), logical, style(&theme));
     let plain = row(&s, "row 0\tcol");
-    let [parchment, brass, _] = theme.row.columns[..] else { panic!("three columns") };
-    assert_eq!(plain.spans, [(0..1, theme.matched.color), (1..6, parchment), (6..9, brass)]);
+    let [parchment, brass, _] = theme.row.columns[..] else {
+        panic!("three columns")
+    };
+    assert_eq!(
+        plain.spans,
+        [
+            (0..1, theme.matched.color),
+            (1..6, parchment),
+            (6..9, brass)
+        ]
+    );
     assert_eq!(plain.emphasis, [0..1]);
     assert_eq!(plain.emphasis_face, Some(theme.matched.face));
     assert!(!plain.underline_emphasis, "forge does not underline");
@@ -195,7 +219,10 @@ fn badges_end_the_row_and_a_pending_row_is_dimmed_and_marked() {
     assert!(first.origin[0] + first.width.unwrap() <= current.origin[0]);
     assert!(current.origin[0] < edict.origin[0], "in the given order");
     let pending = row(&s, "row 1\tcol");
-    assert_eq!(pending.color.a, theme.pending.color.a * theme.pending.opacity);
+    assert_eq!(
+        pending.color.a,
+        theme.pending.color.a * theme.pending.opacity
+    );
     assert!(pending.emphasis.is_empty(), "no matches while pending");
     assert!(s.texts.iter().any(|t| t.text == "DIVINING…"));
     let glyph = row(&s, "⚙");
@@ -231,14 +258,23 @@ fn a_gliding_band_moves_alone() {
     let l = look(3, 2);
     let rest = scene(&l, logical, style(&theme));
     let top = band_top(&l, logical, &theme).unwrap();
-    let gliding = scene_at(&l, logical, Some(top - 10.0), style(&theme));
+    let gliding = scene_at(&l, logical, Some(top - 10.0), style(&theme), &mut NoIcons);
     assert_eq!(gliding.texts, rest.texts);
-    let moved: Vec<_> = gliding.shapes.iter().zip(&rest.shapes).filter(|(g, r)| g != r).collect();
+    let moved: Vec<_> = gliding
+        .shapes
+        .iter()
+        .zip(&rest.shapes)
+        .filter(|(g, r)| g != r)
+        .collect();
     assert_eq!(moved.len(), 2, "the band and its edge bar");
     for (g, r) in moved {
         assert_eq!(g.rect[1], r.rect[1] - 10.0);
     }
-    assert_eq!(scene_at(&l, logical, Some(top), style(&theme)), rest, "at rest");
+    assert_eq!(
+        scene_at(&l, logical, Some(top), style(&theme), &mut NoIcons),
+        rest,
+        "at rest"
+    );
 }
 
 #[test]
@@ -265,7 +301,11 @@ fn the_grid_finds_the_row_under_a_point() {
     let below = f64::from(g.top(5) + 1.0);
     assert_eq!(g.row_at((100.0, below)), None, "past the last row");
     assert_eq!(g.row_at((100.0, 10.0)), None, "the prompt line");
-    assert_eq!(g.row_at((2.0, f64::from(g.first) + 2.0)), None, "the margin");
+    assert_eq!(
+        g.row_at((2.0, f64::from(g.first) + 2.0)),
+        None,
+        "the margin"
+    );
     assert_eq!(grid(logical, 2, &theme).rows, 2, "two lines asked for");
 }
 
@@ -285,14 +325,27 @@ fn the_glow_pulses_and_the_highlight_travels_until_motion_is_reduced() {
     let theme = forge();
     let logical = sized(&theme);
     let at = |theme: &Theme, ms: u64| {
-        let s = scene(&look(1, 0), logical, Style { theme, at: ms * 1_000_000 });
+        let s = scene(
+            &look(1, 0),
+            logical,
+            Style {
+                theme,
+                at: ms * 1_000_000,
+            },
+        );
         let body = s.shapes[0];
-        (body.glow.unwrap().color.a, body.border.unwrap().highlight.unwrap().angle)
+        (
+            body.glow.unwrap().color.a,
+            body.border.unwrap().highlight.unwrap().angle,
+        )
     };
     let (glow0, angle0) = at(&theme, 0);
     let (glow1, angle1) = at(&theme, 1500);
     assert!(glow1 < glow0, "half a pulse later the glow is dimmer");
-    assert!((angle0 + std::f32::consts::FRAC_PI_2).abs() < 1e-6, "it starts at the top");
+    assert!(
+        (angle0 + std::f32::consts::FRAC_PI_2).abs() < 1e-6,
+        "it starts at the top"
+    );
     assert!(angle1 > angle0, "the highlight moved on");
     assert!(moving(&look(1, 0), &theme));
     let still = theme.stilled();
@@ -311,7 +364,14 @@ fn a_pending_row_shimmers_and_keeps_a_still_theme_moving() {
     assert!(moving(&l, &shimmering));
     assert!(!moving(&l, &theme), "stilled: no shimmer");
     let mark = |ms: u64| {
-        let s = scene(&l, sized(&shimmering), Style { theme: &shimmering, at: ms * 1_000_000 });
+        let s = scene(
+            &l,
+            sized(&shimmering),
+            Style {
+                theme: &shimmering,
+                at: ms * 1_000_000,
+            },
+        );
         row(&s, "DIVINING…").color.a
     };
     assert!(mark(800) < mark(0), "the mark's opacity swings");

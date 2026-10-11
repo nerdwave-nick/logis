@@ -65,7 +65,10 @@ impl Rig {
     /// Any program in this rig's environment.
     pub fn command(&self, program: &str) -> Command {
         let mut cmd = Command::new(program);
+        // The runtime dir is scratch, so no session bus is found there:
+        // nothing a test daemon launches reaches the real session.
         cmd.env_remove("WAYLAND_SOCKET")
+            .env_remove("DBUS_SESSION_BUS_ADDRESS")
             .env_remove("LISTEN_PID")
             .env_remove("LISTEN_FDS")
             .env("WAYLAND_DISPLAY", "wayland-test")
@@ -77,10 +80,16 @@ impl Rig {
 
     /// Starts `logis daemon ARGS` and waits until it reports readiness.
     pub fn start_daemon(&self, args: &[&str]) -> Daemon {
+        self.start_daemon_env(args, &[])
+    }
+
+    /// [`Self::start_daemon`] with more environment.
+    pub fn start_daemon_env(&self, args: &[&str], env: &[(&str, &std::ffi::OsStr)]) -> Daemon {
         let child = self
             .logis()
             .arg("daemon")
             .args(args)
+            .envs(env.iter().copied())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

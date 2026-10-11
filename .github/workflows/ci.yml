@@ -95,6 +95,11 @@ jobs:
       - name: provider E2E (cargo test --test provider_window)
         run: cargo test --locked --test provider_window -- --nocapture
 
+      # logis --apps over fixture applications: the launched fixture program
+      # records the compositor's activation token and outlives the daemon.
+      - name: App launcher E2E (cargo test --test apps_window)
+        run: cargo test --locked --test apps_window -- --nocapture
+
       # logis --servitor with the fake servitor (tests/fixtures/servitor).
       - name: servitor E2E (cargo test --test servitor_window)
         run: cargo test --locked --test servitor_window -- --nocapture

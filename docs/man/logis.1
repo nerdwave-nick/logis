@@ -7,6 +7,7 @@
 logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible picker
 .SH SYNOPSIS
 .B logis
+.RB [ \-\-apps ]
 .RB [ \-\-config
 .IR PATH ]
 .br
@@ -45,7 +46,7 @@ logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible 
 raises a cogitator: a GPU\-rendered window on the compositor's overlay layer
 (wlr\-layer\-shell) in which the user filters a list by typing and chooses
 one row.
-It serves scripts as a drop\-in for
+It launches desktop applications, serves scripts as a drop\-in for
 .BR "fuzzel \-\-dmenu" ,
 shows what external
 .I providers
@@ -68,13 +69,41 @@ when none answers, opens one
 and waits for its answer.
 A daemon a client starts outlives that client and serves later ones.
 .PP
+To only make sure a daemon runs, without opening a window, start it yourself:
+.B "logis daemon \-\-detach &"
+(it exits 0 at once if a daemon already answers).
+.SH APP LAUNCHER
 Plain
-.B logis
-opens no session: it only makes sure a daemon answers, starting one if need
-be, and exits 0 if one does.
-Scripts can use it to ask, before showing anything, whether logis can serve
-them (see
-.BR DIAGNOSTICS ).
+.BR logis ,
+or
+.BR "logis \-\-apps" ,
+opens the app launcher, as fuzzel does: the desktop applications of
+.I $XDG_DATA_HOME/applications
+and the
+.I applications
+directories of
+.BR $XDG_DATA_DIRS ,
+those used most and lately first, with their icons.
+Typing filters them by name, generic name, keywords and program;
+.B Return
+launches the selected one and exits 0;
+.B Shift+Return
+opens its desktop actions in the same window.
+Hidden are entries with
+.BR NoDisplay ,
+.BR Hidden ,
+an
+.BR OnlyShowIn / NotShowIn
+that excludes the current desktop, or a missing
+.BR TryExec .
+An app starts focused (xdg\-activation), in the session environment (the
+systemd user manager's, else the caller's), in a transient systemd scope of
+its own where one is available, and outlives logis;
+.B Terminal=true
+apps run behind the configuration's
+.B terminal
+(or
+.BR "$TERMINAL \-e" ).
 .SH DMENU MODE
 .B logis \-\-dmenu
 reads items from stdin, one per line
@@ -308,6 +337,11 @@ hold.
 .B Return\fR, keypad \fBEnter\fR, a click on a row
 Accept.
 .TP
+.B Shift+Return
+In the app launcher, open the selected application's desktop actions;
+elsewhere the same as
+.BR Return .
+.TP
 .B Escape\fR, \fBCtrl+G\fR, \fBCtrl+[\fR, losing keyboard focus
 Dismiss (focus loss only while the configuration's
 .B focus\-loss
@@ -391,8 +425,12 @@ the provider closed its flow.
 .B servitor invoke
 was started.
 Plain
-.BR logis :
-a daemon answers.
+.B logis
+or
+.BR \-\-apps :
+an application was launched.
+.B "logis daemon \-\-detach"
+when a daemon already answers.
 .BR \-\-check\-config :
 the configuration is sound (or absent).
 .BR \-\-version :
@@ -444,20 +482,18 @@ A daemon of another version, left running across an upgrade, refuses the
 client with its reason: end that daemon, and the next client starts a new
 one.
 .PP
-Plain
-.B logis
-exits 2 in each case that stops a daemon starting, so a script can ask first
-and fall back to another picker:
+Every client exits 2 in each case that stops a daemon starting, so a script
+can let the exit status decide and fall back to another picker:
 .PP
 .RS 4
 .nf
-if logis 2>/dev/null; then pick=\(aqlogis \-\-dmenu\(aq
-else pick=\(aqfuzzel \-\-dmenu\(aq; fi
-choice=$(printf \(aqrite of oil\enrite of ignition\en\(aq | $pick)
+items=\(aqrite of oil
+rite of ignition\(aq
+choice=$(printf \(aq%s\en\(aq "$items" | logis \-\-dmenu)
 case $? in
 0) printf \(aqchosen: %s\en\(aq "$choice" ;;
 1) ;;   # nothing chosen: dismissed, or replaced
-*) echo \(aqthe cogitator is silent; see stderr\(aq >&2 ;;
+*) choice=$(printf \(aq%s\en\(aq "$items" | fuzzel \-\-dmenu) ;;
 esac
 .fi
 .RE
@@ -491,6 +527,9 @@ The daemon's socket.
 .I $XDG_RUNTIME_DIR/logis.log
 The diagnostics of a daemon a client started, once it has left the client's
 stderr behind.
+.TP
+.I $XDG_STATE_HOME/logis/frecency.json
+How often and how lately each application was launched.
 .TP
 .I $XDG_CONFIG_HOME/logis/logis.jsonc
 The configuration (JSON with comments), unless

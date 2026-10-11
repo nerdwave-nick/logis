@@ -18,21 +18,28 @@
 //! string>`, `select <item>` (or `select none`), `accept <item>`, `typed
 //! <JSON string>`, `dismiss`, `linger <session>` and `hide <session>` (the
 //! daemon took it away: answered, cancelled or replaced), beside the
-//! window's own focus, key and commit events.
+//! window's own focus, key and commit events. A theme it puts on is
+//! `theme <name>`.
 
 use std::cell::RefCell;
 use std::os::fd::BorrowedFd;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use std::time::Instant;
 
+use logis::icons::IconSource;
 use logis::input::Action;
-use logis::list::{Choice, Entry, ListView, Notice, Reaction, scene};
+use logis::list::scene::{self, Style};
+use logis::list::{Choice, Entry, ListView, Notice, Options, Reaction};
 use logis::motion::Glide;
+use logis::theme::Theme;
 use logis::window::trace::emit;
 use logis::window::{Backdrop, Drawing, Frame, SceneFn, WindowQueue, Windows};
 use wayland_client::QueueHandle;
 
 use super::Command;
+use super::wear::{NOTICE, Wear};
 use crate::daemon::core::Event;
 use crate::daemon::sessions::SessionId;
 use crate::protocol::Mode;
@@ -41,9 +48,11 @@ use crate::provider::{Answer, Step};
 /// The session on screen: its list and its toast, as drawn.
 struct Shown {
     session: SessionId,
-    /// The first stage's lines and width: the window's size, which later
-    /// stages keep.
-    size: (u32, u32),
+    /// The first stage's lines and width as asked (`None`: the theme's):
+    /// the window's size, which later stages keep.
+    asked: (Option<u32>, Option<u32>),
+    /// The most rows the list shows (what the window was sized for).
+    rows: u32,
     view: Rc<RefCell<ListView>>,
     toast: Rc<RefCell<Option<Notice>>>,
     /// The selection band's movement, reset by a new stage.
@@ -66,18 +75,23 @@ pub fn run(
     inbox: &Receiver<Command>,
     wake: BorrowedFd<'_>,
     events: &Sender<Event>,
+    mut wear: Wear,
 ) -> Option<String> {
     let qh = queue.handle();
     let mut shown: Option<Shown> = None;
     loop {
         loop {
             match inbox.try_recv() {
-                Ok(command) => apply(command, &mut windows, &qh, &mut shown, events),
+                Ok(command) => apply(command, &mut windows, &qh, &mut shown, events, &mut wear),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => return None,
             }
         }
-        react(&mut windows, &mut shown, events);
+        expire_notice(&mut windows, &mut shown, &mut wear);
+        react(&mut windows, &mut shown, events, &wear.theme());
+        for (session, token) in windows.take_tokens() {
+            let _ = events.send(Event::Activation { session, token });
+        }
         if shown.is_some() && !windows.is_visible() {
             // The compositor closed the surface (its output went away).
             let gone = shown.take().filter(|s| !s.lingering);
@@ -100,6 +114,7 @@ fn apply(
     qh: &QueueHandle<Windows>,
     shown: &mut Option<Shown>,
     events: &Sender<Event>,
+    wear: &mut Wear,
 ) {
     let mine = |session: SessionId, shown: &mut Option<Shown>| {
         shown.as_ref().is_some_and(|s| s.session == session)
@@ -108,17 +123,24 @@ fn apply(
         Command::Show {
             session,
             mode,
-            options,
+            mut options,
             entries,
         } => {
-            let size = scene::size(&options);
-            let (lines, width) = (options.lines, options.width);
+            let theme = wear.theme();
+            let asked = (options.lines, options.width);
+            let (size, rows) = scene::fit(&options, &theme);
+            options.lines = Some(rows);
             let view = Rc::new(RefCell::new(ListView::new(options)));
             let count = entries.len();
             view.borrow_mut().push(entries);
             let toast = Rc::new(RefCell::new(None));
             let glide = Rc::new(RefCell::new(Glide::new(windows.motion().selection)));
-            let draw = drawing(Rc::clone(&view), Rc::clone(&toast), Rc::clone(&glide));
+            let draw = drawing(
+                Rc::clone(&view),
+                Rc::clone(&toast),
+                Rc::clone(&glide),
+                wear.cell(),
+            );
             *shown = None;
             match windows.show(qh, size, draw) {
                 Ok(()) => {
@@ -126,7 +148,8 @@ fn apply(
                     emit(format_args!("items {count}"));
                     *shown = Some(Shown {
                         session,
-                        size: (lines, width),
+                        asked,
+                        rows,
                         view,
                         toast,
                         glide,
@@ -149,7 +172,7 @@ fn apply(
             else {
                 return;
             };
-            if s.step(step) {
+            if s.step(step, &wear.theme()) {
                 windows.request_redraw();
             }
         }
@@ -175,34 +198,94 @@ fn apply(
             }
         }
         Command::FocusLoss(policy) => windows.set_focus_loss(policy),
-        Command::Blur(blur) => windows.set_blur(blur, qh),
+        Command::IconTheme(name) => windows.set_icon_theme(&name),
+        Command::Activation { session, app_id } => {
+            if mine(session, shown) {
+                windows.request_token(qh, session, &app_id);
+            } else {
+                let _ = events.send(Event::Activation {
+                    session,
+                    token: None,
+                });
+            }
+        }
+        Command::Blur(blur) => wear.blur(windows, qh, blur),
+        Command::Theme(theme) => {
+            emit(format_args!("theme {}", theme.name));
+            wear.put_on(windows, qh, Arc::clone(&theme));
+            if let Some(s) = shown.as_mut() {
+                let asked = Options {
+                    lines: s.asked.0,
+                    width: s.asked.1,
+                    ..Options::default()
+                };
+                let (size, rows) = scene::fit(&asked, &theme);
+                s.rows = rows;
+                s.view.borrow_mut().set_lines(rows);
+                windows.resize(size);
+            }
+        }
+        Command::Notice(notice) => {
+            let Some(s) = shown.as_mut().filter(|s| !s.lingering) else {
+                return;
+            };
+            let quoted = serde_json::to_string(&notice.text).unwrap_or_default();
+            emit(format_args!("toast {quoted}"));
+            s.toast.replace(Some(notice));
+            let until = Instant::now() + NOTICE;
+            wear.notice_until = Some(until);
+            windows.set_alarm(Some(until));
+            windows.request_redraw();
+        }
     }
 }
 
-/// Draws the shown list each frame with its toast: the selection band
-/// glides to the selected row, and the body is blurred behind.
+/// Takes the daemon's notice away once its time is up.
+fn expire_notice(windows: &mut Windows, shown: &mut Option<Shown>, wear: &mut Wear) {
+    if wear.notice_until.is_none_or(|until| Instant::now() < until) {
+        return;
+    }
+    wear.notice_until = None;
+    windows.set_alarm(None);
+    if let Some(s) = shown.as_mut() {
+        s.toast.replace(None);
+        windows.request_redraw();
+        emit(format_args!("untoast"));
+    }
+}
+
+/// Draws the shown list each frame with its toast in the theme worn now:
+/// the selection band glides to the selected row, the theme's continuous
+/// effects keep it drawing, and the body is blurred behind.
 fn drawing(
     view: Rc<RefCell<ListView>>,
     toast: Rc<RefCell<Option<Notice>>>,
     glide: Rc<RefCell<Glide>>,
+    theme: Rc<RefCell<Arc<Theme>>>,
 ) -> SceneFn {
-    Box::new(move |frame: &Frame| {
+    Box::new(move |frame: &Frame, icons: &mut dyn IconSource| {
+        let theme = Arc::clone(&theme.borrow());
         let mut look = view.borrow_mut().look();
         look.toast = toast.borrow().clone();
-        let target = scene::band_top(&look, frame.logical);
-        let (band, moving) = glide.borrow_mut().toward(target, frame.at, frame.interval);
-        let (rect, radius) = scene::body(frame.logical);
+        let target = scene::band_top(&look, frame.logical, &theme);
+        let (band, gliding) = glide.borrow_mut().toward(target, frame.at, frame.interval);
+        let (rect, radius) = scene::body(frame.logical, &theme);
+        let style = Style {
+            theme: &theme,
+            at: frame.at,
+        };
         Drawing {
-            scene: scene::scene_at(&look, frame.logical, band),
+            scene: scene::scene_at(&look, frame.logical, band, style, icons),
             backdrop: Some(Backdrop { rect, radius }),
-            moving,
+            moving: gliding || scene::moving(&look, &theme),
         }
     })
 }
 
 impl Shown {
-    /// Applies a provider's step; whether the list must be drawn again.
-    fn step(&mut self, step: Step) -> bool {
+    /// Applies a provider's step (`theme` sizes a new stage's list);
+    /// whether the list must be drawn again.
+    fn step(&mut self, step: Step, theme: &Theme) -> bool {
         let mut view = self.view.borrow_mut();
         match step {
             Step::Stage {
@@ -210,7 +293,9 @@ impl Shown {
                 entries,
             } => {
                 // The window keeps its size: the list scrolls within it.
-                (options.lines, options.width) = self.size;
+                (options.lines, options.width) = self.asked;
+                let (_, rows) = scene::fit(&options, theme);
+                options.lines = Some(rows);
                 *view = ListView::new(options);
                 // A new list: the band takes its row at once.
                 self.glide.borrow_mut().reset();
@@ -258,13 +343,16 @@ impl Shown {
 /// Applies the keys, pointer and pastes since the last call to the shown
 /// list. A point means the row drawn under it, on the panel's current size.
 /// A lingering window (its session over) takes none of them.
-fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event>) {
+fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event>, theme: &Theme) {
     for action in windows.take_actions() {
         let Some(s) = shown.as_mut().filter(|s| !s.lingering) else {
             continue;
         };
         let reaction = match (&action, windows.size()) {
-            (Action::Point(point), Some(size)) => s.view.borrow_mut().point(point, size),
+            (Action::Point(point), Some(size)) => {
+                let grid = scene::grid(size, s.rows, theme);
+                s.view.borrow_mut().point(point, &grid)
+            }
             _ => s.view.borrow_mut().apply(&action),
         };
         let given = match reaction {
@@ -288,6 +376,10 @@ fn react(windows: &mut Windows, shown: &mut Option<Shown>, events: &Sender<Event
             Reaction::Accept(Choice::Item(index)) => {
                 emit(format_args!("accept {index}"));
                 Answer::Item(index)
+            }
+            Reaction::Accept(Choice::Descend(index)) => {
+                emit(format_args!("descend {index}"));
+                Answer::Descend(index)
             }
             Reaction::Accept(Choice::Typed(text)) => {
                 let quoted = serde_json::to_string(&text).unwrap_or_default();
@@ -317,12 +409,12 @@ fn answer(events: &Sender<Event>, session: SessionId, answer: Answer) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use logis::list::Options;
 
     fn shown(options: Options) -> Shown {
         Shown {
             session: 1,
-            size: (options.lines, options.width),
+            asked: (options.lines, options.width),
+            rows: options.rows(),
             view: Rc::new(RefCell::new(ListView::new(options))),
             toast: Rc::new(RefCell::new(None)),
             glide: Rc::new(RefCell::new(Glide::new(logis::motion::Curve::INSTANT))),
@@ -336,21 +428,23 @@ mod tests {
     #[test]
     fn a_later_stage_keeps_the_rows_the_window_has_room_for() {
         let first = Options {
-            lines: 6,
-            width: 44,
+            lines: Some(6),
+            width: Some(44),
             ..Options::default()
         };
         let mut s = shown(first);
         let next = Options {
-            lines: 15,
+            lines: Some(15),
             prompt: "aspect: ".into(),
             ..Options::default()
         };
         let entries = vec![Entry::from("on".to_owned())];
-        assert!(s.step(Step::Stage {
+        let theme = Theme::bundled_default();
+        let stage = Step::Stage {
             options: next,
-            entries
-        }));
+            entries,
+        };
+        assert!(s.step(stage, &theme));
         let look = s.view.borrow_mut().look();
         assert_eq!((look.lines, look.prompt.as_str()), (6, "aspect: "));
         assert!(!s.waiting, "a new stage takes Return again");

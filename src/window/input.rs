@@ -58,10 +58,14 @@ impl Windows {
         if queue.dispatch_pending(self).map_err(|e| lost(&e))? == 0 {
             queue.flush().map_err(|e| lost(&e))?;
             if let Some(guard) = queue.prepare_read() {
-                let deadline = match (self.keyboard_mut().deadline(), self.motion_deadline()) {
-                    (Some(a), Some(b)) => Some(a.min(b)),
-                    (a, b) => a.or(b),
-                };
+                let deadline = [
+                    self.keyboard_mut().deadline(),
+                    self.motion_deadline(),
+                    self.alarm,
+                ]
+                .into_iter()
+                .flatten()
+                .min();
                 let timeout = deadline.map(until);
                 let ready = {
                     let fd = guard.connection_fd();

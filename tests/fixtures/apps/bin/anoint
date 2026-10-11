@@ -1,0 +1,17 @@
+#!/bin/sh
+# The fixture application: records how it was started in $ANOINT_RECORD
+# (arguments, environment, ids), then waits for $ANOINT_HOLD to vanish, so a
+# test can prove it outlives logis. It never touches the session.
+record=${ANOINT_RECORD:?ANOINT_RECORD is unset}
+{
+    printf 'pid %s\n' "$$"
+    printf 'ppid %s\n' "$(awk '{print $4}' /proc/$$/stat)"
+    printf 'sid %s\n' "$(awk '{print $6}' /proc/$$/stat)"
+    printf 'cwd %s\n' "$PWD"
+    for arg in "$@"; do printf 'arg %s\n' "$arg"; done
+    printf 'token %s\n' "${XDG_ACTIVATION_TOKEN-}"
+    printf 'startup %s\n' "${DESKTOP_STARTUP_ID-}"
+    printf 'marker %s\n' "${ANOINT_MARKER-}"
+} > "$record.tmp"
+mv "$record.tmp" "$record"
+while [ -n "${ANOINT_HOLD-}" ] && [ -e "$ANOINT_HOLD" ]; do sleep 0.05; done

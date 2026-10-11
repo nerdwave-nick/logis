@@ -19,7 +19,12 @@ pub(super) fn line(scene: &mut Scene, look: &Look, body: [f32; 4], style: Style<
     if let Some(sigil) = &p.sigil {
         // Images other than logis's own gear wait for the image source.
         if sigil.image == "gear" {
-            chrome::gear(scene, (left + sigil.size / 2.0, centre), sigil.size, sigil.color);
+            chrome::gear(
+                scene,
+                (left + sigil.size / 2.0, centre),
+                sigil.size,
+                sigil.color,
+            );
         }
         left += sigil.size + p.gap;
     }
@@ -36,7 +41,11 @@ pub(super) fn line(scene: &mut Scene, look: &Look, body: [f32; 4], style: Style<
             .replace("{matched}", &matched.to_string())
             .replace("{total}", &total.to_string());
         room -= (words.chars().count() as f32 + 2.0) * advance(&c.font);
-        let mut counter = column(text(words, left, centre, &c.font, c.color), right - left, Overflow::Clip);
+        let mut counter = column(
+            text(words, left, centre, &c.font, c.color),
+            right - left,
+            Overflow::Clip,
+        );
         counter.align_end = true;
         scene.texts.push(counter);
     }
@@ -64,7 +73,11 @@ fn query(look: &Look, left: f32, centre: f32, room: f32, style: Style<'_>) -> cr
     line.push_str(&look.input);
     spans.push((start..line.len(), input));
     spans.retain(|(r, _)| !r.is_empty());
-    let mut t = column(text(line, left, centre, &q.font, q.color), room, Overflow::Ellipsis);
+    let mut t = column(
+        text(line, left, centre, &q.font, q.color),
+        room,
+        Overflow::Ellipsis,
+    );
     t.spans = spans;
     t.caret = look.cursor.map(|cursor| Caret {
         at: start + cursor.min(look.input.len()),

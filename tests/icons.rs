@@ -93,6 +93,7 @@ fn an_image_is_drawn_texel_for_texel_at_its_snapped_corner() {
         let scene = images(vec![ImageQuad {
             image: id,
             origin: [10.4, 10.4],
+            opacity: 1.0,
         }]);
         let out = render(
             &gpu,
@@ -116,6 +117,32 @@ fn an_image_is_drawn_texel_for_texel_at_its_snapped_corner() {
 }
 
 #[test]
+fn an_image_is_drawn_at_its_opacity() {
+    let Some(gpu) = gpu() else { return };
+    let mut renderer = Renderer::new(&gpu);
+    let red = renderer
+        .atlas_mut()
+        .insert(&gpu, &image(4, 4, |_, _| [200, 0, 0, 200]))
+        .unwrap();
+    let scene = images(vec![ImageQuad {
+        image: red,
+        origin: [0.0, 0.0],
+        opacity: 0.5,
+    }]);
+    let out = render(&gpu, &mut renderer, &scene, (8, 8), SCALE_1_0);
+    let [r, g, b, a] = out.pixel(1, 1);
+    assert!(
+        (99..=101).contains(&r) && g == 0 && b == 0,
+        "{:?}",
+        [r, g, b, a]
+    );
+    assert!(
+        (99..=101).contains(&a),
+        "premultiplied, half as opaque: {a}"
+    );
+}
+
+#[test]
 fn images_paint_over_shapes_with_premultiplied_blending() {
     let Some(gpu) = gpu() else { return };
     let mut renderer = Renderer::new(&gpu);
@@ -134,6 +161,7 @@ fn images_paint_over_shapes_with_premultiplied_blending() {
         images: vec![ImageQuad {
             image: red_half,
             origin: [5.0, 5.0],
+            opacity: 1.0,
         }],
         ..Scene::default()
     };
@@ -156,6 +184,7 @@ fn an_srgb_target_stores_images_linear() {
     let scene = images(vec![ImageQuad {
         image: grey,
         origin: [0.0, 0.0],
+        opacity: 1.0,
     }]);
     let srgb = wgpu::TextureFormat::Rgba8UnormSrgb;
     let out = render_offscreen(&gpu, &mut renderer, &scene, (4, 4), SCALE_1_0, srgb).unwrap();
@@ -190,6 +219,7 @@ fn the_atlas_grows_and_keeps_its_images() {
         let scene = images(vec![ImageQuad {
             image: id,
             origin: [0.0, 0.0],
+            opacity: 1.0,
         }]);
         let out = render(&gpu, &mut renderer, &scene, (300, 300), SCALE_1_0);
         for (x, y) in [(0, 0), (299, 0), (150, 150), (0, 299), (299, 299)] {
@@ -340,6 +370,7 @@ fn golden_scene(gpu: &Gpu, renderer: &mut Renderer, scale: Scale) -> (Scene, (u3
             ImageQuad {
                 image,
                 origin: [8.0 + 40.0 * i as f32, 8.0],
+                opacity: 1.0,
             }
         })
         .collect();

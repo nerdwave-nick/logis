@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Bless the cogitator
+Icon=forge-banner
+Exec=anoint --bless

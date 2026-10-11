@@ -8,6 +8,7 @@
 
 mod entry;
 pub mod filter;
+mod highlight;
 pub mod scene;
 mod view;
 

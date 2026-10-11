@@ -157,11 +157,15 @@ impl Dispatch<WlKeyboard, ()> for Windows {
                 windows.actions.extend(action);
             }
             wl_keyboard::Event::Key {
+                serial,
                 key,
                 state: WEnum::Value(state),
                 ..
             } => {
                 let pressed = state == wl_keyboard::KeyState::Pressed;
+                if pressed {
+                    windows.activation.serial = Some(serial);
+                }
                 let word = if pressed { "pressed" } else { "released" };
                 emit(format_args!("key {key} {word}"));
                 let keyboard = windows.keyboard_mut();

@@ -116,7 +116,12 @@ pub(super) fn gear(scene: &mut Scene, (cx, cy): (f32, f32), size: f32, color: Rg
     let ring = 5.0 * unit;
     let stroke = 2.0 * unit;
     scene.shapes.push(RoundedRect {
-        rect: [cx - ring - stroke / 2.0, cy - ring - stroke / 2.0, 2.0 * ring + stroke, 2.0 * ring + stroke],
+        rect: [
+            cx - ring - stroke / 2.0,
+            cy - ring - stroke / 2.0,
+            2.0 * ring + stroke,
+            2.0 * ring + stroke,
+        ],
         radius: ring + stroke / 2.0,
         fill: Paint::Solid(Rgba::TRANSPARENT),
         border: Some(Border {

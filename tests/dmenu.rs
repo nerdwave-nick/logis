@@ -16,6 +16,7 @@ use std::io::Write;
 
 use logis::list::{Options, scene};
 use logis::render::Image;
+use logis::theme::Theme;
 use support::e2e::cogitator::{Cogitator, Ended};
 use support::e2e::keyboard::{Modifier, code};
 use support::e2e::screencopy::crop_centred;
@@ -171,11 +172,12 @@ fn the_list_is_drawn_with_its_matches_highlighted() {
     // The band glides to the row; its end state is the golden.
     c.daemon
         .wait_for("the band at rest", |e| e.what == "settled");
-    let size = scene::size(&Options {
-        lines: 4,
-        width: 40,
+    let options = Options {
+        lines: Some(4),
+        width: Some(40),
         ..Options::default()
-    });
+    };
+    let size = scene::fit(&options, &Theme::bundled_default()).0;
     check_window(&mut c.harness, "dmenu-filtered", size);
     c.tap(&focused, code::ESC);
     assert_eq!(client.ended().code, Some(1));

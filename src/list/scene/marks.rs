@@ -51,7 +51,11 @@ pub(super) fn marks(row: &Row, right: f32, centre: f32, style: Style<'_>) -> Mar
             (_, false) => t.clone(),
         })
         .collect();
-    let pad = if b.style == BadgeStyle::Bracket { 0.0 } else { pad };
+    let pad = if b.style == BadgeStyle::Bracket {
+        0.0
+    } else {
+        pad
+    };
     let widths: Vec<f32> = words
         .iter()
         .map(|w| w.chars().count() as f32 * advance(&b.font) + 2.0 * pad)
@@ -82,7 +86,9 @@ pub(super) fn marks(row: &Row, right: f32, centre: f32, style: Style<'_>) -> Mar
             });
         }
         let label = text(words, left + pad, centre, &b.font, ink);
-        marks.texts.push(column(label, w - 2.0 * pad + 2.0, Overflow::Clip));
+        marks
+            .texts
+            .push(column(label, w - 2.0 * pad + 2.0, Overflow::Clip));
         left += w + gap;
     }
     marks
@@ -122,5 +128,7 @@ pub(super) fn toast(scene: &mut Scene, notice: &Notice, [x, y, w, h]: [f32; 4], 
         &font,
         theme.row.columns[0],
     );
-    scene.texts.push(column(words, rect[2] - 24.0, Overflow::Ellipsis));
+    scene
+        .texts
+        .push(column(words, rect[2] - 24.0, Overflow::Ellipsis));
 }

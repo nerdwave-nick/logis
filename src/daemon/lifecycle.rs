@@ -63,6 +63,8 @@ pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: 
             Event::Answered { session, answer } => core.answered(session, answer),
             Event::Failed { session, message } => core.failed(session, message),
             Event::Heard { session, heard } => core.heard(session, heard),
+            Event::Indexed(index) => core.indexed(index),
+            Event::Activation { session, token } => core.activated(session, token),
             Event::WaylandLost { reason } => return Exit::WaylandLost(reason),
             Event::Reconfigured(loaded) => reconfigure(core, config, loaded),
         }
@@ -73,7 +75,8 @@ pub fn serve<R: Resolver>(core: &mut Core<R>, events: &Receiver<Event>, config: 
     }
 }
 
-/// Applies a reread config, or keeps the last sound one and says why.
+/// Applies a reread config, or keeps the last sound one and says why; then
+/// the same for the theme it names (its file may be what changed).
 fn reconfigure<R: Resolver>(
     core: &mut Core<R>,
     config: &mut Live,
@@ -92,6 +95,22 @@ fn reconfigure<R: Resolver>(
                 logis::config::heresy_text(&error)
             ));
             core.toast(Toast::ConfigRejected { error });
+        }
+    }
+    match config.reload_theme() {
+        Reload::Applied => {
+            let theme = config.theme();
+            super::log(&format!("the cogitator dons the theme '{}'", theme.name));
+            core.retheme(std::sync::Arc::clone(theme));
+        }
+        Reload::Restored => super::log("the theme is sound once more; nothing has changed"),
+        Reload::Unchanged => {}
+        Reload::Rejected(error) => {
+            super::log(&format!(
+                "{}; the last sound theme stands",
+                logis::config::theme_heresy(&error)
+            ));
+            core.toast(Toast::ThemeRejected { error });
         }
     }
 }
@@ -132,6 +151,7 @@ mod tests {
     enum Seen {
         Configured(Config),
         Toast(Toast),
+        Themed(String),
     }
 
     #[derive(Clone, Default)]
@@ -159,6 +179,12 @@ mod tests {
         }
         fn toast(&mut self, toast: Toast) {
             self.0.lock().unwrap().push(Seen::Toast(toast));
+        }
+        fn retheme(&mut self, theme: std::sync::Arc<logis::theme::Theme>) {
+            self.0
+                .lock()
+                .unwrap()
+                .push(Seen::Themed(theme.name.clone()));
         }
     }
 
@@ -237,6 +263,69 @@ mod tests {
         assert_eq!(serve(&mut core, &rx, &mut live), Exit::Idle);
         assert_eq!(recorder.seen(), []);
         drop(tx);
+    }
+
+    /// A themes directory holding `mine.jsonc`, removed on drop.
+    struct ThemeDir(std::path::PathBuf);
+
+    impl ThemeDir {
+        fn new(name: &str, mine: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("logis-lifecycle-{}-{name}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("mine.jsonc"), mine).unwrap();
+            Self(dir)
+        }
+
+        fn live(&self) -> Live {
+            let config = Config {
+                theme: "mine".into(),
+                ..idle_after(SHORT)
+            };
+            Live::new(config.clone(), None)
+                .with_themes(logis::theme::Themes::new(Some(self.0.clone())))
+        }
+    }
+
+    impl Drop for ThemeDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn an_edited_theme_reaches_the_window_and_a_broken_one_raises_a_toast() {
+        let dir = ThemeDir::new("edit", "{\"glow\": {\"radius\": 3}}");
+        let mut live = dir.live();
+        let unchanged = || {
+            Ok(Config {
+                theme: "mine".into(),
+                ..idle_after(SHORT)
+            })
+        };
+        let (tx, rx) = channel();
+        let recorder = Recorder::default();
+        let mut core = Core::new(recorder.clone(), 1);
+        std::fs::write(dir.0.join("mine.jsonc"), "{\"glow\": {\"radius\": 4}}").unwrap();
+        tx.send(Event::Reconfigured(unchanged())).unwrap();
+        watchdog(&tx);
+        assert_eq!(serve(&mut core, &rx, &mut live), Exit::Idle);
+        assert_eq!(recorder.seen(), [Seen::Themed("mine".into())]);
+        assert_eq!(live.theme().glow.radius, 4.0);
+
+        std::fs::write(
+            dir.0.join("mine.jsonc"),
+            "{\"glow\": {\"radius\": \"wide\"}}",
+        )
+        .unwrap();
+        tx.send(Event::Reconfigured(unchanged())).unwrap();
+        assert_eq!(serve(&mut core, &rx, &mut live), Exit::Idle);
+        let [Seen::Toast(Toast::ThemeRejected { error })] = &recorder.seen()[..] else {
+            panic!("no single theme toast");
+        };
+        assert!(error.contains("mine.jsonc:1:"), "{error}");
+        assert_eq!(live.theme().glow.radius, 4.0, "the last sound theme stands");
     }
 
     #[test]

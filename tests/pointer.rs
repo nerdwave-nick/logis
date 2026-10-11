@@ -13,6 +13,7 @@
 mod support;
 
 use logis::list::{Options, scene};
+use logis::theme::Theme;
 use logis::window::trace::monotonic_ns;
 use support::e2e::cogitator::{Cogitator, Ended};
 use support::e2e::keyboard::{Modifier, code};
@@ -30,23 +31,29 @@ fn chose(stdout: &[u8]) -> Ended {
 const ITEMS: &[u8] = b"alpha\nbeta\ngamma\n";
 const LINES: u32 = 5;
 
-/// The panel of a list with [`LINES`] rows and the default width.
+/// The panel of a list with [`LINES`] rows and the default theme's width.
 fn panel_size() -> (u32, u32) {
-    scene::size(&Options {
-        lines: LINES,
+    let options = Options {
+        lines: Some(LINES),
         ..Options::default()
-    })
+    };
+    scene::fit(&options, &Theme::bundled_default()).0
+}
+
+/// Where the rows lie in the default theme.
+fn grid() -> scene::Grid {
+    scene::grid(panel_size(), LINES, &Theme::bundled_default())
 }
 
 /// The middle of row `row` in view, in surface coordinates.
 fn row(row: usize) -> (f64, f64) {
     let size = panel_size();
-    let top = f64::from(scene::MARGIN + scene::PROMPT_BLOCK + scene::LIST_PAD);
+    let g = grid();
     let point = (
         f64::from(size.0) / 2.0,
-        top + (row as f64 + 0.5) * f64::from(scene::ROW_PITCH),
+        f64::from(g.top(row) + g.pitch / 2.0),
     );
-    assert_eq!(scene::row_at(size, LINES, point), Some(row));
+    assert_eq!(g.row_at(point), Some(row));
     point
 }
 
@@ -167,7 +174,7 @@ fn a_finger_scrolls_a_row_per_row_height_and_carries_the_rest() {
     c.shown(30);
     let panel = aim(&mut c, &vp);
     c.harness.move_to(&vp, panel.at(row(0)));
-    let pitch = f64::from(scene::ROW_PITCH);
+    let pitch = f64::from(grid().pitch);
     for item in 1..=3 {
         c.harness.finger(&vp, pitch);
         assert_eq!(c.next("scroll"), format!("pixels {pitch}"));

@@ -99,3 +99,34 @@ impl IconCache {
         result
     }
 }
+
+/// Icons for one frame: names to atlas images at the frame's scale.
+pub trait IconSource {
+    /// Icon `name` at `size` logical pixels, if it is found and drawable.
+    fn image(&mut self, name: &str, size: u32) -> Option<ImageId>;
+}
+
+/// No icons at all (a scene drawn without an icon cache).
+pub struct NoIcons;
+
+impl IconSource for NoIcons {
+    fn image(&mut self, _: &str, _: u32) -> Option<ImageId> {
+        None
+    }
+}
+
+/// The icons of a frame of `scale`, from `cache` into the renderer's atlas.
+pub struct FrameIcons<'a> {
+    pub cache: &'a mut IconCache,
+    pub gpu: &'a Gpu,
+    pub atlas: &'a mut ImageAtlas,
+    pub scale: Scale,
+}
+
+impl IconSource for FrameIcons<'_> {
+    fn image(&mut self, name: &str, size: u32) -> Option<ImageId> {
+        self.cache
+            .image(self.gpu, self.atlas, name, size, self.scale)
+            .ok()
+    }
+}

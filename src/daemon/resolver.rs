@@ -22,6 +22,9 @@ pub enum Toast {
     /// An edit to the config was refused (the error, with its place); the
     /// last sound config stays in force.
     ConfigRejected { error: String },
+    /// The theme the config names could not be worn (the error, with its
+    /// place); the last sound theme stays in force.
+    ThemeRejected { error: String },
 }
 
 /// Shows sessions and reports the user's answers with [`Event::Answered`].
@@ -56,6 +59,14 @@ pub trait Resolver {
     fn configure(&mut self, _config: &Config) {}
     /// A notice for the user, such as a refused config edit.
     fn toast(&mut self, _toast: Toast) {}
+    /// The theme to wear: once at start, then after every change of it
+    /// (its file, the config's `theme` or `reduce-motion`). A visible
+    /// window wears it at once.
+    fn retheme(&mut self, _theme: std::sync::Arc<logis::theme::Theme>) {}
+    /// The visible session launches app `app_id`: ask the compositor for an
+    /// xdg-activation token and send it as [`Event::Activation`]. Without
+    /// one in time the daemon launches without a token.
+    fn activation(&mut self, _session: SessionId, _app_id: &str) {}
 }
 
 impl<R: Resolver + ?Sized> Resolver for Box<R> {
@@ -85,6 +96,12 @@ impl<R: Resolver + ?Sized> Resolver for Box<R> {
     }
     fn toast(&mut self, toast: Toast) {
         (**self).toast(toast);
+    }
+    fn retheme(&mut self, theme: std::sync::Arc<logis::theme::Theme>) {
+        (**self).retheme(theme);
+    }
+    fn activation(&mut self, session: SessionId, app_id: &str) {
+        (**self).activation(session, app_id);
     }
 }
 
@@ -117,8 +134,10 @@ impl Resolver for Windowless {
 ///   typed text. After an answer it waits for the provider's next stage
 ///   or `ready`, as the window does.
 ///
-/// App and servitor sessions are never answered; they end by replacement,
-/// cancel or disconnect.
+/// App sessions are answered as provider stages are (an app whose name
+/// starts with the mark), and get a stand-in activation token,
+/// `scripted-<session>`, at once. Servitor sessions are never answered;
+/// they end by replacement, cancel or disconnect.
 pub struct Scripted {
     events: Sender<Event>,
     visible: Option<Visible>,
@@ -155,7 +174,7 @@ impl Scripted {
         let Some(v) = self
             .visible
             .as_mut()
-            .filter(|v| v.mode == Mode::Provider && !v.waiting)
+            .filter(|v| matches!(v.mode, Mode::Provider | Mode::Apps) && !v.waiting)
         else {
             return;
         };
@@ -240,6 +259,11 @@ impl Resolver for Scripted {
     fn hide(&mut self, session: SessionId) {
         self.visible.take_if(|v| v.session == session);
     }
+
+    fn activation(&mut self, session: SessionId, _app_id: &str) {
+        let token = Some(format!("scripted-{session}"));
+        let _ = self.events.send(Event::Activation { session, token });
+    }
 }
 
 /// What a stage that takes typed text gets typed into it.
@@ -303,12 +327,23 @@ mod tests {
     }
 
     #[test]
-    fn app_and_servitor_sessions_are_left_open() {
+    fn servitor_sessions_are_left_open() {
         let (mut r, rx) = scripted();
-        r.show(1, Mode::Apps, Options::default(), Vec::new());
         r.show(2, Mode::Servitor, Options::default(), entries(&[">a"]));
         r.end(2);
         assert!(answers(&rx).is_empty());
+    }
+
+    #[test]
+    fn app_sessions_choose_the_marked_app_and_get_a_stand_in_token() {
+        let (mut r, rx) = scripted();
+        r.show(1, Mode::Apps, Options::default(), entries(&["a", ">b"]));
+        assert_eq!(answers(&rx), [(1, Answer::Item(1))]);
+        r.activation(1, "forge-b");
+        let Ok(Event::Activation { session, token }) = rx.try_recv() else {
+            panic!("no token");
+        };
+        assert_eq!((session, token.as_deref()), (1, Some("scripted-1")));
     }
 
     #[test]

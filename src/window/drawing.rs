@@ -2,6 +2,7 @@
 //! it gets back ([`Drawing`]).
 
 use super::blur::Backdrop;
+use crate::icons::IconSource;
 use crate::motion::Nanos;
 use crate::render::Scene;
 
@@ -40,5 +41,6 @@ impl Drawing {
     }
 }
 
-/// Builds a panel's content for each frame.
-pub type SceneFn = Box<dyn FnMut(&Frame) -> Drawing>;
+/// Builds a panel's content for each frame, its icons from the source (the
+/// window's icon cache at the frame's scale).
+pub type SceneFn = Box<dyn FnMut(&Frame, &mut dyn IconSource) -> Drawing>;

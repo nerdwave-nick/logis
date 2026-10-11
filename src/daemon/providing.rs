@@ -41,6 +41,8 @@ pub enum Feed {
     Waiting(Launch),
     /// A started external provider.
     Provider(Box<Live>),
+    /// The built-in app launcher.
+    Apps(Box<super::apps::AppsFeed>),
 }
 
 /// A started provider in its session.

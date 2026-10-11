@@ -25,7 +25,7 @@ use super::{Panel, Shell, WindowError, WindowQueue};
 use crate::input::Action;
 use crate::motion::{Motion, Transition};
 use crate::render::{BackendChoice, Gpu, Renderer};
-use crate::text::PendingFonts;
+use crate::text::{Face, FontError, PendingFonts};
 
 /// What the daemon owns for its windows: the connection, the bound globals,
 /// the GPU (woken at connect, never lazily), the renderer, at most one
@@ -33,13 +33,15 @@ use crate::text::PendingFonts;
 pub struct Windows {
     // Drop order: the panels (and their wgpu surfaces) before the GPU they
     // were created on, then the globals, then the connection.
-    panel: Option<Panel>,
+    pub(super) panel: Option<Panel>,
     closing: Option<Panel>,
     retired: Option<Panel>,
     verbose: bool,
     motion: Motion,
     clock: FrameClock,
     blur: bool,
+    /// When the owner wants the loop to wake ([`Self::set_alarm`]).
+    pub(super) alarm: Option<std::time::Instant>,
     renderer: Renderer,
     gpu: Gpu,
     /// What the seat asked of the visible panel, oldest first.
@@ -47,6 +49,9 @@ pub struct Windows {
     pub(super) clipboard: Clipboard,
     pub(super) pointer: Pointer,
     keyboard: Keyboard,
+    pub(super) activation: super::activation::Activation,
+    /// The icon theme's name and its cache, once a theme is set.
+    icons: Option<(String, crate::icons::IconCache)>,
     effects: Option<Effects>,
     presentation: Option<Presentation>,
     shell: Shell,
@@ -70,8 +75,35 @@ impl Windows {
     pub fn with_connection(
         connection: Connection,
         choice: BackendChoice,
+        faces: &[Face],
     ) -> Result<(Self, WindowQueue), WindowError> {
-        Self::build(connection, choice, PendingFonts::system())
+        Self::build(
+            connection,
+            choice,
+            PendingFonts::system_with(faces.to_vec()),
+        )
+    }
+
+    /// The faces texts name by index from now on (a theme's); the visible
+    /// panel is drawn again with them.
+    pub fn set_faces(&mut self, faces: &[Face]) -> Result<(), FontError> {
+        let result = self.renderer.set_faces(faces);
+        self.request_redraw();
+        result
+    }
+
+    /// Asks the compositor for another size for the visible panel (its
+    /// theme changed); it is drawn again once configured.
+    pub fn resize(&mut self, size: (u32, u32)) {
+        if let Some(panel) = &mut self.panel {
+            panel.resize(size);
+        }
+    }
+
+    /// Wakes the window's loop at `when` (or never), for its owner's own
+    /// timers: [`Self::dispatch_or_wake`] returns by then.
+    pub fn set_alarm(&mut self, when: Option<std::time::Instant>) {
+        self.alarm = when;
     }
 
     fn build(
@@ -85,6 +117,7 @@ impl Windows {
         let keyboard = Keyboard::bind(&globals, &queue.handle());
         let pointer = Pointer::bind(&globals, &queue.handle());
         let clipboard = Clipboard::bind(&globals, &queue.handle(), keyboard.seat());
+        let activation = super::activation::Activation::bind(&globals, &queue.handle());
         // Used when offered (spec §4.2): blur and presentation timing.
         let effects = globals
             .bind(&queue.handle(), 1..=1, ())
@@ -116,18 +149,32 @@ impl Windows {
             motion: Motion::OFF,
             clock: FrameClock::default(),
             blur: false,
+            alarm: None,
             renderer,
             gpu,
             actions: Vec::new(),
             clipboard,
             pointer,
             keyboard,
+            activation,
+            icons: None,
             effects,
             presentation,
             shell,
             connection,
         };
         Ok((windows, queue))
+    }
+
+    /// Looks icons up in theme `name` (then its parents, hicolor and the
+    /// pixmaps). The theme's index files are read now, once per change.
+    pub fn set_icon_theme(&mut self, name: &str) {
+        if self.icons.as_ref().is_some_and(|(n, _)| n == name) {
+            return;
+        }
+        let themes = crate::icons::IconThemes::load(&crate::icons::SearchPaths::from_env(), name);
+        self.icons = Some((name.to_owned(), crate::icons::IconCache::new(themes)));
+        self.request_redraw();
     }
 
     /// Reports every swapchain (re)configuration on stderr.
@@ -228,6 +275,10 @@ impl Windows {
         self.panel.as_ref().is_some_and(|p| p.has_surface(surface))
     }
 
+    pub(super) fn keyboard(&self) -> &Keyboard {
+        &self.keyboard
+    }
+
     /// The visible panel and the closing one, whichever exist.
     pub(super) fn panels_mut(&mut self) -> impl Iterator<Item = &mut Panel> {
         self.panel.iter_mut().chain(self.closing.iter_mut())
@@ -257,6 +308,7 @@ impl Windows {
             compositor: &self.shell.compositor,
             presentation: self.presentation.as_ref().map(|p| &p.global),
             clock: &mut self.clock,
+            icons: self.icons.as_mut().map(|(_, cache)| cache),
         };
         if let Some(closing) = &mut self.closing
             && closing.draw_if_needed(&mut painter).finished

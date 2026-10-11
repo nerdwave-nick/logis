@@ -19,7 +19,7 @@ pub(crate) const ATLAS_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8U
 
 /// An image in the atlas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ImageId(u32);
+pub struct ImageId(pub(crate) u32);
 
 /// Why an image did not enter the atlas.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -143,11 +143,15 @@ impl Dispatch<WlPointer, ()> for Windows {
                 }
             }
             Event::Button {
+                serial,
                 button,
                 state: WEnum::Value(state),
                 ..
             } => {
                 let pressed = state == wl_pointer::ButtonState::Pressed;
+                if pressed {
+                    windows.activation.serial = Some(serial);
+                }
                 if windows.pointer.model.position().is_some() {
                     let word = if pressed { "pressed" } else { "released" };
                     emit(format_args!("button {button} {word}"));

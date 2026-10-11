@@ -15,8 +15,6 @@ pub use dmenu::Dmenu;
 pub enum Command {
     /// Print the name and version.
     Version,
-    /// Rouse the daemon (starting it if none answers) without opening a session.
-    Run { config: Option<PathBuf> },
     /// A dmenu session: lines from stdin, the chosen line on stdout.
     Dmenu {
         config: Option<PathBuf>,
@@ -28,6 +26,9 @@ pub enum Command {
         config: Option<PathBuf>,
         argv: Vec<OsString>,
     },
+    /// The app launcher: desktop applications, launched by the daemon
+    /// (plain `logis`, or `--apps`).
+    Apps { config: Option<PathBuf> },
     /// servitor mode (spec §4.8): a provider session whose provider is
     /// logis itself (`logis provide servitor`).
     Servitor { config: Option<PathBuf> },
@@ -88,7 +89,7 @@ impl fmt::Display for ParseError {
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
                  It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), \
-                 --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and \
+                 --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and \
                  daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
@@ -148,6 +149,7 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
             Some("--dmenu" | "-d") => Started::Dmenu { nul: false },
             Some("--dmenu0") => Started::Dmenu { nul: true },
             Some("--check-config") => Started::CheckConfig,
+            Some("--apps") => Started::Apps,
             Some("--servitor") => Started::Servitor,
             Some("--provider") => {
                 let argv: Vec<OsString> = args.by_ref().collect();
@@ -174,9 +176,11 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
     }
     runes.none_given()?;
     Ok(match command {
-        None => Command::Run { config },
+        // Plain `logis` is the app launcher, as in fuzzel.
+        None => Command::Apps { config },
         Some(Started::Version) => Command::Version,
         Some(Started::CheckConfig) => Command::CheckConfig { config },
+        Some(Started::Apps) => Command::Apps { config },
         Some(Started::Provider(argv)) => Command::Provider { config, argv },
         Some(Started::Servitor) => Command::Servitor { config },
         Some(Started::Dmenu { .. }) => unreachable!("handled above"),
@@ -190,6 +194,7 @@ enum Started {
         nul: bool,
     },
     CheckConfig,
+    Apps,
     Servitor,
     /// The program and its arguments: everything after `--provider`.
     Provider(Vec<OsString>),
@@ -290,8 +295,8 @@ mod tests {
     }
 
     #[test]
-    fn no_arguments_runs() {
-        assert_eq!(parse_strs(&[]), Ok(Command::Run { config: None }));
+    fn no_arguments_open_the_app_launcher() {
+        assert_eq!(parse_strs(&[]), Ok(Command::Apps { config: None }));
     }
 
     #[test]
@@ -326,7 +331,7 @@ mod tests {
             panic!("a dmenu session");
         };
         assert!(dmenu.index);
-        assert_eq!(dmenu.view.lines, 3);
+        assert_eq!(dmenu.view.lines, Some(3));
     }
 
     #[test]
@@ -352,6 +357,20 @@ mod tests {
         assert!(err.to_string().contains("--provider"), "{err}");
         assert!(parse_strs(&["--dmenu", "--provider", "x"]).is_err());
         assert!(parse_strs(&["--prompt", "p", "--provider", "x"]).is_err());
+    }
+
+    #[test]
+    fn apps_asks_for_the_app_launcher() {
+        assert_eq!(parse_strs(&["--apps"]), Ok(Command::Apps { config: None }));
+        assert_eq!(
+            parse_strs(&["--apps", "--config", "/c"]),
+            Ok(Command::Apps {
+                config: Some(PathBuf::from("/c"))
+            })
+        );
+        assert!(parse_strs(&["--apps", "--dmenu"]).is_err());
+        assert!(parse_strs(&["--apps", "--prompt", "x"]).is_err());
+        assert!(parse_strs(&["--apps", "--servitor"]).is_err());
     }
 
     #[test]
@@ -412,7 +431,7 @@ mod tests {
         );
         assert_eq!(
             parse_strs(&["--config", "/x/logis.jsonc"]),
-            Ok(Command::Run { config: path() })
+            Ok(Command::Apps { config: path() })
         );
         let options = DaemonOptions {
             config: path(),

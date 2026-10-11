@@ -8,15 +8,7 @@ use std::time::Duration;
 use super::doc::{BadgeStyle, CaretShape};
 use crate::render::Rgba;
 
-/// A face to load: families in order of preference (resolved by
-/// fontconfig, aliases and generic families included) at a weight.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Face {
-    /// Family names, the most wanted first.
-    pub families: Vec<String>,
-    /// The OpenType weight (400 regular, 600 semibold, 700 bold).
-    pub weight: u16,
-}
+pub use crate::text::Face;
 
 /// A font as an element uses it.
 #[derive(Clone, Copy, Debug, PartialEq)]

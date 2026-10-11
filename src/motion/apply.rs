@@ -6,9 +6,8 @@ use super::Pose;
 use crate::render::{Paint, Rgba, Scene};
 
 impl Pose {
-    /// Moves and fades `scene` into this pose. The rest pose changes
-    /// nothing. Images move but keep their own opacity (the image pipeline
-    /// has no per-quad alpha yet).
+    /// Moves and fades `scene` into this pose, images included. The rest
+    /// pose changes nothing.
     pub fn apply(self, scene: &mut Scene) {
         if self.is_rest() {
             return;
@@ -50,6 +49,7 @@ impl Pose {
         }
         for image in &mut scene.images {
             image.origin = shift(image.origin);
+            image.opacity *= self.opacity.clamp(0.0, 1.0);
         }
         for text in &mut scene.texts {
             text.origin = shift(text.origin);
@@ -69,7 +69,7 @@ impl Pose {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::render::{Border, Glow, RoundedRect, Text};
+    use crate::render::{Border, Glow, ImageId, ImageQuad, RoundedRect, Text};
 
     fn scene() -> Scene {
         let shape = RoundedRect {
@@ -91,13 +91,19 @@ mod tests {
                 color: Rgba::new(0.7, 0.0, 0.0, 0.5),
             }),
         };
+        let image = ImageQuad {
+            image: ImageId(0),
+            origin: [30.0, 24.0],
+            opacity: 0.8,
+        };
         let mut text = Text::new("rite", [14.0, 24.0], 15.0, Rgba::hex(0xeadfc4));
         text.spans = vec![(0..2, Rgba::hex(0xf2c14e))];
         Scene {
             clear: Some(Rgba::new(0.0, 0.0, 0.0, 0.5)),
             shapes: vec![shape],
+            images: vec![image],
             texts: vec![text],
-            ..Scene::default()
+            post: None,
         }
     }
 
@@ -148,6 +154,7 @@ mod tests {
         assert_eq!(shape.glow.unwrap().color.a, 0.25);
         assert_eq!(s.texts[0].color.a, 0.5);
         assert_eq!(s.texts[0].spans[0].1.a, 0.5);
+        assert_eq!(s.images[0].opacity, 0.4, "images fade too");
     }
 
     #[test]
@@ -165,6 +172,8 @@ mod tests {
         assert_eq!((start, end), ([2.0, 30.0], [2.0, 70.0]));
         assert_eq!(s.texts[0].origin, [16.0, 34.0]);
         assert_eq!(s.texts[0].color, scene().texts[0].color, "not faded");
+        assert_eq!(s.images[0].origin, [32.0, 34.0]);
+        assert_eq!(s.images[0].opacity, 0.8);
     }
 
     #[test]

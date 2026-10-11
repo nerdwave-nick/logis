@@ -419,6 +419,7 @@ fn text_is_drawn_over_images() {
         images: vec![ImageQuad {
             image: id,
             origin: [0.0, 0.0],
+            opacity: 1.0,
         }],
         ..texts(vec![Text::new("MMM", [4.0, 2.0], 20.0, WHITE)])
     };

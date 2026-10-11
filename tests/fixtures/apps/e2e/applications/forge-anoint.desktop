@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Anoint the vessel
+GenericName=Holy oil
+Keywords=unguent;
+Icon=forge-cog
+Exec=anoint --e2e %U --name=%c
+Actions=purge;
+
+[Desktop Action purge]
+Name=Purge the vessel
+Icon=cogitator-skull
+Exec=anoint --purge

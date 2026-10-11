@@ -144,6 +144,20 @@ impl Panel {
         self.layer.wl_surface() == surface
     }
 
+    /// The panel's `wl_surface`.
+    pub(super) fn surface(
+        &self,
+    ) -> &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface {
+        self.layer.wl_surface()
+    }
+
+    /// Asks the compositor for `size` logical pixels from now on.
+    pub(super) fn resize(&mut self, size: (u32, u32)) {
+        self.layer.set_size(size.0, size.1);
+        self.layer.commit();
+        self.state.request(size);
+    }
+
     /// Gives up keyboard focus while staying on screen.
     pub(super) fn release_keyboard(&self) {
         self.layer

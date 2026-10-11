@@ -13,3 +13,9 @@ PartOf=graphical-session.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/logis daemon
+# Stopping the service ends the daemon alone (owner decision, 2026-10-12):
+# it never kills a provider, a launched app or a running servitor
+# invocation. Apps run in scopes of their own where a user manager answers;
+# KillMode=process also spares one started without a scope (or still being
+# moved into one), a provider and the actions it started.
+KillMode=process

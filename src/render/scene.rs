@@ -198,6 +198,8 @@ pub struct ImageQuad {
     pub image: ImageId,
     /// Top-left corner in logical pixels.
     pub origin: [f32; 2],
+    /// How opaque it is drawn, 0 to 1 (a fading window's images fade too).
+    pub opacity: f32,
 }
 
 /// Everything one frame shows: a clear colour, then shapes, then images,

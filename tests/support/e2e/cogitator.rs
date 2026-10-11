@@ -95,6 +95,18 @@ impl Cogitator {
         Client { child, stdin: None }
     }
 
+    /// Starts `logis --apps` with the extra environment `env`.
+    pub fn apps(&self, env: &[(&str, &std::ffi::OsStr)]) -> Client {
+        let mut command = self.compositor.logis();
+        command
+            .arg("--apps")
+            .envs(env.iter().copied())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = command.spawn().expect("logis --apps starts");
+        Client { child, stdin: None }
+    }
+
     /// Like [`Self::dmenu`], with stdin closed after `input`.
     pub fn dmenu_all(&self, args: &[&str], input: &[u8]) -> Client {
         let mut client = self.dmenu(args, input);

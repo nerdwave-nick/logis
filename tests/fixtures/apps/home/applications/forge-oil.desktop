@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Oil (home)
+Exec=anoint --oil home

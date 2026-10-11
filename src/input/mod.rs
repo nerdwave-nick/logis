@@ -87,6 +87,9 @@ pub enum Action {
     Dismiss,
     /// Choose the selected item, or the typed text (Return).
     Accept,
+    /// Choose the selected item for its next stage, such as an app's
+    /// desktop actions (Shift+Return); otherwise like [`Action::Accept`].
+    Descend,
     /// Move the selection (Up/Down, Tab/Shift+Tab, Ctrl+N/P).
     Select(Step),
     /// Change the query.

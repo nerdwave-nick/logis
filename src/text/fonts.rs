@@ -247,6 +247,18 @@ impl PendingFonts {
         Self::resolve(FontConfig::system, DEFAULT_FAMILY)
     }
 
+    /// The user's fontconfig with `faces` resolved as the faces texts name
+    /// by index (a theme's). A face that cannot be resolved is the default
+    /// family; that is no error here, the theme still shows.
+    pub fn system_with(faces: Vec<Face>) -> Self {
+        Self(std::thread::spawn(move || {
+            let mut fonts = Fonts::new(FontConfig::system()?, DEFAULT_FAMILY)?;
+            let _ = fonts.set_faces(&faces);
+            fonts.sort_fallbacks();
+            Ok(fonts)
+        }))
+    }
+
     /// The resolved fonts, once they are ready. A resolver that panicked is
     /// an error, not a panic of the caller.
     pub fn wait(self) -> Result<Fonts, FontError> {

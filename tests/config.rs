@@ -387,10 +387,15 @@ fn the_idle_timeout_flag_outranks_the_config() {
 fn a_daemon_started_by_a_client_reloads_after_the_client_is_gone() {
     let rig = Rig::new();
     write(&rig.config_file(), "{}");
-    // The client starts a detached daemon and exits: the daemon's starter
-    // stderr is closed from here on.
-    let out = rig.logis().output().unwrap();
-    assert_eq!(out.status.code(), Some(0), "stderr: {}", stderr(&out));
+    // The client starts a detached daemon and exits (its empty dmenu
+    // session dismissed): the daemon's starter stderr is closed from here on.
+    let out = rig
+        .logis()
+        .arg("--dmenu")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1), "stderr: {}", stderr(&out));
     let pid = rig.connect().greet()["pid"].as_u64().unwrap();
     let alive = || Path::new(&format!("/proc/{pid}")).exists();
 

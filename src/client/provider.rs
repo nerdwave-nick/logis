@@ -33,28 +33,41 @@ pub fn run(config: Option<&Path>, argv: Vec<OsString>) -> ExitCode {
 fn launch(argv: Vec<OsString>) -> Launch {
     let cwd =
         std::env::current_dir().map_or_else(|_| b"/".to_vec(), |d| d.into_os_string().into_vec());
-    let env = std::env::vars_os()
+    Launch {
+        argv: argv.into_iter().map(|a| Bytes(a.into_vec())).collect(),
+        cwd: Bytes(cwd),
+        env: environment(),
+    }
+}
+
+/// This client's environment, `NAME=VALUE` each.
+pub(super) fn environment() -> Vec<Bytes> {
+    std::env::vars_os()
         .map(|(name, value)| {
             let mut pair = name.into_vec();
             pair.push(b'=');
             pair.extend(value.into_vec());
             Bytes(pair)
         })
-        .collect();
-    Launch {
-        argv: argv.into_iter().map(|a| Bytes(a.into_vec())).collect(),
-        cwd: Bytes(cwd),
-        env,
-    }
+        .collect()
 }
 
 fn session(config: Option<&Path>, launch: Launch) -> Result<Outcome, String> {
+    opened(
+        config,
+        Request::Open {
+            mode: Mode::Provider,
+            options: Options::default(),
+            provider: Some(launch),
+            env: Vec::new(),
+        },
+    )
+}
+
+/// Opens an interactive session with `open` and waits for its outcome.
+pub(super) fn opened(config: Option<&Path>, open: Request) -> Result<Outcome, String> {
     let mut connection = super::connect(config)?;
-    connection.send(&Request::Open {
-        mode: Mode::Provider,
-        options: Options::default(),
-        provider: Some(launch),
-    })?;
+    connection.send(&open)?;
     loop {
         match connection.recv()? {
             Some(Reply::Queued | Reply::Visible) => {}

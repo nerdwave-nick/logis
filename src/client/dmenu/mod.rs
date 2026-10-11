@@ -78,6 +78,7 @@ fn session(
         mode: Mode::Dmenu,
         options: dmenu.view.clone(),
         provider: None,
+        env: Vec::new(),
     })?;
     let mut sender = connection.try_clone()?;
     match input {

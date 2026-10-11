@@ -221,7 +221,7 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(d.view.prompt, "again> ");
-        assert_eq!((d.view.lines, d.view.width), (4, 50));
+        assert_eq!((d.view.lines, d.view.width), (Some(4), Some(50)));
         let d = parse(&["--placeholder=seek", "--search", "ab"]).unwrap();
         assert_eq!(
             (d.view.placeholder.as_str(), d.view.search.as_str()),
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(d, Dmenu::default());
         assert_eq!(
             (d.view.prompt.as_str(), d.view.lines, d.view.width),
-            ("> ", 15, 30)
+            ("> ", None, None)
         );
         assert_eq!(
             (d.separator, d.delimiter, d.read_stdin),
@@ -248,7 +248,7 @@ mod tests {
         let d = parse(&["--prompt-only", "pin: "]).unwrap();
         assert_eq!(
             (d.view.prompt.as_str(), d.view.lines, d.read_stdin),
-            ("pin: ", 0, false)
+            ("pin: ", Some(0), false)
         );
     }
 

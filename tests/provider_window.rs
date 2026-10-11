@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use logis::list::{Options, scene};
 use logis::render::Image;
+use logis::theme::Theme;
 use support::ScratchDir;
 use support::e2e::cogitator::Cogitator;
 use support::e2e::keyboard::code;
@@ -39,11 +40,12 @@ fn a_two_stage_flow_with_a_pending_row_ends_in_a_toast() {
     // nothing. Down and Up after it prove the key was handled.
     let focused = c.shown(2);
     // The first stage sizes the window (forge.sh asks for 6 lines, 44 wide).
-    let size = scene::size(&Options {
-        lines: 6,
-        width: 44,
+    let options = Options {
+        lines: Some(6),
+        width: Some(44),
         ..Options::default()
-    });
+    };
+    let size = scene::fit(&options, &Theme::bundled_default()).0;
     check_window(&mut c.harness, "provider-pending", size);
     c.tap(&focused, code::ENTER);
     c.tap(&focused, code::DOWN);

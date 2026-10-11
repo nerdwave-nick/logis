@@ -1,13 +1,14 @@
-//! Watching the config file for the daemon's live reload, with inotify
-//! through rustix (already in the tree; no watcher crate, no async runtime).
+//! Watching the config file (or every theme in the themes directory) for
+//! the daemon's live reload, with inotify through rustix (already in the
+//! tree; no watcher crate, no async runtime).
 //!
-//! Two watches cover how editors save:
-//! - the directory the file lives in, for writes in place (`IN_CLOSE_WRITE`)
-//!   and for atomic replacement by rename (`IN_MOVED_TO`) or deletion; while
-//!   that directory does not exist yet, its nearest existing ancestor, for
-//!   its creation;
-//! - the file itself, followed through a symlink, for edits to a link's
-//!   target (dotfile managers link the config from elsewhere).
+//! Two kinds of watch cover how editors save:
+//! - the directory the files live in, for writes in place
+//!   (`IN_CLOSE_WRITE`) and for atomic replacement by rename (`IN_MOVED_TO`)
+//!   or deletion; while that directory does not exist yet, its nearest
+//!   existing ancestor, for its creation;
+//! - each watched file itself, followed through a symlink, for edits to a
+//!   link's target (dotfile managers link the config from elsewhere).
 //!
 //! A burst of events (an editor's save is several) settles for a moment and
 //! is reported once. The watch thread prints nothing: a daemon started by a
@@ -46,17 +47,37 @@ const FILE_EVENTS: WatchFlags = WatchFlags::CLOSE_WRITE
     .union(WatchFlags::DELETE_SELF)
     .union(WatchFlags::MOVE_SELF);
 
-/// Watches one config file.
+/// Which files in the directory are watched.
+enum Names {
+    /// One file of this name.
+    One(OsString),
+    /// Every file with this extension, hidden ones aside.
+    Extension(&'static str),
+}
+
+impl Names {
+    fn matches(&self, name: &OsStr) -> bool {
+        match self {
+            Self::One(one) => name == one,
+            Self::Extension(ext) => {
+                let path = Path::new(name);
+                !name.as_bytes().starts_with(b".")
+                    && path.extension().is_some_and(|e| e == OsStr::new(ext))
+            }
+        }
+    }
+}
+
+/// Watches one config file, or every theme in a directory.
 pub struct Watcher {
     inotify: OwnedFd,
-    file: PathBuf,
-    /// The file's name in `dir`.
-    name: OsString,
-    /// The directory the file lives in.
+    /// The watched files' names in `dir`.
+    names: Names,
+    /// The directory the files live in.
     dir: PathBuf,
     /// The watched directory: `dir`, or its nearest existing ancestor.
     dir_watch: Option<(i32, PathBuf)>,
-    file_watch: Option<i32>,
+    file_watches: Vec<i32>,
 }
 
 impl Watcher {
@@ -69,14 +90,23 @@ impl Watcher {
                 format!("{} names no file in a directory", file.display()),
             ));
         };
+        Self::start(dir, Names::One(name.to_owned()))
+    }
+
+    /// Starts watching every file in `dir` with the extension `extension`
+    /// (the themes directory and its `*.jsonc`); `dir` may not exist yet.
+    pub fn files_in(dir: &Path, extension: &'static str) -> io::Result<Self> {
+        Self::start(dir, Names::Extension(extension))
+    }
+
+    fn start(dir: &Path, names: Names) -> io::Result<Self> {
         let inotify = inotify::init(CreateFlags::CLOEXEC)?;
         let mut watcher = Self {
             inotify,
-            file: file.to_owned(),
-            name: name.to_owned(),
+            names,
             dir: dir.to_owned(),
             dir_watch: None,
-            file_watch: None,
+            file_watches: Vec::new(),
         };
         watcher.arm();
         if watcher.dir_watch.is_none() {
@@ -84,7 +114,7 @@ impl Watcher {
                 io::ErrorKind::NotFound,
                 format!(
                     "no directory on the way to {} can be watched",
-                    file.display()
+                    dir.display()
                 ),
             ));
         }
@@ -146,7 +176,7 @@ impl Watcher {
 
     fn concerns_the_file(&self, event: &inotify::Event<'_>) -> bool {
         let mask = event.events();
-        if mask.contains(ReadFlags::QUEUE_OVERFLOW) || Some(event.wd()) == self.file_watch {
+        if mask.contains(ReadFlags::QUEUE_OVERFLOW) || self.file_watches.contains(&event.wd()) {
             return true;
         }
         let Some((wd, watched)) = &self.dir_watch else {
@@ -170,7 +200,7 @@ impl Watcher {
                 .and_then(|r| r.iter().next());
             return next == Some(name) && mask.intersects(ReadFlags::CREATE | ReadFlags::MOVED_TO);
         }
-        if name != self.name {
+        if !self.names.matches(name) {
             return false;
         }
         let rewritten = ReadFlags::CLOSE_WRITE
@@ -179,7 +209,8 @@ impl Watcher {
             | ReadFlags::DELETE;
         // A plain file just created is reported once written and closed; a
         // symlink is complete as soon as it exists.
-        mask.intersects(rewritten) || (mask.contains(ReadFlags::CREATE) && self.file.is_symlink())
+        mask.intersects(rewritten)
+            || (mask.contains(ReadFlags::CREATE) && self.dir.join(name).is_symlink())
     }
 
     /// (Re)places the watches: the file may be a new inode, and a directory
@@ -200,9 +231,26 @@ impl Watcher {
             self.dir_watch.as_ref().map(|(wd, _)| *wd),
         );
 
-        let file_watch = inotify::add_watch(&self.inotify, &self.file, FILE_EVENTS).ok();
-        let old = std::mem::replace(&mut self.file_watch, file_watch);
-        self.forget(old, self.file_watch);
+        let files: Vec<PathBuf> = match &self.names {
+            Names::One(name) => vec![self.dir.join(name)],
+            Names::Extension(_) => std::fs::read_dir(&self.dir)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter(|entry| self.names.matches(&entry.file_name()))
+                .map(|entry| entry.path())
+                .collect(),
+        };
+        let watches: Vec<i32> = files
+            .iter()
+            .filter_map(|f| inotify::add_watch(&self.inotify, f, FILE_EVENTS).ok())
+            .collect();
+        let old = std::mem::replace(&mut self.file_watches, watches);
+        for wd in old {
+            if !self.file_watches.contains(&wd) {
+                self.forget(Some(wd), None);
+            }
+        }
     }
 
     /// Removes a watch that was replaced (one on a gone inode is already).
@@ -258,6 +306,44 @@ mod tests {
 
     fn silent(rx: &Receiver<()>) -> bool {
         rx.recv_timeout(QUIET).is_err()
+    }
+
+    fn watch_dir(dir: &Path) -> Receiver<()> {
+        let (tx, rx) = channel();
+        Watcher::files_in(dir, "jsonc")
+            .unwrap()
+            .spawn(move || tx.send(()).is_ok());
+        rx
+    }
+
+    #[test]
+    fn every_theme_in_a_directory_is_watched_and_nothing_else() {
+        let dir = Scratch::new("themes");
+        std::fs::write(dir.0.join("forge.jsonc"), "{}").unwrap();
+        let rx = watch_dir(&dir.0);
+        std::fs::write(dir.0.join("forge.jsonc"), "{\"glow\": {}}").unwrap();
+        assert!(reported(&rx), "an edit");
+        std::fs::write(dir.0.join("amber.jsonc"), "{}").unwrap();
+        assert!(reported(&rx), "a new theme");
+        std::fs::write(dir.0.join("notes.txt"), "brass").unwrap();
+        std::fs::write(dir.0.join(".forge.jsonc.swp"), "x").unwrap();
+        assert!(silent(&rx), "other files");
+        std::fs::remove_file(dir.0.join("amber.jsonc")).unwrap();
+        assert!(reported(&rx), "a removed theme");
+    }
+
+    #[test]
+    fn a_themes_directory_created_later_and_a_linked_theme_are_followed() {
+        let root = Scratch::new("themes-later");
+        let dir = root.0.join("logis/themes");
+        let rx = watch_dir(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = root.0.join("dotfiles-mine.jsonc");
+        std::fs::write(&target, "{}").unwrap();
+        std::os::unix::fs::symlink(&target, dir.join("mine.jsonc")).unwrap();
+        assert!(reported(&rx), "the linked theme appeared");
+        std::fs::write(&target, "{\"glow\": {}}").unwrap();
+        assert!(reported(&rx), "its target was edited");
     }
 
     #[test]

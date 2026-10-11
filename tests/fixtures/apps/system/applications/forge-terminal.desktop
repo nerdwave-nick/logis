@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Cogitator shell
+Terminal=true
+Exec=anoint --terminal

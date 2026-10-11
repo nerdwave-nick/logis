@@ -19,6 +19,14 @@ struct Params {
     b: vec4f,        // bloom, curvature, aberration, -
 };
 @group(0) @binding(0) var<uniform> u: Params;
+
+// Twelve directions, 30 degrees apart.
+const RING = array<vec2f, 12>(
+    vec2f(1.0, 0.0), vec2f(0.8660254, 0.5), vec2f(0.5, 0.8660254),
+    vec2f(0.0, 1.0), vec2f(-0.5, 0.8660254), vec2f(-0.8660254, 0.5),
+    vec2f(-1.0, 0.0), vec2f(-0.8660254, -0.5), vec2f(-0.5, -0.8660254),
+    vec2f(0.0, -1.0), vec2f(0.5, -0.8660254), vec2f(0.8660254, -0.5),
+);
 @group(0) @binding(1) var frame_in: texture_2d<f32>;
 
 @vertex
@@ -92,16 +100,16 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
         c = sample(q);
     }
 
-    // Bloom: light from bright pixels around, on two rings.
+    // Bloom: light from bright pixels around, on two rings. The directions
+    // are constants (no cos/sin), so every GPU reads the same pixels.
     let bloom = u.b.x;
     if (bloom > 0.0) {
         var light = vec3f(0.0);
         for (var i = 0; i < 12; i++) {
-            let angle = f32(i) * 0.5235988;
-            let dir = vec2f(cos(angle), sin(angle));
+            let dir = RING[i];
             for (var ring = 0; ring < 2; ring++) {
                 let reach = (3.0 + 4.0 * f32(ring)) * u.scale;
-                let s = load(vec2i(q + dir * reach));
+                let s = load(vec2i(floor(q + dir * reach)));
                 light += max(s.rgb - vec3f(0.35 * s.a), vec3f(0.0));
             }
         }
@@ -123,10 +131,11 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
         c = vec4f(c.rgb * (1.0 - flicker * wave), c.a);
     }
 
-    // Grain: noise per logical pixel, new 24 times a second.
+    // Grain: noise per buffer pixel (integer coordinates, the same on
+    // every GPU), new 24 times a second.
     let grain = u.a.y;
     if (grain > 0.0) {
-        let cell = vec2u(floor(p / max(u.scale, 1.0)));
+        let cell = vec2u(floor(p));
         let n = hash(cell, u32(floor(u.time * 24.0))) - 0.5;
         c = vec4f(c.rgb + vec3f(n * grain * 0.5 * c.a), c.a);
     }

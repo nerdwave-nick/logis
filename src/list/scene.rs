@@ -17,6 +17,7 @@ mod rows;
 
 use super::Options;
 use super::view::Look;
+use crate::icons::{IconSource, NoIcons};
 use crate::motion::Nanos;
 use crate::render::{Overflow, Rgba, Scene, Text};
 use crate::theme::{Font, Theme};
@@ -63,7 +64,10 @@ pub fn fit(options: &Options, theme: &Theme) -> ((u32, u32), u32) {
         Some(0) => theme.prompt.height,
         Some(n) => list_top(theme) + 2.0 * theme.row.gap + n as f32 * theme.row.height,
     };
-    let size = ((width + margin).ceil() as u32, (height + margin).ceil() as u32);
+    let size = (
+        (width + margin).ceil() as u32,
+        (height + margin).ceil() as u32,
+    );
     (size, options.lines.unwrap_or(w.rows))
 }
 
@@ -148,14 +152,32 @@ pub fn band_top(look: &Look, logical: (u32, u32), theme: &Theme) -> Option<f32> 
 }
 
 /// The scene for `look` on a surface of `logical` size, the band on the
-/// selected row.
+/// selected row, without icons (glyphs only).
 pub fn scene(look: &Look, logical: (u32, u32), style: Style<'_>) -> Scene {
-    scene_at(look, logical, band_top(look, logical, style.theme), style)
+    scene_with(look, logical, style, &mut NoIcons)
 }
 
-/// [`scene`] with the selection band at `band_top` (its glide toward the
-/// selected row) instead of on the selected row; `None` draws no band.
-pub fn scene_at(look: &Look, logical: (u32, u32), band_top: Option<f32>, style: Style<'_>) -> Scene {
+/// [`scene`] with rows' icons drawn from `icons` (a row whose icon is not
+/// found shows its glyph, if it has one).
+pub fn scene_with(
+    look: &Look,
+    logical: (u32, u32),
+    style: Style<'_>,
+    icons: &mut dyn IconSource,
+) -> Scene {
+    let band = band_top(look, logical, style.theme);
+    scene_at(look, logical, band, style, icons)
+}
+
+/// [`scene_with`] with the selection band at `band_top` (its glide toward
+/// the selected row) instead of on the selected row; `None` draws no band.
+pub fn scene_at(
+    look: &Look,
+    logical: (u32, u32),
+    band_top: Option<f32>,
+    style: Style<'_>,
+    icons: &mut dyn IconSource,
+) -> Scene {
     let theme = style.theme;
     let (body, _) = body(logical, theme);
     let grid = grid(logical, look.lines, theme);
@@ -171,7 +193,7 @@ pub fn scene_at(look: &Look, logical: (u32, u32), band_top: Option<f32>, style: 
     if let Some(top) = band_top {
         rows::band(&mut scene, body, top, theme);
     }
-    rows::rows(&mut scene, look, &grid, style);
+    rows::rows(&mut scene, look, &grid, style, icons);
     if let Some(notice) = &look.toast {
         marks::toast(&mut scene, notice, body, theme);
     }
@@ -183,6 +205,12 @@ pub fn scene_at(look: &Look, logical: (u32, u32), band_top: Option<f32>, style: 
 /// or a shimmering pending row in view. A window drawing it keeps drawing.
 pub fn moving(look: &Look, theme: &Theme) -> bool {
     theme.is_continuous() || (theme.shimmers() && look.rows.iter().any(|r| r.pending))
+}
+
+/// An icon's side in the emblem column for rows in `font`, in logical
+/// pixels.
+pub fn icon_size(font: &Font) -> u32 {
+    (font.size * 1.25).round() as u32
 }
 
 /// A line of text in `font`, its box centred on `centre`.

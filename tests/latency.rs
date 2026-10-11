@@ -21,6 +21,9 @@
 //!   is a series of its own, "open settled": exec to the frame after which
 //!   nothing moves (budget: the warm open, the 150 ms transition and two
 //!   frames).
+//! - **apps warm open / open settled:** the same for `logis --apps`, the
+//!   index resident (the system's own applications and icons; nothing is
+//!   launched).
 //! - **dmenu keystroke → commit:** typing into the query and deleting it
 //!   again, each key to the frame showing the new matches; with three
 //!   items, and with 100 000 (every keystroke re-filters them all, or the
@@ -209,12 +212,22 @@ fn debug_panel_latency() {
 /// a warm open finds nothing on screen. A closing window's frames (`commit
 /// closing`) are not the new window's.
 fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> (Vec<f64>, Vec<f64>) {
+    warm_open(c, runs, |c| c.dmenu_all(&[], b"alpha\nbeta\ngamma\n"))
+}
+
+/// Warm opens of the client `open` starts: exec → first commit, and exec →
+/// the open settled; the first (warming) run is not counted.
+fn warm_open(
+    c: &mut Cogitator,
+    runs: usize,
+    open: impl Fn(&Cogitator) -> support::e2e::cogitator::Client,
+) -> (Vec<f64>, Vec<f64>) {
     let mut first = Vec::with_capacity(runs);
     let mut settled = Vec::with_capacity(runs);
     for run in 0..=runs {
         std::thread::sleep(Duration::from_millis(100));
         let t0 = monotonic_ns();
-        let client = c.dmenu_all(&[], b"alpha\nbeta\ngamma\n");
+        let client = open(c);
         c.daemon.wait_for("show", |e| e.what.starts_with("show "));
         let commit = c
             .daemon
@@ -325,6 +338,47 @@ fn dmenu_latency() {
         ),
         Series::new("dmenu keystroke → commit, 3 items", frame_ms, few),
         Series::new("dmenu keystroke → commit, 100 000 items", frame_ms, many),
+    ];
+    latency::record(c.compositor.kind().name(), &series);
+    if latency::enforce() {
+        for s in &series {
+            assert!(
+                s.within_budget(),
+                "{}: median {:.2} ms over its {:.2} ms budget",
+                s.name,
+                s.median(),
+                s.budget_ms
+            );
+        }
+    }
+}
+
+/// The app launcher's warm open (story 5, ≤ 15 ms): with the daemon running
+/// and its index resident (the applications of the system this runs on,
+/// and their icons, rasterised by a first session), `logis --apps` from
+/// exec to the first committed frame. Each session is dismissed by its
+/// client leaving: nothing is ever launched.
+#[test]
+fn apps_latency() {
+    let Some(mut c) = Cogitator::start() else {
+        return;
+    };
+    let runs = latency::runs();
+    let frame_ms = 1000.0 / c.harness.refresh_hz();
+    // The index is read on a thread of its own at start; let it finish.
+    std::thread::sleep(Duration::from_millis(500));
+    let (open, open_settled) = warm_open(&mut c, runs, |c| c.apps(&[]));
+    let series = [
+        Series::new(
+            "apps warm open: start → first commit",
+            latency::WARM_OPEN_MS,
+            open,
+        ),
+        Series::new(
+            "apps warm open: start → open settled",
+            latency::WARM_OPEN_MS + 150.0 + 2.0 * frame_ms,
+            open_settled,
+        ),
     ];
     latency::record(c.compositor.kind().name(), &series);
     if latency::enforce() {

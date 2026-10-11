@@ -21,11 +21,8 @@ fn main() -> ExitCode {
             println!("logis {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
-        Ok(cli::Command::Run { config }) => match client::connect(config.as_deref()) {
-            Ok(_) => ExitCode::SUCCESS,
-            Err(e) => fail(&e),
-        },
         Ok(cli::Command::Dmenu { config, dmenu }) => client::dmenu::run(config.as_deref(), *dmenu),
+        Ok(cli::Command::Apps { config }) => client::apps::run(config.as_deref()),
         Ok(cli::Command::Provider { config, argv }) => {
             client::provider::run(config.as_deref(), argv)
         }

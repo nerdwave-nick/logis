@@ -10,6 +10,7 @@ use smithay_client_toolkit::reexports::protocols::wp::presentation_time::client:
 use smithay_client_toolkit::shell::WaylandSurface;
 
 use super::Panel;
+use crate::icons::{FrameIcons, IconCache, NoIcons};
 use crate::render::{Gpu, Renderer, Target};
 use crate::window::Windows;
 use crate::window::blur::Backdrop;
@@ -26,6 +27,8 @@ pub(in crate::window) struct Painter<'a> {
     pub compositor: &'a CompositorState,
     pub presentation: Option<&'a WpPresentation>,
     pub clock: &'a mut FrameClock,
+    /// The icon cache, once an icon theme is set.
+    pub icons: Option<&'a mut IconCache>,
 }
 
 /// What [`Panel::draw_if_needed`] did.
@@ -92,7 +95,18 @@ impl Panel {
             mut scene,
             backdrop,
             moving,
-        } = (self.scene)(&frame);
+        } = match p.icons.as_deref_mut() {
+            Some(cache) => {
+                let mut icons = FrameIcons {
+                    cache,
+                    gpu: p.gpu,
+                    atlas: p.renderer.atlas_mut(),
+                    scale: geometry.scale,
+                };
+                (self.scene)(&frame, &mut icons)
+            }
+            None => (self.scene)(&frame, &mut NoIcons),
+        };
         let pose = self.transition.pose(frame.at, frame.interval);
         pose.apply(&mut scene);
         if let (Some(blur), Some(b)) = (&mut self.blur, backdrop) {

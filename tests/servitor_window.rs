@@ -12,6 +12,7 @@ use std::process::Stdio;
 
 use logis::list::{Options, scene};
 use logis::render::Image;
+use logis::theme::Theme;
 use support::ScratchDir;
 use support::e2e::cogitator::{Client, Cogitator};
 use support::e2e::keyboard::code;
@@ -55,11 +56,8 @@ fn rites_wait_pending_settle_live_and_lead_to_a_detached_invocation() {
     // Every rite at once; dnd's auspex is still awaited: its row is
     // pending, and Return on it does nothing.
     let focused = c.shown(3);
-    let size = scene::size(&Options {
-        lines: 10,
-        width: 64,
-        ..Options::default()
-    });
+    // Servitor mode opens in the theme's own window.
+    let size = scene::fit(&Options::default(), &Theme::bundled_default()).0;
     check_window(&mut c.harness, "servitor-pending", size);
     c.tap(&focused, code::ENTER);
     c.tap(&focused, code::DOWN);

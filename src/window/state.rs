@@ -41,6 +41,13 @@ impl SurfaceState {
         }
     }
 
+    /// The surface asked for another size: a configure that leaves a side
+    /// to the client gives this one, and a frame is due.
+    pub fn request(&mut self, requested: (u32, u32)) {
+        self.requested = requested;
+        self.dirty = true;
+    }
+
     /// A configure event. A zero side means "client's choice", so the
     /// requested side is used. Every configure asks for a redraw.
     pub fn configure(&mut self, (width, height): (u32, u32)) {
@@ -118,6 +125,16 @@ impl SurfaceState {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_new_request_is_the_size_a_free_configure_gives() {
+        let mut s = super::SurfaceState::new((100, 50));
+        s.configure((0, 0));
+        s.drew();
+        s.request((300, 200));
+        s.configure((0, 0));
+        assert_eq!(s.geometry().unwrap().logical, (300, 200));
+    }
+
     use super::*;
 
     const S13: u32 = 156;

@@ -6,9 +6,10 @@
 
 use std::ops::Range;
 
-use super::{Grid, Style, column, marks, text};
+use super::{Grid, Style, column, icon_size, marks, text};
+use crate::icons::IconSource;
 use crate::list::view::{Look, Row};
-use crate::render::{Border, Glow, Overflow, Paint, Rgba, RoundedRect, Scene};
+use crate::render::{Border, Glow, ImageQuad, Overflow, Paint, Rgba, RoundedRect, Scene};
 use crate::theme::Theme;
 
 /// The selection band on the row whose top is `top`, with its edge bar.
@@ -46,22 +47,46 @@ pub(super) fn band(scene: &mut Scene, body: [f32; 4], top: f32, theme: &Theme) {
     }
 }
 
-/// Every row in view that fits.
-pub(super) fn rows(scene: &mut Scene, look: &Look, grid: &Grid, style: Style<'_>) {
+/// Every row in view that fits, icons from `icons`.
+pub(super) fn rows(
+    scene: &mut Scene,
+    look: &Look,
+    grid: &Grid,
+    style: Style<'_>,
+    icons: &mut dyn IconSource,
+) {
     let theme = style.theme;
     let font = theme.row.font;
-    let emblem = font.size * 1.5;
+    let side = icon_size(&font);
+    let emblem = side as f32 + font.size * 0.4;
     for (i, row) in look.rows.iter().take(grid.rows).enumerate() {
         let top = grid.top(i);
         let centre = top + grid.pitch / 2.0;
-        let fade = if row.pending { theme.pending.opacity } else { 1.0 };
+        let fade = if row.pending {
+            theme.pending.opacity
+        } else {
+            1.0
+        };
         let mut left = grid.left + theme.row.padding;
         let mut width = grid.right - theme.row.padding - left;
         if look.glyphs {
-            if let Some(glyph) = &row.glyph {
-                let color = if row.selected { theme.selection.columns[0] } else { theme.row.glyph };
-                let t = text(glyph.clone(), left, centre, &font, faded(color, fade));
-                scene.texts.push(column(t, emblem - 4.0, Overflow::Clip));
+            let icon = row.icon.as_deref().and_then(|name| icons.image(name, side));
+            match (icon, &row.glyph) {
+                (Some(image), _) => scene.images.push(ImageQuad {
+                    image,
+                    origin: [left, centre - side as f32 / 2.0],
+                    opacity: fade,
+                }),
+                (None, Some(glyph)) => {
+                    let color = if row.selected {
+                        theme.selection.columns[0]
+                    } else {
+                        theme.row.glyph
+                    };
+                    let t = text(glyph.clone(), left, centre, &font, faded(color, fade));
+                    scene.texts.push(column(t, emblem - 4.0, Overflow::Clip));
+                }
+                (None, None) => {}
             }
             left += emblem;
             width -= emblem;
