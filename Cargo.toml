@@ -39,3 +39,9 @@ rustix = { version = "1.1.5", features = ["stdio"] }
 # the other.
 [workspace]
 exclude = ["research/proto-rust"]
+
+[dev-dependencies]
+# Goldens are checked-in PNGs (compressed, viewable in any tool and on
+# GitHub); a PNG decoder needs inflate, which std lacks. The same release the
+# text and icon slices use, so the tree holds one copy.
+png = "0.18"
