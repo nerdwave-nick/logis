@@ -13,10 +13,10 @@ use super::Panel;
 use crate::render::{Gpu, Renderer, Target};
 use crate::window::Windows;
 use crate::window::blur::Backdrop;
-use crate::window::clock::FrameTime;
+use crate::window::clock::FrameClock;
 use crate::window::drawing::{Drawing, Frame};
 use crate::window::state::Geometry;
-use crate::window::trace::emit;
+use crate::window::trace::{emit, monotonic_ns};
 
 /// What drawing a frame needs besides the panel.
 pub(in crate::window) struct Painter<'a> {
@@ -25,7 +25,7 @@ pub(in crate::window) struct Painter<'a> {
     pub qh: &'a QueueHandle<Windows>,
     pub compositor: &'a CompositorState,
     pub presentation: Option<&'a WpPresentation>,
-    pub time: FrameTime,
+    pub clock: &'a FrameClock,
 }
 
 /// What [`Panel::draw_if_needed`] did.
@@ -43,7 +43,7 @@ impl Panel {
     /// and `settled` after the first frame that leaves nothing moving.
     pub(in crate::window) fn draw_if_needed(&mut self, p: &mut Painter<'_>) -> Drawn {
         let closing = self.transition.is_closing();
-        if self.transition.finished(p.time.at) {
+        if self.transition.finished(p.clock.frame(monotonic_ns()).at) {
             return Drawn {
                 finished: true,
                 ..Drawn::default()
@@ -80,10 +80,13 @@ impl Panel {
             // Timeout, occluded or a validation error: try again on the next event.
             _ => return drawn,
         };
+        // Timed after the swapchain is ready, which may have waited (the
+        // first frame configures it), so motion starts when drawing does.
+        let time = p.clock.frame(monotonic_ns());
         let frame = Frame {
             logical: geometry.logical,
-            at: p.time.at,
-            interval: p.time.interval,
+            at: time.at,
+            interval: time.interval,
         };
         let Drawing {
             mut scene,
@@ -118,6 +121,8 @@ impl Panel {
             presentation.feedback(wl_surface, p.qh, ());
         }
         p.gpu.queue.present(texture);
+        self.transition
+            .presented(p.clock.frame(monotonic_ns()).at, frame.interval);
         if closing {
             emit(format_args!("commit closing"));
         } else {

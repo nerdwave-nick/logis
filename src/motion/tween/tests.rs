@@ -36,6 +36,7 @@ fn opening_starts_with_the_first_frame_one_interval_in() {
     assert!(t.moving(0), "an unstarted open will move");
     // The first frame is shown at T0; the open began one 10 ms frame earlier.
     let first = t.pose(T0, 10 * MS);
+    t.presented(T0, 10 * MS);
     assert!(
         (first.opacity - (0.4 + 0.6 * 0.1)).abs() < 1e-4,
         "{first:?}"
@@ -47,6 +48,36 @@ fn opening_starts_with_the_first_frame_one_interval_in() {
     assert_eq!(t.pose(T0 + 90 * MS, 10 * MS), Pose::REST);
     assert!(!t.moving(T0 + 90 * MS), "at rest, nothing more to draw");
     assert!(!t.finished(T0 + 90 * MS), "an open panel stays");
+}
+
+#[test]
+fn a_slow_first_frame_does_not_eat_into_the_open() {
+    let from = Pose {
+        opacity: 0.0,
+        offset: [0.0, 0.0],
+    };
+    let mut t = Transition::opening(from, LINEAR_100);
+    let first = t.pose(T0, 10 * MS);
+    assert!((first.opacity - 0.1).abs() < 1e-4, "{first:?}");
+    // The first frame took 80 ms to reach the screen: the open starts there.
+    t.presented(T0 + 80 * MS, 10 * MS);
+    let second = t.pose(T0 + 90 * MS, 10 * MS);
+    assert!((second.opacity - 0.2).abs() < 1e-4, "{second:?}");
+    assert!(t.moving(T0 + 150 * MS));
+    assert_eq!(t.pose(T0 + 170 * MS, 10 * MS), Pose::REST);
+}
+
+#[test]
+fn until_it_is_presented_every_frame_shows_the_open_one_interval_in() {
+    let mut t = Transition::opening(
+        Pose {
+            opacity: 0.0,
+            offset: [0.0, 0.0],
+        },
+        LINEAR_100,
+    );
+    assert_eq!(t.pose(T0, 10 * MS), t.pose(T0 + 50 * MS, 10 * MS));
+    assert!(t.moving(T0 + 500 * MS));
 }
 
 #[test]
@@ -82,7 +113,9 @@ fn closing_while_opening_starts_from_where_the_panel_is() {
         offset: [0.0, 10.0],
     };
     let mut t = Transition::opening(from, LINEAR_100);
-    let half = t.pose(T0 + 50 * MS, 50 * MS);
+    t.pose(T0, 0);
+    t.presented(T0, 0);
+    let half = t.pose(T0 + 50 * MS, 0);
     assert!(t.moving(T0 + 50 * MS));
     t.close(Pose::REST, LINEAR_100, T0 + 50 * MS);
     assert_eq!(t.pose(T0 + 50 * MS, 0), half, "no jump");

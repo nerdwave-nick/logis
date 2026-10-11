@@ -111,7 +111,7 @@ impl Lerp for Pose {
 /// closing out of it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Phase {
-    /// Waiting for the first frame, which starts the move to rest.
+    /// Until the first frame is on screen, which starts the move to rest.
     Opening { from: Pose, curve: Curve },
     /// Moving (opening or closing) or at rest (`None`).
     Moving(Option<Tween<Pose>>),
@@ -127,7 +127,7 @@ pub struct Transition {
 
 impl Transition {
     /// A panel that opens from `from` to rest along `curve`, starting with
-    /// its first frame.
+    /// its first frame on screen.
     pub fn opening(from: Pose, curve: Curve) -> Self {
         Self {
             phase: Phase::Opening { from, curve },
@@ -151,17 +151,28 @@ impl Transition {
         self.phase = Phase::Moving(Some(Tween::new(self.last, to, curve, now)));
     }
 
+    /// The last frame drawn is on screen from `at`. The open's clock starts
+    /// here, one interval (`lead`) back, so however long the first frame
+    /// took to reach the screen, the whole open is seen after it.
+    pub fn presented(&mut self, at: Nanos, lead: Nanos) {
+        if let Phase::Opening { from, curve } = self.phase {
+            let start = at.saturating_sub(lead);
+            self.phase = Phase::Moving(Some(Tween::new(from, Pose::REST, curve, start)));
+        }
+    }
+
     /// Whether [`Self::close`] was called.
     pub fn is_closing(&self) -> bool {
         self.closing
     }
 
-    /// The pose of a frame shown at `time`; the first frame of an opening
-    /// panel starts its transition at `time - lead`.
+    /// The pose of a frame shown at `time`. Until its first frame is on
+    /// screen ([`Self::presented`]), an opening panel is shown one interval
+    /// (`lead`) into its open.
     pub fn pose(&mut self, time: Nanos, lead: Nanos) -> Pose {
         if let Phase::Opening { from, curve } = self.phase {
             let start = time.saturating_sub(lead);
-            self.phase = Phase::Moving(Some(Tween::new(from, Pose::REST, curve, start)));
+            self.last = Tween::new(from, Pose::REST, curve, start).at(time);
         }
         if let Phase::Moving(Some(tween)) = self.phase {
             self.last = tween.at(time);
