@@ -197,3 +197,28 @@ fn check_window(harness: &mut Harness, name: &str, size: (u32, u32)) {
     let verdict = goldens.assert("e2e", name, &window, tolerance);
     eprintln!("e2e/{name}: {verdict:?}");
 }
+
+/// Plain `logis` is the app launcher (as in fuzzel); dismissing it launches
+/// nothing and exits 1 with an empty stdout.
+#[test]
+fn plain_logis_opens_the_launcher_and_escape_exits_1() {
+    let dir = ScratchDir::new();
+    let Some(mut c) = start(dir.path()) else {
+        return;
+    };
+    let mut command = c.compositor.logis();
+    command
+        .envs(client_env(dir.path()))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let client = support::e2e::cogitator::Client {
+        child: command.spawn().expect("logis starts"),
+        stdin: None,
+    };
+    let focused = c.shown(2);
+    c.tap(&focused, code::ESC);
+    c.next("dismiss");
+    let ended = client.ended();
+    assert_eq!((ended.code, ended.stdout.as_slice()), (Some(1), &b""[..]));
+    assert!(!dir.path().join("record").exists(), "nothing was launched");
+}

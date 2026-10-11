@@ -15,8 +15,6 @@ pub use dmenu::Dmenu;
 pub enum Command {
     /// Print the name and version.
     Version,
-    /// Rouse the daemon (starting it if none answers) without opening a session.
-    Run { config: Option<PathBuf> },
     /// A dmenu session: lines from stdin, the chosen line on stdout.
     Dmenu {
         config: Option<PathBuf>,
@@ -28,7 +26,8 @@ pub enum Command {
         config: Option<PathBuf>,
         argv: Vec<OsString>,
     },
-    /// The app launcher: desktop applications, launched by the daemon.
+    /// The app launcher: desktop applications, launched by the daemon
+    /// (plain `logis`, or `--apps`).
     Apps { config: Option<PathBuf> },
     /// servitor mode (spec §4.8): a provider session whose provider is
     /// logis itself (`logis provide servitor`).
@@ -177,7 +176,8 @@ pub fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Command, ParseE
     }
     runes.none_given()?;
     Ok(match command {
-        None => Command::Run { config },
+        // Plain `logis` is the app launcher, as in fuzzel.
+        None => Command::Apps { config },
         Some(Started::Version) => Command::Version,
         Some(Started::CheckConfig) => Command::CheckConfig { config },
         Some(Started::Apps) => Command::Apps { config },
@@ -295,8 +295,8 @@ mod tests {
     }
 
     #[test]
-    fn no_arguments_runs() {
-        assert_eq!(parse_strs(&[]), Ok(Command::Run { config: None }));
+    fn no_arguments_open_the_app_launcher() {
+        assert_eq!(parse_strs(&[]), Ok(Command::Apps { config: None }));
     }
 
     #[test]
@@ -431,7 +431,7 @@ mod tests {
         );
         assert_eq!(
             parse_strs(&["--config", "/x/logis.jsonc"]),
-            Ok(Command::Run { config: path() })
+            Ok(Command::Apps { config: path() })
         );
         let options = DaemonOptions {
             config: path(),

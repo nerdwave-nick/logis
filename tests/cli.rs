@@ -113,14 +113,32 @@ fn on_compositor_without_fractional_scale_exits_2_naming_the_protocol() {
     assert!(msg.contains("wp_fractional_scale_manager_v1"), "{msg}");
 }
 
+/// What plain `logis` did before it became the app launcher: making sure a
+/// daemon answers. `logis daemon --detach` exits 0 at once when one does.
 #[test]
-fn on_compositor_with_layer_shell_succeeds_without_output() {
+fn daemon_detach_exits_0_at_once_when_a_daemon_already_answers() {
+    use std::io::Read;
     let dir = ScratchDir::new();
     let _compositor = fake_compositor::serve(dir.path(), "wayland-test", WITH_LAYER_SHELL);
-    let out = logis(&dir, Some("wayland-test")).output().unwrap();
-
+    let mut first = logis(&dir, Some("wayland-test"))
+        .args(["daemon", "--detach"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let mut ready = [0];
+    let read = first.stdout.as_mut().unwrap().read(&mut ready).unwrap();
+    assert_eq!(read, 1, "the first daemon never said it listens");
+    let start = std::time::Instant::now();
+    let out = logis(&dir, Some("wayland-test"))
+        .args(["daemon", "--detach"])
+        .output()
+        .unwrap();
+    let _ = first.kill();
+    let _ = first.wait();
     assert_eq!(out.status.code(), Some(0), "stderr: {}", stderr(&out));
-    assert!(out.stdout.is_empty());
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("already listens"));
 }
 
 /// The caller contract (README "Caller contract"): a `logis --dmenu` caller

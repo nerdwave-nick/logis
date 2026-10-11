@@ -151,6 +151,31 @@ fn the_chosen_app_is_launched_with_its_token_and_counts_for_frecency() {
     wait_until("the app to end", || !alive(pid));
 }
 
+/// Plain `logis`, without arguments, is the app launcher, as in fuzzel.
+#[test]
+fn plain_logis_is_the_app_launcher() {
+    let l = Launcher::start(None, None);
+    std::fs::write(l.hold(), b"").unwrap();
+    let path = format!("{}:/usr/bin:/bin", fixtures().join("bin").display());
+    let out = l
+        .rig
+        .logis()
+        .env("PATH", path)
+        .env("HOME", l.dir.path())
+        .env("ANOINT_RECORD", l.record())
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(out.stdout.is_empty());
+    assert_eq!(value(&l.heard(), "arg")[0], "--rite");
+}
+
 #[test]
 fn an_app_installed_while_the_daemon_runs_is_found() {
     let data_home = ScratchDir::new();

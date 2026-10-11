@@ -17,14 +17,15 @@ logis is meant to be:
 
 ## Status
 
-**Early.** `logis --dmenu`, `logis --apps`, `logis --provider` and
+**Early.** `logis` (the app launcher), `logis --dmenu`, `logis --provider` and
 `logis --servitor` work. The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
   [dmenu](#dmenu). Its window takes the [keyboard](#keyboard), the
   [pointer and paste](#pointer-and-paste).
-- `logis --apps` is the app launcher: see [App launcher](#app-launcher).
+- `logis` (or `logis --apps`) is the app launcher, as in fuzzel: see
+  [App launcher](#app-launcher).
 - `logis --provider PROGRAM [ARG]...` shows what an external provider says, in
   one or more stages: see [Providers](#providers).
 - `logis --servitor` is servitor mode: every rite at once, its aspect and its
@@ -42,7 +43,8 @@ logis is meant to be:
 - `logis`, `logis --dmenu`, `logis --apps`, `logis --provider` and `logis --servitor` are clients. When no daemon answers they start one
   (`logis daemon --detach`, whose later diagnostics go to
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
-  Plain `logis` only makes sure the daemon runs.
+  To only make sure a daemon runs, without opening a window, start it yourself:
+  `logis daemon --detach &` (it exits 0 at once if a daemon already answers).
 - `logis --check-config [--config PATH]` validates the configuration without
   touching Wayland or the daemon: exit 0 if it is sound (or absent), 2 with the
   error's file, line and column on stderr.
@@ -117,7 +119,7 @@ Where fuzzel's documentation leaves a choice open, logis decides so:
 ## App launcher
 
 ```sh
-logis --apps
+logis          # or: logis --apps
 ```
 
 The daemon keeps an index of the installed applications resident and opens it in
@@ -239,8 +241,9 @@ here (message wording, timings, the socket protocol) may change.
 | 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
 | 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
 | 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
-| 0 | empty | plain `logis`: a daemon answers (started if need be) | `tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output` |
-| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
+| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers` |
+| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
 | 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
 | 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `tests/cli.rs::unknown_argument_exits_2_naming_it`, `src/cli/dmenu.rs::bad_values_are_named_with_their_flag`, `tests/dmenu_runes.rs::list_runes_without_dmenu_are_an_error`, and [below](#when-logis-cannot-serve) |
@@ -435,20 +438,24 @@ A daemon that lost its compositor exits and removes its socket; the next
 caller starts a new one
 (`tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero`,
 `tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`).
-To ask before showing anything, run plain `logis`: it only makes sure a daemon
-answers, starting one if need be, and exits 0 if one does, 2 for each case
-above that stops a daemon starting
-(`tests/cli.rs::on_compositor_with_layer_shell_succeeds_without_output`,
+Plain `logis` is the app launcher and opens a window. To use logis where it can
+serve and fall back elsewhere, let the dmenu caller's exit status decide:
+2 means logis cannot serve here, for each case above, its reason on stderr
+(`tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`,
 `tests/cli.rs::without_wayland_display_exits_2_with_flavoured_message`,
 `tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol`).
+To start a daemon ahead of time without a window, run `logis daemon --detach &`;
+it exits 0 at once if one already answers
+(`tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers`).
 
 ```sh
-if logis 2>/dev/null; then pick='logis --dmenu'; else pick='fuzzel --dmenu'; fi
-choice=$(printf 'rite of oil\nrite of ignition\n' | $pick)
+items='rite of oil
+rite of ignition'
+choice=$(printf '%s\n' "$items" | logis --dmenu)
 case $? in
 0) printf 'chosen: %s\n' "$choice" ;;
 1) ;;   # nothing chosen: dismissed, or replaced
-*) echo 'the cogitator is silent; see stderr' >&2 ;;
+*) choice=$(printf '%s\n' "$items" | fuzzel --dmenu) ;;   # logis cannot serve here
 esac
 ```
 
