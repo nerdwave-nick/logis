@@ -25,6 +25,9 @@ pub struct DaemonOptions {
     /// Once listening, stop writing to the starter's stdout and stderr;
     /// later diagnostics go to `$XDG_RUNTIME_DIR/logis.log`.
     pub detach: bool,
+    /// Instead of serving sessions, show the renderer's static debug panel
+    /// until the compositor closes it; the other options do not apply then.
+    pub debug_panel: bool,
 }
 
 /// Why the arguments were refused.
@@ -46,7 +49,8 @@ impl fmt::Display for ParseError {
             Self::Unknown(arg) => write!(
                 f,
                 "the rune '{arg}' is unknown to this cogitator. \
-                 It knows only --version, --dmenu and daemon [--idle-timeout SECONDS] [--detach]."
+                 It knows only --version, --dmenu and \
+                 daemon [--idle-timeout SECONDS] [--detach] [--debug-panel]."
             ),
             Self::BadValue {
                 flag,
@@ -97,6 +101,10 @@ fn parse_daemon(mut args: impl Iterator<Item = OsString>) -> Result<DaemonOption
                 options.detach = true;
                 continue;
             }
+            Some("--debug-panel") => {
+                options.debug_panel = true;
+                continue;
+            }
             Some(IDLE) => args.next().map(|v| v.to_string_lossy().into_owned()),
             Some(a) if a.starts_with("--idle-timeout=") => Some(a[IDLE.len() + 1..].to_owned()),
             _ => return Err(unknown(&arg)),
@@ -132,7 +140,7 @@ mod tests {
     fn daemon(idle_timeout: Option<Duration>) -> Result<Command, ParseError> {
         Ok(Command::Daemon(DaemonOptions {
             idle_timeout,
-            detach: false,
+            ..DaemonOptions::default()
         }))
     }
 
@@ -172,9 +180,29 @@ mod tests {
         let options = DaemonOptions {
             idle_timeout: Some(Duration::from_secs(5)),
             detach: true,
+            debug_panel: false,
         };
         let args = ["daemon", "--detach", "--idle-timeout", "5"];
         assert_eq!(parse_strs(&args), Ok(Command::Daemon(options)));
+    }
+
+    #[test]
+    fn daemon_debug_panel_shows_the_debug_panel() {
+        let options = DaemonOptions {
+            debug_panel: true,
+            ..DaemonOptions::default()
+        };
+        assert_eq!(
+            parse_strs(&["daemon", "--debug-panel"]),
+            Ok(Command::Daemon(options))
+        );
+    }
+
+    #[test]
+    fn debug_panel_is_a_daemon_flag_only() {
+        let unknown = Err(ParseError::Unknown("--debug-panel".to_owned()));
+        assert_eq!(parse_strs(&["--debug-panel"]), unknown);
+        assert_eq!(parse_strs(&["--dmenu", "--debug-panel"]), unknown);
     }
 
     #[test]

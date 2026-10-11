@@ -31,9 +31,16 @@ research behind them, and a binary that does this much:
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
   Plain `logis` only makes sure the daemon runs. `logis --dmenu` streams stdin lines
   to the daemon and prints the chosen line's original bytes (exit 0), or nothing on
-  dismissal (exit 1). The daemon has no window yet, so it refuses every session;
-  the window, the list view and the dmenu flags are still to come, as are the app
-  launcher and servitor mode.
+  dismissal (exit 1).
+- `logis daemon --debug-panel` does not serve sessions: it shows a static panel drawn
+  by the renderer core (a GPU-rendered overlay layer surface at the compositor's
+  fractional scale) until the compositor closes it or the process is ended. It takes
+  exclusive keyboard focus and has no input handling yet, so end it from elsewhere
+  (for example `timeout 5 logis daemon --debug-panel`).
+
+The session daemon does not show the renderer's window yet, so it refuses every
+session. Text, the list view, the dmenu flags, the app launcher and servitor mode
+are still to come.
 
 Client and daemon speak length-prefixed JSON frames, one session per connection;
 the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
@@ -48,6 +55,25 @@ files (`wayland` on Arch, `libwayland-dev` on Debian/Ubuntu).
 ```sh
 cargo build --release
 cargo test
+```
+
+`cargo test` renders offscreen and needs a GPU adapter (hardware, or Mesa lavapipe
+from `vulkan-swrast` / `mesa-vulkan-drivers`); without one, the render tests print
+`SKIPPED` unless their backend is listed in `LOGIS_TEST_REQUIRE_BACKENDS`
+(`auto,vulkan,gl,software`), as CI does.
+
+### GPU backends
+
+logis tries Vulkan hardware, then GL hardware, then lavapipe, then llvmpipe.
+`LOGIS_GPU_BACKEND=vulkan|gl|software` forces one; the render tests force each in
+turn. Manual check on a live session (each prints the adapter it woke):
+
+```sh
+for b in vulkan gl software; do
+  LOGIS_GPU_BACKEND=$b timeout 3 logis daemon --debug-panel
+done
+# llvmpipe (GL software) instead of lavapipe:
+LIBGL_ALWAYS_SOFTWARE=1 LOGIS_GPU_BACKEND=gl timeout 3 logis daemon --debug-panel
 ```
 
 logis targets the niri compositor; other compositors with wlr-layer-shell are best

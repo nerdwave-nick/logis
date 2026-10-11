@@ -23,8 +23,24 @@ fn main() -> ExitCode {
             Err(e) => fail(&e),
         },
         Ok(cli::Command::Dmenu) => client::dmenu::run(),
+        Ok(cli::Command::Daemon(options)) if options.debug_panel => debug_panel(),
         Ok(cli::Command::Daemon(options)) => daemon::run(options),
         Err(e) => fail(&e.to_string()),
+    }
+}
+
+/// `logis daemon --debug-panel`; `LOGIS_GPU_BACKEND` forces a backend.
+/// It is not the session daemon: it neither listens nor serves sessions.
+fn debug_panel() -> ExitCode {
+    if let Err(e) = wayland::preflight() {
+        return fail(&e.to_string());
+    }
+    let result = logis::render::BackendChoice::from_env()
+        .map_err(|e| e.to_string())
+        .and_then(|choice| logis::window::run_debug_panel(choice).map_err(|e| e.to_string()));
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => fail(&e),
     }
 }
 
