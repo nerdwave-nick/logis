@@ -156,6 +156,11 @@ A named set of visual properties in `themes/<name>.jsonc`, selected by
 `"theme": "<name>"`. Bundled themes are compiled in; a user file overrides a bundled
 theme of the same name. The theme model itself is still being designed (6217c721).
 
+**Config**:
+`logis.jsonc` in `$XDG_CONFIG_HOME/logis/` (or `--config PATH`): JSONC described by
+`schema/logis.schema.json`. The daemon applies a sound edit at once; an invalid edit
+leaves the **last sound config** in force and is reported in the log and as a toast.
+
 **Forge crimson & brass / cogitator phosphor**:
 The two bundled themes of v1: the default glowing brass-to-crimson panel of the
 research spike, and a green CRT look.
