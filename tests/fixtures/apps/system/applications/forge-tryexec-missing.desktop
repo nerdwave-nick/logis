@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Missing TryExec
+TryExec=forge-no-such-program
+Exec=forge-no-such-program

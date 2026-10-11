@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bus Spirit
+DBusActivatable=true
+Icon=forge-bus
+Actions=wake;
+
+[Desktop Action wake]
+Name=Wake

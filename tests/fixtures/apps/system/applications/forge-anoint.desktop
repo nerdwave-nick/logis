@@ -1,0 +1,30 @@
+[Desktop Entry]
+Type=Application
+Name=Anoint
+Name[de]=Salbung
+GenericName=Holy Oil
+GenericName[de]=Weihöl
+Keywords=oil;unguent;blessing;
+Keywords[de]=öl;salbe;
+Comment=Anoints the vessel
+Icon=forge-cog
+Exec=anoint --vessel %U --name=%c %i
+Actions=purge;nameless;broken;absent;bless;
+
+[Desktop Action purge]
+Name=Purge
+Name[de]=Läutern
+Icon=forge-purge
+Exec=anoint --purge
+
+[Desktop Action nameless]
+Exec=anoint --nameless
+
+[Desktop Action broken]
+Name=Broken
+Exec=anoint "--unclosed
+
+[Desktop Action bless]
+Name=Bless
+Name[de]=Segnen
+Exec=anoint --bless %f

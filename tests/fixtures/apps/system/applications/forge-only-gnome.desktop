@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Only in GNOME
+OnlyShowIn=GNOME;
+Exec=anoint

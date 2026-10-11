@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Not a desktop file
+Exec=anoint
