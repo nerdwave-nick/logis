@@ -1,7 +1,8 @@
 //! The dmenu list as drawn (spec §3 stories 1–3): the prompt line with the
 //! query, cursor and counter, tab-separated columns lined up at tab stops,
 //! the selection band and the matched characters in brass, compared with
-//! goldens at scales 1.0, 1.3 and 2.0. The list comes from the real
+//! goldens at scales 1.0, 1.3 and 2.0. A provider's stage adds glyphs,
+//! badges, a pending row and a toast (spec §4.8). The list comes from the real
 //! [`ListView`] (filtering and highlights included); fonts are pinned as in
 //! tests/text.rs. Needs a GPU adapter (see tests/render.rs).
 
@@ -10,7 +11,7 @@ mod support;
 use std::path::Path;
 
 use logis::input::{Action, Edit, Step};
-use logis::list::{ListView, Options, scene};
+use logis::list::{Decor, Entry, Level, ListView, Notice, Options, scene};
 use logis::render::{Image, OFFSCREEN_FORMAT, Renderer, Scale, Scene, render_offscreen};
 use logis::text::{FontConfig, Fonts};
 use support::golden::{self, Goldens, Tolerance};
@@ -44,9 +45,16 @@ fn render(gpu: &logis::render::Gpu, scene: &Scene, logical: (u32, u32), scale: S
 
 #[track_caller]
 fn check(name: &str, view: &mut ListView, options: &Options) {
+    check_with(name, view, options, None);
+}
+
+#[track_caller]
+fn check_with(name: &str, view: &mut ListView, options: &Options, toast: Option<Notice>) {
     let Some(gpu) = golden::env_gpu() else { return };
     let logical = scene::size(options);
-    let scene = scene::scene(&view.look(), logical);
+    let mut look = view.look();
+    look.toast = toast;
+    let scene = scene::scene(&look, logical);
     let goldens = Goldens::checked_in();
     let failures: Vec<String> = scales()
         .into_iter()
@@ -110,4 +118,40 @@ fn an_empty_query_shows_the_placeholder_and_every_item() {
     let mut view = ListView::new(options.clone());
     view.push(items(&["alpha", "beta", "gamma", "delta"]));
     check("placeholder", &mut view, &options);
+}
+
+fn entry(text: &str, glyph: Option<&str>, badges: &[&str], pending: bool) -> Entry {
+    Entry {
+        text: text.into(),
+        match_text: None,
+        decor: Some(Box::new(Decor {
+            glyph: glyph.map(str::to_owned),
+            icon: None,
+            badges: badges.iter().map(|b| b.to_string()).collect(),
+            pending,
+        })),
+    }
+}
+
+#[test]
+fn a_provider_stage_with_glyphs_badges_a_pending_row_and_a_toast() {
+    let options = Options {
+        prompt: "rite: ".into(),
+        lines: 5,
+        width: 44,
+        ..Options::default()
+    };
+    let mut view = ListView::new(options.clone());
+    view.push([
+        entry("rite of oil\tunguent", Some("⚙"), &["current"], false),
+        entry("rite of ignition\tspark", Some("†"), &[], true),
+        entry("litany of the forge", None, &["edict", "heresy"], false),
+        entry("機械の精霊", Some("§"), &[], false),
+    ]);
+    view.apply(&Action::Select(Step::Next));
+    let toast = Notice {
+        text: "the rite of oil is begun".into(),
+        level: Level::Success,
+    };
+    check_with("provider", &mut view, &options, Some(toast));
 }

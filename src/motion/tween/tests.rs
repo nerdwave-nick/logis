@@ -180,3 +180,12 @@ fn an_instant_glide_jumps() {
     g.toward(Some(0.0), T0, 0);
     assert_eq!(g.toward(Some(52.0), T0 + MS, 0), (Some(52.0), false));
 }
+
+#[test]
+fn a_reset_glide_takes_its_next_target_at_once() {
+    let mut g = Glide::new(LINEAR_100);
+    g.toward(Some(0.0), T0, 0);
+    g.toward(Some(100.0), T0, 0);
+    g.reset();
+    assert_eq!(g.toward(Some(52.0), T0 + 10 * MS, 0), (Some(52.0), false));
+}

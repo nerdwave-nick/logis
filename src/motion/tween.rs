@@ -225,12 +225,17 @@ impl Glide {
         }
     }
 
+    /// Forgets the target (a new list): the next one is taken at once.
+    pub fn reset(&mut self) {
+        *self = Self::new(self.curve);
+    }
+
     /// The value for a frame shown at `time` while the target is `target`,
     /// and whether later frames still move. A new target starts a glide
     /// from the value at `time - lead`.
     pub fn toward(&mut self, target: Option<f32>, time: Nanos, lead: Nanos) -> (Option<f32>, bool) {
         let Some(to) = target else {
-            *self = Self::new(self.curve);
+            self.reset();
             return (None, false);
         };
         if self.target != Some(to) {

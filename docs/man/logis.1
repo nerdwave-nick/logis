@@ -1,0 +1,454 @@
+.\" logis(1): hand-written roff (man(7) macros only); no build step.
+.\" View with: man -l docs/man/logis.1
+.\" The caller contract here matches README.md's "Caller contract" section,
+.\" which names the test that pins each statement. Change both together.
+.TH LOGIS 1 2026-10-11 "logis 0.1.0" "User Commands"
+.SH NAME
+logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible picker
+.SH SYNOPSIS
+.B logis
+.RB [ \-\-config
+.IR PATH ]
+.br
+.B logis
+.BR \-\-dmenu " | " \-\-dmenu0
+.RI [ RUNE ...]
+.RB [ \-\-config
+.IR PATH ]
+.br
+.B logis
+.RB [ \-\-config
+.IR PATH ]
+.B \-\-provider
+.I PROGRAM
+.RI [ ARG ...]
+.br
+.B logis \-\-check\-config
+.RB [ \-\-config
+.IR PATH ]
+.br
+.B logis daemon
+.RB [ \-\-idle\-timeout
+.IR SECONDS ]
+.RB [ \-\-config
+.IR PATH ]
+.RB [ \-\-detach ]
+.br
+.B logis \-\-version
+.SH DESCRIPTION
+.B logis
+raises a cogitator: a GPU\-rendered window on the compositor's overlay layer
+(wlr\-layer\-shell) in which the user filters a list by typing and chooses
+one row.
+It serves scripts as a drop\-in for
+.BR "fuzzel \-\-dmenu" ,
+and shows what external
+.I providers
+say.
+.PP
+One binary plays two roles.
+The
+.I daemon
+(the machine spirit) is resident: it holds the Wayland connection, the GPU
+and the fonts warm, and listens on
+.IR $XDG_RUNTIME_DIR/logis.sock .
+Every other invocation is a
+.IR client :
+it connects to the daemon, starting one
+.RB ( "logis daemon \-\-detach" )
+when none answers, opens one
+.IR session ,
+and waits for its answer.
+A daemon a client starts outlives that client and serves later ones.
+.PP
+Plain
+.B logis
+opens no session: it only makes sure a daemon answers, starting one if need
+be, and exits 0 if one does.
+Scripts can use it to ask, before showing anything, whether logis can serve
+them (see
+.BR DIAGNOSTICS ).
+.SH DMENU MODE
+.B logis \-\-dmenu
+reads items from stdin, one per line
+.RB ( \-\-dmenu0 :
+one per NUL\-ended record, which may contain newlines).
+stdin is read as it arrives: the window opens before the input ends, and
+logis may answer and exit before reading all of it, so a producer may meet a
+closed pipe.
+.PP
+Typing filters the items: fuzzy matching that ignores case and accents, with
+fzf's syntax
+.RB ( ^prefix ,
+.BR suffix$ ,
+.BR \(aqexact ,
+.BR !not ,
+words matched separately).
+Return prints the selected item's original bytes, exactly as read, whatever
+their encoding, followed by a newline, and exits 0.
+When nothing matches, Return prints the typed text as typed (unless
+.BR \-\-only\-match ).
+stdout carries nothing but the choice and its newline, also with
+.BR \-\-dmenu0 .
+.SH RUNES
+A rune's value follows it as
+.BI \-\- rune = V
+or
+.BI \-\- rune " V"
+.RB ( \-\-password
+takes its character only as
+.BR \-\-password=\fIC\fP ).
+The list runes need
+.B \-\-dmenu
+or
+.BR \-\-dmenu0 ;
+given without, they are an error.
+An unknown rune, or a value a rune cannot bear, is an error naming it.
+.TP
+.BR \-d ", " \-\-dmenu
+Items are separated by newlines.
+.TP
+.B \-\-dmenu0
+Items are separated by NUL.
+.TP
+.BR \-p ", " \-\-prompt =\fITEXT\fP
+Shown before the query.
+Default:
+.RB \(dq "> " \(dq.
+.TP
+.BI \-\-prompt\-only= TEXT
+A prompt and nothing else: stdin is not read and no rows are shown.
+.TP
+.BI \-\-placeholder= TEXT
+Shown while the query is empty.
+.TP
+.BR \-\-password [ =\fIC\fP ]
+Shows each typed character as
+.I C
+(default
+.BR * ).
+.TP
+.BR \-l ", " \-\-lines =\fIN\fP
+Rows shown at most, and so the window's height.
+Default: 15.
+.TP
+.BR \-w ", " \-\-width =\fIN\fP
+The window's width in characters (1 or more; an estimate).
+Default: 30.
+.TP
+.B \-\-counter
+Shows how many items match, of how many.
+.TP
+.BI \-\-search= TEXT
+The query the window opens with.
+.TP
+.BI \-\-select= TEXT
+Preselects the first item equal to
+.IR TEXT ,
+ignoring case.
+.TP
+.BI \-\-select\-index= N
+Preselects item
+.I N
+(counted from 0).
+Not together with
+.BR \-\-select .
+.TP
+.B \-\-only\-match
+Return accepts only an item, never typed text.
+.TP
+.BR \-R ", " \-\-no\-run\-if\-empty
+When stdin is empty, exit 1 at once: no window, no daemon.
+.TP
+.B \-\-index
+Prints the chosen item's index (counted from 0) instead of its text.
+.TP
+.BI \-\-with\-nth= N\fR|\fPFORMAT
+Shows column
+.I N
+(or a format) of each item; the whole item still comes back.
+.TP
+.BI \-\-accept\-nth= N\fR|\fPFORMAT
+Prints column
+.I N
+(or a format) of the chosen item.
+.TP
+.BI \-\-match\-nth= N\fR|\fPFORMAT
+Matches the query against column
+.I N
+(or a format) instead of what is shown.
+.TP
+.BI \-\-nth\-delimiter= C
+The column delimiter, one ASCII character.
+Default: tab.
+.TP
+.BI \-\-config= PATH
+The configuration a daemon that this client starts reads.
+A daemon already running keeps its own.
+.TP
+.B \-i
+Ignored (dmenu's case switch; logis always ignores case).
+.PP
+Columns count from 1.
+A
+.I FORMAT
+is free text in which
+.BI { N },
+.BI { N .. M }
+and
+.BI { N ..}
+expand to columns, ranges joined by the delimiter;
+.B 0
+means the rune is not given.
+.SS fuzzel compatibility
+logis takes fuzzel's dmenu runes (fuzzel(1) 1.15) and its exit statuses 0 and
+1.
+Where fuzzel's documentation leaves a choice open, or logis differs on
+purpose:
+.IP \(bu 2
+typed text is printed as typed, even with
+.B \-\-index
+or
+.BR \-\-accept\-nth ;
+.IP \(bu 2
+.B \-\-select
+wants an item equal to its text ignoring case, not a prefix or a fuzzy match,
+and applies when that item arrives, until the user moves the selection or
+edits the query;
+.IP \(bu 2
+.B \-\-no\-run\-if\-empty
+exits 1 (nothing was chosen);
+.IP \(bu 2
+a format that names no column is an error, not a constant output;
+.IP \(bu 2
+list runes without
+.B \-\-dmenu
+are an error;
+.IP \(bu 2
+errors exit 2, apart from a dismissal's 1, where fuzzel exits 1 (its
+.BR \-\-check\-config ,
+for one);
+.IP \(bu 2
+Shift+Insert pastes the clipboard, not the primary selection; the middle
+button pastes the primary selection.
+.SH PROVIDER MODE
+.B logis \-\-provider
+.I PROGRAM
+.RI [ ARG ...]
+runs
+.I PROGRAM
+with everything after
+.B \-\-provider
+as its arguments.
+The daemon starts it as this client would have (its working directory and
+environment) and shows the stages it sends: lists in one window, whose items
+may be pending, with toasts.
+The provider speaks the provider protocol, version 1: JSON lines over its
+stdin and stdout, described in
+.I docs/provider\-protocol.md
+of the source.
+.PP
+The client exits 0 when the provider sends
+.BR close ,
+1 when the user dismisses the window or another interactive session replaces
+it, and 2 when the provider cannot start, breaks the protocol, shows no stage
+within 5 seconds, or exits before
+.BR close .
+When the session ends without its
+.BR close ,
+the provider is sent
+.BR cancel .
+A provider that was never sent a choice is then ended; one that was may be
+carrying out an action and is left to finish it.
+.SH KEYS
+.TP
+.B Return\fR, keypad \fBEnter\fR, a click on a row
+Accept.
+.TP
+.B Escape\fR, \fBCtrl+G\fR, \fBCtrl+[\fR, losing keyboard focus
+Dismiss (focus loss only while the configuration's
+.B focus\-loss
+is
+.BR dismiss ,
+the default).
+.TP
+.B Up\fR, \fBShift+Tab\fR, \fBCtrl+P\fR / \fBDown\fR, \fBTab\fR, \fBCtrl+N
+Select the previous / next item.
+.TP
+.B Backspace\fR / \fBDelete
+Delete the character before / after the cursor.
+.TP
+.B Ctrl+W\fR, \fBCtrl+U
+Delete the word before the cursor; clear the query.
+.TP
+.B Left\fR, \fBRight\fR, \fBHome\fR, \fBEnd
+Move the cursor.
+.TP
+.B Ctrl+V\fR, \fBShift+Insert\fR; the middle button
+Paste the clipboard; paste the primary selection.
+.SH SESSIONS
+Each client holds one session, on its own connection to the daemon, and the
+answer goes to that client alone.
+At most one session is visible.
+.TP
+.B dmenu clients queue.
+A dmenu session that arrives while another session (of any kind) is visible
+waits, and the queue is shown first in, first out; each client gets its own
+answer.
+A queued client waits as long as the sessions ahead of it take; to bound
+that, run it under
+.BR timeout (1).
+.TP
+.B Interactive sessions replace.
+An app, servitor or provider session takes the visible session's place, and
+that session's client exits 1.
+Queued dmenu clients stay queued and are shown once the interactive session
+ends.
+.TP
+.B Leaving cancels.
+A client that exits or is killed (by
+.BR timeout (1),
+Ctrl+C, \&...) cancels its session: a visible one closes and the next queued
+one is shown; a queued one is dropped.
+.PP
+Connections are not ordered among themselves.
+The queue follows the order in which the daemon
+.I receives
+sessions, not the order in which clients were started: two clients started a
+moment apart may be answered in either order, and a session opened just
+after another client left may wait in the queue until the daemon has handled
+that departure.
+Clients that need an order should run one after another.
+.SH DAEMON
+.B logis daemon
+is the daemon itself, in the foreground; clients start it as
+.BR "logis daemon \-\-detach" ,
+which stops writing to the starter's stdout and stderr once it listens.
+It checks the Wayland session and the configuration at start, and exits 2 when
+either is unusable or when the compositor goes away.
+A second daemon finds the first one listening and exits 0.
+.TP
+.BI \-\-idle\-timeout " SECONDS"
+Exit once no client has been connected for that long; 0 keeps the daemon
+resident.
+Outranks the configuration's
+.BR idle\-timeout ;
+off by default.
+.TP
+.BI \-\-config " PATH"
+The configuration to read instead of the default.
+.SH EXIT STATUS
+.TP
+.B 0
+.BR \-\-dmenu :
+an item or typed text was accepted; it is on stdout.
+.BR \-\-provider :
+the provider closed its flow.
+Plain
+.BR logis :
+a daemon answers.
+.BR \-\-check\-config :
+the configuration is sound (or absent).
+.BR \-\-version :
+the name and version are on stdout.
+.TP
+.B 1
+Nothing was chosen, and stdout is empty: the user dismissed the window,
+another (interactive) session replaced it, or
+.B \-\-no\-run\-if\-empty
+met an empty stdin.
+.TP
+.B 2
+An error; stdout is empty and the message is on stderr.
+.SH DIAGNOSTICS
+Whenever logis cannot serve, it exits 2 with an empty stdout and the reason
+on stderr.
+The message is for people, flavoured, and its wording may change; scripts
+should branch on the exit status alone.
+It does name the plain fact:
+.TP
+no Wayland session
+.B WAYLAND_DISPLAY
+is unset (the message says so), or its socket cannot be reached (the message
+names its path).
+.TP
+no layer shell
+The compositor (GNOME/Mutter, for one) offers no
+.BR zwlr_layer_shell_v1 ,
+named in the message.
+A compositor without
+.B wp_fractional_scale_manager_v1
+is refused likewise.
+.TP
+no runtime directory
+.B XDG_RUNTIME_DIR
+is unset or not absolute.
+.TP
+an invalid configuration
+The daemon refuses to start; the message names the file, line and column.
+.TP
+the daemon died during the session
+For instance because the compositor left; the message says the daemon fell
+silent.
+A daemon that lost its compositor removes its socket, and the next client
+starts a new one.
+.TP
+the daemon refused the client
+A daemon of another version, left running across an upgrade, refuses the
+client with its reason: end that daemon, and the next client starts a new
+one.
+.PP
+Plain
+.B logis
+exits 2 in each case that stops a daemon starting, so a script can ask first
+and fall back to another picker:
+.PP
+.RS 4
+.nf
+if logis 2>/dev/null; then pick=\(aqlogis \-\-dmenu\(aq
+else pick=\(aqfuzzel \-\-dmenu\(aq; fi
+choice=$(printf \(aqrite of oil\enrite of ignition\en\(aq | $pick)
+case $? in
+0) printf \(aqchosen: %s\en\(aq "$choice" ;;
+1) ;;   # nothing chosen: dismissed, or replaced
+*) echo \(aqthe cogitator is silent; see stderr\(aq >&2 ;;
+esac
+.fi
+.RE
+.SH ENVIRONMENT
+.TP
+.B WAYLAND_DISPLAY
+The compositor's socket, relative to
+.B XDG_RUNTIME_DIR
+or absolute.
+logis does not fall back to
+.BR wayland\-0 .
+.TP
+.B XDG_RUNTIME_DIR
+Where the daemon's socket and log live; must be absolute.
+.TP
+.B XDG_CONFIG_HOME
+Where the configuration is looked for (default
+.IR ~/.config ).
+.SH FILES
+.TP
+.I $XDG_RUNTIME_DIR/logis.sock
+The daemon's socket.
+.TP
+.I $XDG_RUNTIME_DIR/logis.log
+The diagnostics of a daemon a client started, once it has left the client's
+stderr behind.
+.TP
+.I $XDG_CONFIG_HOME/logis/logis.jsonc
+The configuration (JSON with comments), unless
+.B \-\-config
+names another.
+.SH SEE ALSO
+.BR fuzzel (1),
+.BR dmenu (1)
+.PP
+The README's
+.I Caller contract
+section, which names the test that pins each statement of this page, and
+.I docs/provider\-protocol.md
+in the source: https://github.com/nerdwave\-nick/logis

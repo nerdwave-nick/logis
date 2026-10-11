@@ -144,6 +144,13 @@ impl Panel {
         self.layer.wl_surface() == surface
     }
 
+    /// Gives up keyboard focus while staying on screen.
+    pub(super) fn release_keyboard(&self) {
+        self.layer
+            .set_keyboard_interactivity(KeyboardInteractivity::None);
+        self.layer.commit();
+    }
+
     /// The swapchain format, for pipeline warm-up.
     pub fn format(&self) -> wgpu::TextureFormat {
         self.config.format

@@ -46,7 +46,10 @@ impl ListView {
                 self.hover(under)
             }
             Point::Released(x, y) => match (self.pointing.pressed.take(), item(self, x, y)) {
-                (Some(down), Some(up)) if down == up => Reaction::Accept(Choice::Item(up)),
+                // A pending item is never accepted, by key or by click.
+                (Some(down), Some(up)) if down == up && !self.pending(up) => {
+                    Reaction::Accept(Choice::Item(up))
+                }
                 _ => Reaction::Unchanged,
             },
             Point::Scrolled(scroll, x, y) => {
@@ -283,6 +286,28 @@ mod tests {
         assert_eq!(v.point(&point, logical()), Reaction::Changed);
         assert_eq!(rows(&mut v), ["item 6", "item 7", "item 8"]);
         assert_eq!(v.selected(), Some(6));
+    }
+
+    #[test]
+    fn a_click_never_accepts_a_pending_item() {
+        let mut v = ListView::new(options());
+        let pending = crate::list::Entry {
+            decor: Some(Box::new(crate::list::Decor {
+                pending: true,
+                ..crate::list::Decor::default()
+            })),
+            ..crate::list::Entry::from("awaited".to_owned())
+        };
+        v.push([pending]);
+        assert_eq!(click(&mut v, 0, 0), Reaction::Unchanged);
+    }
+
+    #[test]
+    fn hovering_ends_a_late_preselection() {
+        let mut v = list(3);
+        moved(&mut v, 1);
+        assert!(!v.preselect(2), "the user moved with the pointer");
+        assert_eq!(v.selected(), Some(1));
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! A logis daemon in a test compositor with a virtual keyboard to work its
-//! window, and `logis --dmenu` clients with piped stdin and stdout (used by
-//! tests/dmenu.rs and the dmenu series of tests/latency.rs). The daemon
+//! window, and `logis --dmenu` / `logis --provider` clients with piped
+//! stdout (used by tests/dmenu.rs, tests/provider_window.rs and the dmenu
+//! series of tests/latency.rs). The daemon
 //! runs with the test trace on, so waits follow what the window did.
 
 use std::io::{Read, Write};
@@ -80,6 +81,20 @@ impl Cogitator {
         Client { child, stdin }
     }
 
+    /// Starts `logis --provider PROGRAM [ARG]...` (the command line in
+    /// `argv`) with the extra environment `env`.
+    pub fn provider(&self, argv: &[&std::ffi::OsStr], env: &[(&str, &std::path::Path)]) -> Client {
+        let mut command = self.compositor.logis();
+        command
+            .arg("--provider")
+            .args(argv)
+            .envs(env.iter().copied())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = command.spawn().expect("logis --provider starts");
+        Client { child, stdin: None }
+    }
+
     /// Like [`Self::dmenu`], with stdin closed after `input`.
     pub fn dmenu_all(&self, args: &[&str], input: &[u8]) -> Client {
         let mut client = self.dmenu(args, input);
@@ -130,7 +145,7 @@ impl Cogitator {
 fn greet(socket: &std::path::Path) {
     use std::os::unix::net::UnixStream;
     let deadline = Instant::now() + PATIENCE;
-    let hello = br#"{"type":"hello","version":2}"#;
+    let hello = br#"{"type":"hello","version":3}"#;
     loop {
         assert!(Instant::now() < deadline, "the daemon never greeted");
         let Ok(mut stream) = UnixStream::connect(socket) else {

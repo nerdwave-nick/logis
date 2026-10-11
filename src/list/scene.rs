@@ -5,8 +5,8 @@
 //! character in brass. Rows are single lines whose tabs advance to tab
 //! stops, so tab-separated columns line up.
 
-use super::Options;
 use super::view::{Look, Row};
+use super::{Level, Notice, Options};
 use crate::render::{Border, Glow, Overflow, Paint, Rgba, RoundedRect, Scene, Text};
 
 /// Room around the body for its glow.
@@ -25,6 +25,10 @@ pub const PROMPT_BLOCK: f32 = 40.0;
 pub const LIST_PAD: f32 = 8.0;
 /// The body's corner radius.
 const RADIUS: f32 = 14.0;
+/// The icon column's width, when some item has a glyph or icon.
+pub const GLYPH_COLUMN: f32 = 24.0;
+/// What a pending row says at its end.
+pub const PENDING_MARK: &str = "divining…";
 
 const BRASS: Rgba = Rgba::new(0.83, 0.63, 0.09, 1.0);
 const GOLD: Rgba = Rgba::hex(0xf2c14e);
@@ -127,12 +131,26 @@ pub fn scene_at(look: &Look, logical: (u32, u32), band_top: Option<f32>) -> Scen
         shapes.extend(band([x + 2.0, top, body_w - 4.0, ROW_PITCH], x, body_w));
     }
     for (i, row) in look.rows.iter().take(room).enumerate() {
-        texts.push(row_text(
-            row,
-            x + PAD_X + 8.0,
-            first + i as f32 * ROW_PITCH,
-            body_w - 2.0 * PAD_X - 8.0,
-        ));
+        let top = first + i as f32 * ROW_PITCH;
+        let mut left = x + PAD_X + 8.0;
+        let mut width = body_w - 2.0 * PAD_X - 8.0;
+        if look.glyphs {
+            if let Some(glyph) = &row.glyph {
+                texts.push(glyph_text(glyph, row.selected, left, top));
+            }
+            left += GLYPH_COLUMN;
+            width -= GLYPH_COLUMN;
+        }
+        let ends = marks(row, left + width, top);
+        width -= ends.width;
+        texts.push(row_text(row, left, top, width.max(CHAR)));
+        shapes.extend(ends.shapes);
+        texts.extend(ends.texts);
+    }
+    if let Some(notice) = &look.toast {
+        let (strip, words) = toast(notice, [x, y, body_w, body_h]);
+        shapes.push(strip);
+        texts.push(words);
     }
     Scene {
         clear: None,
@@ -188,16 +206,107 @@ fn prompt_line(look: &Look, left: f32, top: f32, width: f32) -> Vec<Text> {
 }
 
 fn row_text(row: &Row, left: f32, top: f32, width: f32) -> Text {
-    let (color, mark) = if row.selected {
-        (BONE, GOLD)
-    } else {
-        (PARCHMENT, BRASS)
+    let (color, mark) = match (row.pending, row.selected) {
+        (true, _) => (ASH, ASH),
+        (false, true) => (BONE, GOLD),
+        (false, false) => (PARCHMENT, BRASS),
     };
     let line_top = top + (ROW_PITCH - FONT * 1.3) / 2.0;
     let mut text = Text::new(row.text.clone(), [left, line_top], FONT, color)
         .in_column(width, Overflow::Ellipsis);
-    text.spans = row.highlights.iter().map(|r| (r.clone(), mark)).collect();
+    if !row.pending {
+        text.spans = row.highlights.iter().map(|r| (r.clone(), mark)).collect();
+    }
     text
+}
+
+/// A row's emblem in the icon column.
+fn glyph_text(glyph: &str, selected: bool, left: f32, top: f32) -> Text {
+    let color = if selected { GOLD } else { BRASS };
+    let line_top = top + (ROW_PITCH - FONT * 1.3) / 2.0;
+    Text::new(glyph, [left, line_top], FONT, color).in_column(GLYPH_COLUMN - 4.0, Overflow::Clip)
+}
+
+/// The badge text size.
+const BADGE_FONT: f32 = 11.0;
+/// Inside a badge, left and right of its text.
+const BADGE_PAD: f32 = 6.0;
+/// Between badges, and between the row text and the first one.
+const BADGE_GAP: f32 = 6.0;
+const BADGE_HEIGHT: f32 = 17.0;
+
+/// What ends a row: its badges in their order, then the pending mark.
+struct Marks {
+    shapes: Vec<RoundedRect>,
+    texts: Vec<Text>,
+    /// The room they take from the row, gaps included.
+    width: f32,
+}
+
+fn marks(row: &Row, right: f32, top: f32) -> Marks {
+    let mut pills: Vec<(&str, Rgba, Rgba)> = row
+        .badges
+        .iter()
+        .map(|b| (b.as_str(), BRASS, BRASS.with_alpha(0.7)))
+        .collect();
+    if row.pending {
+        pills.push((PENDING_MARK, ASH, CRIMSON.with_alpha(0.8)));
+    }
+    let widths: Vec<f32> = pills
+        .iter()
+        .map(|(t, ..)| t.chars().count() as f32 * BADGE_FONT * 0.6 + 2.0 * BADGE_PAD)
+        .collect();
+    let width: f32 = widths.iter().map(|w| w + BADGE_GAP).sum();
+    let mut marks = Marks {
+        shapes: Vec::new(),
+        texts: Vec::new(),
+        width,
+    };
+    let mut left = right - width + BADGE_GAP;
+    let pill_top = top + (ROW_PITCH - BADGE_HEIGHT) / 2.0;
+    let text_top = top + (ROW_PITCH - BADGE_FONT * 1.3) / 2.0;
+    for ((text, ink, edge), w) in pills.into_iter().zip(widths) {
+        let mut pill = solid(
+            [left, pill_top, w, BADGE_HEIGHT],
+            BADGE_HEIGHT / 2.0,
+            SOOT_BOTTOM,
+        );
+        pill.border = Some(Border {
+            width: 1.0,
+            paint: Paint::Solid(edge),
+        });
+        marks.shapes.push(pill);
+        let label = Text::new(text, [left + BADGE_PAD, text_top], BADGE_FONT, ink)
+            .in_column(w - 2.0 * BADGE_PAD + 2.0, Overflow::Clip);
+        marks.texts.push(label);
+        left += w + BADGE_GAP;
+    }
+    marks
+}
+
+/// A toast's strip across the bottom of the body, and its words.
+fn toast(notice: &Notice, [x, y, w, h]: [f32; 4]) -> (RoundedRect, Text) {
+    const HEIGHT: f32 = 28.0;
+    const INSET: f32 = 8.0;
+    let edge = match notice.level {
+        Level::Info => BRASS,
+        Level::Success => GOLD,
+        Level::Error => Rgba::new(0.92, 0.16, 0.10, 1.0),
+    };
+    let rect = [x + INSET, y + h - HEIGHT - INSET, w - 2.0 * INSET, HEIGHT];
+    let mut strip = solid(rect, 6.0, SOOT_TOP.with_alpha(0.97));
+    strip.border = Some(Border {
+        width: 1.5,
+        paint: Paint::Solid(edge),
+    });
+    strip.glow = Some(Glow {
+        radius: 8.0,
+        color: edge.with_alpha(0.35),
+    });
+    let line_top = rect[1] + (HEIGHT - FONT * 1.3) / 2.0;
+    let words = Text::new(notice.text.clone(), [rect[0] + 12.0, line_top], FONT, BONE)
+        .in_column(rect[2] - 24.0, Overflow::Ellipsis);
+    (strip, words)
 }
 
 fn solid(rect: [f32; 4], radius: f32, color: Rgba) -> RoundedRect {
@@ -275,10 +384,12 @@ mod tests {
                     text: format!("row {i}"),
                     highlights: vec![0..1],
                     selected: i == selected,
+                    ..Row::default()
                 })
                 .collect(),
             lines: 5,
             counter: Some((rows, 9)),
+            ..Look::default()
         }
     }
 
@@ -360,6 +471,65 @@ mod tests {
             rows.iter()
                 .all(|t| t.origin[1] + t.line_height <= body[1] + body[3])
         );
+    }
+
+    fn decorated() -> Look {
+        let mut l = look(3, 0);
+        l.glyphs = true;
+        l.rows[0].glyph = Some("⚙".into());
+        l.rows[0].badges = vec!["current".into(), "edict".into()];
+        l.rows[1].pending = true;
+        l
+    }
+
+    #[test]
+    fn an_icon_column_moves_every_row_text_and_holds_the_glyphs() {
+        let logical = size(&options(5, 30));
+        let plain = scene(&look(3, 0), logical);
+        let rich = scene(&decorated(), logical);
+        let x = |s: &Scene, text: &str| s.texts.iter().find(|t| t.text == text).unwrap().origin[0];
+        assert_eq!(x(&rich, "row 2") - x(&plain, "row 2"), GLYPH_COLUMN);
+        assert!(x(&rich, "⚙") < x(&rich, "row 0"));
+    }
+
+    #[test]
+    fn badges_end_the_row_and_narrow_its_text() {
+        let logical = size(&options(5, 30));
+        let s = scene(&decorated(), logical);
+        let text = |t: &str| s.texts.iter().find(|x| x.text == t).unwrap().clone();
+        let (row, current, edict) = (text("row 0"), text("current"), text("edict"));
+        assert!(row.origin[0] + row.width.unwrap() <= current.origin[0]);
+        assert!(current.origin[0] < edict.origin[0], "in the given order");
+        let other = text("row 2");
+        assert!(row.width.unwrap() < other.width.unwrap());
+    }
+
+    #[test]
+    fn a_pending_row_is_dimmed_and_marked() {
+        let s = scene(&decorated(), size(&options(5, 30)));
+        let row = s.texts.iter().find(|t| t.text == "row 1").unwrap();
+        assert_eq!(row.color, ASH);
+        assert!(row.spans.is_empty(), "no highlights while pending");
+        assert!(s.texts.iter().any(|t| t.text == PENDING_MARK));
+    }
+
+    #[test]
+    fn a_toast_lies_over_the_bottom_of_the_body() {
+        let logical = size(&options(5, 30));
+        let mut l = look(3, 0);
+        let without = scene(&l, logical);
+        l.toast = Some(Notice {
+            text: "the rite is begun".into(),
+            level: Level::Success,
+        });
+        let with = scene(&l, logical);
+        assert_eq!(with.shapes.len(), without.shapes.len() + 1);
+        let strip = with.shapes.last().unwrap().rect;
+        let body = with.shapes[0].rect;
+        assert!(strip[1] + strip[3] <= body[1] + body[3]);
+        let text = with.texts.last().unwrap();
+        assert_eq!(text.text, "the rite is begun");
+        assert!(text.origin[1] >= strip[1]);
     }
 
     #[test]

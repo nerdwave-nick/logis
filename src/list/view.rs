@@ -12,7 +12,7 @@ use std::ops::Range;
 mod pointer;
 
 use super::filter::{Filter, byte_ranges};
-use super::{Options, Preselect};
+use super::{Decor, Entry, Options, Preselect};
 use crate::input::{Action, Edit, Query, Step};
 
 /// What an action did.
@@ -38,7 +38,7 @@ pub enum Choice {
 }
 
 /// One row in view.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Row {
     /// The item's text.
     pub text: String,
@@ -47,10 +47,16 @@ pub struct Row {
     pub highlights: Vec<Range<usize>>,
     /// Whether the row is selected.
     pub selected: bool,
+    /// The emblem for the icon column.
+    pub glyph: Option<String>,
+    /// Labels for the row's end.
+    pub badges: Vec<String>,
+    /// Whether the item is still pending.
+    pub pending: bool,
 }
 
 /// Everything the scene shows, taken from the view at one moment.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Look {
     /// Shown before the query.
     pub prompt: String,
@@ -64,6 +70,10 @@ pub struct Look {
     pub lines: u32,
     /// Matching and total items, when the counter is on.
     pub counter: Option<(usize, usize)>,
+    /// Whether rows keep an icon column (some item has an emblem).
+    pub glyphs: bool,
+    /// A notice shown over the list; the view leaves it to its owner.
+    pub toast: Option<super::Notice>,
 }
 
 /// The list of one session.
@@ -74,12 +84,21 @@ pub struct ListView {
     texts: Vec<String>,
     /// Per item: whether it is matched by its shown text (highlights apply).
     shown_is_matched: Vec<bool>,
+    /// Per item: a provider's additions (`None` for plain items).
+    decor: Vec<Option<Box<Decor>>>,
+    /// Per item: whether it was removed.
+    removed: Vec<bool>,
+    /// How many items have something for the icon column.
+    emblems: usize,
     selected: usize,
     top: usize,
     preselect: Option<Preselect>,
     /// The item the user moved the selection to; it stays selected while
     /// more items stream in.
     follow: Option<u32>,
+    /// Whether the user has moved the selection or edited the query: no
+    /// preselection applies after that.
+    touched: bool,
     /// The pointer's state (see [`Self::point`]).
     pointing: pointer::Pointing,
 }
@@ -98,35 +117,121 @@ impl ListView {
             filter,
             texts: Vec::new(),
             shown_is_matched: Vec::new(),
+            decor: Vec::new(),
+            removed: Vec::new(),
+            emblems: 0,
             selected: 0,
             top: 0,
             follow: None,
+            touched: false,
             pointing: pointer::Pointing::default(),
         }
     }
 
     /// Adds items: each its shown text and, if it differs, the text it is
     /// matched by. Returns whether the rows in view may have changed.
-    pub fn push(&mut self, items: impl IntoIterator<Item = (String, Option<String>)>) -> bool {
+    pub fn push<E: Into<Entry>>(&mut self, items: impl IntoIterator<Item = E>) -> bool {
         let first = self.texts.len();
         let mut matched = Vec::new();
-        for (text, match_text) in items {
+        for entry in items {
+            let entry = entry.into();
+            self.emblems += usize::from(entry.has_emblem());
+            let Entry {
+                text,
+                match_text,
+                decor,
+            } = entry;
             self.shown_is_matched.push(match_text.is_none());
             matched.push(match_text.unwrap_or_else(|| text.clone()));
             self.texts.push(text);
+            self.decor.push(decor);
+            self.removed.push(false);
         }
         if matched.is_empty() {
             return false;
         }
         self.filter.push(matched.iter().map(String::as_str));
+        self.settle(first..self.texts.len());
+        true
+    }
+
+    /// Replaces item `index` in its place; whether it existed.
+    pub fn update(&mut self, index: u32, entry: Entry) -> bool {
+        let i = index as usize;
+        if !self.exists(index) {
+            return false;
+        }
+        self.emblems -= usize::from(self.emblem(i));
+        self.emblems += usize::from(entry.has_emblem());
+        let match_text = entry.match_text.as_deref().unwrap_or(&entry.text);
+        self.filter.update(index, match_text);
+        self.shown_is_matched[i] = entry.match_text.is_none();
+        self.texts[i] = entry.text;
+        self.decor[i] = entry.decor;
+        self.settle(i..i + 1);
+        true
+    }
+
+    /// Removes item `index` for good; whether it was there.
+    pub fn remove(&mut self, index: u32) -> bool {
+        let i = index as usize;
+        if !self.exists(index) {
+            return false;
+        }
+        self.emblems -= usize::from(self.emblem(i));
+        self.removed[i] = true;
+        self.decor[i] = None;
+        self.filter.remove(index);
+        if self.follow == Some(index) {
+            self.follow = None;
+        }
+        self.clamp();
+        true
+    }
+
+    /// After the items in `changed` arrived or changed: keeps the item the
+    /// user moved to selected, or applies the preselection once its item is
+    /// there and settled.
+    fn settle(&mut self, changed: Range<usize>) {
         if let Some(item) = self.follow {
             self.select_item(item);
-        } else if let Some(item) = self.preselected(first) {
+        } else if let Some(item) = self.preselected(changed) {
             self.preselect = None;
             self.select_item(item);
         }
         self.clamp();
-        true
+    }
+
+    fn exists(&self, index: u32) -> bool {
+        self.removed.get(index as usize) == Some(&false)
+    }
+
+    fn emblem(&self, i: usize) -> bool {
+        self.decor[i]
+            .as_ref()
+            .is_some_and(|d| d.glyph.is_some() || d.icon.is_some())
+    }
+
+    fn pending(&self, index: u32) -> bool {
+        self.decor
+            .get(index as usize)
+            .and_then(Option::as_ref)
+            .is_some_and(|d| d.pending)
+    }
+
+    /// Selects item `index` once it is there and settled, unless the user
+    /// has moved the selection or edited the query; whether it is selected
+    /// now.
+    pub fn preselect(&mut self, index: u32) -> bool {
+        if self.touched {
+            return false;
+        }
+        self.preselect = Some(Preselect::Index(u64::from(index)));
+        let i = index as usize;
+        if i < self.texts.len() {
+            self.settle(i..i + 1);
+        }
+        self.preselect.is_none()
     }
 
     /// Applies a key's action.
@@ -134,8 +239,12 @@ impl ListView {
         match action {
             Action::Dismiss => Reaction::Dismiss,
             Action::Accept => match self.selected() {
+                Some(item) if self.pending(item) => Reaction::Unchanged,
                 Some(item) => Reaction::Accept(Choice::Item(item)),
                 None if self.options.only_match => Reaction::Unchanged,
+                None if self.options.required && self.query.text().is_empty() => {
+                    Reaction::Unchanged
+                }
                 None => Reaction::Accept(Choice::Typed(self.query.text().to_owned())),
             },
             Action::Select(step) => {
@@ -147,6 +256,7 @@ impl ListView {
                     return Reaction::Unchanged;
                 };
                 self.preselect = None;
+                self.touched = true;
                 self.selected = row;
                 self.follow = self.selected();
                 self.clamp();
@@ -158,6 +268,7 @@ impl ListView {
                 }
                 if self.query.text() != self.filter.query() {
                     self.preselect = None;
+                    self.touched = true;
                     self.follow = None;
                     self.filter.set_query(self.query.text());
                     self.selected = 0;
@@ -199,10 +310,14 @@ impl ListView {
                 } else {
                     Vec::new()
                 };
+                let decor = self.decor[item as usize].as_deref();
                 Row {
                     text,
                     highlights,
                     selected: self.top + i == self.selected,
+                    glyph: decor.and_then(|d| d.glyph.clone()),
+                    badges: decor.map(|d| d.badges.clone()).unwrap_or_default(),
+                    pending: decor.is_some_and(|d| d.pending),
                 }
             })
             .collect();
@@ -217,6 +332,8 @@ impl ListView {
                 .options
                 .counter
                 .then(|| (self.matched(), self.filter.len())),
+            glyphs: self.emblems > 0,
+            toast: None,
         }
     }
 
@@ -242,16 +359,21 @@ impl ListView {
         self.filter.matches().len()
     }
 
-    /// The preselected item, if it is among the items from `first` on.
-    fn preselected(&self, first: usize) -> Option<u32> {
+    /// The preselected item, if it is among the `changed` items, there and
+    /// settled (a pending item is never preselected).
+    fn preselected(&self, changed: Range<usize>) -> Option<u32> {
         let found = match self.preselect.as_ref()? {
-            Preselect::Index(i) => usize::try_from(*i).ok().filter(|&i| i < self.texts.len()),
+            Preselect::Index(i) => usize::try_from(*i).ok().filter(|i| changed.contains(i)),
             Preselect::Text(want) => {
                 let want = want.to_lowercase();
-                (first..self.texts.len()).find(|&i| self.texts[i].to_lowercase() == want)
+                changed
+                    .clone()
+                    .find(|&i| !self.removed[i] && self.texts[i].to_lowercase() == want)
             }
         };
-        found.and_then(|i| u32::try_from(i).ok())
+        found
+            .and_then(|i| u32::try_from(i).ok())
+            .filter(|&i| self.exists(i) && !self.pending(i))
     }
 
     /// Selects `item` if it matches.
@@ -424,6 +546,20 @@ mod tests {
     }
 
     #[test]
+    fn typing_ends_a_preselection_still_waiting_for_its_item() {
+        let options = Options {
+            select: Some(Preselect::Text("beta".into())),
+            ..Options::default()
+        };
+        let mut v = view(options, &["alpha", "alpine"]);
+        typed(&mut v, "x");
+        v.apply(&Action::Edit(Edit::Clear));
+        v.push(items(&["beta"]));
+        assert_eq!(texts(&v.look()), ["alpha", "alpine", "beta"]);
+        assert_eq!(v.selected(), Some(0), "the edit ended the preselection");
+    }
+
+    #[test]
     fn search_opens_with_a_query() {
         let options = Options {
             search: "b".into(),
@@ -471,6 +607,123 @@ mod tests {
         typed(&mut v, "b");
         assert_eq!(v.look().counter, Some((2, 3)));
         assert_eq!(view(Options::default(), &["a"]).look().counter, None);
+    }
+
+    fn decorated(text: &str, decor: Decor) -> Entry {
+        Entry {
+            text: text.into(),
+            match_text: None,
+            decor: Some(Box::new(decor)),
+        }
+    }
+
+    fn pending(text: &str) -> Entry {
+        decorated(
+            text,
+            Decor {
+                pending: true,
+                ..Decor::default()
+            },
+        )
+    }
+
+    #[test]
+    fn a_pending_item_is_never_accepted() {
+        let mut v = ListView::new(Options::default());
+        v.push([pending("awaited"), Entry::from("ready".to_owned())]);
+        assert_eq!(v.selected(), Some(0));
+        assert_eq!(v.apply(&Action::Accept), Reaction::Unchanged);
+        assert!(v.look().rows[0].pending);
+        v.update(0, Entry::from("settled".to_owned()));
+        assert_eq!(v.apply(&Action::Accept), Reaction::Accept(Choice::Item(0)));
+    }
+
+    #[test]
+    fn a_pending_item_is_preselected_only_once_it_settles() {
+        let options = Options {
+            select: Some(Preselect::Index(1)),
+            ..Options::default()
+        };
+        let mut v = ListView::new(options);
+        v.push([Entry::from("a".to_owned()), pending("current")]);
+        assert_eq!(v.selected(), Some(0), "pending: not preselected");
+        v.update(1, Entry::from("current".to_owned()));
+        assert_eq!(v.selected(), Some(1), "settled: preselected");
+    }
+
+    #[test]
+    fn a_late_preselection_applies_until_the_user_moves() {
+        let mut v = view(Options::default(), &["a", "b", "c"]);
+        assert!(v.preselect(2));
+        assert_eq!(v.selected(), Some(2));
+        v.push([pending("d")]);
+        assert!(!v.preselect(3), "pending");
+        v.update(3, Entry::from("d".to_owned()));
+        assert_eq!(v.selected(), Some(3), "applied once settled");
+        v.apply(&UP);
+        assert!(!v.preselect(0), "the user moved");
+        assert_eq!(v.selected(), Some(2));
+    }
+
+    #[test]
+    fn an_update_changes_an_item_in_place_and_keeps_the_users_choice() {
+        let mut v = view(Options::default(), &["a", "b", "c"]);
+        v.apply(&DOWN);
+        assert!(v.update(2, Entry::from("c2".to_owned())));
+        assert_eq!(texts(&v.look()), ["a", "b", "c2"]);
+        assert_eq!(v.selected(), Some(1));
+        typed(&mut v, "c");
+        v.update(0, Entry::from("ccc".to_owned()));
+        assert_eq!(texts(&v.look()), ["ccc", "c2"]);
+        assert!(!v.update(9, Entry::from("x".to_owned())), "no such item");
+    }
+
+    #[test]
+    fn a_removed_item_leaves_the_list_and_the_selection_stays_on_a_match() {
+        let mut v = view(Options::default(), &["a", "b", "c"]);
+        v.apply(&DOWN);
+        v.apply(&DOWN);
+        assert!(v.remove(2));
+        assert_eq!(texts(&v.look()), ["a", "b"]);
+        assert_eq!(v.selected(), Some(1));
+        assert!(!v.remove(2), "already gone");
+        v.update(2, Entry::from("back".to_owned()));
+        assert_eq!(texts(&v.look()), ["a", "b"], "a removed item stays gone");
+    }
+
+    #[test]
+    fn required_text_is_never_empty() {
+        let options = Options {
+            required: true,
+            ..Options::default()
+        };
+        let mut v = view(options, &[]);
+        assert_eq!(v.apply(&Action::Accept), Reaction::Unchanged);
+        typed(&mut v, "x");
+        assert_eq!(
+            v.apply(&Action::Accept),
+            Reaction::Accept(Choice::Typed("x".into()))
+        );
+    }
+
+    #[test]
+    fn rows_carry_glyphs_badges_and_pending_and_the_list_reserves_a_glyph_column() {
+        let mut v = ListView::new(Options::default());
+        assert!(!v.look().glyphs, "no glyph column for plain items");
+        let decor = Decor {
+            glyph: Some("⚙".into()),
+            badges: vec!["current".into()],
+            ..Decor::default()
+        };
+        v.push([decorated("oil", decor), Entry::from("plain".to_owned())]);
+        let look = v.look();
+        assert!(look.glyphs);
+        assert_eq!(look.rows[0].glyph.as_deref(), Some("⚙"));
+        assert_eq!(look.rows[0].badges, ["current"]);
+        assert_eq!(
+            (look.rows[1].glyph.as_deref(), look.rows[1].pending),
+            (None, false)
+        );
     }
 
     #[test]

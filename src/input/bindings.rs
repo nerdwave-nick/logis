@@ -151,6 +151,15 @@ mod tests {
     }
 
     #[test]
+    fn left_right_home_and_end_move_the_cursor() {
+        let edit = |e| Some(Action::Edit(e));
+        assert_eq!(binding(Keysym::Left, Mods::NONE), edit(Edit::Left));
+        assert_eq!(binding(Keysym::Right, Mods::NONE), edit(Edit::Right));
+        assert_eq!(binding(Keysym::Home, Mods::NONE), edit(Edit::Home));
+        assert_eq!(binding(Keysym::End, Mods::NONE), edit(Edit::End));
+    }
+
+    #[test]
     fn ctrl_v_and_shift_insert_paste_the_clipboard() {
         let paste = Some(Action::Paste(super::super::Selection::Clipboard));
         assert_eq!(binding(Keysym::v, Mods::CTRL), paste);

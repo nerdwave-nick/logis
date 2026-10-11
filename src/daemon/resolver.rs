@@ -7,9 +7,12 @@ use std::sync::mpsc::Sender;
 
 use logis::config::Config;
 
+use logis::list::Entry;
+
 use super::core::Event;
 use super::sessions::SessionId;
-use crate::protocol::{Item, Mode, Options, Outcome};
+use crate::protocol::{Mode, Options};
+use crate::provider::{Answer, Step};
 
 /// A short themed notice for the user (CONTEXT.md: toast, vox-cast). The
 /// window shows it over a visible session, or on its own; until a window
@@ -21,31 +24,33 @@ pub enum Toast {
     ConfigRejected { error: String },
 }
 
-/// Shows sessions and reports how each ended with [`Event::Resolved`].
+/// Shows sessions and reports the user's answers with [`Event::Answered`].
 ///
-/// The daemon calls these in order for one session: `show`, then any number
-/// of `append`, at most one `end`, and `hide` once it is no longer visible.
-/// A resolver may resolve a session at any point while it is visible.
+/// The daemon calls these in order for one session: `show` with its first
+/// stage, then any number of `step`s (more items, later stages, toasts …),
+/// at most one `end` (a dmenu client sent all its lines), and `hide` (or
+/// `linger`) once it is no longer visible. A resolver may answer a session
+/// at any point while it is visible.
 pub trait Resolver {
     /// Whether sessions of this mode can be answered at all.
     fn accepts(&self, mode: Mode) -> Result<(), String>;
-    /// The session becomes visible with the list `options` its client asked
-    /// for and the items received so far; `complete` says the client has
-    /// already sent all of them.
-    fn show(
-        &mut self,
-        session: SessionId,
-        mode: Mode,
-        options: Options,
-        items: Vec<Item>,
-        complete: bool,
-    );
-    /// More items for the visible session.
-    fn append(&mut self, session: SessionId, items: Vec<Item>);
-    /// The visible session's client has sent all its items.
+    /// The session becomes visible with its first stage: the list `options`
+    /// and the items so far. A dmenu answer ends its session; a provider's
+    /// leads to its next step.
+    fn show(&mut self, session: SessionId, mode: Mode, options: Options, entries: Vec<Entry>);
+    /// What the visible session's provider asks next.
+    fn step(&mut self, session: SessionId, step: Step);
+    /// The visible dmenu session's client has sent all its items.
     fn end(&mut self, session: SessionId);
-    /// The session is no longer visible (resolved, replaced or cancelled).
+    /// The session is no longer visible (answered, replaced or cancelled).
     fn hide(&mut self, session: SessionId);
+    /// The session is over, but its toast still shows: keep that in view
+    /// without taking keys until `hide`.
+    fn linger(&mut self, session: SessionId) {
+        self.hide(session);
+    }
+    /// The visible session's toast has had its time.
+    fn untoast(&mut self, _session: SessionId) {}
     /// The config in force: once at start, then after every applied reload.
     /// A visible window applies it at once.
     fn configure(&mut self, _config: &Config) {}
@@ -57,24 +62,23 @@ impl<R: Resolver + ?Sized> Resolver for Box<R> {
     fn accepts(&self, mode: Mode) -> Result<(), String> {
         (**self).accepts(mode)
     }
-    fn show(
-        &mut self,
-        session: SessionId,
-        mode: Mode,
-        options: Options,
-        items: Vec<Item>,
-        complete: bool,
-    ) {
-        (**self).show(session, mode, options, items, complete);
+    fn show(&mut self, session: SessionId, mode: Mode, options: Options, entries: Vec<Entry>) {
+        (**self).show(session, mode, options, entries);
     }
-    fn append(&mut self, session: SessionId, items: Vec<Item>) {
-        (**self).append(session, items);
+    fn step(&mut self, session: SessionId, step: Step) {
+        (**self).step(session, step);
     }
     fn end(&mut self, session: SessionId) {
         (**self).end(session);
     }
     fn hide(&mut self, session: SessionId) {
         (**self).hide(session);
+    }
+    fn linger(&mut self, session: SessionId) {
+        (**self).linger(session);
+    }
+    fn untoast(&mut self, session: SessionId) {
+        (**self).untoast(session);
     }
     fn configure(&mut self, config: &Config) {
         (**self).configure(config);
@@ -95,17 +99,26 @@ impl Resolver for Windowless {
              this machine spirit can only listen"
             .to_owned())
     }
-    fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Item>, _: bool) {}
-    fn append(&mut self, _: SessionId, _: Vec<Item>) {}
+    fn show(&mut self, _: SessionId, _: Mode, _: Options, _: Vec<Entry>) {}
+    fn step(&mut self, _: SessionId, _: Step) {}
     fn end(&mut self, _: SessionId) {}
     fn hide(&mut self, _: SessionId) {}
 }
 
-/// Answers dmenu sessions without a user, for tests and measurements
-/// (selected with `LOGIS_RESOLVER=scripted`). Once a visible dmenu session's
-/// items are complete, it selects the first item whose text starts with
-/// [`Scripted::MARK`], or dismisses the session when none does. Interactive
-/// sessions are never answered; they end by replacement, cancel or disconnect.
+/// Answers sessions without a user, for tests and measurements (selected
+/// with `LOGIS_RESOLVER=scripted`), choosing the first item whose text
+/// starts with [`Scripted::MARK`]:
+///
+/// - a dmenu session once its client has sent every line, or dismissed
+///   when no line is marked;
+/// - a provider's stage as soon as a marked item is there and settled (a
+///   pending one never), or, in a stage that takes typed text and has a
+///   placeholder starting with the mark, the rest of that placeholder as
+///   typed text. After an answer it waits for the provider's next stage
+///   or `ready`, as the window does.
+///
+/// App and servitor sessions are never answered; they end by replacement,
+/// cancel or disconnect.
 pub struct Scripted {
     events: Sender<Event>,
     visible: Option<Visible>,
@@ -113,8 +126,12 @@ pub struct Scripted {
 
 struct Visible {
     session: SessionId,
+    /// The stage takes typed text: what to type.
+    typed: Option<String>,
+    entries: Vec<Entry>,
     mode: Mode,
-    items: Vec<Item>,
+    /// An answer went out; wait for the next stage or `ready`.
+    waiting: bool,
 }
 
 impl Scripted {
@@ -127,6 +144,34 @@ impl Scripted {
             visible: None,
         }
     }
+
+    fn answer(&mut self, session: SessionId, answer: Answer) {
+        // The daemon may already be gone; then nobody waits for the answer.
+        let _ = self.events.send(Event::Answered { session, answer });
+    }
+
+    /// Answers the visible provider stage if it can be answered now.
+    fn try_answer(&mut self) {
+        let Some(v) = self
+            .visible
+            .as_mut()
+            .filter(|v| v.mode == Mode::Provider && !v.waiting)
+        else {
+            return;
+        };
+        let marked = v
+            .entries
+            .iter()
+            .position(|e| e.text.starts_with(Self::MARK) && !e.is_pending());
+        let answer = match (marked, &v.typed) {
+            (Some(i), _) => Answer::Item(i as u32),
+            (None, Some(text)) => Answer::Typed(text.clone()),
+            (None, None) => return,
+        };
+        v.waiting = true;
+        let session = v.session;
+        self.answer(session, answer);
+    }
 }
 
 impl Resolver for Scripted {
@@ -134,49 +179,62 @@ impl Resolver for Scripted {
         Ok(())
     }
 
-    fn show(
-        &mut self,
-        session: SessionId,
-        mode: Mode,
-        _: Options,
-        items: Vec<Item>,
-        complete: bool,
-    ) {
+    fn show(&mut self, session: SessionId, mode: Mode, options: Options, entries: Vec<Entry>) {
         self.visible = Some(Visible {
             session,
+            typed: typed(&options),
+            entries,
             mode,
-            items,
+            waiting: false,
         });
-        if complete {
-            self.end(session);
-        }
+        self.try_answer();
     }
 
-    fn append(&mut self, session: SessionId, items: Vec<Item>) {
-        if let Some(v) = self.visible.as_mut().filter(|v| v.session == session) {
-            v.items.extend(items);
+    fn step(&mut self, session: SessionId, step: Step) {
+        let Some(v) = self.visible.as_mut().filter(|v| v.session == session) else {
+            return;
+        };
+        match step {
+            Step::Stage { options, entries } => {
+                v.typed = typed(&options);
+                v.entries = entries;
+                v.waiting = false;
+            }
+            Step::Append(entries) => v.entries.extend(entries),
+            Step::Update(changed) => {
+                for (i, entry) in changed {
+                    if let Some(slot) = v.entries.get_mut(i as usize) {
+                        *slot = entry;
+                    }
+                }
+            }
+            Step::Remove(gone) => {
+                for i in gone {
+                    if let Some(slot) = v.entries.get_mut(i as usize) {
+                        *slot = Entry::default();
+                    }
+                }
+            }
+            Step::Ready => v.waiting = false,
+            Step::Preselect(_) | Step::Toast { .. } => {}
         }
+        self.try_answer();
     }
 
     fn end(&mut self, session: SessionId) {
-        let Some(v) = self.visible.take_if(|v| v.session == session) else {
+        let Some(v) = self.visible.as_mut().filter(|v| v.session == session) else {
             return;
         };
-        if v.mode.is_interactive() {
-            self.visible = Some(v);
+        if v.mode != Mode::Dmenu || v.waiting {
             return;
         }
-        let outcome = v
-            .items
-            .into_iter()
-            .zip(0..)
-            .find(|(item, _)| item.text.starts_with(Self::MARK))
-            .map_or(Outcome::Dismissed, |(item, index)| Outcome::Selected {
-                index,
-                item,
-            });
-        // The daemon may already be gone; then nobody waits for the answer.
-        let _ = self.events.send(Event::Resolved { session, outcome });
+        v.waiting = true;
+        let answer = v
+            .entries
+            .iter()
+            .position(|e| e.text.starts_with(Self::MARK))
+            .map_or(Answer::Dismissed, |i| Answer::Item(i as u32));
+        self.answer(session, answer);
     }
 
     fn hide(&mut self, session: SessionId) {
@@ -184,88 +242,109 @@ impl Resolver for Scripted {
     }
 }
 
+/// What a stage that takes typed text gets typed into it.
+fn typed(options: &Options) -> Option<String> {
+    (!options.only_match)
+        .then(|| options.placeholder.strip_prefix(Scripted::MARK))
+        .flatten()
+        .map(str::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use logis::list::Decor;
     use std::sync::mpsc::{Receiver, channel};
 
-    fn items(texts: &[&str]) -> Vec<Item> {
-        texts
-            .iter()
-            .map(|t| Item::from_raw(t.as_bytes().to_vec()))
-            .collect()
+    fn entries(texts: &[&str]) -> Vec<Entry> {
+        texts.iter().map(|t| Entry::from(t.to_string())).collect()
     }
 
-    fn resolutions(rx: &Receiver<Event>) -> Vec<(SessionId, Outcome)> {
+    fn answers(rx: &Receiver<Event>) -> Vec<(SessionId, Answer)> {
         rx.try_iter()
             .map(|e| match e {
-                Event::Resolved { session, outcome } => (session, outcome),
+                Event::Answered { session, answer } => (session, answer),
                 _ => panic!("unexpected event"),
             })
             .collect()
     }
 
-    fn selected(index: u64, text: &str) -> Outcome {
-        let item = Item::from_raw(text.as_bytes().to_vec());
-        Outcome::Selected { index, item }
+    fn scripted() -> (Scripted, Receiver<Event>) {
+        let (tx, rx) = channel();
+        (Scripted::new(tx), rx)
     }
 
     #[test]
-    fn a_complete_session_is_answered_with_the_first_marked_item() {
-        let (tx, rx) = channel();
-        let mut r = Scripted::new(tx);
-        r.show(
-            1,
-            Mode::Dmenu,
-            Options::default(),
-            items(&["a", ">b", ">c"]),
-            true,
-        );
-        assert_eq!(resolutions(&rx), [(1, selected(1, ">b"))]);
-    }
-
-    #[test]
-    fn streamed_items_are_answered_at_the_end_counting_every_item() {
-        let (tx, rx) = channel();
-        let mut r = Scripted::new(tx);
-        r.show(4, Mode::Dmenu, Options::default(), items(&["a"]), false);
-        r.append(4, items(&["b", ">c"]));
-        assert!(resolutions(&rx).is_empty());
+    fn a_dmenu_session_is_answered_at_its_end_with_the_first_marked_item() {
+        let (mut r, rx) = scripted();
+        r.show(4, Mode::Dmenu, Options::default(), entries(&["a"]));
+        r.step(4, Step::Append(entries(&["b", ">c", ">d"])));
+        assert!(answers(&rx).is_empty(), "the client still streams");
         r.end(4);
-        assert_eq!(resolutions(&rx), [(4, selected(2, ">c"))]);
+        assert_eq!(answers(&rx), [(4, Answer::Item(2))]);
     }
 
     #[test]
-    fn without_a_marked_item_the_session_is_dismissed() {
-        let (tx, rx) = channel();
-        let mut r = Scripted::new(tx);
-        r.show(2, Mode::Dmenu, Options::default(), items(&["a", "b"]), true);
-        assert_eq!(resolutions(&rx), [(2, Outcome::Dismissed)]);
+    fn without_a_marked_item_the_dmenu_session_is_dismissed() {
+        let (mut r, rx) = scripted();
+        r.show(2, Mode::Dmenu, Options::default(), entries(&["a", "b"]));
+        r.end(2);
+        assert_eq!(answers(&rx), [(2, Answer::Dismissed)]);
     }
 
     #[test]
     fn a_hidden_session_is_never_answered() {
-        let (tx, rx) = channel();
-        let mut r = Scripted::new(tx);
-        r.show(1, Mode::Dmenu, Options::default(), items(&[">a"]), false);
+        let (mut r, rx) = scripted();
+        r.show(1, Mode::Dmenu, Options::default(), entries(&[">a"]));
         r.hide(1);
         r.end(1);
-        r.append(1, items(&[">b"]));
-        assert!(resolutions(&rx).is_empty());
+        r.step(1, Step::Append(entries(&[">b"])));
+        assert!(answers(&rx).is_empty());
     }
 
     #[test]
-    fn interactive_sessions_are_left_open() {
-        let (tx, rx) = channel();
-        let mut r = Scripted::new(tx);
-        r.show(1, Mode::Apps, Options::default(), Vec::new(), true);
-        r.show(2, Mode::Servitor, Options::default(), items(&[">a"]), true);
-        assert!(resolutions(&rx).is_empty());
+    fn app_and_servitor_sessions_are_left_open() {
+        let (mut r, rx) = scripted();
+        r.show(1, Mode::Apps, Options::default(), Vec::new());
+        r.show(2, Mode::Servitor, Options::default(), entries(&[">a"]));
+        r.end(2);
+        assert!(answers(&rx).is_empty());
+    }
+
+    #[test]
+    fn a_provider_stage_is_answered_once_a_marked_item_settles() {
+        let (mut r, rx) = scripted();
+        let pending = Entry {
+            decor: Some(Box::new(Decor {
+                pending: true,
+                ..Decor::default()
+            })),
+            ..Entry::from(">oil".to_owned())
+        };
+        r.show(3, Mode::Provider, Options::default(), vec![pending]);
+        assert!(answers(&rx).is_empty(), "pending is never chosen");
+        r.step(3, Step::Update(vec![(0, Entry::from(">oil".to_owned()))]));
+        assert_eq!(answers(&rx), [(3, Answer::Item(0))]);
+        r.step(3, Step::Append(entries(&[">more"])));
+        assert!(answers(&rx).is_empty(), "it waits for the provider");
+        let typed = Options {
+            only_match: false,
+            placeholder: ">holy oil".into(),
+            ..Options::default()
+        };
+        r.step(
+            3,
+            Step::Stage {
+                options: typed,
+                entries: Vec::new(),
+            },
+        );
+        assert_eq!(answers(&rx), [(3, Answer::Typed("holy oil".into()))]);
     }
 
     #[test]
     fn windowless_refuses_every_mode() {
-        for mode in [Mode::Dmenu, Mode::Apps, Mode::Servitor] {
+        for mode in [Mode::Dmenu, Mode::Apps, Mode::Servitor, Mode::Provider] {
             assert!(Windowless.accepts(mode).is_err());
         }
     }

@@ -77,6 +77,7 @@ fn session(
     connection.send(&Request::Open {
         mode: Mode::Dmenu,
         options: dmenu.view.clone(),
+        provider: None,
     })?;
     let mut sender = connection.try_clone()?;
     match input {
@@ -125,7 +126,7 @@ fn choice(outcome: Outcome, dmenu: &Dmenu) -> Option<Vec<u8>> {
             None => item.raw,
         }),
         Outcome::Typed { text } => Some(text.into_bytes()),
-        Outcome::Dismissed | Outcome::Replaced | Outcome::Cancelled => None,
+        Outcome::Dismissed | Outcome::Replaced | Outcome::Cancelled | Outcome::Closed => None,
     }
 }
 

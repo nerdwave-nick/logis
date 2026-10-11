@@ -5,6 +5,7 @@ mod client;
 mod daemon;
 mod nth;
 mod protocol;
+mod provider;
 mod wayland;
 
 use std::io::Write;
@@ -24,6 +25,9 @@ fn main() -> ExitCode {
             Err(e) => fail(&e),
         },
         Ok(cli::Command::Dmenu { config, dmenu }) => client::dmenu::run(config.as_deref(), *dmenu),
+        Ok(cli::Command::Provider { config, argv }) => {
+            client::provider::run(config.as_deref(), argv)
+        }
         Ok(cli::Command::CheckConfig { config }) => {
             let source = logis::config::Source::new(config.as_deref());
             match logis::config::check(&source) {
