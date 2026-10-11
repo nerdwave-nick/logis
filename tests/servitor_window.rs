@@ -106,7 +106,10 @@ fn rites_wait_pending_settle_live_and_lead_to_a_detached_invocation() {
     assert_eq!((ended.code, ended.stdout.as_slice()), (Some(0), &b""[..]));
     c.next("hide");
     assert!(
-        !c.daemon.events().iter().any(|e| e.what.starts_with("toast")),
+        !c.daemon
+            .events()
+            .iter()
+            .any(|e| e.what.starts_with("toast")),
         "logis showed an outcome"
     );
     let recorded = dir.path().join("invoke/recorded");
@@ -119,7 +122,14 @@ fn rites_wait_pending_settle_live_and_lead_to_a_detached_invocation() {
     let argv = std::fs::read_to_string(dir.path().join("invoke/argv")).unwrap();
     assert_eq!(
         argv.lines().collect::<Vec<_>>(),
-        ["dnd", "off", "--reason", "focus", "--origin", "the cogitator"]
+        [
+            "dnd",
+            "off",
+            "--reason",
+            "focus",
+            "--origin",
+            "the cogitator"
+        ]
     );
 }
 
