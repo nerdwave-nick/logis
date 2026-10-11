@@ -143,6 +143,22 @@ fn a_provider_that_never_acted_and_lingers_after_cancel_is_ended() {
 }
 
 #[test]
+fn a_replaced_provider_caller_exits_1_with_empty_stdout() {
+    let rig = Rig::new();
+    let dir = ScratchDir::new();
+    let client = provider(&rig, dir.path(), "stubborn");
+    let provider = pid_in(dir.path(), "provider");
+    rig.wait_for_a_visible_session();
+
+    let (_apps, state) = rig.open("apps");
+    let out = client.wait_with_output().unwrap();
+    end(provider);
+    assert_eq!(state, "visible");
+    assert_eq!(out.status.code(), Some(1), "stderr: {}", stderr(&out));
+    assert!(out.stdout.is_empty());
+}
+
+#[test]
 fn a_provider_that_shows_nothing_in_time_fails_its_session() {
     let rig = Rig::new();
     let dir = ScratchDir::new();
