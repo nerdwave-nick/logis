@@ -1,7 +1,8 @@
 //! The faces a theme's fonts ask for (spec §4.4, §4.9): families in order
 //! of preference through fontconfig (a missing family falls through to the
-//! next, generic families by alias), a weight per face, letter spacing, and
-//! matched characters in another face, underlined. Fonts are pinned as in
+//! next, generic families by alias), a weight per face, letter spacing,
+//! matched characters in another face, underlined, and the caret placed at
+//! a character as a bar, a block or an underscore. Fonts are pinned as in
 //! tests/text.rs: none of the themes' own families (IBM Plex Mono, Cinzel,
 //! VT323) is known, so they fall back to the pinned monospace and serif.
 
@@ -9,7 +10,10 @@ mod support;
 
 use std::path::{Path, PathBuf};
 
-use logis::render::{OFFSCREEN_FORMAT, Renderer, Rgba, Scale, Scene, Text, render_offscreen};
+use logis::render::{
+    Caret, CaretShape, Image, OFFSCREEN_FORMAT, Renderer, Rgba, Scale, Scene, Text,
+    render_offscreen,
+};
 use logis::text::{Face, FontConfig, Fonts};
 use support::golden::{self, Goldens, Tolerance};
 
@@ -110,12 +114,14 @@ fn scene() -> Scene {
     let mut label = Text::new("INVOKE", [8.0, 6.0], 13.0, gold);
     label.face = 1;
     label.tracking = 0.2;
+    let brass = Rgba::hex(0xd4a017);
     let mut row = Text::new("do-not-disturb\ton", [8.0, 30.0], 16.0, ink);
-    row.spans = vec![(1..2, gold), (8..9, gold)];
-    row.span_face = Some(2);
+    row.spans = vec![(1..2, gold), (8..9, gold), (15..17, brass)];
+    row.emphasis = vec![1..2, 8..9];
+    row.emphasis_face = Some(2);
     let mut underlined = row.clone();
     underlined.origin = [8.0, 56.0];
-    underlined.underline_spans = true;
+    underlined.underline_emphasis = true;
     Scene {
         clear: Some(Rgba::hex(0x170e0b)),
         texts: vec![label, row, underlined],
@@ -195,4 +201,51 @@ fn changing_the_faces_reshapes_the_text() {
         .set_faces(&[face(&["serif"], 600), face(&["monospace"], 400)])
         .unwrap();
     assert!(render(&mut renderer) != forge, "the old shapes were reused");
+}
+
+fn caret_line(shape: CaretShape) -> Scene {
+    let mut line = Text::new("rite", [8.0, 8.0], 16.0, Rgba::hex(0xf1e6cc));
+    line.caret = Some(Caret {
+        at: 2,
+        shape,
+        width: 2.0,
+        color: Rgba::hex(0xf2c14e),
+        glow: Rgba::TRANSPARENT,
+    });
+    Scene {
+        clear: Some(Rgba::hex(0)),
+        texts: vec![line],
+        ..Scene::default()
+    }
+}
+
+/// The columns and rows where two renders differ.
+fn difference(a: &Image, b: &Image) -> (Vec<u32>, Vec<u32>) {
+    let differs = |x, y| a.pixel(x, y) != b.pixel(x, y);
+    let columns = (0..a.width).filter(|&x| (0..a.height).any(|y| differs(x, y)));
+    let rows = (0..a.height).filter(|&y| (0..a.width).any(|x| differs(x, y)));
+    (columns.collect(), rows.collect())
+}
+
+#[test]
+fn a_caret_stands_between_the_characters_in_its_shape() {
+    let Some(gpu) = golden::env_gpu() else { return };
+    let mut renderer = Renderer::new(&gpu);
+    renderer.set_fonts(&gpu, pinned());
+    renderer.set_faces(&forge_faces()).unwrap();
+    let mut render = |s: &Scene| {
+        render_offscreen(&gpu, &mut renderer, s, (80, 36), Scale::ONE, OFFSCREEN_FORMAT).unwrap()
+    };
+    let mut bare = caret_line(CaretShape::Bar);
+    bare.texts[0].caret = None;
+    let without = render(&bare);
+    // "ri" is two monospace advances of about 9.6 px from x = 8.
+    let (columns, rows) = difference(&without, &render(&caret_line(CaretShape::Bar)));
+    assert!(!columns.is_empty() && columns.len() <= 3, "a bar: {columns:?}");
+    assert!((26..=30).contains(&columns[0]), "after 'ri': {columns:?}");
+    assert!(rows.len() >= 14, "a bar as tall as the line: {rows:?}");
+    let (columns, _) = difference(&without, &render(&caret_line(CaretShape::Block)));
+    assert!((8..=12).contains(&columns.len()), "a block a character wide: {columns:?}");
+    let (_, rows) = difference(&without, &render(&caret_line(CaretShape::Underscore)));
+    assert!(rows.len() <= 3 && rows[0] >= 22, "an underscore at the baseline: {rows:?}");
 }

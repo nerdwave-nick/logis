@@ -11,8 +11,8 @@ use glyphon::{
 use super::Gpu;
 use super::pipeline::Target;
 use super::scale::Scale;
-use super::scene::{Paint, RoundedRect};
-use super::text::{Text, shape, spans};
+use super::scene::{Glow, Paint, Rgba, RoundedRect};
+use super::text::{CaretShape, Text, pieces, shape};
 use crate::text::{Face, FontError, Fonts};
 
 /// The glyphon colour mode that matches a target `format`.
@@ -61,14 +61,20 @@ impl TextPass {
         self.fonts.set_faces(faces)
     }
 
-    /// Underlines under the spans of the lines that ask for them, as
-    /// shapes in logical pixels, from the lines [`Self::prepare`] shaped.
-    pub(crate) fn underlines(&self) -> Vec<RoundedRect> {
-        self.shaped
-            .iter()
-            .filter(|s| s.text.underline_spans && !s.text.spans.is_empty())
-            .flat_map(underlines)
-            .collect()
+    /// What is drawn with the shapes for the lines [`Self::prepare`]
+    /// shaped: underlines under their emphasis and their carets, in
+    /// logical pixels.
+    pub(crate) fn decorations(&self) -> Vec<RoundedRect> {
+        let mut shapes = Vec::new();
+        for shaped in &self.shaped {
+            if shaped.text.underline_emphasis && !shaped.text.emphasis.is_empty() {
+                shapes.extend(underlines(shaped));
+            }
+            if shaped.text.caret.is_some() {
+                shapes.extend(caret(shaped));
+            }
+        }
+        shapes
     }
 
     /// Creates the atlas and pipeline for `format` now rather than on the
@@ -152,38 +158,57 @@ impl TextPass {
     }
 }
 
+/// A shaped line's placement in buffer pixels: its left and top edges,
+/// its em, and its column's edges (unbounded without a column).
+struct Placed {
+    left: f32,
+    top: f32,
+    size: f32,
+    clip: (f32, f32),
+}
+
+fn placed(shaped: &Shaped) -> Placed {
+    let text = &shaped.text;
+    let f = shaped.scale.factor();
+    Placed {
+        left: (text.origin[0] * f).round(),
+        top: (text.origin[1] * f).round(),
+        size: (text.size * f).max(1.0),
+        clip: text
+            .column(shaped.scale)
+            .map_or((f32::MIN, f32::MAX), |(l, r)| (l as f32, r as f32)),
+    }
+}
+
 /// The underlines of one shaped line: one bar per run of consecutive
-/// glyphs in the same span, just below the baseline, clipped to the
+/// glyphs of one emphasised piece, just below the baseline, clipped to the
 /// line's column.
 fn underlines(shaped: &Shaped) -> Vec<RoundedRect> {
     let text = &shaped.text;
     let f = shaped.scale.factor();
     let line = text.text.replace(['\n', '\r'], " ");
-    let pieces: Vec<_> = spans(&line, &text.spans)
-        .filter_map(|(range, color)| color.map(|c| (range, c)))
+    let marked: Vec<_> = pieces(&line, text)
+        .into_iter()
+        .filter(|p| p.emphasised)
+        .map(|p| (p.range, p.color.unwrap_or(text.color)))
         .collect();
-    let size = (text.size * f).max(1.0);
-    let thickness = (size * 0.06).max(1.0);
-    let left = (text.origin[0] * f).round();
-    let top = (text.origin[1] * f).round();
-    let (clip_left, clip_right) = text
-        .column(shaped.scale)
-        .map_or((f32::MIN, f32::MAX), |(l, r)| (l as f32, r as f32));
+    let at = placed(shaped);
+    let thickness = (at.size * 0.06).max(1.0);
     let mut bars: Vec<RoundedRect> = Vec::new();
     for run in shaped.buffer.layout_runs() {
-        let y = top + run.line_y + (size * 0.12).max(1.0);
+        let y = at.top + run.line_y + (at.size * 0.12).max(1.0);
         let mut open: Option<(usize, f32, f32)> = None;
         let mut close = |open: &mut Option<(usize, f32, f32)>| {
             if let Some((piece, x0, x1)) = open.take() {
-                let (x0, x1) = (x0.max(clip_left), x1.min(clip_right));
+                let (x0, x1) = (x0.max(at.clip.0), x1.min(at.clip.1));
                 if x1 > x0 {
-                    bars.push(bar([x0, y, x1 - x0, thickness], f, pieces[piece].1));
+                    bars.push(bar([x0, y, x1 - x0, thickness], f, marked[piece].1));
                 }
             }
         };
         for glyph in run.glyphs {
-            let piece = pieces.iter().position(|(r, _)| r.contains(&glyph.start));
-            let (x0, x1) = (left + glyph.x, left + glyph.x + glyph.w);
+            let piece = marked.iter().position(|(r, _)| r.contains(&glyph.start));
+            let (x0, x1) = (at.left + glyph.x, at.left + glyph.x + glyph.w);
             match (piece, &mut open) {
                 (Some(p), Some((q, a, b))) if p == *q => {
                     *a = a.min(x0);
@@ -201,8 +226,52 @@ fn underlines(shaped: &Shaped) -> Vec<RoundedRect> {
     bars
 }
 
+/// A shaped line's caret: before the glyph its byte offset starts, or
+/// after the last one, as tall as the glyphs (a bar or a block) or low at
+/// the baseline (an underscore), with its glow.
+fn caret(shaped: &Shaped) -> Option<RoundedRect> {
+    let text = &shaped.text;
+    let caret = text.caret?;
+    let f = shaped.scale.factor();
+    let at = placed(shaped);
+    let run = shaped.buffer.layout_runs().next();
+    let (baseline, ascent, descent) = match &run {
+        Some(run) => (run.line_y, at.size * 0.8, at.size * 0.2),
+        None => (text.line_height * f * 0.75, at.size * 0.8, at.size * 0.2),
+    };
+    let glyphs = run.as_ref().map_or(&[][..], |r| r.glyphs);
+    let average = at.size * 0.6;
+    let (x, advance) = match glyphs.iter().find(|g| g.start >= caret.at) {
+        Some(g) => (g.x, g.w),
+        None => (glyphs.last().map_or(0.0, |g| g.x + g.w), average),
+    };
+    let x = at.left + x;
+    let rect = match caret.shape {
+        CaretShape::Bar => {
+            let w = (caret.width * f).max(1.0);
+            [x - w / 2.0, at.top + baseline - ascent, w, ascent + descent]
+        }
+        CaretShape::Block => [x, at.top + baseline - ascent, advance, ascent + descent],
+        CaretShape::Underscore => {
+            let h = (at.size * 0.1).max(1.0);
+            [x, at.top + baseline + (at.size * 0.08).max(1.0), advance, h]
+        }
+    };
+    if rect[0] + rect[2] <= at.clip.0 || rect[0] >= at.clip.1 {
+        return None;
+    }
+    let mut shape = bar(rect, f, caret.color);
+    if caret.glow.a > 0.0 {
+        shape.glow = Some(Glow {
+            radius: 6.0,
+            color: caret.glow,
+        });
+    }
+    Some(shape)
+}
+
 /// A bar from buffer pixels to logical ones.
-fn bar(rect: [f32; 4], f: f32, color: super::scene::Rgba) -> RoundedRect {
+fn bar(rect: [f32; 4], f: f32, color: Rgba) -> RoundedRect {
     RoundedRect {
         rect: rect.map(|v| v / f),
         radius: 0.0,

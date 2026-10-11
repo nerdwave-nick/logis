@@ -84,19 +84,22 @@ impl Runes {
             "--prompt" | "-p" => d.view.prompt = value("--prompt", "the prompt's text")?,
             "--prompt-only" => {
                 d.view.prompt = value("--prompt-only", "the prompt's text")?;
-                d.view.lines = 0;
+                d.view.lines = Some(0);
                 d.read_stdin = false;
             }
             "--placeholder" => {
                 d.view.placeholder = value("--placeholder", "the placeholder's text")?
             }
             "--password" => d.view.password = Some(password(inline.as_deref())?),
-            "--lines" | "-l" => d.view.lines = number("--lines", &value("--lines", LINES)?, LINES)?,
+            "--lines" | "-l" => {
+                d.view.lines = Some(number("--lines", &value("--lines", LINES)?, LINES)?);
+            }
             "--width" | "-w" => {
-                d.view.width = number("--width", &value("--width", WIDTH)?, WIDTH)?;
-                if d.view.width == 0 {
+                let width = number("--width", &value("--width", WIDTH)?, WIDTH)?;
+                if width == 0 {
                     return Err(bad("--width", "0", WIDTH));
                 }
+                d.view.width = Some(width);
             }
             "--counter" => d.view.counter = true,
             "--search" => d.view.search = value("--search", "the opening query")?,

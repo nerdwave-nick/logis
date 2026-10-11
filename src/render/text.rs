@@ -48,10 +48,43 @@ pub struct Text {
     pub face: usize,
     /// Letter spacing in ems.
     pub tracking: f32,
-    /// The face of the spans, if not the line's.
-    pub span_face: Option<usize>,
-    /// Underlines the spans in their colour.
-    pub underline_spans: bool,
+    /// Byte ranges of `text` set apart (matched characters): drawn in
+    /// `emphasis_face` and underlined if asked, ascending and not
+    /// overlapping. Their colour is whatever colours them otherwise.
+    pub emphasis: Vec<std::ops::Range<usize>>,
+    /// The face of the emphasis, if not the line's.
+    pub emphasis_face: Option<usize>,
+    /// Underlines the emphasis in its colour.
+    pub underline_emphasis: bool,
+    /// Where the next character goes, if shown.
+    pub caret: Option<Caret>,
+}
+
+/// A caret drawn at a character of a line.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Caret {
+    /// The byte offset in the line's text it stands before.
+    pub at: usize,
+    /// Its form.
+    pub shape: CaretShape,
+    /// A bar's width in logical pixels (a block or an underscore is as
+    /// wide as the character it stands at, or an average one at the end).
+    pub width: f32,
+    /// Its colour.
+    pub color: Rgba,
+    /// Its glow (transparent for none).
+    pub glow: Rgba,
+}
+
+/// A caret's form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaretShape {
+    /// A thin upright bar as tall as the glyphs.
+    Bar,
+    /// A block over the character.
+    Block,
+    /// A low bar under the character.
+    Underscore,
 }
 
 impl Text {
@@ -69,8 +102,10 @@ impl Text {
             align_end: false,
             face: 0,
             tracking: 0.0,
-            span_face: None,
-            underline_spans: false,
+            emphasis: Vec::new(),
+            emphasis_face: None,
+            underline_emphasis: false,
+            caret: None,
         }
     }
 
@@ -108,12 +143,12 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
         (family.to_owned(), Weight(weight))
     };
     let (family, weight) = face(text.face);
-    let span_face = text.span_face.map(face);
+    let emphasis_face = text.emphasis_face.map(face);
     let mut attrs = Attrs::new().family(Family::Name(&family)).weight(weight);
     if text.tracking != 0.0 {
         attrs = attrs.letter_spacing(text.tracking);
     }
-    let span_attrs = match &span_face {
+    let emphasised = match &emphasis_face {
         Some((family, weight)) => attrs.clone().family(Family::Name(family)).weight(*weight),
         None => attrs.clone(),
     };
@@ -130,15 +165,16 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
     // for one, so the spans' byte ranges still hold).
     let line = text.text.replace(['\n', '\r'], " ");
     let align = text.align_end.then_some(Align::End);
-    if text.spans.is_empty() {
+    if text.spans.is_empty() && text.emphasis.is_empty() {
         b.set_text(&line, &attrs, Shaping::Advanced, align);
     } else {
-        let pieces = spans(&line, &text.spans).map(|(range, color)| {
-            let attrs = match color {
-                Some(c) => span_attrs.clone().color(glyph_color(c)),
-                None => attrs.clone(),
+        let pieces = pieces(&line, text).into_iter().map(|p| {
+            let base = if p.emphasised { &emphasised } else { &attrs };
+            let attrs = match p.color {
+                Some(c) => base.clone().color(glyph_color(c)),
+                None => base.clone(),
             };
-            (&line[range], attrs)
+            (&line[p.range], attrs)
         });
         b.set_rich_text(pieces, &attrs, Shaping::Advanced, align);
     }
@@ -150,6 +186,51 @@ pub(crate) fn shape(fonts: &mut Fonts, text: &Text, scale: Scale) -> Buffer {
 pub(crate) fn glyph_color(c: Rgba) -> Color {
     let [r, g, b, a] = [c.r, c.g, c.b, c.a].map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
     Color::rgba(r, g, b, a)
+}
+
+/// A run of a line with one colour and one face.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Piece {
+    pub range: std::ops::Range<usize>,
+    /// Its colour, if not the line's.
+    pub color: Option<Rgba>,
+    /// Whether it is emphasis.
+    pub emphasised: bool,
+}
+
+/// `line` cut wherever a colour span or an emphasis begins or ends.
+pub(crate) fn pieces(line: &str, text: &Text) -> Vec<Piece> {
+    let colours: Vec<_> = spans(line, &text.spans).collect();
+    let marks: Vec<_> = spans(line, &mark(&text.emphasis))
+        .filter_map(|(r, c)| c.map(|_| r))
+        .collect();
+    let mut cuts: Vec<usize> = colours
+        .iter()
+        .flat_map(|(r, _)| [r.start, r.end])
+        .chain(marks.iter().flat_map(|r| [r.start, r.end]))
+        .collect();
+    cuts.sort_unstable();
+    cuts.dedup();
+    cuts.windows(2)
+        .map(|w| w[0]..w[1])
+        .filter(|r| !r.is_empty())
+        .map(|range| Piece {
+            color: colours
+                .iter()
+                .find(|(r, _)| r.contains(&range.start))
+                .and_then(|(_, c)| *c),
+            emphasised: marks.iter().any(|r| r.contains(&range.start)),
+            range,
+        })
+        .collect()
+}
+
+/// Ranges as spans of a placeholder colour, to reuse [`spans`]' checks.
+fn mark(ranges: &[std::ops::Range<usize>]) -> Vec<(std::ops::Range<usize>, Rgba)> {
+    ranges
+        .iter()
+        .map(|r| (r.clone(), Rgba::TRANSPARENT))
+        .collect()
 }
 
 /// `line` cut into consecutive pieces: the spans with their colour, the

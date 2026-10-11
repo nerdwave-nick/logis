@@ -51,10 +51,14 @@ pub struct Options {
     pub placeholder: String,
     /// Shows every typed character as this one instead.
     pub password: Option<char>,
-    /// The most rows shown at once; 0 shows only the prompt line.
-    pub lines: u32,
-    /// The window's width in characters (an estimate for proportional fonts).
-    pub width: u32,
+    /// The most rows shown at once; 0 shows only the prompt line. `None`:
+    /// the theme's window, its height and rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lines: Option<u32>,
+    /// The window's width in characters (an estimate for proportional
+    /// fonts). `None`: the theme's window width.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
     /// Shows how many items match, of how many.
     pub counter: bool,
     /// The query the list opens with.
@@ -74,14 +78,25 @@ impl Default for Options {
             prompt: "> ".to_owned(),
             placeholder: String::new(),
             password: None,
-            lines: 15,
-            width: 30,
+            lines: None,
+            width: None,
             counter: false,
             search: String::new(),
             select: None,
             only_match: false,
             required: false,
         }
+    }
+}
+
+impl Options {
+    /// The rows a list without a theme to ask shows when no `lines` were
+    /// given: the bundled default theme's.
+    pub const DEFAULT_ROWS: u32 = 9;
+
+    /// The most rows shown at once.
+    pub fn rows(&self) -> u32 {
+        self.lines.unwrap_or(Self::DEFAULT_ROWS)
     }
 }
 

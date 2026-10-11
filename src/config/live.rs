@@ -2,9 +2,11 @@
 //! means, and the precedence of `logis daemon --idle-timeout` over the
 //! config's `idle-timeout`. An invalid edit never replaces a sound config.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::{Config, Error};
+use crate::theme::{Theme, Themes};
 
 /// The daemon's view of its config.
 #[derive(Debug)]
@@ -14,6 +16,21 @@ pub struct Live {
     idle_flag: Option<Duration>,
     /// The latest edit was refused.
     rejected: bool,
+    /// The theme the config names, as worn.
+    theme: Worn,
+}
+
+/// The theme in force: the last sound one the config named, stilled when
+/// the config reduces motion.
+#[derive(Debug)]
+struct Worn {
+    themes: Themes,
+    /// As loaded; `theme` is what is worn.
+    sound: Arc<Theme>,
+    theme: Arc<Theme>,
+    rejected: bool,
+    /// Why the theme named at the start could not be worn.
+    error: Option<String>,
 }
 
 /// What a reload did.
@@ -30,11 +47,74 @@ pub enum Reload {
 }
 
 impl Live {
+    /// The config in force, its theme the bundled default until
+    /// [`Self::with_themes`] says where themes are.
     pub fn new(config: Config, idle_flag: Option<Duration>) -> Self {
+        let default = Arc::new(Theme::bundled_default());
         Self {
+            theme: Worn {
+                themes: Themes::default(),
+                theme: worn(&default, &config),
+                sound: default,
+                rejected: false,
+                error: None,
+            },
             config,
             idle_flag,
             rejected: false,
+        }
+    }
+
+    /// Wears the theme the config names from `themes`; one that cannot be
+    /// worn leaves the bundled default in force, and
+    /// [`Self::take_theme_error`] says why.
+    pub fn with_themes(mut self, themes: Themes) -> Self {
+        match themes.load(&self.config.theme) {
+            Ok(theme) => self.theme.sound = Arc::new(theme),
+            Err(e) => self.theme.error = Some(e.to_string()),
+        }
+        self.theme.theme = worn(&self.theme.sound, &self.config);
+        self.theme.themes = themes;
+        self
+    }
+
+    /// Why the theme named at the start could not be worn, once.
+    pub fn take_theme_error(&mut self) -> Option<String> {
+        self.theme.error.take()
+    }
+
+    /// The theme worn now.
+    pub fn theme(&self) -> &Arc<Theme> {
+        &self.theme.theme
+    }
+
+    /// The themes directory, if any.
+    pub fn themes(&self) -> &Themes {
+        &self.theme.themes
+    }
+
+    /// Reads the theme the config names again (after a theme file or the
+    /// config changed). Like [`Self::reload`], a theme that cannot be worn
+    /// leaves the last sound one in force.
+    pub fn reload_theme(&mut self) -> Reload {
+        let worn = &mut self.theme;
+        let theme = match worn.themes.load(&self.config.theme) {
+            Ok(theme) => Arc::new(theme),
+            Err(e) => {
+                worn.rejected = true;
+                return Reload::Rejected(e.to_string());
+            }
+        };
+        let was_rejected = std::mem::take(&mut worn.rejected);
+        let now = self::worn(&theme, &self.config);
+        worn.sound = theme;
+        if now != worn.theme {
+            worn.theme = now;
+            Reload::Applied
+        } else if was_rejected {
+            Reload::Restored
+        } else {
+            Reload::Unchanged
         }
     }
 
@@ -72,10 +152,20 @@ impl Live {
     }
 }
 
+/// `theme` as the config would have it worn.
+fn worn(theme: &Arc<Theme>, config: &Config) -> Arc<Theme> {
+    if config.reduce_motion {
+        Arc::new(Theme::clone(theme).stilled())
+    } else {
+        Arc::clone(theme)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{FocusLoss, Invalid, Problem};
+    use crate::theme::Themes;
     use std::path::PathBuf;
 
     fn idle(secs: u64) -> Option<Duration> {
@@ -98,6 +188,92 @@ mod tests {
                 message: "unknown field `thme`".into(),
             }),
         }
+    }
+
+    /// A scratch themes directory, removed on drop.
+    struct Themed(PathBuf);
+
+    impl Themed {
+        fn new(name: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("logis-live-{}-{name}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn write(&self, name: &str, text: &str) {
+            std::fs::write(self.0.join(format!("{name}.jsonc")), text).unwrap();
+        }
+
+        fn live(&self, config: Config) -> Live {
+            Live::new(config, None).with_themes(Themes::new(Some(self.0.clone())))
+        }
+    }
+
+    impl Drop for Themed {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn named(theme: &str) -> Config {
+        Config {
+            theme: theme.into(),
+            ..Config::default()
+        }
+    }
+
+    #[test]
+    fn the_theme_the_config_names_is_worn_from_the_start() {
+        let dir = Themed::new("start");
+        let live = dir.live(named("cogitator-phosphor"));
+        assert_eq!(live.theme().name, "cogitator-phosphor");
+        let broken = Themed::new("start-broken");
+        broken.write("mine", "{\"glow\": 1}");
+        let mut live = broken.live(named("mine"));
+        assert_eq!(live.theme().name, "forge-crimson-brass", "the default instead");
+        let error = live.take_theme_error().expect("the broken theme is reported");
+        assert!(error.contains("mine.jsonc:1:"), "{error}");
+        assert_eq!(live.take_theme_error(), None, "once");
+    }
+
+    #[test]
+    fn an_edited_theme_is_applied_and_a_broken_one_keeps_the_last_sound() {
+        let dir = Themed::new("edit");
+        dir.write("mine", "{\"window\": {\"rows\": 4}}");
+        let mut live = dir.live(named("mine"));
+        assert_eq!(live.reload_theme(), Reload::Unchanged);
+        dir.write("mine", "{\"window\": {\"rows\": 5}}");
+        assert_eq!(live.reload_theme(), Reload::Applied);
+        assert_eq!(live.theme().window.rows, 5);
+        dir.write("mine", "{\"window\": {\"rows\": \"many\"}}");
+        let Reload::Rejected(e) = live.reload_theme() else {
+            panic!("a broken theme was taken")
+        };
+        assert!(e.contains("mine.jsonc:1:"), "{e}");
+        assert_eq!(live.theme().window.rows, 5, "the last sound theme stands");
+        dir.write("mine", "{\"window\": {\"rows\": 5}}");
+        assert_eq!(live.reload_theme(), Reload::Restored);
+    }
+
+    #[test]
+    fn a_config_naming_another_theme_or_reducing_motion_changes_what_is_worn() {
+        let dir = Themed::new("switch");
+        let mut live = dir.live(named("forge-crimson-brass"));
+        assert!(live.theme().is_continuous());
+        live.reload(Ok(Config {
+            reduce_motion: true,
+            ..named("forge-crimson-brass")
+        }));
+        assert_eq!(live.reload_theme(), Reload::Applied);
+        assert!(!live.theme().is_continuous(), "stilled");
+        live.reload(Ok(named("cogitator-phosphor")));
+        assert_eq!(live.reload_theme(), Reload::Applied);
+        assert_eq!(live.theme().name, "cogitator-phosphor");
+        live.reload(Ok(named("purple")));
+        assert!(matches!(live.reload_theme(), Reload::Rejected(e) if e.contains("theme 'purple'")));
+        assert_eq!(live.theme().name, "cogitator-phosphor");
     }
 
     #[test]

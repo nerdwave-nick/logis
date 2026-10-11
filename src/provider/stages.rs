@@ -105,8 +105,8 @@ impl Stages {
             search: stage.query,
             only_match: stage.input == Input::None,
             required: stage.input == Input::Required,
-            lines: stage.lines.unwrap_or(defaults.lines),
-            width: stage.width.unwrap_or(defaults.width),
+            lines: stage.lines.or(defaults.lines),
+            width: stage.width.or(defaults.width),
             ..defaults
         };
         let mut current = Current {

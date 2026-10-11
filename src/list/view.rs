@@ -294,7 +294,7 @@ impl ListView {
 
     /// What to draw now.
     pub fn look(&mut self) -> Look {
-        let lines = self.options.lines as usize;
+        let lines = self.options.rows() as usize;
         let shown: Vec<u32> = self.filter.matches()[self.top..]
             .iter()
             .take(lines)
@@ -327,7 +327,7 @@ impl ListView {
             input,
             cursor,
             rows,
-            lines: self.options.lines,
+            lines: self.options.rows(),
             counter: self
                 .options
                 .counter
@@ -385,7 +385,7 @@ impl ListView {
 
     /// Keeps the selection on a match and in view.
     fn clamp(&mut self) {
-        let lines = (self.options.lines as usize).max(1);
+        let lines = (self.options.rows() as usize).max(1);
         self.selected = self.selected.min(self.matched().saturating_sub(1));
         if self.selected < self.top {
             self.top = self.selected;
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn rows_show_at_most_lines_with_the_first_selected() {
         let options = Options {
-            lines: 2,
+            lines: Some(2),
             ..Options::default()
         };
         let mut v = view(options, &["a", "b", "c"]);
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn the_selection_moves_and_the_rows_scroll_to_keep_it_in_view() {
         let options = Options {
-            lines: 2,
+            lines: Some(2),
             ..Options::default()
         };
         let mut v = view(options, &["a", "b", "c"]);

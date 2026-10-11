@@ -172,10 +172,11 @@ impl Renderer {
         gpu.queue
             .write_buffer(&self.frame, 0, &floats_to_bytes(&frame));
 
-        // Text is shaped first: its underlines are drawn with the shapes.
+        // Text is shaped first: its underlines and carets are drawn with
+        // the shapes.
         let text = self.prepare_text(gpu, target, scene);
         let underlines = match self.text.as_ref().filter(|_| text) {
-            Some(pass) => pass.underlines(),
+            Some(pass) => pass.decorations(),
             None => Vec::new(),
         };
         let count = scene.shapes.len() + underlines.len();
