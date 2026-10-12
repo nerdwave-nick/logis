@@ -717,7 +717,11 @@ makepkg -si
 It builds the commit checked out in the repository (`HEAD`; uncommitted changes
 are not built) with the release profile, runs `cargo test` in `check()` (no
 compositor needed: the E2E and latency suites skip, and render tests without a
-GPU adapter skip), and installs:
+GPU adapter skip), and installs what is listed below. The release and test builds
+take about 8 GB in `packaging/arch/src/` (10 minutes on the owner's machine);
+`makepkg -sic` removes it afterwards, `makepkg -si --nocheck` skips the tests.
+
+The package installs:
 
 | What | Where |
 | --- | --- |
