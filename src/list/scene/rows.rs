@@ -118,7 +118,8 @@ fn faded(c: Rgba, fade: f32) -> Rgba {
 /// The widths of the columns: as measured, or else estimated from `shown`.
 fn widths(look: &Look, shown: &[Row], theme: &Theme) -> Vec<f32> {
     if look.columns.is_empty() {
-        widest(shown, &theme.row.font, &mut NoMeasure).0
+        let texts = shown.iter().map(|r| r.text.as_str());
+        widest(texts, &theme.row.font, &mut NoMeasure).0
     } else {
         look.columns.clone()
     }

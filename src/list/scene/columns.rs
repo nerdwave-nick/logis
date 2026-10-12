@@ -19,7 +19,7 @@
 use std::collections::HashSet;
 
 use super::text;
-use crate::list::view::{Look, Row};
+use crate::list::view::Look;
 use crate::render::{Measure, Rgba};
 use crate::theme::{Face, Font, Theme};
 
@@ -51,13 +51,14 @@ impl Columns {
                 ..Self::default()
             };
         }
-        let fresh: Vec<Row> = look
+        // A row of one column has nothing to measure.
+        let fresh: Vec<&str> = look
             .rows
             .iter()
-            .filter(|r| !self.seen.contains(&r.text))
-            .cloned()
+            .map(|r| r.text.as_str())
+            .filter(|t| t.contains('\t') && !self.seen.contains(*t))
             .collect();
-        let (widths, measured) = widest(&fresh, &font, measure);
+        let (widths, measured) = widest(fresh.iter().copied(), &font, measure);
         let mut shown = self.widths.clone();
         grow(&mut shown, &widths);
         if measured {
@@ -65,19 +66,24 @@ impl Columns {
             if self.seen.len() + fresh.len() > REMEMBERED {
                 self.seen.clear();
             }
-            self.seen.extend(fresh.into_iter().map(|r| r.text));
+            self.seen.extend(fresh.into_iter().map(str::to_owned));
         }
         look.columns = shown;
     }
 }
 
-/// Per column but each row's last, the widest text of `rows` in `font`,
-/// and whether every one was measured (else some were estimated).
-pub(super) fn widest(rows: &[Row], font: &Font, measure: &mut dyn Measure) -> (Vec<f32>, bool) {
+/// Per column but each row's last, the widest text of the rows' `texts`
+/// in `font`, and whether every one was measured (else some were
+/// estimated).
+pub(super) fn widest<'a>(
+    texts: impl IntoIterator<Item = &'a str>,
+    font: &Font,
+    measure: &mut dyn Measure,
+) -> (Vec<f32>, bool) {
     let mut widths = Vec::new();
     let mut measured = true;
-    for row in rows {
-        let mut cells: Vec<&str> = row.text.split('\t').collect();
+    for line in texts {
+        let mut cells: Vec<&str> = line.split('\t').collect();
         cells.pop();
         for (i, cell) in cells.into_iter().enumerate() {
             let line = text(cell, 0.0, 0.0, font, Rgba::TRANSPARENT);

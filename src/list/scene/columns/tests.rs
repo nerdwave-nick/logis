@@ -2,6 +2,7 @@
 //! growing and never shrinking, afresh for another font.
 
 use super::*;
+use crate::list::view::Row;
 use crate::render::Text;
 
 /// Ten pixels a character, counting what it measured; `None` while off.
