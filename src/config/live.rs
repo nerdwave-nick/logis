@@ -88,11 +88,6 @@ impl Live {
         &self.theme.theme
     }
 
-    /// The themes directory, if any.
-    pub fn themes(&self) -> &Themes {
-        &self.theme.themes
-    }
-
     /// Reads the theme the config names again (after a theme file or the
     /// config changed). Like [`Self::reload`], a theme that cannot be worn
     /// leaves the last sound one in force.

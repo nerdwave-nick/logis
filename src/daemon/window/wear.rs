@@ -64,7 +64,10 @@ impl Wear {
     /// Wears `theme` from now on, the visible panel included.
     pub fn put_on(&mut self, windows: &mut Windows, qh: &QueueHandle<Windows>, theme: Arc<Theme>) {
         emit(format_args!("theme {}", theme.name));
-        if let Err(e) = windows.set_faces(&theme.faces) {
+        // The faces were resolved at start for the first theme; fontconfig
+        // is asked again only when they change.
+        let same_faces = self.theme.borrow().faces == theme.faces;
+        if !same_faces && let Err(e) = windows.set_faces(&theme.faces) {
             crate::daemon::log(&format!("the theme's fonts fall back: {e}"));
         }
         *self.theme.borrow_mut() = theme;
