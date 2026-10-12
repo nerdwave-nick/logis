@@ -576,7 +576,9 @@ the owner's niri session at scale 1.3 with blur behind and their glow (another
 window at the right edge cropped away)
 ([forge](docs/evidence/theme-forge-live.png),
 [phosphor](docs/evidence/theme-phosphor-live.png); IBM Plex Mono, Cinzel and
-VT323 were not installed there, so the fallbacks show). Choose one
+VT323 were not installed there, so the fallbacks show; the columns measured,
+and phosphor's wide fallback face leaves the last column to its ellipsis).
+Choose one
 with the config's `"theme"`. Your own are `themes/<name>.jsonc` beside
 `logis.jsonc` (`~/.config/logis/themes/`); a file named like a bundled theme
 overrides it.
