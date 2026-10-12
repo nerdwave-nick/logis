@@ -154,23 +154,19 @@ fn rows_take_column_colours_and_set_matches_apart() {
     let theme = forge();
     let logical = sized(&theme);
     let s = scene(&look(3, 1), logical, style(&theme));
-    let plain = row(&s, "row 0\tcol");
+    let plain = row(&s, "row 0");
     let [parchment, brass, _] = theme.row.columns[..] else {
         panic!("three columns")
     };
-    assert_eq!(
-        plain.spans,
-        [
-            (0..1, theme.matched.color),
-            (1..6, parchment),
-            (6..9, brass)
-        ]
-    );
+    assert_eq!(plain.color, parchment);
+    assert_eq!(plain.spans, [(0..1, theme.matched.color)]);
     assert_eq!(plain.emphasis, [0..1]);
     assert_eq!(plain.emphasis_face, Some(theme.matched.face));
     assert!(!plain.underline_emphasis, "forge does not underline");
-    let selected = row(&s, "row 1\tcol");
-    assert_eq!(selected.spans[1].1, theme.selection.columns[0]);
+    let col = s.texts.iter().find(|t| t.text == "col").unwrap();
+    assert_eq!(col.color, brass);
+    let selected = row(&s, "row 1");
+    assert_eq!(selected.color, theme.selection.columns[0]);
     // Rows below the rule, one pitch apart, the band on the selected one.
     let g = grid(logical, 5, &theme);
     assert!((selected.origin[1] - plain.origin[1] - g.pitch).abs() < 1e-3);
@@ -184,7 +180,7 @@ fn rows_take_column_colours_and_set_matches_apart() {
 fn phosphor_inverts_the_selection_and_underlines_matches() {
     let theme = phosphor();
     let s = scene(&look(3, 1), sized(&theme), style(&theme));
-    let selected = row(&s, "row 1\tcol");
+    let selected = row(&s, "row 1");
     assert_eq!(selected.color, theme.selection.columns[0]);
     assert!(selected.underline_emphasis);
     // The band is solid phosphor with a glow and no edge bar.
@@ -213,12 +209,16 @@ fn decorated() -> Look {
 fn badges_end_the_row_and_a_pending_row_is_dimmed_and_marked() {
     let theme = forge();
     let s = scene(&decorated(), sized(&theme), style(&theme));
-    let first = row(&s, "row 0\tcol");
+    let first = s
+        .texts
+        .iter()
+        .find(|t| t.origin[1] == row(&s, "row 0").origin[1] && t.text == "col")
+        .expect("the first row's last column");
     let current = row(&s, "CURRENT");
     let edict = row(&s, "EDICT");
     assert!(first.origin[0] + first.width.unwrap() <= current.origin[0]);
     assert!(current.origin[0] < edict.origin[0], "in the given order");
-    let pending = row(&s, "row 1\tcol");
+    let pending = row(&s, "row 1");
     assert_eq!(
         pending.color.a,
         theme.pending.color.a * theme.pending.opacity
@@ -226,7 +226,7 @@ fn badges_end_the_row_and_a_pending_row_is_dimmed_and_marked() {
     assert!(pending.emphasis.is_empty(), "no matches while pending");
     assert!(s.texts.iter().any(|t| t.text == "DIVINING…"));
     let glyph = row(&s, "⚙");
-    assert!(glyph.origin[0] < first.origin[0]);
+    assert!(glyph.origin[0] < row(&s, "row 0").origin[0]);
     // Phosphor brackets its badges instead of drawing pills.
     let p = phosphor();
     let s = scene(&decorated(), sized(&p), style(&p));
@@ -434,4 +434,115 @@ fn a_personal_sigil_is_an_image_beside_the_theme() {
     sigil.image = "/usr/share/logis/eye.png".into();
     scene_with(&l, logical, style(&theme), &mut asked);
     assert_eq!(asked.0, [("/usr/share/logis/eye.png".to_owned(), 22)]);
+}
+
+/// Rows of the canvas: a name, an aspect and a purpose.
+fn rites(columns: Vec<f32>) -> Look {
+    let rows = [
+        "do-not-disturb\ton\tSilence the vox of the desktop",
+        "vox\tauto\tWho hears the machine",
+        "lone",
+    ];
+    Look {
+        rows: rows
+            .iter()
+            .map(|t| Row {
+                text: (*t).into(),
+                ..Row::default()
+            })
+            .collect(),
+        lines: 5,
+        columns,
+        ..Look::default()
+    }
+}
+
+#[test]
+fn columns_line_up_at_their_measured_widths_and_the_last_takes_the_rest() {
+    let theme = forge();
+    let logical = sized(&theme);
+    let s = scene(&rites(vec![140.0, 30.0]), logical, style(&theme));
+    let g = grid(logical, 5, &theme);
+    let left = g.left + theme.row.padding;
+    let right = g.right - theme.row.padding;
+    let gap = theme.row.column_gap;
+    let (name, vox) = (row(&s, "do-not-disturb"), row(&s, "vox"));
+    assert_eq!((name.origin[0], vox.origin[0]), (left, left));
+    let (on, auto) = (row(&s, "on"), row(&s, "auto"));
+    assert_eq!(on.origin[0], left + 140.0 + gap);
+    assert_eq!(auto.origin[0], on.origin[0], "aligned");
+    let purpose = row(&s, "Silence the vox of the desktop");
+    let who = row(&s, "Who hears the machine");
+    assert_eq!(purpose.origin[0], on.origin[0] + 30.0 + gap);
+    assert_eq!(who.origin[0], purpose.origin[0]);
+    // A column is its width and half the gap, so text measured a little
+    // wider (a bolder match) still fits; the last runs to the row's end.
+    assert_eq!(name.width, Some(140.0 + gap / 2.0));
+    assert_eq!(name.overflow, crate::render::Overflow::Ellipsis);
+    assert_eq!(purpose.width, Some(right - purpose.origin[0]));
+    // A row of one column is all last column.
+    let lone = row(&s, "lone");
+    assert_eq!((lone.origin[0], lone.width), (left, Some(right - left)));
+    assert!(s.texts.iter().all(|t| !t.text.contains('\t')));
+}
+
+#[test]
+fn a_column_wider_than_its_share_of_the_row_ends_in_an_ellipsis() {
+    let theme = forge();
+    let logical = sized(&theme);
+    let s = scene(&rites(vec![5000.0, 30.0]), logical, style(&theme));
+    let g = grid(logical, 5, &theme);
+    let width = g.right - g.left - 2.0 * theme.row.padding;
+    let cap = (theme.row.column_max * width).floor();
+    let name = row(&s, "do-not-disturb");
+    assert_eq!(name.width, Some(cap + theme.row.column_gap / 2.0));
+    assert_eq!(name.overflow, crate::render::Overflow::Ellipsis);
+    assert_eq!(
+        row(&s, "on").origin[0],
+        name.origin[0] + cap + theme.row.column_gap
+    );
+}
+
+#[test]
+fn cells_take_their_columns_colours_and_the_matches_within_them() {
+    let theme = forge();
+    let mut l = rites(vec![140.0, 30.0]);
+    // "vox" and "au" of "auto" matched; the second row selected.
+    l.rows[1].highlights = vec![0..3, 4..6];
+    l.rows[1].selected = true;
+    l.rows[0].highlights = vec![1..2];
+    let s = scene(&l, sized(&theme), style(&theme));
+    let [parchment, brass, ash] = theme.row.columns[..] else {
+        panic!("three columns")
+    };
+    let name = row(&s, "do-not-disturb");
+    assert_eq!(name.color, parchment);
+    assert_eq!(name.spans, [(1..2, theme.matched.color)]);
+    assert_eq!(name.emphasis, [1..2]);
+    assert_eq!(name.emphasis_face, Some(theme.matched.face));
+    assert_eq!(row(&s, "on").color, brass);
+    assert_eq!(row(&s, "Silence the vox of the desktop").color, ash);
+    let vox = row(&s, "vox");
+    assert_eq!(vox.color, theme.selection.columns[0]);
+    assert_eq!(vox.spans, [(0..3, theme.matched.selected)]);
+    let auto = row(&s, "auto");
+    assert_eq!(auto.color, theme.selection.columns[1]);
+    assert_eq!(
+        (auto.spans.as_slice(), auto.emphasis.as_slice()),
+        (&[(0..2, theme.matched.selected)][..], &[0..2][..])
+    );
+    assert!(row(&s, "Who hears the machine").spans.is_empty());
+}
+
+#[test]
+fn unmeasured_columns_are_estimated_from_the_rows_in_view() {
+    let theme = forge();
+    let s = scene(&rites(Vec::new()), sized(&theme), style(&theme));
+    let (on, auto) = (row(&s, "on"), row(&s, "auto"));
+    assert_eq!(on.origin[0], auto.origin[0]);
+    assert!(on.origin[0] > row(&s, "do-not-disturb").origin[0] + 14.0 * 8.0);
+    assert_eq!(
+        row(&s, "Silence the vox of the desktop").origin[0],
+        row(&s, "Who hears the machine").origin[0]
+    );
 }

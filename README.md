@@ -76,7 +76,12 @@ item with `--dmenu0`), so the window opens before the input ends. Typing filters
 the items with fzf-like fuzzy matching (nucleo), ignoring case and accents (`e`
 matches `é`; a typed `é` means `é`), with fzf's syntax: `^prefix`, `suffix$`,
 `'exact`, `!not`, and words matched separately. Matched characters are drawn in
-brass; tabs advance to tab stops, so tab-separated columns line up.
+brass. Tab-separated columns line up: each is as wide as the widest text that
+has stood in it in a row shown so far (measured with the row font), at most the
+theme's share of the row (wider text ends in `…`), and the last takes the rest.
+Widths only grow while the window is open, so filtering never makes the columns
+jump back; a wider row coming into view widens its column once. This is display
+only: Return still prints the line's original bytes.
 
 Return prints the selected item's original bytes, exactly as read, and exits 0.
 When nothing matches, Return prints the typed text as typed (unless
@@ -547,7 +552,9 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
 - the **elements** that refer to it: `window` (default size and rows), `glow`,
   `border` (gradient of up to four stops, travelling highlight), `panel`,
   `decorations` (corner rivets), `prompt` (label, sigil), `query` (caret),
-  `counter`, `rule`, `row` (font, height, colour per tab-separated column),
+  `counter`, `rule`, `row` (font, height, colour per tab-separated column,
+  `column-gap` between columns and `column-max`, the share of the row any
+  column but the last may take),
   `selection`, `match` (colour, weight, underline), `badge`, `pending` — and
   `fonts`, the font roles they name;
 - **effects and motion**: one post-processing pass over the body (`scanlines`,

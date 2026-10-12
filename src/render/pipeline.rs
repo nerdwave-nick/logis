@@ -4,6 +4,7 @@
 use super::Gpu;
 use super::atlas::ImageAtlas;
 use super::images::ImagePass;
+use super::measure::TextMeasure;
 use super::post::PostPass;
 use super::scale::Scale;
 use super::scene::{INSTANCE_FLOATS, Post, Scene, pack};
@@ -125,6 +126,25 @@ impl Renderer {
     /// The image atlas, to add images.
     pub fn atlas_mut(&mut self) -> &mut ImageAtlas {
         self.images.atlas_mut()
+    }
+
+    /// Measures text with the renderer's fonts at `scale` (nothing without
+    /// fonts).
+    pub fn measure(&mut self, scale: Scale) -> TextMeasure<'_> {
+        TextMeasure {
+            fonts: self.text.as_mut().map(TextPass::fonts_mut),
+            scale,
+        }
+    }
+
+    /// [`Self::atlas_mut`] and [`Self::measure`] at once: what a frame's
+    /// scene builder draws icons into and measures its text with.
+    pub fn atlas_and_measure(&mut self, scale: Scale) -> (&mut ImageAtlas, TextMeasure<'_>) {
+        let measure = TextMeasure {
+            fonts: self.text.as_mut().map(TextPass::fonts_mut),
+            scale,
+        };
+        (self.images.atlas_mut(), measure)
     }
 
     /// Encodes `scene` into `target`: clears it, then paints every shape,

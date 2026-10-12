@@ -141,6 +141,8 @@ impl Resolver<'_> {
             padding: length(r.padding, "row.padding")?,
             columns: self.colours(r.columns, "row.columns")?,
             glyph: self.colour(r.glyph, "row.glyph")?,
+            column_gap: length(r.column_gap, "row.column-gap")?,
+            column_max: share(r.column_max, "row.column-max")?,
         })
     }
 
@@ -195,4 +197,16 @@ pub(super) fn motion(m: doc::MotionDoc) -> Result<Motion, String> {
         close: millis(m.close_ms, "motion.close-ms")?,
         select: millis(m.select_ms, "motion.select-ms")?,
     })
+}
+
+/// A share of a whole: more than 0, at most 1.
+fn share(value: Option<f32>, key: &str) -> Result<f32, String> {
+    let v = need(value, key)?;
+    if v > 0.0 && v <= 1.0 {
+        Ok(v)
+    } else {
+        Err(format!(
+            "{key}: {v} is no share of the row (more than 0, at most 1)"
+        ))
+    }
 }

@@ -75,7 +75,10 @@ read.
 **Column**:
 One field of an item. In dmenu mode, columns are split by the nth delimiter (tab by
 default) and chosen with `--with-nth` (display), `--match-nth` (matching) and
-`--accept-nth` (output).
+`--accept-nth` (output). A shown item's columns are its tab-separated fields; they
+line up across rows: each is as wide as the widest text **measured** in it in a row
+shown so far (its widths only grow while a list is open), capped by the theme, and
+the last takes the rest of the row.
 
 **Query**:
 The text typed into the input line. It filters the items with fuzzy, case- and

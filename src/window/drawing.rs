@@ -4,7 +4,7 @@
 use super::blur::Backdrop;
 use crate::icons::IconSource;
 use crate::motion::Nanos;
-use crate::render::Scene;
+use crate::render::{Measure, Scene};
 
 /// The frame being drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,5 +42,6 @@ impl Drawing {
 }
 
 /// Builds a panel's content for each frame, its icons from the source (the
-/// window's icon cache at the frame's scale).
-pub type SceneFn = Box<dyn FnMut(&Frame, &mut dyn IconSource) -> Drawing>;
+/// window's icon cache at the frame's scale) and its text measured with the
+/// renderer's fonts at that scale.
+pub type SceneFn = Box<dyn FnMut(&Frame, &mut dyn IconSource, &mut dyn Measure) -> Drawing>;

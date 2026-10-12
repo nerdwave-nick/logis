@@ -85,7 +85,9 @@ pub fn run_debug_panel(choice: BackendChoice, focus_loss: FocusLoss) -> Result<(
     windows.set_focus_loss(focus_loss);
     let session = Rc::new(RefCell::new(DebugSession::default()));
     let shown = Rc::clone(&session);
-    let scene = move |frame: &Frame, _: &mut dyn crate::icons::IconSource| {
+    let scene = move |frame: &Frame,
+                      _: &mut dyn crate::icons::IconSource,
+                      _: &mut dyn crate::render::Measure| {
         let s = shown.borrow();
         Drawing::still(debug_scene_at(frame.logical, s.row(), s.query()))
     };

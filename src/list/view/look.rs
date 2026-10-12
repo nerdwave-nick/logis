@@ -6,6 +6,8 @@ use std::ops::Range;
 use super::ListView;
 use crate::list::Notice;
 use crate::list::highlight::byte_ranges;
+use crate::render::Measure;
+use crate::theme::Theme;
 
 /// One row in view.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -28,7 +30,7 @@ pub struct Row {
 }
 
 /// Everything the scene shows, taken from the view at one moment.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Look {
     /// Shown before the query.
     pub prompt: String,
@@ -44,6 +46,10 @@ pub struct Look {
     pub counter: Option<(usize, usize)>,
     /// Whether rows keep an icon column (some item has an emblem).
     pub glyphs: bool,
+    /// Per column but the last: how wide its text is, in logical pixels
+    /// (see [`crate::list::scene::Columns`]); empty until measured, when
+    /// the scene estimates them from the rows in view.
+    pub columns: Vec<f32>,
     /// A notice shown over the list; the view leaves it to its owner.
     pub toast: Option<Notice>,
 }
@@ -91,8 +97,18 @@ impl ListView {
                 .counter
                 .then(|| (self.matched(), self.filter.len())),
             glyphs: self.emblems > 0,
+            columns: Vec::new(),
             toast: None,
         }
+    }
+
+    /// [`Self::look`] with its columns' widths, the rows not measured
+    /// before measured with `measure` in `theme`'s row font (see
+    /// [`crate::list::scene::Columns`] for why widths only grow).
+    pub fn look_measured(&mut self, theme: &Theme, measure: &mut dyn Measure) -> Look {
+        let mut look = self.look();
+        self.columns.fit(&mut look, theme, measure);
+        look
     }
 
     /// The query as shown and its cursor, or the placeholder.

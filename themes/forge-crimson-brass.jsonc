@@ -71,7 +71,9 @@
     "gap": 12,
     "padding": 26,
     "columns": ["parchment", "brass", "ash"],
-    "glyph": "brass"
+    "glyph": "brass",
+    "column-gap": 32,
+    "column-max": 0.4
   },
   "selection": {
     "band": ["band.0/0.92", "band.1/0.5"],

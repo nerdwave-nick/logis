@@ -103,17 +103,20 @@ impl Panel {
             mut scene,
             backdrop,
             moving,
-        } = match p.icons.as_deref_mut() {
-            Some(cache) => {
-                let mut icons = FrameIcons {
-                    cache,
-                    gpu: p.gpu,
-                    atlas: p.renderer.atlas_mut(),
-                    scale: geometry.scale,
-                };
-                (self.scene)(&frame, &mut icons)
+        } = {
+            let (atlas, mut measure) = p.renderer.atlas_and_measure(geometry.scale);
+            match p.icons.as_deref_mut() {
+                Some(cache) => {
+                    let mut icons = FrameIcons {
+                        cache,
+                        gpu: p.gpu,
+                        atlas,
+                        scale: geometry.scale,
+                    };
+                    (self.scene)(&frame, &mut icons, &mut measure)
+                }
+                None => (self.scene)(&frame, &mut NoIcons, &mut measure),
             }
-            None => (self.scene)(&frame, &mut NoIcons),
         };
         let pose = self.transition.pose(frame.at, frame.interval);
         pose.apply(&mut scene);

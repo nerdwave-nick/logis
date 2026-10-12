@@ -575,12 +575,22 @@
           "$ref": "#/$defs/length"
         },
         "columns": {
-          "description": "Per tab-separated column.",
+          "description": "Per tab-separated column; the last repeats.",
           "$ref": "#/$defs/colours"
         },
         "glyph": {
           "description": "An emblem's colour.",
           "$ref": "#/$defs/colour"
+        },
+        "column-gap": {
+          "description": "Between one column's widest text and the next column. Columns are as wide as the widest text shown in them so far; the last takes the rest of the row.",
+          "$ref": "#/$defs/length"
+        },
+        "column-max": {
+          "description": "The most of the row's width a column other than the last may take; wider text ends in an ellipsis.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
         }
       },
       "default": {
@@ -593,7 +603,9 @@
           "brass",
           "ash"
         ],
-        "glyph": "brass"
+        "glyph": "brass",
+        "column-gap": 32,
+        "column-max": 0.4
       }
     },
     "selection": {

@@ -314,6 +314,8 @@ section!(RowDoc {
     padding: f32,
     columns: Vec<ColourRef>,
     glyph: ColourRef,
+    column_gap: f32,
+    column_max: f32,
 });
 section!(SelectionDoc {
     band: PaintRef,
