@@ -1,0 +1,20 @@
+pkgbase = logis
+	pkgdesc = A grimdark Wayland launcher and dmenu-compatible picker
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/nerdwave-nick/logis
+	arch = x86_64
+	license = MIT
+	makedepends = cargo
+	makedepends = git
+	depends = fontconfig
+	depends = glibc
+	depends = libgcc
+	depends = libxkbcommon
+	depends = vulkan-icd-loader
+	depends = wayland
+	optdepends = vulkan-driver: render on the GPU through Vulkan (the first choice)
+	optdepends = vulkan-swrast: render in software (lavapipe) where no GPU serves
+	optdepends = libglvnd: the GL backend, tried after Vulkan
+
+pkgname = logis

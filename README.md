@@ -17,8 +17,9 @@ logis is meant to be:
 
 ## Status
 
-**Early.** `logis` (the app launcher), `logis --dmenu`, `logis --provider` and
-`logis --servitor` work. The binary does this much:
+**1.0.0** (prepared; see [CHANGELOG.md](CHANGELOG.md)). `logis` (the app
+launcher), `logis --dmenu`, `logis --provider` and `logis --servitor` work; to
+install it, see [Installing](#installing). The binary does this much:
 
 - `logis --version` prints the version.
 - `logis --dmenu` (or `--dmenu0`) is a drop-in for `fuzzel --dmenu`: see
@@ -703,6 +704,43 @@ keyboard focus dismisses unless the config says `"focus-loss": "keep"`.
   compositor without it keeps showing the cursor it had (logis loads no cursor
   theme of its own).
 
+## Installing
+
+logis is not in the AUR (AUR registrations are closed). The repository carries a
+PKGBUILD instead, in [`packaging/arch/`](packaging/arch/PKGBUILD); on Arch Linux:
+
+```sh
+cd packaging/arch
+makepkg -si
+```
+
+It builds the commit checked out in the repository (`HEAD`; uncommitted changes
+are not built) with the release profile, runs `cargo test` in `check()` (no
+compositor needed: the E2E and latency suites skip, and render tests without a
+GPU adapter skip), and installs:
+
+| What | Where |
+| --- | --- |
+| the binary | `/usr/bin/logis` |
+| the man page | `/usr/share/man/man1/logis.1.gz` (`man logis`) |
+| completions | bash `/usr/share/bash-completion/completions/logis`, zsh `/usr/share/zsh/site-functions/_logis`, fish `/usr/share/fish/vendor_completions.d/logis.fish` |
+| systemd user units | `/usr/lib/systemd/user/logis.socket` and `logis.service`, **not enabled** (see [below](#starting-the-daemon-with-systemd-optional)) |
+| JSON Schemas | `/usr/share/logis/schema/logis.schema.json` and `theme.schema.json` |
+| the bundled themes, to copy and edit | `/usr/share/logis/themes/*.jsonc` |
+| README, changelog, provider protocol | `/usr/share/doc/logis/` |
+| the licence | `/usr/share/licenses/logis/LICENSE` |
+
+Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
+instead of the checkout; its header says which two lines to change.
+`tests/packaging.rs` keeps the PKGBUILD, its `.SRCINFO` (`makepkg --printsrcinfo >
+.SRCINFO` after editing), the man page and the changelog on the crate's version.
+
+The completions in [`contrib/completions/`](contrib/completions/) are written by
+hand; `tests/completions.rs` checks that each offers exactly the runes the parser
+accepts (asking bash, zsh and fish where they are installed). Without the
+package, source `logis.bash`, put `_logis` on zsh's `fpath`, or copy `logis.fish`
+to `~/.config/fish/completions/`.
+
 ## Building
 
 Requires Rust 1.91 or later, `pkg-config`, and the libwayland-client,
@@ -926,13 +964,15 @@ supported.
 ### Starting the daemon with systemd (optional)
 
 The first client starts the daemon by itself. To have systemd start it on the
-first connection instead, install the user units from
-[`contrib/systemd/`](contrib/systemd/) (they expect the binary at
-`/usr/bin/logis`; adjust `ExecStart` otherwise) and enable the socket:
+first connection instead, enable the socket. The package installs the units;
+without it, copy them from [`contrib/systemd/`](contrib/systemd/) first (they
+expect the binary at `/usr/bin/logis`; adjust `ExecStart` otherwise):
 
 ```sh
+# without the package only:
 cp contrib/systemd/logis.socket contrib/systemd/logis.service ~/.config/systemd/user/
 systemctl --user daemon-reload
+# either way:
 systemctl --user enable --now logis.socket
 ```
 
