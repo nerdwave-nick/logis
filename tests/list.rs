@@ -1,6 +1,7 @@
 //! The list as drawn in each bundled theme (spec §4.9, §5): the prompt line
-//! with the query, caret and counter, tab-separated columns in the theme's
-//! column colours, the selection band and the matched characters set
+//! with the query, caret and counter, tab-separated columns lined up at
+//! their measured widths in the theme's column colours (an overlong one
+//! ending in an ellipsis), the selection band and the matched characters set
 //! apart; a provider's stage with glyphs, badges, a pending row and a
 //! toast; the app launcher's icons; and the theme's own window (820×520,
 //! nine rows) with its effects. Compared with goldens per theme at scales
@@ -22,7 +23,7 @@ use std::path::Path;
 
 use logis::icons::{FrameIcons, IconCache, IconThemes, NoIcons, SearchPaths};
 use logis::input::{Action, Edit, Step};
-use logis::list::scene::{self, Style};
+use logis::list::scene::{self, Columns, Style};
 use logis::list::{Decor, Entry, Level, ListView, Look, Notice, Options};
 use logis::render::{Gpu, OFFSCREEN_FORMAT, Renderer, Scale, Scene, render_offscreen};
 use logis::text::{FontConfig, Fonts};
@@ -100,6 +101,8 @@ fn check_with(
         };
         for scale in scales() {
             let mut renderer = renderer(&gpu, &theme);
+            let mut look = look.clone();
+            Columns::default().fit(&mut look, &theme, &mut renderer.measure(scale));
             let scene = make(&mut renderer, &gpu, scale, &look, logical, style);
             let image = render_offscreen(
                 &gpu,
@@ -388,4 +391,44 @@ fn a_personal_theme_draws_its_own_sigil_image() {
         .count();
     let _ = std::fs::remove_dir_all(&dir);
     assert!(inked > 20, "only {inked} pixels of the sigil");
+}
+
+/// The columns are measured with each theme's row font at each scale: the
+/// first is as wide as the widest name in view (21 characters of a
+/// monospace face, about 0.6 em each), the second as "auto", and every
+/// row's columns start at the same place.
+#[test]
+fn columns_are_measured_with_the_row_font() {
+    let Some(gpu) = golden::env_gpu() else { return };
+    for theme in themes() {
+        for scale in scales() {
+            let mut view = ListView::new(Options::default());
+            view.push(items(&[
+                "mouse-autohide-toggle\toff\tVeil the cursor when idle",
+                "vox\tauto\tWho hears the machine",
+            ]));
+            let mut renderer = renderer(&gpu, &theme);
+            let look = view.look_measured(&theme, &mut renderer.measure(scale));
+            let em = theme.row.font.size;
+            let [name, aspect] = look.columns[..] else {
+                panic!("two measured columns: {:?}", look.columns)
+            };
+            assert!(
+                (21.0 * 0.5 * em..21.0 * 0.7 * em).contains(&name),
+                "{} @{scale:?}: {name}",
+                theme.name
+            );
+            assert!((aspect - name * 4.0 / 21.0).abs() < 2.0, "{aspect} {name}");
+            let (logical, _) = scene::fit(&Options::default(), &theme);
+            let style = Style {
+                theme: &theme,
+                at: 0,
+            };
+            let s = scene::scene(&look, logical, style);
+            let x = |t: &str| s.texts.iter().find(|x| x.text == t).unwrap().origin[0];
+            assert_eq!(x("off"), x("auto"));
+            assert_eq!(x("Veil the cursor when idle"), x("Who hears the machine"));
+            assert!(x("off") >= x("mouse-autohide-toggle") + name);
+        }
+    }
 }

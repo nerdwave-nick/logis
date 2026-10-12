@@ -41,7 +41,8 @@
     "gap": 12,
     "padding": 34,
     "columns": ["text", "phosphor", "dim"],
-    "glyph": "phosphor"
+    "glyph": "phosphor",
+    "column-gap": 28
   },
   "selection": {
     "band": "phosphor",

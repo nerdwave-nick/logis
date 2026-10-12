@@ -25,11 +25,13 @@ jobs:
       # whose unit tests compile keymaps from xkb-data. The runner has no GPU: Mesa's
       # lavapipe (mesa-vulkan-drivers) gives the renderer's offscreen tests a
       # software Vulkan adapter. Text goldens use the fonts in tests/fonts/.
+      # zsh and fish run the shell completions' tests (tests/completions.rs).
       - name: Install system libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwayland-dev pkg-config \
-            libfontconfig-dev libxkbcommon-dev xkb-data libvulkan1 mesa-vulkan-drivers
+            libfontconfig-dev libxkbcommon-dev xkb-data libvulkan1 mesa-vulkan-drivers \
+            zsh fish
 
       - name: Install Rust ${{ env.RUSTUP_TOOLCHAIN }}
         run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt,clippy

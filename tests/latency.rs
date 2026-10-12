@@ -31,7 +31,8 @@
 //! - **dmenu keystroke → commit:** typing into the query and deleting it
 //!   again, each key to the frame showing the new matches; with three
 //!   items, and with 100 000 (every keystroke re-filters them all, or the
-//!   last matches when the query grows).
+//!   last matches when the query grows): plain lines, and lines of three
+//!   tab-separated columns, whose rows coming into view are measured.
 //!
 //! - **no round trip before a warm open is shown:** counted in the daemon's
 //!   `WAYLAND_DEBUG` log (always checked).
@@ -394,8 +395,10 @@ fn dmenu_keystrokes(c: &mut Cogitator, focused: &Focused, keys: &[u32], runs: us
         .collect()
 }
 
-/// 100 000 distinct lines, path-like, as a big dmenu input might be.
-fn many_lines() -> Vec<u8> {
+/// 100 000 distinct lines, path-like, as a big dmenu input might be; with
+/// `columns`, each a path, a word and a number, separated by tabs, so every
+/// keystroke brings rows whose columns are measured into view.
+fn many_lines(columns: bool) -> Vec<u8> {
     let words = [
         "rite",
         "aspect",
@@ -407,12 +410,17 @@ fn many_lines() -> Vec<u8> {
     ];
     let mut out = Vec::new();
     for i in 0..100_000usize {
-        let line = format!(
-            "/{}/{}/{}-{i}\n",
+        let path = format!(
+            "/{}/{}/{}-{i}",
             words[i % 7],
             words[(i / 7) % 7],
             words[(i / 49) % 7]
         );
+        let line = if columns {
+            format!("{path}\t{}\t{}\n", words[(i / 343) % 7], i * 7919 % 100_003)
+        } else {
+            format!("{path}\n")
+        };
         out.extend_from_slice(line.as_bytes());
     }
     out
@@ -435,14 +443,6 @@ fn dmenu_latency() {
     drop(client);
     c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
 
-    let mut client = c.dmenu(&[], b"");
-    let mut stdin = client.stdin.take().unwrap();
-    let feeder = std::thread::spawn(move || {
-        use std::io::Write;
-        stdin.write_all(&many_lines()).unwrap();
-    });
-    let focused = c.shown(100_000);
-    feeder.join().unwrap();
     let keys = [
         letter('r'),
         letter('i'),
@@ -453,8 +453,22 @@ fn dmenu_latency() {
         code::BACKSPACE,
         code::BACKSPACE,
     ];
-    let many = dmenu_keystrokes(&mut c, &focused, &keys, runs.max(keys.len()));
-    drop(client);
+    let mut many_keystrokes = |columns| {
+        let mut client = c.dmenu(&[], b"");
+        let mut stdin = client.stdin.take().unwrap();
+        let feeder = std::thread::spawn(move || {
+            use std::io::Write;
+            stdin.write_all(&many_lines(columns)).unwrap();
+        });
+        let focused = c.shown(100_000);
+        feeder.join().unwrap();
+        let times = dmenu_keystrokes(&mut c, &focused, &keys, runs.max(keys.len()));
+        drop(client);
+        c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+        times
+    };
+    let many = many_keystrokes(false);
+    let columned = many_keystrokes(true);
 
     let series = [
         Series::new(
@@ -469,6 +483,11 @@ fn dmenu_latency() {
         ),
         Series::new("dmenu keystroke → commit, 3 items", frame_ms, few),
         Series::new("dmenu keystroke → commit, 100 000 items", frame_ms, many),
+        Series::new(
+            "dmenu keystroke → commit, 100 000 items in columns",
+            frame_ms,
+            columned,
+        ),
     ];
     latency::record(c.compositor.kind().name(), &series);
     warm.enforce_none_slow();

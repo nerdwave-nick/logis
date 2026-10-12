@@ -5,6 +5,7 @@
 mod atlas;
 mod gpu;
 mod images;
+mod measure;
 mod offscreen;
 mod packer;
 mod pipeline;
@@ -16,6 +17,7 @@ mod text_pass;
 
 pub use atlas::{AtlasError, ImageAtlas, ImageId};
 pub use gpu::{BackendChoice, DisplaySource, Gpu, GpuError};
+pub use measure::{Measure, NoMeasure, TextMeasure};
 pub use offscreen::{Image, OFFSCREEN_FORMAT, ReadbackError, render_offscreen};
 pub use pipeline::{Renderer, Target};
 pub use scale::Scale;

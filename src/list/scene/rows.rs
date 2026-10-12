@@ -1,15 +1,19 @@
-//! The rows: each a single line whose tab-separated columns take the
-//! theme's column colours, matched characters set apart in the match
-//! colour, face and underline; an emblem column when some item has one;
-//! badges and the pending mark at the end. The selected row lies on the
-//! band, which may glide.
+//! The rows: each a single line whose tab-separated columns line up with
+//! the other rows' (at the widths [`super::Columns`] measured, or else
+//! estimated) and take the theme's column colours, matched characters set
+//! apart in the match colour, face and underline; an emblem column when
+//! some item has one; badges and the pending mark at the end. The selected
+//! row lies on the band, which may glide.
 
 use std::ops::Range;
 
+use super::columns::widest;
 use super::{Grid, Style, column, icon_size, marks, text};
 use crate::icons::IconSource;
 use crate::list::view::{Look, Row};
-use crate::render::{Border, Glow, ImageQuad, Overflow, Paint, Rgba, RoundedRect, Scene};
+use crate::render::{
+    Border, Glow, ImageQuad, NoMeasure, Overflow, Paint, Rgba, RoundedRect, Scene,
+};
 use crate::theme::Theme;
 
 /// The selection band on the row whose top is `top`, with its edge bar.
@@ -47,7 +51,8 @@ pub(super) fn band(scene: &mut Scene, body: [f32; 4], top: f32, theme: &Theme) {
     }
 }
 
-/// Every row in view that fits, icons from `icons`.
+/// Every row in view that fits, icons from `icons`, its columns lined up
+/// at the stops all rows share.
 pub(super) fn rows(
     scene: &mut Scene,
     look: &Look,
@@ -59,7 +64,15 @@ pub(super) fn rows(
     let font = theme.row.font;
     let side = icon_size(&font);
     let emblem = side as f32 + font.size * 0.4;
-    for (i, row) in look.rows.iter().take(grid.rows).enumerate() {
+    let mut left = grid.left + theme.row.padding;
+    let mut width = grid.right - theme.row.padding - left;
+    if look.glyphs {
+        left += emblem;
+        width -= emblem;
+    }
+    let shown = &look.rows[..look.rows.len().min(grid.rows)];
+    let stops = Stops::new(&widths(look, shown, theme), width, theme);
+    for (i, row) in shown.iter().enumerate() {
         let top = grid.top(i);
         let centre = top + grid.pitch / 2.0;
         let fade = if row.pending {
@@ -67,14 +80,13 @@ pub(super) fn rows(
         } else {
             1.0
         };
-        let mut left = grid.left + theme.row.padding;
-        let mut width = grid.right - theme.row.padding - left;
         if look.glyphs {
+            let at = left - emblem;
             let icon = row.icon.as_deref().and_then(|name| icons.image(name, side));
             match (icon, &row.glyph) {
                 (Some(image), _) => scene.images.push(ImageQuad {
                     image,
-                    origin: [left, centre - side as f32 / 2.0],
+                    origin: [at, centre - side as f32 / 2.0],
                     opacity: fade,
                 }),
                 (None, Some(glyph)) => {
@@ -83,17 +95,17 @@ pub(super) fn rows(
                     } else {
                         theme.row.glyph
                     };
-                    let t = text(glyph.clone(), left, centre, &font, faded(color, fade));
+                    let t = text(glyph.clone(), at, centre, &font, faded(color, fade));
                     scene.texts.push(column(t, emblem - 4.0, Overflow::Clip));
                 }
                 (None, None) => {}
             }
-            left += emblem;
-            width -= emblem;
         }
         let ends = marks::marks(row, left + width, centre, style);
-        width -= ends.width;
-        scene.texts.push(row_text(row, left, centre, width, theme));
+        let room = width - ends.width;
+        scene
+            .texts
+            .extend(cells(row, left, centre, room, &stops, theme));
         scene.shapes.extend(ends.shapes);
         scene.texts.extend(ends.texts);
     }
@@ -103,9 +115,60 @@ fn faded(c: Rgba, fade: f32) -> Rgba {
     c.with_alpha(c.a * fade)
 }
 
-/// A row's line: its columns coloured, its matches set apart (none while
-/// it is pending).
-fn row_text(row: &Row, left: f32, centre: f32, width: f32, theme: &Theme) -> crate::render::Text {
+/// The widths of the columns: as measured, or else estimated from `shown`.
+fn widths(look: &Look, shown: &[Row], theme: &Theme) -> Vec<f32> {
+    if look.columns.is_empty() {
+        let texts = shown.iter().map(|r| r.text.as_str());
+        widest(texts, &theme.row.font, &mut NoMeasure).0
+    } else {
+        look.columns.clone()
+    }
+}
+
+/// Where the columns start, from the left of the row's text: each after the
+/// one before, at its width (at most the theme's share of the row) and the
+/// gap.
+struct Stops {
+    starts: Vec<f32>,
+    gap: f32,
+}
+
+impl Stops {
+    fn new(widths: &[f32], width: f32, theme: &Theme) -> Self {
+        let cap = (theme.row.column_max * width).floor();
+        let gap = theme.row.column_gap;
+        let mut starts = vec![0.0];
+        let mut at = 0.0;
+        for w in widths {
+            at += w.ceil().min(cap) + gap;
+            starts.push(at);
+        }
+        Self { starts, gap }
+    }
+
+    /// Column `i`'s start and, unless it is the row's last, its width: up
+    /// to half the gap beyond its text, so a slightly wider line (a bolder
+    /// match) still fits.
+    fn column(&self, i: usize, last: bool) -> (f32, Option<f32>) {
+        let at = |i: usize| self.starts.get(i).copied();
+        let start = at(i).unwrap_or_else(|| *self.starts.last().unwrap_or(&0.0));
+        let width = (!last)
+            .then(|| at(i + 1).map(|next| next - start - self.gap / 2.0))
+            .flatten();
+        (start, width)
+    }
+}
+
+/// A row's cells: each column of its text in its colour at its stop, its
+/// matches set apart (none while it is pending); the last runs to `room`.
+fn cells(
+    row: &Row,
+    left: f32,
+    centre: f32,
+    room: f32,
+    stops: &Stops,
+    theme: &Theme,
+) -> Vec<crate::render::Text> {
     let font = theme.row.font;
     let (columns, matched) = match (row.pending, row.selected) {
         (true, _) => {
@@ -116,43 +179,52 @@ fn row_text(row: &Row, left: f32, centre: f32, width: f32, theme: &Theme) -> cra
         (false, false) => (theme.row.columns.clone(), theme.matched.color),
     };
     let highlights: &[Range<usize>] = if row.pending { &[] } else { &row.highlights };
-    let mut t = column(
-        text(row.text.clone(), left, centre, &font, columns[0]),
-        width,
-        Overflow::Ellipsis,
-    );
-    t.spans = spans(&row.text, &columns, highlights, matched);
-    t.emphasis = highlights.to_vec();
-    t.emphasis_face = Some(theme.matched.face);
-    t.underline_emphasis = theme.matched.underline;
-    t
+    let ranges = cell_ranges(&row.text);
+    let n = ranges.len();
+    let mut texts = Vec::with_capacity(n);
+    for (i, range) in ranges.into_iter().enumerate() {
+        let (start, width) = stops.column(i, i + 1 == n);
+        let width = width.unwrap_or(room - start).min(room - start);
+        if width < 1.0 {
+            break;
+        }
+        let colour = *columns.get(i).or(columns.last()).unwrap_or(&matched);
+        let words = &row.text[range.clone()];
+        let mut t = column(
+            text(words, left + start, centre, &font, colour),
+            width,
+            Overflow::Ellipsis,
+        );
+        let mine = within(highlights, &range);
+        t.spans = mine.iter().map(|r| (r.clone(), matched)).collect();
+        t.emphasis = mine;
+        t.emphasis_face = Some(theme.matched.face);
+        t.underline_emphasis = theme.matched.underline;
+        texts.push(t);
+    }
+    texts
 }
 
-/// The colour spans of a row: each tab-separated column in its colour (the
-/// last colour for further columns), cut where a match begins or ends so
-/// that matches take the match colour.
-fn spans(
-    text: &str,
-    columns: &[Rgba],
-    highlights: &[Range<usize>],
-    matched: Rgba,
-) -> Vec<(Range<usize>, Rgba)> {
-    let mut cuts: Vec<usize> = vec![0, text.len()];
-    cuts.extend(text.match_indices('\t').map(|(i, _)| i + 1));
-    cuts.extend(highlights.iter().flat_map(|r| [r.start, r.end]));
-    cuts.retain(|&c| c <= text.len() && text.is_char_boundary(c));
-    cuts.sort_unstable();
-    cuts.dedup();
-    let colour_at = |at: usize| {
-        if highlights.iter().any(|r| r.contains(&at)) {
-            return matched;
-        }
-        let n = text[..at].matches('\t').count();
-        *columns.get(n).or(columns.last()).unwrap_or(&matched)
-    };
-    cuts.windows(2)
-        .map(|w| (w[0]..w[1], colour_at(w[0])))
-        .filter(|(r, _)| !r.is_empty())
+/// The byte ranges of `text`'s tab-separated columns.
+pub(super) fn cell_ranges(text: &str) -> Vec<Range<usize>> {
+    let mut at = 0;
+    let mut ranges = Vec::new();
+    for (tab, _) in text.match_indices('\t') {
+        ranges.push(at..tab);
+        at = tab + 1;
+    }
+    ranges.push(at..text.len());
+    ranges
+}
+
+/// The parts of `highlights` inside `cell`, counted from its start.
+fn within(highlights: &[Range<usize>], cell: &Range<usize>) -> Vec<Range<usize>> {
+    highlights
+        .iter()
+        .map(|r| {
+            r.start.max(cell.start) - cell.start..r.end.min(cell.end).max(cell.start) - cell.start
+        })
+        .filter(|r| !r.is_empty())
         .collect()
 }
 
@@ -161,25 +233,20 @@ fn spans(
 mod tests {
     use super::*;
 
-    const A: Rgba = Rgba::hex(0x111111);
-    const B: Rgba = Rgba::hex(0x222222);
-    const M: Rgba = Rgba::hex(0xffffff);
-
     #[test]
-    fn columns_take_their_colours_and_the_last_repeats() {
-        let s = spans("ab\tcd\tef", &[A, B], &[], M);
-        assert_eq!(s, [(0..3, A), (3..6, B), (6..8, B)]);
+    fn a_line_is_cut_into_columns_at_its_tabs() {
+        assert_eq!(cell_ranges("ab\tcd\tef"), [0..2, 3..5, 6..8]);
+        assert_eq!(cell_ranges("rite"), [0..4]);
+        assert_eq!(cell_ranges(""), [0..0]);
+        assert_eq!(cell_ranges("\tx\t"), [0..0, 1..2, 3..3]);
     }
 
     #[test]
-    fn matches_cut_their_columns() {
-        let s = spans("ab\tcd", &[A, B], &[1..2, 3..4], M);
-        assert_eq!(s, [(0..1, A), (1..2, M), (2..3, A), (3..4, M), (4..5, B)]);
-    }
-
-    #[test]
-    fn a_line_without_tabs_is_one_column() {
-        assert_eq!(spans("rite", &[A, B], &[], M), [(0..4, A)]);
-        assert_eq!(spans("", &[A], &[], M), []);
+    fn matches_are_cut_to_their_column() {
+        let h = [1..2, 3..6, 7..9];
+        assert_eq!(within(&h, &(0..2)), [1..2]);
+        assert_eq!(within(&h, &(3..5)), [0..2]);
+        assert_eq!(within(&h, &(6..8)), [1..2]);
+        assert!(within(&h, &(9..9)).is_empty());
     }
 }

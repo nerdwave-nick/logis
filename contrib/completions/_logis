@@ -1,0 +1,50 @@
+#compdef logis
+# zsh completion for logis(1), the cogitator of the Machine God.
+# Maintained by hand; tests/completions.rs pins it to the runes the parser
+# (src/cli/) accepts. Installed as /usr/share/zsh/site-functions/_logis.
+
+_logis() {
+  if [[ $words[2] == daemon ]] && (( CURRENT > 2 )); then
+    # Complete `daemon`'s runes as if it were the command.
+    shift words
+    (( CURRENT-- ))
+    _arguments -S \
+      '--idle-timeout=[sleep once no client has called for this long]:seconds (0 stays resident):' \
+      '--config=[the config to read]:config file:_files' \
+      '--detach[leave the starter'\''s stdout and stderr once listening]' \
+      '--debug-panel[show the renderer'\''s static debug panel instead]'
+    return
+  fi
+
+  local modes='-d --dmenu --dmenu0 --apps --servitor --provider --check-config -V --version'
+  _arguments -S \
+    "($modes)"{-d,--dmenu}'[pick a line from stdin]' \
+    "($modes)--dmenu0[pick a NUL-ended record from stdin]" \
+    "($modes)--apps[the app launcher (also plain logis)]" \
+    "($modes)--servitor[choose a rite of servitor and invoke it]" \
+    "($modes)--provider[show what a provider program says]:provider program:_command_names -e:*::provider arguments:_normal" \
+    "($modes)--check-config[judge the config and its theme]" \
+    "($modes)"{-V,--version}'[print the name and version]' \
+    '--config=[the config a started daemon reads]:config file:_files' \
+    {-p,--prompt=}'[shown before the query]:prompt text:' \
+    '--prompt-only=[a prompt alone, no list]:prompt text:' \
+    '--placeholder=[shown while the query is empty]:placeholder text:' \
+    '--password[show each typed character as * (or --password=C)]' \
+    {-l,--lines=}'[rows shown at most]:rows:' \
+    {-w,--width=}'[window width in characters]:characters:' \
+    '--counter[show how many items match]' \
+    '--search=[the query to open with]:query:' \
+    '(--select-index)--select=[preselect the item with this text]:item text:' \
+    '(--select)--select-index=[preselect item N, from 0]:index:' \
+    '--only-match[accept only an item, never typed text]' \
+    {-R,--no-run-if-empty}'[exit at once on an empty stdin]' \
+    '--index[print the chosen index instead of its text]' \
+    '--with-nth=[the columns shown]:column or format:' \
+    '--accept-nth=[the columns printed]:column or format:' \
+    '--match-nth=[the columns matched]:column or format:' \
+    '--nth-delimiter=[the column delimiter (tab)]:one ASCII character:' \
+    '-i[ignored: logis always ignores case]' \
+    '1: :((daemon\:"the machine spirit itself"))'
+}
+
+_logis "$@"

@@ -55,6 +55,11 @@ impl TextPass {
         }
     }
 
+    /// The fonts lines are shaped with.
+    pub(crate) fn fonts_mut(&mut self) -> &mut Fonts {
+        &mut self.fonts
+    }
+
     /// Resolves the faces texts name by index; every line is shaped anew.
     pub(crate) fn set_faces(&mut self, faces: &[Face]) -> Result<(), FontError> {
         self.shaped.clear();

@@ -197,3 +197,36 @@ fn reduce_motion_stills_every_continuous_effect() {
         "static effects stay"
     );
 }
+
+#[test]
+fn rows_space_their_columns_and_cap_all_but_the_last() {
+    let forge = Theme::bundled_default();
+    assert_eq!(forge.row.column_gap, 32.0);
+    assert_eq!(forge.row.column_max, 0.4);
+    let phosphor = Themes::default().load("cogitator-phosphor").unwrap();
+    assert_eq!(
+        phosphor.row.column_gap, 28.0,
+        "its own, for its larger face"
+    );
+    assert_eq!(phosphor.row.column_max, 0.4, "the default's");
+    let dir = Dir::new("columns")
+        .with("wide", r#"{"row": {"column-max": 1.5}}"#)
+        .with("none", r#"{"row": {"column-max": 0}}"#)
+        .with("gap", r#"{"row": {"column-gap": -2}}"#);
+    let problem = |name| dir.themes().load(name).unwrap_err().problem;
+    assert!(
+        problem("wide").starts_with("row.column-max: 1.5"),
+        "{}",
+        problem("wide")
+    );
+    assert!(
+        problem("none").starts_with("row.column-max: 0"),
+        "{}",
+        problem("none")
+    );
+    assert!(
+        problem("gap").starts_with("row.column-gap:"),
+        "{}",
+        problem("gap")
+    );
+}

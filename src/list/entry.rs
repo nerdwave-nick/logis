@@ -4,7 +4,7 @@
 /// One item of a list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
-    /// The text shown; tabs advance to tab stops, so columns line up.
+    /// The text shown; its tab-separated columns line up with other rows'.
     pub text: String,
     /// The text matched instead of `text` (`--match-nth`, or a provider's
     /// `match`); `None` matches `text`, and only then are matches highlighted.

@@ -15,6 +15,7 @@ mod pointer;
 pub use look::{Look, Row};
 
 use super::filter::Filter;
+use super::scene::Columns;
 use super::{Decor, Entry, Options, Preselect};
 use crate::input::{Action, Edit, Query, Step};
 
@@ -67,6 +68,8 @@ pub struct ListView {
     touched: bool,
     /// The pointer's state (see [`Self::point`]).
     pointing: pointer::Pointing,
+    /// How wide the columns have grown (see [`Self::look_measured`]).
+    columns: Columns,
 }
 
 impl ListView {
@@ -91,6 +94,7 @@ impl ListView {
             follow: None,
             touched: false,
             pointing: pointer::Pointing::default(),
+            columns: Columns::default(),
         }
     }
 

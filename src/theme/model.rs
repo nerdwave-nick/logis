@@ -208,6 +208,11 @@ pub struct Row {
     pub columns: Vec<Rgba>,
     /// An emblem's colour.
     pub glyph: Rgba,
+    /// Between one column's widest text and the next column.
+    pub column_gap: f32,
+    /// The most of the row's width a column other than the last may take
+    /// (0 to 1; wider text ends in an ellipsis).
+    pub column_max: f32,
 }
 
 /// The selected row.

@@ -87,7 +87,7 @@ pub enum Input {
 pub struct Item {
     /// Stable within its stage: updates, removals and `activate` name it.
     pub id: String,
-    /// Shown left to right, lined up at tab stops.
+    /// Shown left to right, lined up with the other rows' columns.
     pub columns: Vec<String>,
     /// Matched instead of the columns.
     #[serde(rename = "match")]

@@ -88,7 +88,7 @@ The first stage sizes the window; later stages keep that size.
 | Field | Default | Meaning |
 |---|---|---|
 | `id` | `""` | stable within its stage: `items`, `remove`, `select` and `activate` name it |
-| `columns` | `[]` | shown left to right, lined up at tab stops (a tab or line break inside a column becomes a space) |
+| `columns` | `[]` | shown left to right, lined up with the other rows' columns (each as wide as its widest text shown so far, the last taking the rest; a tab or line break inside a column becomes a space) |
 | `match` | the columns | the text the query is matched against instead (then nothing is highlighted) |
 | `icon` | — | a freedesktop icon name or an absolute path, for the icon column |
 | `glyph` | — | a short text for the icon column (an emblem such as `⚙`) |

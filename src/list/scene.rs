@@ -2,8 +2,8 @@
 //! with its glow, border and ornaments; the prompt line with its sigil,
 //! label, query, caret and counter; a rule; the rows below it, the selected
 //! one on a band, matched characters set apart; badges, pending rows and a
-//! toast. Rows are single lines whose tabs advance to tab stops, so
-//! tab-separated columns line up and take the theme's column colours.
+//! toast. Rows are single lines whose tab-separated columns line up at
+//! measured widths ([`Columns`]) and take the theme's column colours.
 //!
 //! Every length is the theme's, in logical pixels. A scene is drawn at a
 //! moment ([`Style::at`]) so the theme's continuous effects (glow pulse,
@@ -11,9 +11,12 @@
 //! moment it is a still image.
 
 mod chrome;
+mod columns;
 mod marks;
 mod prompt;
 mod rows;
+
+pub use columns::Columns;
 
 use super::Options;
 use super::view::Look;

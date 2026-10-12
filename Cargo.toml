@@ -1,6 +1,6 @@
 [package]
 name = "logis"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.91"
 description = "A grimdark Wayland launcher and dmenu-compatible picker"
@@ -82,3 +82,23 @@ png = "0.18"
 # peer credentials of the compositor socket) and its dispatch deadline
 # (`event`: poll), which std does not offer.
 rustix = { version = "1.1.5", features = ["net", "event"] }
+
+# The release build users run (packaging/arch/PKGBUILD, `cargo build --release`).
+# Measured against the default release profile on the owner's machine
+# (ticket 4592eb57, 2026-10-12): the binary shrinks from 16.6 MB to 10.9 MB;
+# warm opens (dmenu, apps) and the first open (start → first commit) stay
+# within run-to-run noise (medians 6.9–8.5 ms and 60–77 ms either way).
+# - lto = "fat" and codegen-units = 1: whole-program optimisation across wgpu,
+#   naga, cosmic-text and the rest; 10.9 MB against 11.9 MB with thin LTO,
+#   paid for in release builds only: a clean build took 7.6 minutes against
+#   2.7 with the default profile (22 threads, under load).
+# - strip = true: no symbol table in the binary (13.3 MB with this alone).
+#   The PKGBUILD turns it off and lets makepkg strip, so that its -debug
+#   package keeps the symbols.
+# - panic stays "unwind": the font resolver thread's panic becomes an error
+#   the daemon reports (src/text/fonts.rs) instead of aborting the daemon
+#   with every session it shows; "abort" would save 0.9 MB.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true

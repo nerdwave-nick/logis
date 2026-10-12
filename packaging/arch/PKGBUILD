@@ -1,0 +1,104 @@
+# Maintainer: nerdwave-nick <https://github.com/nerdwave-nick>
+#
+# logis is not in the AUR (AUR registrations are closed); this PKGBUILD lives
+# in the repository instead. From a checkout:
+#
+#   cd packaging/arch && makepkg -si
+#
+# It builds the commit checked out in the repository that holds it (HEAD;
+# uncommitted changes are not built), so the package is exactly one commit.
+# prepare() finds that repository through makepkg's startdir, which namcap
+# reports (file-referred-in-startdir): reading the checkout is the point here.
+#
+# Once v$pkgver is tagged and pushed, build the tagged release instead:
+# replace `source=()` and `sha256sums=()` below with
+#
+#   source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+#   sha256sums=('<the output of: curl -L that URL | sha256sum>')
+#
+# The tarball unpacks to the same "$pkgname-$pkgver" directory that prepare()
+# otherwise exports from the checkout afresh on every build.
+
+pkgname=logis
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='A grimdark Wayland launcher and dmenu-compatible picker'
+arch=('x86_64')
+url='https://github.com/nerdwave-nick/logis'
+license=('MIT')
+# libwayland-client, libvulkan (wgpu) and libEGL (the GL fallback) are
+# loaded at run time (dlopen), so they do not show up as linked libraries.
+depends=(
+  'fontconfig'
+  'glibc'
+  'libgcc'
+  'libxkbcommon'
+  'vulkan-icd-loader'
+  'wayland'
+)
+makedepends=('cargo' 'git')
+optdepends=(
+  'vulkan-driver: render on the GPU through Vulkan (the first choice)'
+  'vulkan-swrast: render in software (lavapipe) where no GPU serves'
+  'libglvnd: the GL backend, tried after Vulkan'
+)
+source=()
+sha256sums=()
+
+prepare() {
+  if (( ${#source[@]} == 0 )); then
+    local repo
+    rm -rf "$pkgname-$pkgver"
+    repo=$(git -C "$startdir" rev-parse --show-toplevel)
+    echo "logis: exporting HEAD of $repo ($(git -C "$repo" rev-parse --short HEAD))"
+    git -C "$repo" archive --format=tar --prefix="$pkgname-$pkgver/" HEAD | tar -x
+  fi
+  cd "$pkgname-$pkgver"
+  if ! grep -qx "version = \"$pkgver\"" Cargo.toml; then
+    echo "logis: Cargo.toml's version is not $pkgver" >&2
+    return 1
+  fi
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # makepkg strips the binary itself and keeps the symbols for a -debug
+  # package when its `debug` option is on; the release profile's own strip
+  # would leave that package empty.
+  export CARGO_PROFILE_RELEASE_STRIP=false
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # Unit, golden and process tests; no compositor is needed. The E2E and
+  # latency suites run only under LOGIS_E2E and print SKIPPED here, render
+  # tests without a GPU adapter print SKIPPED, and nothing may reach the
+  # session that runs makepkg.
+  env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u LOGIS_E2E -u LOGIS_TEST_REQUIRE_BACKENDS \
+    cargo test --frozen
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/logis -t "$pkgdir/usr/bin"
+  install -Dm644 docs/man/logis.1 -t "$pkgdir/usr/share/man/man1"
+  install -Dm644 contrib/completions/logis.bash "$pkgdir/usr/share/bash-completion/completions/logis"
+  install -Dm644 contrib/completions/_logis -t "$pkgdir/usr/share/zsh/site-functions"
+  install -Dm644 contrib/completions/logis.fish -t "$pkgdir/usr/share/fish/vendor_completions.d"
+  # Shipped, not enabled: `systemctl --user enable --now logis.socket`.
+  install -Dm644 contrib/systemd/logis.service contrib/systemd/logis.socket \
+    -t "$pkgdir/usr/lib/systemd/user"
+  install -Dm644 schema/logis.schema.json schema/theme.schema.json \
+    -t "$pkgdir/usr/share/$pkgname/schema"
+  install -Dm644 themes/*.jsonc -t "$pkgdir/usr/share/$pkgname/themes"
+  install -Dm644 README.md CHANGELOG.md docs/provider-protocol.md \
+    -t "$pkgdir/usr/share/doc/$pkgname"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}

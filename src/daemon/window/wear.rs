@@ -14,6 +14,7 @@ use logis::icons::IconSource;
 use logis::list::scene::{self, Style};
 use logis::list::{ListView, Notice, Options};
 use logis::motion::{Glide, Motion};
+use logis::render::Measure;
 use logis::theme::Theme;
 use logis::window::trace::emit;
 use logis::window::{Backdrop, Drawing, Frame, SceneFn, Windows};
@@ -134,8 +135,9 @@ impl Wear {
     }
 
     /// Draws the shown list each frame with its toast in the theme worn now:
-    /// the selection band glides to the selected row, the theme's continuous
-    /// effects keep it drawing, and the body is blurred behind.
+    /// its columns measured as rows come into view, the selection band
+    /// gliding to the selected row, the theme's continuous effects keeping
+    /// it drawing, and the body blurred behind.
     pub fn drawing(
         &self,
         view: Rc<RefCell<ListView>>,
@@ -143,22 +145,24 @@ impl Wear {
         glide: Rc<RefCell<Glide>>,
     ) -> SceneFn {
         let theme = self.cell();
-        Box::new(move |frame: &Frame, icons: &mut dyn IconSource| {
-            let theme = Arc::clone(&theme.borrow());
-            let mut look = view.borrow_mut().look();
-            look.toast = toast.borrow().clone();
-            let target = scene::band_top(&look, frame.logical, &theme);
-            let (band, gliding) = glide.borrow_mut().toward(target, frame.at, frame.interval);
-            let (rect, radius) = scene::body(frame.logical, &theme);
-            let style = Style {
-                theme: &theme,
-                at: frame.at,
-            };
-            Drawing {
-                scene: scene::scene_at(&look, frame.logical, band, style, icons),
-                backdrop: Some(Backdrop { rect, radius }),
-                moving: gliding || scene::moving(&look, &theme),
-            }
-        })
+        Box::new(
+            move |frame: &Frame, icons: &mut dyn IconSource, measure: &mut dyn Measure| {
+                let theme = Arc::clone(&theme.borrow());
+                let mut look = view.borrow_mut().look_measured(&theme, measure);
+                look.toast = toast.borrow().clone();
+                let target = scene::band_top(&look, frame.logical, &theme);
+                let (band, gliding) = glide.borrow_mut().toward(target, frame.at, frame.interval);
+                let (rect, radius) = scene::body(frame.logical, &theme);
+                let style = Style {
+                    theme: &theme,
+                    at: frame.at,
+                };
+                Drawing {
+                    scene: scene::scene_at(&look, frame.logical, band, style, icons),
+                    backdrop: Some(Backdrop { rect, radius }),
+                    moving: gliding || scene::moving(&look, &theme),
+                }
+            },
+        )
     }
 }
