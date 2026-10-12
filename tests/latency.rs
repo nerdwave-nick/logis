@@ -106,13 +106,20 @@ fn round_trips_are_the_sync_requests_of_a_wayland_debug_log() {
 }
 
 #[test]
-fn a_slow_open_names_the_compositor_when_it_stalled_too() {
+fn a_slow_open_names_the_compositor_only_when_its_stall_made_it_slow() {
     let theirs = latency::slow_open(1902.9, Some(1996.9));
     assert!(theirs.contains("1902.9 ms"), "{theirs}");
     assert!(theirs.contains("answered nobody for 1996.9 ms"), "{theirs}");
+    // Without the stall, this open would still have been slow.
+    let busy = latency::slow_open(666.7, Some(70.0));
+    assert!(busy.contains("stalled only 70.0 ms"), "{busy}");
+    assert!(
+        busy.contains("logis, or the machine under load, was slow"),
+        "{busy}"
+    );
     let ours = latency::slow_open(120.0, None);
     assert!(ours.contains("120.0 ms"), "{ours}");
-    assert!(ours.contains("logis was slow"), "{ours}");
+    assert!(ours.contains("answered throughout"), "{ours}");
 }
 
 #[test]

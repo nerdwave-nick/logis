@@ -25,19 +25,24 @@ pub fn alone() -> std::sync::MutexGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// What to say of a warm open of `ms` that was over [`SLOW_OPEN_MS`], with
+/// What to say of a warm open of `ms` that was over [`SLOW_OPEN_MS`], given
 /// the longest time the test compositor itself did not answer meanwhile.
+/// The compositor is named only if its stall alone made the open slow.
 pub fn slow_open(ms: f64, compositor_stalled_ms: Option<f64>) -> String {
     match compositor_stalled_ms {
-        Some(stall) => format!(
-            "a warm open took {ms:.1} ms, but the test compositor itself answered nobody \
-             for {stall:.1} ms of it: its window is not drawn by the session (another \
-             workspace, out of view, screen off), so it gets frame callbacks about once a \
-             second and blocks. Keep the nested niri in view while measuring."
+        Some(stall) if stall >= ms - SLOW_OPEN_MS => format!(
+            "a warm open took {ms:.1} ms, and the test compositor itself answered nobody \
+             for {stall:.1} ms of it. A nested niri does that when the session does not \
+             draw its window (another workspace, out of view, screen off): it gets frame \
+             callbacks about once a second and blocks. Keep it in view while measuring."
         ),
-        None => format!(
-            "a warm open took {ms:.1} ms (over {SLOW_OPEN_MS} ms) while the test \
-             compositor answered throughout: logis was slow"
+        stall => format!(
+            "a warm open took {ms:.1} ms (over {SLOW_OPEN_MS} ms) while the test compositor \
+             {}: logis, or the machine under load, was slow",
+            match stall {
+                Some(stall) => format!("stalled only {stall:.1} ms"),
+                None => "answered throughout".to_owned(),
+            }
         ),
     }
 }
