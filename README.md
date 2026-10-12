@@ -45,9 +45,12 @@ logis is meant to be:
   `$XDG_RUNTIME_DIR/logis.log`); if it cannot start, they exit 2 with its reason.
   To only make sure a daemon runs, without opening a window, start it yourself:
   `logis daemon --detach &` (it exits 0 at once if a daemon already answers).
-- `logis --check-config [--config PATH]` validates the configuration without
-  touching Wayland or the daemon: exit 0 if it is sound (or absent), 2 with the
-  error's file, line and column on stderr.
+- `logis --check-config [--config PATH]` validates the configuration and the
+  [theme](#themes) it names without touching Wayland or the daemon: exit 0 if
+  they are sound (or absent), 2 with the error's file, line and column (or key)
+  on stderr.
+- Every window wears a [theme](#themes): forge crimson & brass by default, or
+  cogitator phosphor, or one of your own, edited live.
 - `logis daemon --debug-panel [--config PATH]` does not serve sessions: it shows a
   static panel drawn by the renderer core (a GPU-rendered overlay layer surface at
   the compositor's fractional scale, with text rows in several scripts and colour
@@ -514,6 +517,7 @@ the defaults.
   "icon-theme": "hicolor",         // freedesktop icon theme, falling back to hicolor
   "focus-loss": "dismiss",         // or "keep": what losing keyboard focus does
   "blur": true,                    // blur what lies behind the panel, where offered
+  "reduce-motion": false,          // true stills the theme's pulse, highlight, flicker
 }
 ```
 
@@ -521,12 +525,93 @@ Unknown keys and values of the wrong kind are errors naming the key, its line an
 its column. The daemon watches the file (and its directory, so editors that save by
 replacing the file are seen too) and applies a sound edit at once. An invalid edit
 changes nothing: the last sound configuration stays in force, and the error goes to
-the daemon's log (and, once the window can show it, a themed notice).
+the daemon's log and, while a list is shown, to a themed notice over it (3 s).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
-follows `focus-loss`, `blur` and `icon-theme`, the app launcher `terminal`; themes
-do not use their setting yet.
+follows `focus-loss`, `blur`, `icon-theme`, `theme` and `reduce-motion`, the app
+launcher `terminal`.
+
+`reduce-motion` is off by default, as decided for the bundled themes (their glow
+pulses and a highlight travels round the border; the flicker is very subtle).
+Turned on, it stills every continuous effect of the theme (glow pulse, travelling
+highlight, flicker, a pending row's shimmer, and the grain stops changing); the
+open, close and selection transitions stay (`LOGIS_MOTION=off` stills those).
+
+## Themes
+
+A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721):
+
+- a **palette** of named colours with alpha (`"brass": "#d4a017"`, or several:
+  `"soot": ["#170e0b", "#0b0807"]`, named `soot.0`, `soot.1`);
+- the **elements** that refer to it: `window` (default size and rows), `glow`,
+  `border` (gradient of up to four stops, travelling highlight), `panel`,
+  `decorations` (corner rivets), `prompt` (label, sigil), `query` (caret),
+  `counter`, `rule`, `row` (font, height, colour per tab-separated column),
+  `selection`, `match` (colour, weight, underline), `badge`, `pending` — and
+  `fonts`, the font roles they name;
+- **effects and motion**: one post-processing pass over the body (`scanlines`,
+  `grain`, `flicker`, `vignette`, `bloom`, `curvature`, `aberration`, each a
+  strength where 0 is off) and the transition timings.
+
+Colours are `#rrggbb`, `#rrggbbaa`, `transparent` or a palette name, each
+optionally with `/alpha` (`"crimson/0.55"`). Lengths are logical pixels: a theme
+looks the same at scales 1.0, 1.3 and 2.0. The JSON Schema is
+[`schema/theme.schema.json`](schema/theme.schema.json); its defaults are the
+bundled default's values.
+
+Two themes are bundled (compiled in): **`forge-crimson-brass`** (the default:
+[themes/forge-crimson-brass.jsonc](themes/forge-crimson-brass.jsonc), after the
+research spike) and **`cogitator-phosphor`**, a green CRT (curved glass, bloom,
+inverse selection, underlined matches:
+[themes/cogitator-phosphor.jsonc](themes/cogitator-phosphor.jsonc)). Choose one
+with the config's `"theme"`. Your own are `themes/<name>.jsonc` beside
+`logis.jsonc` (`~/.config/logis/themes/`); a file named like a bundled theme
+overrides it.
+
+```jsonc
+// ~/.config/logis/themes/amber.jsonc: phosphor, in amber
+{
+  "$schema": "https://raw.githubusercontent.com/nerdwave-nick/logis/main/schema/theme.schema.json",
+  "extends": "cogitator-phosphor",
+  "palette": { "phosphor": "#ffb000", "text": "#e0a000", "dim": "#8a6000", "edge": "#ffb000" },
+  "prompt": { "sigil": { "image": "sigils/skull.svg", "size": 24 } }
+}
+```
+
+- **Extending and defaults:** `"extends"` names one other theme (bundled or
+  yours) whose keys a theme starts from: one level only (the theme it extends
+  extends nothing), and never in a circle. A theme extending its own name
+  amends the bundled theme of that name. Whatever a theme and its base leave out
+  comes from forge-crimson-brass. A part that may be off (`rivets`, `sigil`,
+  `highlight`, `ornament`, `dash`) is turned off with `false`.
+- **Fonts** are fontconfig families in order of preference, generic families and
+  your aliases included; a family that is not installed falls through to the
+  next: forge uses IBM Plex Mono → monospace for rows and Cinzel → serif for the
+  prompt's label, phosphor VT323 → Terminus → monospace. Only the resolved files
+  are loaded.
+- **Sigils and images:** `"gear"` is logis's own (drawn in the sigil's colour);
+  any other `image` is an SVG or PNG file, relative to the theme's directory
+  (or absolute). Original motifs only in the bundled themes; your personal
+  themes may load whatever images you like.
+- **Size:** a session that names no size (the app launcher, servitor mode, a
+  plain `logis --dmenu`) opens in the theme's `window`: 820×520 logical pixels,
+  centred, nine rows for both bundled themes. `--lines` and `--width` (in
+  average characters of the row font) size it instead.
+- **Live:** the daemon watches `themes/*.jsonc` and the config and applies an
+  edited theme at once, a visible window included (its colours, fonts, effects,
+  motion timings and, when the session named no size, its size). An invalid
+  theme changes nothing: the last sound one stays, and the error (file, line and
+  column, or the key: `border.paint[1]: no colour named 'embr' in the palette`)
+  goes to the log and a notice over a shown list. A theme that cannot be worn at
+  start leaves the bundled default in force. `logis --check-config` checks the
+  theme the config names.
+- **Continuous effects** (glow pulse, travelling highlight, flicker, a pending
+  row's shimmer) keep a visible window drawing at the output's refresh rate:
+  measured on the owner's machine (Intel Arc, nested niri at 60 Hz, release
+  build) a visible forge window draws 60 frames/s with about 70 daemon
+  wake-ups/s and 6 % of one CPU core; with `reduce-motion` it draws nothing and
+  wakes nothing once settled, as any idle window.
 
 ## Motion and blur
 
@@ -554,9 +639,10 @@ settled it draws nothing until the next change.
   closes and fades. The launched app gets the keyboard at once.
 
 The durations, start and end poses and easing curves (CSS `cubic-bezier`) are the
-parameters of `logis::motion::Motion`, for themes to set later; they are not
-config keys yet. `LOGIS_MOTION=off` in the daemon's environment turns motion off,
-and `LOGIS_MOTION=4` runs it four times slower (any factor up to 100).
+parameters of `logis::motion::Motion`; a theme sets the durations (`"motion":
+{ "open-ms", "close-ms", "select-ms" }`). `LOGIS_MOTION=off` in the daemon's
+environment turns motion off, and `LOGIS_MOTION=4` runs it four times slower (any
+factor up to 100); either outranks the theme.
 
 With `"blur": true` (the default) the compositor blurs what lies behind the
 panel's body, a rounded rectangle, through ext-background-effect-v1 (niri offers
@@ -629,9 +715,10 @@ from `vulkan-swrast` / `mesa-vulkan-drivers`); without one, the render tests pri
 
 ### Fonts and text goldens
 
-logis asks libfontconfig, in-process, for the default family (`sans-serif`, after
-the user's aliases) and, per character, for the first font in fontconfig's
-fallback order that covers it; only those files are loaded. cosmic-text's full
+logis asks libfontconfig, in-process, for the theme's faces (each a list of
+families in order of preference at a weight, after the user's aliases; without
+a theme the default family `sans-serif`) and, per character, for the first font
+in fontconfig's fallback order that covers it; only those files are loaded. cosmic-text's full
 system scan (`FontSystem::new()`) is forbidden by `clippy.toml`. The daemon
 resolves its fonts (fontconfig's configuration and caches, the default face and
 the fallback order) on a thread of their own while it connects and wakes the GPU,
@@ -649,6 +736,16 @@ LOGIS_UPDATE_GOLDENS=1 cargo test --test text
 
 A mismatch leaves the render and a difference image under
 `target/tmp/golden-failures/`.
+
+The themes have goldens of their own: `tests/list.rs` draws the same lists in
+each bundled theme at scales 1.0, 1.3 and 2.0 into `tests/goldens/themes/<theme>/`,
+the frame's time frozen (glow at full strength, the highlight at the top, grain
+and flicker at time 0), with the pinned Noto Sans Mono and Noto Serif standing in
+for the themes' own families; `tests/faces.rs`, `tests/primitives.rs` and
+`tests/post.rs` cover faces and carets, gradients and the highlight, and each
+post-processing effect. The post pass reads pixels with `textureLoad` and draws
+its noise from an integer hash, so its goldens hold on any GPU.
+`LOGIS_UPDATE_GOLDENS=1 cargo test --test list` rewrites them.
 
 `tests/icons.rs` compares icon renders with the PNG goldens in
 `tests/goldens/icons/` (straight alpha, each channel within 3);
@@ -745,6 +842,13 @@ with `mod support;`.
   GLib's ([`glib-reference.py`](tests/fixtures/dbus/glib-reference.py)). Test
   daemons run without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so
   they find no session bus.
+- **Themes** ([`tests/theme_window.rs`](tests/theme_window.rs)): in the test
+  compositor, an edited theme reaches the visible window (`theme <name>`), a
+  broken one keeps the last sound theme and shows its notice (`toast …`,
+  `untoast`), and a window keeps drawing only while the theme's continuous
+  effects move (it reports frames, wake-ups and CPU for both). Every other E2E
+  daemon runs with `reduce-motion` unless its test's config names it, so its
+  windows settle and screen captures agree.
 - **servitor mode** ([`tests/servitor.rs`](tests/servitor.rs),
   [`tests/servitor_window.rs`](tests/servitor_window.rs)): a fake `servitor`
   ([`tests/fixtures/servitor/servitor`](tests/fixtures/servitor/servitor), POSIX
@@ -773,12 +877,13 @@ was dropped after the next window's first frame); the debug panel adds what each
 `update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
 `query <JSON string>`, `select <item>` (or `select none`), `accept <item>`,
 `descend <item>` (Shift+Return), `typed <JSON string>`, `dismiss`, `token
-<session>` (an activation token came), `linger <session>` and `hide <session>`.
+<session>` (an activation token came), `linger <session>`, `hide <session>` and
+`theme <name>` (the window put a theme on).
 
 Locally (inside a running Wayland session; a nested niri window opens briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion
+LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion --test theme_window
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
 

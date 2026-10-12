@@ -24,6 +24,10 @@
 //! - **apps warm open / open settled:** the same for `logis --apps`, the
 //!   index resident (the system's own applications and icons; nothing is
 //!   launched).
+//! - **dmenu warm open, continuous effects:** the same first commit with the
+//!   default theme's glow pulse, travelling highlight and flicker moving
+//!   (the harness otherwise runs with `reduce-motion`, so that windows
+//!   settle); such a window never settles, so there is no settled series.
 //! - **dmenu keystroke → commit:** typing into the query and deleting it
 //!   again, each key to the frame showing the new matches; with three
 //!   items, and with 100 000 (every keystroke re-filters them all, or the
@@ -212,14 +216,16 @@ fn debug_panel_latency() {
 /// a warm open finds nothing on screen. A closing window's frames (`commit
 /// closing`) are not the new window's.
 fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> (Vec<f64>, Vec<f64>) {
-    warm_open(c, runs, |c| c.dmenu_all(&[], b"alpha\nbeta\ngamma\n"))
+    warm_open(c, runs, true, |c| c.dmenu_all(&[], b"alpha\nbeta\ngamma\n"))
 }
 
 /// Warm opens of the client `open` starts: exec → first commit, and exec →
-/// the open settled; the first (warming) run is not counted.
+/// the open settled (if `settles`; a window whose theme moves on its own
+/// never does); the first (warming) run is not counted.
 fn warm_open(
     c: &mut Cogitator,
     runs: usize,
+    settles: bool,
     open: impl Fn(&Cogitator) -> support::e2e::cogitator::Client,
 ) -> (Vec<f64>, Vec<f64>) {
     let mut first = Vec::with_capacity(runs);
@@ -232,12 +238,16 @@ fn warm_open(
         let commit = c
             .daemon
             .wait_for("a first frame", |e| e.what == "commit" && e.ns >= t0);
-        let rest = c
-            .daemon
-            .wait_for("the open settles", |e| e.what == "settled");
         if run > 0 {
             first.push(latency::ms_between(t0, commit.ns));
-            settled.push(latency::ms_between(t0, rest.ns));
+        }
+        if settles {
+            let rest = c
+                .daemon
+                .wait_for("the open settles", |e| e.what == "settled");
+            if run > 0 {
+                settled.push(latency::ms_between(t0, rest.ns));
+            }
         }
         drop(client);
         c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
@@ -367,7 +377,7 @@ fn apps_latency() {
     let frame_ms = 1000.0 / c.harness.refresh_hz();
     // The index is read on a thread of its own at start; let it finish.
     std::thread::sleep(Duration::from_millis(500));
-    let (open, open_settled) = warm_open(&mut c, runs, |c| c.apps(&[]));
+    let (open, open_settled) = warm_open(&mut c, runs, true, |c| c.apps(&[]));
     let series = [
         Series::new(
             "apps warm open: start → first commit",
@@ -391,5 +401,34 @@ fn apps_latency() {
                 s.budget_ms
             );
         }
+    }
+}
+
+/// The warm open with the default theme moving on its own: its first
+/// frame costs what a still one does, and the window never settles.
+#[test]
+fn dmenu_latency_with_continuous_effects() {
+    let config = r#"{ "reduce-motion": false }"#;
+    let Some(mut c) = Cogitator::start_with(&[], Some(config)) else {
+        return;
+    };
+    let runs = latency::runs();
+    let items = b"alpha\nbeta\ngamma\n";
+    let (open, _) = warm_open(&mut c, runs, false, |c| c.dmenu_all(&[], items));
+    let series = [Series::new(
+        "dmenu warm open, continuous effects: start → first commit",
+        latency::WARM_OPEN_MS,
+        open,
+    )];
+    latency::record(c.compositor.kind().name(), &series);
+    if latency::enforce() {
+        let s = &series[0];
+        assert!(
+            s.within_budget(),
+            "{}: median {:.2} ms over its {:.2} ms budget",
+            s.name,
+            s.median(),
+            s.budget_ms
+        );
     }
 }

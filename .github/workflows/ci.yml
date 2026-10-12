@@ -116,6 +116,11 @@ jobs:
       - name: Motion E2E (cargo test --test motion)
         run: cargo test --locked --test motion -- --nocapture
 
+      # A theme edited and broken under a visible window; continuous
+      # effects keep it drawing until reduce-motion stills them.
+      - name: Theme E2E (cargo test --test theme_window)
+        run: cargo test --locked --test theme_window -- --nocapture
+
       # Relative trend only: budgets are recorded, never enforced here
       # (absolute budgets are checked on the owner's machine with
       # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.

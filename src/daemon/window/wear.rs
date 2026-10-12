@@ -10,9 +10,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use logis::motion::Motion;
+use logis::icons::IconSource;
+use logis::list::scene::{self, Style};
+use logis::list::{ListView, Notice, Options};
+use logis::motion::{Glide, Motion};
 use logis::theme::Theme;
-use logis::window::Windows;
+use logis::window::trace::emit;
+use logis::window::{Backdrop, Drawing, Frame, SceneFn, Windows};
 use wayland_client::QueueHandle;
 
 /// How long a notice from the daemon shows.
@@ -59,6 +63,7 @@ impl Wear {
 
     /// Wears `theme` from now on, the visible panel included.
     pub fn put_on(&mut self, windows: &mut Windows, qh: &QueueHandle<Windows>, theme: Arc<Theme>) {
+        emit(format_args!("theme {}", theme.name));
         if let Err(e) = windows.set_faces(&theme.faces) {
             crate::daemon::log(&format!("the theme's fonts fall back: {e}"));
         }
@@ -73,5 +78,84 @@ impl Wear {
         self.blur = blur;
         let theme = self.theme.borrow().panel.blur;
         windows.set_blur(blur && theme, qh);
+    }
+
+    /// The shown list's size and rows in the theme worn now, from the size
+    /// its session `asked` for: the panel is resized; returns the rows.
+    pub fn refit(
+        &self,
+        windows: &mut Windows,
+        (lines, width): (Option<u32>, Option<u32>),
+        view: &RefCell<ListView>,
+    ) -> u32 {
+        let asked = Options {
+            lines,
+            width,
+            ..Options::default()
+        };
+        let (size, rows) = scene::fit(&asked, &self.theme.borrow());
+        view.borrow_mut().set_lines(rows);
+        windows.resize(size);
+        rows
+    }
+
+    /// Shows the daemon's `notice` in `toast` (the shown list's) for
+    /// [`NOTICE`].
+    pub fn notify(
+        &mut self,
+        windows: &mut Windows,
+        toast: &RefCell<Option<Notice>>,
+        notice: Notice,
+    ) {
+        let quoted = serde_json::to_string(&notice.text).unwrap_or_default();
+        emit(format_args!("toast {quoted}"));
+        toast.replace(Some(notice));
+        let until = Instant::now() + NOTICE;
+        self.notice_until = Some(until);
+        windows.set_alarm(Some(until));
+        windows.request_redraw();
+    }
+
+    /// Takes the daemon's notice away from `toast` once its time is up.
+    pub fn expire(&mut self, windows: &mut Windows, toast: Option<&RefCell<Option<Notice>>>) {
+        if self.notice_until.is_none_or(|until| Instant::now() < until) {
+            return;
+        }
+        self.notice_until = None;
+        windows.set_alarm(None);
+        if let Some(toast) = toast {
+            toast.replace(None);
+            windows.request_redraw();
+            emit(format_args!("untoast"));
+        }
+    }
+
+    /// Draws the shown list each frame with its toast in the theme worn now:
+    /// the selection band glides to the selected row, the theme's continuous
+    /// effects keep it drawing, and the body is blurred behind.
+    pub fn drawing(
+        &self,
+        view: Rc<RefCell<ListView>>,
+        toast: Rc<RefCell<Option<Notice>>>,
+        glide: Rc<RefCell<Glide>>,
+    ) -> SceneFn {
+        let theme = self.cell();
+        Box::new(move |frame: &Frame, icons: &mut dyn IconSource| {
+            let theme = Arc::clone(&theme.borrow());
+            let mut look = view.borrow_mut().look();
+            look.toast = toast.borrow().clone();
+            let target = scene::band_top(&look, frame.logical, &theme);
+            let (band, gliding) = glide.borrow_mut().toward(target, frame.at, frame.interval);
+            let (rect, radius) = scene::body(frame.logical, &theme);
+            let style = Style {
+                theme: &theme,
+                at: frame.at,
+            };
+            Drawing {
+                scene: scene::scene_at(&look, frame.logical, band, style, icons),
+                backdrop: Some(Backdrop { rect, radius }),
+                moving: gliding || scene::moving(&look, &theme),
+            }
+        })
     }
 }

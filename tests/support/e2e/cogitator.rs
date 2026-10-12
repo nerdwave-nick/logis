@@ -28,6 +28,15 @@ pub struct Client {
     pub stdin: Option<ChildStdin>,
 }
 
+/// `config` (a JSONC object) with `"reduce-motion": true` added, unless
+/// it names `reduce-motion` itself.
+pub fn still(config: &str) -> String {
+    if config.contains("\"reduce-motion\"") {
+        return config.to_owned();
+    }
+    config.replacen('{', "{ \"reduce-motion\": true,", 1)
+}
+
 /// How a client ended: its exit code and stdout.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Ended {
@@ -43,15 +52,17 @@ impl Cogitator {
     }
 
     /// [`Self::start`] with `env` set for the daemon (such as
-    /// `LOGIS_MOTION`) and `config` as its logis.jsonc.
+    /// `LOGIS_MOTION`) and `config` as its logis.jsonc. Unless the config
+    /// names `reduce-motion`, it is turned on: the theme's continuous
+    /// effects (glow pulse, travelling highlight, flicker) would keep a
+    /// window drawing, so it would never settle and no two captures agree.
     pub fn start_with(env: &[(&str, &str)], config: Option<&str>) -> Option<Self> {
         let kind = Kind::requested()?;
         let compositor = TestCompositor::start(kind);
-        if let Some(text) = config {
-            let dir = compositor.config_home().join("logis");
-            std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(dir.join("logis.jsonc"), text).unwrap();
-        }
+        let text = still(config.unwrap_or("{}"));
+        let dir = compositor.config_home().join("logis");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("logis.jsonc"), text).unwrap();
         let mut harness = Harness::connect(&compositor);
         let kb = harness.virtual_keyboard();
         let mut command = compositor.logis();

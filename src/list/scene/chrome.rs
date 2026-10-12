@@ -152,7 +152,8 @@ fn dot((cx, cy): (f32, f32), radius: f32, color: Rgba) -> RoundedRect {
 }
 
 /// The theme's effects over the body, if any is on; their time is the
-/// frame's, in seconds within the hour.
+/// frame's, in seconds within the hour, while the theme moves on its own,
+/// and frozen at 0 otherwise (motion reduced: the grain stands still).
 pub(super) fn post(body: [f32; 4], style: Style<'_>) -> Option<Post> {
     let theme = style.theme;
     let e = &theme.effects;
@@ -166,7 +167,11 @@ pub(super) fn post(body: [f32; 4], style: Style<'_>) -> Option<Post> {
         bloom: e.bloom,
         curvature: e.curvature,
         aberration: e.aberration,
-        time: (style.at % 3_600_000_000_000) as f32 / 1e9,
+        time: if theme.is_continuous() {
+            (style.at % 3_600_000_000_000) as f32 / 1e9
+        } else {
+            0.0
+        },
     };
     post.any().then_some(post)
 }

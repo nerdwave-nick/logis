@@ -2,14 +2,24 @@
 //! the query (or its placeholder) with the caret, and the counter at the
 //! end.
 
+use std::path::{Path, PathBuf};
+
 use super::{Style, advance, chrome, column, text};
+use crate::icons::IconSource;
 use crate::list::Options;
 use crate::list::view::Look;
-use crate::render::{Caret, CaretShape, Overflow, Scene};
-use crate::theme::doc;
+use crate::render::{Caret, CaretShape, ImageQuad, Overflow, Scene};
+use crate::theme::{Theme, doc};
 
-/// Draws the prompt line across the top of `body`.
-pub(super) fn line(scene: &mut Scene, look: &Look, body: [f32; 4], style: Style<'_>) {
+/// Draws the prompt line across the top of `body`; a sigil image comes
+/// from `icons`.
+pub(super) fn line(
+    scene: &mut Scene,
+    look: &Look,
+    body: [f32; 4],
+    style: Style<'_>,
+    icons: &mut dyn IconSource,
+) {
     let theme = style.theme;
     let p = &theme.prompt;
     let [x, y, w, _] = body;
@@ -17,7 +27,6 @@ pub(super) fn line(scene: &mut Scene, look: &Look, body: [f32; 4], style: Style<
     let mut left = x + theme.panel.padding;
     let right = x + w - theme.panel.padding;
     if let Some(sigil) = &p.sigil {
-        // Images other than logis's own gear wait for the image source.
         if sigil.image == "gear" {
             chrome::gear(
                 scene,
@@ -25,6 +34,16 @@ pub(super) fn line(scene: &mut Scene, look: &Look, body: [f32; 4], style: Style<
                 sigil.size,
                 sigil.color,
             );
+        } else if let Some(path) = sigil_path(theme, &sigil.image) {
+            let side = sigil.size.round().max(1.0) as u32;
+            let found = path.to_str().and_then(|p| icons.image(p, side));
+            if let Some(image) = found {
+                scene.images.push(ImageQuad {
+                    image,
+                    origin: [left, centre - side as f32 / 2.0],
+                    opacity: 1.0,
+                });
+            }
         }
         left += sigil.size + p.gap;
     }
@@ -91,4 +110,15 @@ fn query(look: &Look, left: f32, centre: f32, room: f32, style: Style<'_>) -> cr
         glow: q.caret.glow,
     });
     t
+}
+
+/// A sigil image's file: an absolute path as it is, a relative one in the
+/// theme's directory (a bundled theme has none).
+fn sigil_path(theme: &Theme, image: &str) -> Option<PathBuf> {
+    let path = Path::new(image);
+    if path.is_absolute() {
+        Some(path.to_owned())
+    } else {
+        theme.dir.as_ref().map(|dir| dir.join(path))
+    }
 }

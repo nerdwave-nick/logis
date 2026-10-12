@@ -101,7 +101,9 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
     }
 
     // Bloom: light from bright pixels around, on two rings. The directions
-    // are constants (no cos/sin), so every GPU reads the same pixels.
+    // are constants (no cos/sin), so every GPU reads the same pixels; on
+    // curved glass the taps lie between pixels and are read bilinearly, so
+    // a rounding difference moves a tap a little, never to another pixel.
     let bloom = u.b.x;
     if (bloom > 0.0) {
         var light = vec3f(0.0);
@@ -109,7 +111,12 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
             let dir = RING[i];
             for (var ring = 0; ring < 2; ring++) {
                 let reach = (3.0 + 4.0 * f32(ring)) * u.scale;
-                let s = load(vec2i(floor(q + dir * reach)));
+                var s: vec4f;
+                if (curvature > 0.0) {
+                    s = sample(q + dir * reach);
+                } else {
+                    s = load(vec2i(floor(q + dir * reach)));
+                }
                 light += max(s.rgb - vec3f(0.35 * s.a), vec3f(0.0));
             }
         }

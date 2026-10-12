@@ -237,9 +237,30 @@ logis's own small GPU renderer on wgpu: SDF primitives, glyph quads, an icon atl
 and an optional post-processing pass. There is no CPU renderer. See ADR 0001.
 
 **Theme**:
-A named set of visual properties in `themes/<name>.jsonc`, selected by
-`"theme": "<name>"`. Bundled themes are compiled in; a user file overrides a bundled
-theme of the same name. The theme model itself is still being designed (6217c721).
+A named look in `themes/<name>.jsonc` (beside the config), selected by
+`"theme": "<name>"`, described by `schema/theme.schema.json`. Bundled themes are
+compiled in; a user file overrides a bundled theme of the same name. A theme may
+**extend** one other theme by name (one level, never in a circle); whatever it
+leaves out comes from the bundled default. An invalid theme leaves the **last
+sound theme** in force and is reported in the log and as a toast.
+
+**Palette / element / effect**:
+The theme's three layers: the **palette** of named colours with alpha; the
+**elements** (window, glow, border, panel, decorations, prompt, query, counter,
+rule, row, selection, match, badge, pending), which name palette colours and font
+**roles**; and the **effects** of the post-processing pass over the body
+(scanlines, grain, flicker, vignette, bloom, curvature, chromatic aberration),
+each a strength where 0 is off, with the motion timings.
+
+**Continuous effect**:
+What moves on its own while a window is visible: the glow's **pulse**, the
+**travelling highlight** round the border, the **flicker**, and a pending row's
+**shimmer**. They keep the window drawing; **reduce motion** (the config's
+`reduce-motion`) stills them all.
+
+**Sigil**:
+The image before the prompt's label: logis's own **gear**, or a personal theme's
+SVG or PNG file. Original motifs only in the bundled themes.
 
 **Config**:
 `logis.jsonc` in `$XDG_CONFIG_HOME/logis/` (or `--config PATH`): JSONC described by
@@ -259,8 +280,9 @@ The compositor blurring what lies behind the panel's body (ext-background-effect
 the config's `blur`; where the compositor does not offer it, there is none.
 
 **Forge crimson & brass / cogitator phosphor**:
-The two bundled themes of v1: the default glowing brass-to-crimson panel of the
-research spike, and a green CRT look.
+The two bundled themes of v1 (`forge-crimson-brass`, the default, and
+`cogitator-phosphor`): the glowing brass-to-crimson panel of the research spike,
+and a green CRT with curved glass, bloom and an inverse selection.
 
 ## Grimdark UI vocabulary
 

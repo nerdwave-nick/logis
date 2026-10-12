@@ -186,7 +186,7 @@ pub fn scene_at(
         ..Scene::default()
     };
     chrome::panel(&mut scene, body, style);
-    prompt::line(&mut scene, look, body, style);
+    prompt::line(&mut scene, look, body, style, icons);
     if look.lines > 0 {
         chrome::rule(&mut scene, body, theme);
     }

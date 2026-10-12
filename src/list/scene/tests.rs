@@ -348,9 +348,22 @@ fn the_glow_pulses_and_the_highlight_travels_until_motion_is_reduced() {
     );
     assert!(angle1 > angle0, "the highlight moved on");
     assert!(moving(&look(1, 0), &theme));
-    let still = theme.stilled();
+    let still = theme.clone().stilled();
     assert_eq!(at(&still, 0), at(&still, 1500), "reduce-motion stills them");
     assert!(!moving(&look(1, 0), &still));
+    let grain_time = |theme: &Theme| {
+        let s = scene(
+            &look(1, 0),
+            logical,
+            Style {
+                theme,
+                at: 1_500_000_000,
+            },
+        );
+        s.post.unwrap().time
+    };
+    assert_eq!(grain_time(&theme), 1.5);
+    assert_eq!(grain_time(&still), 0.0, "still grain");
 }
 
 #[test]
@@ -375,4 +388,50 @@ fn a_pending_row_shimmers_and_keeps_a_still_theme_moving() {
         row(&s, "DIVINING…").color.a
     };
     assert!(mark(800) < mark(0), "the mark's opacity swings");
+}
+
+/// An icon source that records what it is asked for and finds all of it.
+#[derive(Default)]
+struct Asked(Vec<(String, u32)>);
+
+impl IconSource for Asked {
+    fn image(&mut self, name: &str, size: u32) -> Option<crate::render::ImageId> {
+        self.0.push((name.to_owned(), size));
+        Some(crate::render::ImageId(self.0.len() as u32))
+    }
+}
+
+#[test]
+fn a_personal_sigil_is_an_image_beside_the_theme() {
+    let mut theme = forge();
+    theme.dir = Some("/home/u/.config/logis/themes".into());
+    let sigil = theme.prompt.sigil.as_mut().unwrap();
+    sigil.image = "sigils/skull.svg".into();
+    sigil.size = 22.0;
+    let logical = sized(&theme);
+    let mut asked = Asked::default();
+    let l = look(1, 0);
+    let s = scene_with(&l, logical, style(&theme), &mut asked);
+    assert_eq!(
+        asked.0,
+        [(
+            "/home/u/.config/logis/themes/sigils/skull.svg".to_owned(),
+            22
+        )]
+    );
+    assert_eq!(s.images.len(), 1, "the sigil");
+    let label = s.texts.iter().find(|t| t.text == "INVOKE").unwrap();
+    assert!(
+        s.images[0].origin[0] + 22.0 < label.origin[0],
+        "before the label"
+    );
+    // A bundled theme has no directory: only an absolute path is found.
+    theme.dir = None;
+    let mut asked = Asked::default();
+    scene_with(&l, logical, style(&theme), &mut asked);
+    assert!(asked.0.is_empty(), "{:?}", asked.0);
+    let sigil = theme.prompt.sigil.as_mut().unwrap();
+    sigil.image = "/usr/share/logis/eye.png".into();
+    scene_with(&l, logical, style(&theme), &mut asked);
+    assert_eq!(asked.0, [("/usr/share/logis/eye.png".to_owned(), 22)]);
 }

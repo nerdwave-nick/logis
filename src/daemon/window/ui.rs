@@ -24,22 +24,19 @@
 use std::cell::RefCell;
 use std::os::fd::BorrowedFd;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-use std::time::Instant;
 
-use logis::icons::IconSource;
 use logis::input::Action;
-use logis::list::scene::{self, Style};
-use logis::list::{Choice, Entry, ListView, Notice, Options, Reaction};
+use logis::list::scene;
+use logis::list::{Choice, Entry, ListView, Notice, Reaction};
 use logis::motion::Glide;
 use logis::theme::Theme;
 use logis::window::trace::emit;
-use logis::window::{Backdrop, Drawing, Frame, SceneFn, WindowQueue, Windows};
+use logis::window::{WindowQueue, Windows};
 use wayland_client::QueueHandle;
 
 use super::Command;
-use super::wear::{NOTICE, Wear};
+use super::wear::Wear;
 use crate::daemon::core::Event;
 use crate::daemon::sessions::SessionId;
 use crate::protocol::Mode;
@@ -87,7 +84,7 @@ pub fn run(
                 Err(TryRecvError::Disconnected) => return None,
             }
         }
-        expire_notice(&mut windows, &mut shown, &mut wear);
+        wear.expire(&mut windows, shown.as_ref().map(|s| &*s.toast));
         react(&mut windows, &mut shown, events, &wear.theme());
         for (session, token) in windows.take_tokens() {
             let _ = events.send(Event::Activation { session, token });
@@ -135,12 +132,7 @@ fn apply(
             view.borrow_mut().push(entries);
             let toast = Rc::new(RefCell::new(None));
             let glide = Rc::new(RefCell::new(Glide::new(windows.motion().selection)));
-            let draw = drawing(
-                Rc::clone(&view),
-                Rc::clone(&toast),
-                Rc::clone(&glide),
-                wear.cell(),
-            );
+            let draw = wear.drawing(Rc::clone(&view), Rc::clone(&toast), Rc::clone(&glide));
             *shown = None;
             match windows.show(qh, size, draw) {
                 Ok(()) => {
@@ -211,75 +203,17 @@ fn apply(
         }
         Command::Blur(blur) => wear.blur(windows, qh, blur),
         Command::Theme(theme) => {
-            emit(format_args!("theme {}", theme.name));
-            wear.put_on(windows, qh, Arc::clone(&theme));
+            wear.put_on(windows, qh, theme);
             if let Some(s) = shown.as_mut() {
-                let asked = Options {
-                    lines: s.asked.0,
-                    width: s.asked.1,
-                    ..Options::default()
-                };
-                let (size, rows) = scene::fit(&asked, &theme);
-                s.rows = rows;
-                s.view.borrow_mut().set_lines(rows);
-                windows.resize(size);
+                s.rows = wear.refit(windows, s.asked, &s.view);
             }
         }
         Command::Notice(notice) => {
-            let Some(s) = shown.as_mut().filter(|s| !s.lingering) else {
-                return;
-            };
-            let quoted = serde_json::to_string(&notice.text).unwrap_or_default();
-            emit(format_args!("toast {quoted}"));
-            s.toast.replace(Some(notice));
-            let until = Instant::now() + NOTICE;
-            wear.notice_until = Some(until);
-            windows.set_alarm(Some(until));
-            windows.request_redraw();
+            if let Some(s) = shown.as_ref().filter(|s| !s.lingering) {
+                wear.notify(windows, &s.toast, notice);
+            }
         }
     }
-}
-
-/// Takes the daemon's notice away once its time is up.
-fn expire_notice(windows: &mut Windows, shown: &mut Option<Shown>, wear: &mut Wear) {
-    if wear.notice_until.is_none_or(|until| Instant::now() < until) {
-        return;
-    }
-    wear.notice_until = None;
-    windows.set_alarm(None);
-    if let Some(s) = shown.as_mut() {
-        s.toast.replace(None);
-        windows.request_redraw();
-        emit(format_args!("untoast"));
-    }
-}
-
-/// Draws the shown list each frame with its toast in the theme worn now:
-/// the selection band glides to the selected row, the theme's continuous
-/// effects keep it drawing, and the body is blurred behind.
-fn drawing(
-    view: Rc<RefCell<ListView>>,
-    toast: Rc<RefCell<Option<Notice>>>,
-    glide: Rc<RefCell<Glide>>,
-    theme: Rc<RefCell<Arc<Theme>>>,
-) -> SceneFn {
-    Box::new(move |frame: &Frame, icons: &mut dyn IconSource| {
-        let theme = Arc::clone(&theme.borrow());
-        let mut look = view.borrow_mut().look();
-        look.toast = toast.borrow().clone();
-        let target = scene::band_top(&look, frame.logical, &theme);
-        let (band, gliding) = glide.borrow_mut().toward(target, frame.at, frame.interval);
-        let (rect, radius) = scene::body(frame.logical, &theme);
-        let style = Style {
-            theme: &theme,
-            at: frame.at,
-        };
-        Drawing {
-            scene: scene::scene_at(&look, frame.logical, band, style, icons),
-            backdrop: Some(Backdrop { rect, radius }),
-            moving: gliding || scene::moving(&look, &theme),
-        }
-    })
 }
 
 impl Shown {
@@ -409,6 +343,7 @@ fn answer(events: &Sender<Event>, session: SessionId, answer: Answer) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use logis::list::Options;
 
     fn shown(options: Options) -> Shown {
         Shown {

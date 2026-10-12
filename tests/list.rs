@@ -326,3 +326,63 @@ fn an_app_list_draws_its_icons() {
         },
     );
 }
+
+/// A personal theme's sigil: an SVG beside the theme file, found through
+/// the window's icon cache and drawn before the label.
+#[test]
+fn a_personal_theme_draws_its_own_sigil_image() {
+    let Some(gpu) = golden::env_gpu() else { return };
+    let dir = std::env::temp_dir().join(format!("logis-sigil-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("sigils")).unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/icons/share/icons/logis-cogitator/scalable/apps/cogitator-skull.svg");
+    std::fs::copy(fixture, dir.join("sigils/skull.svg")).unwrap();
+    std::fs::write(
+        dir.join("mine.jsonc"),
+        r#"{ "prompt": { "sigil": { "image": "sigils/skull.svg", "size": 24 } } }"#,
+    )
+    .unwrap();
+    let theme = Themes::new(Some(dir.clone())).load("mine").unwrap();
+    let options = Options {
+        lines: Some(1),
+        width: Some(30),
+        ..Options::default()
+    };
+    let (logical, _) = scene::fit(&options, &theme);
+    let mut view = ListView::new(options);
+    view.push(items(&["alpha"]));
+    let look = view.look();
+    let mut renderer = renderer(&gpu, &theme);
+    let mut cache = IconCache::new(IconThemes::load(&SearchPaths::from_env(), "hicolor"));
+    let style = Style {
+        theme: &theme,
+        at: 0,
+    };
+    let scene = {
+        let mut source = FrameIcons {
+            cache: &mut cache,
+            gpu: &gpu,
+            atlas: renderer.atlas_mut(),
+            scale: Scale::ONE,
+        };
+        scene::scene_with(&look, logical, style, &mut source)
+    };
+    assert_eq!(scene.images.len(), 1, "the sigil was found");
+    let [x, y] = scene.images[0].origin;
+    let image = render_offscreen(
+        &gpu,
+        &mut renderer,
+        &scene,
+        logical,
+        Scale::ONE,
+        OFFSCREEN_FORMAT,
+    )
+    .unwrap();
+    let (cx, cy) = ((x + 12.0) as u32, (y + 12.0) as u32);
+    let inked = (cx - 8..cx + 8)
+        .flat_map(|px| (cy - 8..cy + 8).map(move |py| (px, py)))
+        .filter(|&(px, py)| image.pixel(px, py)[1] > 60)
+        .count();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(inked > 20, "only {inked} pixels of the sigil");
+}
