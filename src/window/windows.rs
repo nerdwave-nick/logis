@@ -27,6 +27,9 @@ use crate::motion::{Motion, Transition};
 use crate::render::{BackendChoice, Gpu, Renderer};
 use crate::text::{Face, FontError, PendingFonts};
 
+/// How soon a frame that got no swapchain image is tried again.
+const RETRY: std::time::Duration = std::time::Duration::from_millis(4);
+
 /// What the daemon owns for its windows: the connection, the bound globals,
 /// the GPU (woken at connect, never lazily), the renderer, at most one
 /// visible panel and at most one panel still closing.
@@ -42,6 +45,8 @@ pub struct Windows {
     blur: bool,
     /// When the owner wants the loop to wake ([`Self::set_alarm`]).
     pub(super) alarm: Option<std::time::Instant>,
+    /// When to try a frame again that got no swapchain image.
+    pub(super) retry_at: Option<std::time::Instant>,
     renderer: Renderer,
     gpu: Gpu,
     /// What the seat asked of the visible panel, oldest first.
@@ -150,6 +155,7 @@ impl Windows {
             clock: FrameClock::default(),
             blur: false,
             alarm: None,
+            retry_at: None,
             renderer,
             gpu,
             actions: Vec::new(),
@@ -319,7 +325,11 @@ impl Windows {
         let Some(panel) = &mut self.panel else {
             return;
         };
-        let reconfigured = panel.draw_if_needed(&mut painter).reconfigured;
+        let drawn = panel.draw_if_needed(&mut painter);
+        let reconfigured = drawn.reconfigured;
+        // A frame that got no swapchain image is still due: wake again
+        // shortly instead of whenever the next event comes.
+        self.retry_at = drawn.retry.then(|| std::time::Instant::now() + RETRY);
         let shown = panel.was_shown();
         if let Some(g) = reconfigured.filter(|_| self.verbose) {
             let config = panel.config();

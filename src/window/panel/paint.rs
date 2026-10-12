@@ -38,6 +38,9 @@ pub(in crate::window) struct Drawn {
     pub reconfigured: Option<Geometry>,
     /// A closing panel has finished: drop it, nothing was drawn.
     pub finished: bool,
+    /// No swapchain image came (wgpu waits up to a second for one): the
+    /// frame is still due, so try again soon rather than at the next event.
+    pub retry: bool,
 }
 
 impl Panel {
@@ -77,11 +80,16 @@ impl Panel {
                 texture
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
+                emit(format_args!("acquire outdated"));
                 self.state.invalidate();
                 return drawn;
             }
             // Timeout, occluded or a validation error: try again on the next event.
-            _ => return drawn,
+            other => {
+                emit(format_args!("acquire failed {other:?}"));
+                drawn.retry = true;
+                return drawn;
+            }
         };
         // Timed after the swapchain is ready, which may have waited (the
         // first frame configures it), so motion starts when drawing does.

@@ -879,7 +879,9 @@ default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pix
 <bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
 one fading out), `settled` (the first frame after which nothing moves), `faded` (a
 closed window is gone, at once without motion), `blur <rectangles>` (a blur region was set) and
-`blur-capable true|false` (the compositor's word), `cut` (a window still closing
+`blur-capable true|false` (the compositor's word), `acquire outdated` and `acquire
+failed <reason>` (no swapchain image came; the frame is tried again 4 ms later
+rather than at the next event), `cut` (a window still closing
 was dropped after the next window's first frame); the debug panel adds what each key did: `query <JSON string>`, `select
 <row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
 `show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
@@ -895,6 +897,9 @@ Locally (inside a running Wayland session; a nested niri window opens briefly):
 LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion --test theme_window
 LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
 ```
+
+A warm open slower than 100 ms prints `SLOW OPEN <ms>` with the window's trace
+between the client's start and its first frame, so an outlier names its cause.
 
 CI runs the unit and golden tests in one job and the E2E and latency suites in
 headless sway in another, recording latency as a trend (job summary and a

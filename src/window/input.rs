@@ -62,6 +62,7 @@ impl Windows {
                     self.keyboard_mut().deadline(),
                     self.motion_deadline(),
                     self.alarm,
+                    self.retry_at,
                 ]
                 .into_iter()
                 .flatten()

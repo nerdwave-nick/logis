@@ -239,7 +239,19 @@ fn warm_open(
             .daemon
             .wait_for("a first frame", |e| e.what == "commit" && e.ns >= t0);
         if run > 0 {
-            first.push(latency::ms_between(t0, commit.ns));
+            let ms = latency::ms_between(t0, commit.ns);
+            if ms > 100.0 {
+                // What the window did meanwhile: the trace of a slow open.
+                let trace: Vec<String> = c
+                    .daemon
+                    .events()
+                    .iter()
+                    .filter(|e| e.ns >= t0 && e.ns <= commit.ns)
+                    .map(|e| format!("+{:.1} {}", latency::ms_between(t0, e.ns), e.what))
+                    .collect();
+                eprintln!("SLOW OPEN {ms:.1} ms: {trace:?}");
+            }
+            first.push(ms);
         }
         if settles {
             let rest = c
