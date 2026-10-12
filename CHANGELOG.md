@@ -8,13 +8,6 @@ contract" and logis(1)) is the public interface.
 
 ## [Unreleased]
 
-Pending integration before v1.0.0 is tagged:
-
-- Warm opens no longer stall: a few of every twenty took about two seconds
-  before the daemon showed the session (d49bceee).
-- List columns are aligned: each column's width comes from the rows, with a
-  maximum and an ellipsis, instead of starting at the next tab stop (1b82eff9).
-
 ## [1.0.0] - unreleased
 
 The first release: everything of the v1 specification. Not yet tagged; the tag
@@ -76,6 +69,22 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
   man page logis(1), bash, zsh and fish completions, systemd user units
   (`logis.socket`, `logis.service` with `KillMode=process`; shipped, not
   enabled), and a PKGBUILD in `packaging/arch/` (no AUR package).
+- **Aligned columns**: list columns take their width from the rows, up to a
+  maximum and with an ellipsis, instead of starting at the next tab stop
+  (1b82eff9).
+
+### Fixed
+
+- **Warm opens no longer wait on the compositor before they are shown**
+  (d49bceee). Each window asked the GPU driver again what its surface offers;
+  Mesa's Wayland WSI answers that with about 30 round trips to the compositor
+  per open, so any compositor delay held the window back. The offer is now
+  negotiated once, with the daemon's first window. The ~2 s outliers seen in
+  the latency harness came from the nested test niri itself: a nested niri the
+  session does not draw gets frame callbacks about once a second and stops
+  answering meanwhile. The latency tests now run one at a time (the measured
+  window is the newest, in view), a watchdog on the test compositor names its
+  stalls, and with enforced budgets no warm open may take over 100 ms.
 
 [Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.0.0
