@@ -77,8 +77,8 @@ before it is only logged.
 | `query` | `""` | the query the stage opens with (a decreed default, say) |
 | `input` | `"none"` | what Return does when no item matches: `none` (nothing; only items can be chosen), `optional` (submit the typed text, even empty), `required` (submit it once it is not empty) |
 | `select` | — | the id of the item to select: now, or once it arrives (in a later `items`) and is settled; never once the user has moved the selection or typed |
-| `lines` | 15 | rows the window has room for (first stage only) |
-| `width` | 30 | the window's width in characters (first stage only) |
+| `lines` | the theme's (9) | rows the window has room for (first stage only) |
+| `width` | the theme's (820 px) | the window's width in characters (first stage only) |
 | `items` | `[]` | the stage's first items |
 
 The first stage sizes the window; later stages keep that size.

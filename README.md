@@ -90,8 +90,8 @@ exits 1. Errors exit 2 with the message on stderr.
 | `--prompt-only=TEXT` | a prompt and nothing else: stdin is not read, no rows |
 | `--placeholder=TEXT` | shown while the query is empty |
 | `--password[=C]` | shows each typed character as `C` (default `*`) |
-| `--lines=N`, `-l` | rows shown at most (default 15); the window's height |
-| `--width=N`, `-w` | the window's width in characters (default 30, an estimate) |
+| `--lines=N`, `-l` | rows shown at most, and so the window's height (default: the theme's window, nine rows) |
+| `--width=N`, `-w` | the window's width in characters of the row font (an estimate; default: the theme's window, 820 px) |
 | `--counter` | shows matching/total items |
 | `--search=TEXT` | the query the window opens with |
 | `--select=TEXT` | preselects the first item equal to TEXT, ignoring case |
@@ -564,7 +564,11 @@ Two themes are bundled (compiled in): **`forge-crimson-brass`** (the default:
 [themes/forge-crimson-brass.jsonc](themes/forge-crimson-brass.jsonc), after the
 research spike) and **`cogitator-phosphor`**, a green CRT (curved glass, bloom,
 inverse selection, underlined matches:
-[themes/cogitator-phosphor.jsonc](themes/cogitator-phosphor.jsonc)). Choose one
+[themes/cogitator-phosphor.jsonc](themes/cogitator-phosphor.jsonc)), both seen on
+the owner's niri session at scale 1.3 with blur behind, the panel cropped
+([forge](docs/evidence/theme-forge-live.png),
+[phosphor](docs/evidence/theme-phosphor-live.png); IBM Plex Mono, Cinzel and
+VT323 were not installed there, so the fallbacks show). Choose one
 with the config's `"theme"`. Your own are `themes/<name>.jsonc` beside
 `logis.jsonc` (`~/.config/logis/themes/`); a file named like a bundled theme
 overrides it.
