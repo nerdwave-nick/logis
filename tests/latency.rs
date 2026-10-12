@@ -33,20 +33,28 @@
 //!   items, and with 100 000 (every keystroke re-filters them all, or the
 //!   last matches when the query grows).
 //!
-//! Runs only with `LOGIS_E2E=niri|sway`. `LOGIS_LATENCY_RUNS` (default 10)
-//! sets the samples, `LOGIS_LATENCY_REPORT=<file>` appends JSON lines, and
-//! `LOGIS_LATENCY_BUDGETS=enforce` fails on a median over budget (for the
-//! owner's machine; CI records the trend only). Use `--release` for
-//! absolute numbers.
+//! - **no round trip before a warm open is shown:** counted in the daemon's
+//!   `WAYLAND_DEBUG` log (always checked).
+//!
+//! Runs only with `LOGIS_E2E=niri|sway`, one measurement at a time
+//! ([`latency::alone`]): a nested niri is measured only as the newest
+//! window of the session, the one the session draws. `LOGIS_LATENCY_RUNS`
+//! (default 10) sets the samples, `LOGIS_LATENCY_REPORT=<file>` appends
+//! JSON lines, and `LOGIS_LATENCY_BUDGETS=enforce` fails on a median over
+//! budget and on any warm open over [`latency::SLOW_OPEN_MS`] (for the
+//! owner's machine; CI records the trend only). A slow open names whose it
+//! was: a watchdog on the compositor tells whether the compositor itself
+//! stopped answering meanwhile. Use `--release` for absolute numbers.
 
 mod support;
 
 use std::time::Duration;
 
 use logis::window::trace::monotonic_ns;
-use support::e2e::client::{Focused, Traced};
+use support::e2e::client::{Focused, Traced, parse};
 use support::e2e::cogitator::Cogitator;
 use support::e2e::keyboard::{code, us_key};
+use support::e2e::watchdog::Watchdog;
 use support::e2e::wire::Harness;
 use support::e2e::{Kind, TestCompositor};
 use support::latency::{self, Series};
@@ -83,6 +91,28 @@ fn the_summary_shows_each_series_against_its_budget() {
     assert_eq!(value["median_ms"], 45.0);
     assert_eq!(value["budget_ms"], 150.0);
     assert_eq!(value["compositor"], "niri-nested");
+}
+
+#[test]
+fn round_trips_are_the_sync_requests_of_a_wayland_debug_log() {
+    let log = [
+        "[ 1.0] {mesa formats query} \u{1b}[31m\u{1b}[0m -> \u{1b}[34mwl_display\u{1b}[35m#1\u{1b}[36m.sync\u{1b}[0m(new id wl_callback#29)",
+        "[ 1.1] -> wl_display#1.get_registry(new id wl_registry#28)",
+        "[ 1.2] wl_callback#29.done(1234)",
+        "[ 1.3]  -> wl_display#1.sync(new id wl_callback#30)",
+        "logis-trace: 99 show 2",
+    ];
+    assert_eq!(latency::round_trips(log), 2);
+}
+
+#[test]
+fn a_slow_open_names_the_compositor_when_it_stalled_too() {
+    let theirs = latency::slow_open(1902.9, Some(1996.9));
+    assert!(theirs.contains("1902.9 ms"), "{theirs}");
+    assert!(theirs.contains("answered nobody for 1996.9 ms"), "{theirs}");
+    let ours = latency::slow_open(120.0, None);
+    assert!(ours.contains("120.0 ms"), "{ours}");
+    assert!(ours.contains("logis was slow"), "{ours}");
 }
 
 #[test]
@@ -165,6 +195,7 @@ fn keystroke_to_commit(
 
 #[test]
 fn debug_panel_latency() {
+    let _alone = latency::alone();
     let Some(kind) = Kind::requested() else {
         return;
     };
@@ -215,21 +246,43 @@ fn debug_panel_latency() {
 /// (its close transition over, `faded`) 100 ms before the next starts, as
 /// a warm open finds nothing on screen. A closing window's frames (`commit
 /// closing`) are not the new window's.
-fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> (Vec<f64>, Vec<f64>) {
+fn dmenu_warm_open(c: &mut Cogitator, runs: usize) -> WarmOpens {
     warm_open(c, runs, true, |c| c.dmenu_all(&[], b"alpha\nbeta\ngamma\n"))
+}
+
+/// The samples of [`warm_open`].
+struct WarmOpens {
+    /// exec → first commit, ms.
+    first: Vec<f64>,
+    /// exec → open settled, ms (none for a window that never settles).
+    settled: Vec<f64>,
+    /// What to say of each open over [`latency::SLOW_OPEN_MS`].
+    slow: Vec<String>,
+}
+
+impl WarmOpens {
+    /// With the budgets enforced, no single open may be slow.
+    fn enforce_none_slow(&self) {
+        if latency::enforce() {
+            assert!(self.slow.is_empty(), "{}", self.slow.join("\n"));
+        }
+    }
 }
 
 /// Warm opens of the client `open` starts: exec → first commit, and exec →
 /// the open settled (if `settles`; a window whose theme moves on its own
-/// never does); the first (warming) run is not counted.
+/// never does); the first (warming) run is not counted. A [`Watchdog`] on
+/// the compositor tells whose a slow open was.
 fn warm_open(
     c: &mut Cogitator,
     runs: usize,
     settles: bool,
     open: impl Fn(&Cogitator) -> support::e2e::cogitator::Client,
-) -> (Vec<f64>, Vec<f64>) {
+) -> WarmOpens {
+    let watchdog = Watchdog::start(&c.compositor);
     let mut first = Vec::with_capacity(runs);
     let mut settled = Vec::with_capacity(runs);
+    let mut slow = Vec::new();
     for run in 0..=runs {
         std::thread::sleep(Duration::from_millis(100));
         let t0 = monotonic_ns();
@@ -240,7 +293,7 @@ fn warm_open(
             .wait_for("a first frame", |e| e.what == "commit" && e.ns >= t0);
         if run > 0 {
             let ms = latency::ms_between(t0, commit.ns);
-            if ms > 100.0 {
+            if ms > latency::SLOW_OPEN_MS {
                 // What the window did meanwhile: the trace of a slow open.
                 let trace: Vec<String> = c
                     .daemon
@@ -249,7 +302,10 @@ fn warm_open(
                     .filter(|e| e.ns >= t0 && e.ns <= commit.ns)
                     .map(|e| format!("+{:.1} {}", latency::ms_between(t0, e.ns), e.what))
                     .collect();
-                eprintln!("SLOW OPEN {ms:.1} ms: {trace:?}");
+                let stalled = watchdog.stalled_within(t0, commit.ns);
+                let verdict = latency::slow_open(ms, stalled);
+                eprintln!("SLOW OPEN {ms:.1} ms: {trace:?}\n  {verdict}");
+                slow.push(verdict);
             }
             first.push(ms);
         }
@@ -267,7 +323,52 @@ fn warm_open(
         c.daemon
             .wait_seen("the window gone", |e| e.what == "faded" && e.ns >= t0);
     }
-    (first, settled)
+    WarmOpens {
+        first,
+        settled,
+        slow,
+    }
+}
+
+/// A warm open shows its session without a single round trip to the
+/// compositor: nothing the window needs to show it waits for an answer.
+/// Each round trip waits out whatever the compositor is doing, and a nested
+/// niri whose window the session does not draw answers nobody for up to two
+/// seconds (ticket d49bceee: the surface's capabilities, the same for every
+/// window, were asked again at every open, 30 round trips). Counted in the
+/// daemon's own `WAYLAND_DEBUG` log, from the last window gone (`faded`)
+/// to the next `show`; the first window of the daemon may ask.
+#[test]
+fn a_warm_open_waits_on_no_round_trip_before_it_is_shown() {
+    let _alone = latency::alone();
+    let Some(mut c) = Cogitator::start_with(&[("WAYLAND_DEBUG", "client")], None) else {
+        return;
+    };
+    for run in 0..3 {
+        let client = c.dmenu_all(&[], b"alpha\n");
+        let show = c.daemon.wait_for("show", |e| e.what.starts_with("show "));
+        c.daemon
+            .wait_for("a first frame", |e| e.what == "commit" && e.ns >= show.ns);
+        if run > 0 {
+            let log = c.daemon.stderr();
+            let lines: Vec<&str> = log.lines().collect();
+            let is = |l: &str, what: &str| parse(l).is_some_and(|e| e.what == what);
+            let shown = lines.iter().position(|l| is(l, &show.what)).unwrap();
+            let gone = lines[..shown]
+                .iter()
+                .rposition(|l| is(l, "faded"))
+                .expect("the last window was gone before the next was shown");
+            let n = latency::round_trips(lines[gone..shown].iter().copied());
+            assert_eq!(
+                n, 0,
+                "warm open {run} waited on {n} round trips before it was shown"
+            );
+        }
+        drop(client);
+        c.daemon.wait_for("hide", |e| e.what.starts_with("hide "));
+        c.daemon
+            .wait_seen("the window gone", |e| e.what == "faded" && e.ns >= show.ns);
+    }
 }
 
 /// Each key of `keys` (cycled) → the commit of the frame it caused.
@@ -312,12 +413,13 @@ fn many_lines() -> Vec<u8> {
 
 #[test]
 fn dmenu_latency() {
+    let _alone = latency::alone();
     let Some(mut c) = Cogitator::start() else {
         return;
     };
     let runs = latency::runs();
     let frame_ms = 1000.0 / c.harness.refresh_hz();
-    let (open, open_settled) = dmenu_warm_open(&mut c, runs);
+    let warm = dmenu_warm_open(&mut c, runs);
 
     let letter = |ch| us_key(ch).expect("on the US layout").0;
     let client = c.dmenu_all(&[], b"alpha\nbeta\ngamma\n");
@@ -351,17 +453,18 @@ fn dmenu_latency() {
         Series::new(
             "dmenu warm open: start → first commit",
             latency::WARM_OPEN_MS,
-            open,
+            warm.first.clone(),
         ),
         Series::new(
             "dmenu warm open: start → open settled",
             latency::WARM_OPEN_MS + 150.0 + 2.0 * frame_ms,
-            open_settled,
+            warm.settled.clone(),
         ),
         Series::new("dmenu keystroke → commit, 3 items", frame_ms, few),
         Series::new("dmenu keystroke → commit, 100 000 items", frame_ms, many),
     ];
     latency::record(c.compositor.kind().name(), &series);
+    warm.enforce_none_slow();
     if latency::enforce() {
         for s in &series {
             assert!(
@@ -382,6 +485,7 @@ fn dmenu_latency() {
 /// client leaving: nothing is ever launched.
 #[test]
 fn apps_latency() {
+    let _alone = latency::alone();
     let Some(mut c) = Cogitator::start() else {
         return;
     };
@@ -389,20 +493,21 @@ fn apps_latency() {
     let frame_ms = 1000.0 / c.harness.refresh_hz();
     // The index is read on a thread of its own at start; let it finish.
     std::thread::sleep(Duration::from_millis(500));
-    let (open, open_settled) = warm_open(&mut c, runs, true, |c| c.apps(&[]));
+    let warm = warm_open(&mut c, runs, true, |c| c.apps(&[]));
     let series = [
         Series::new(
             "apps warm open: start → first commit",
             latency::WARM_OPEN_MS,
-            open,
+            warm.first.clone(),
         ),
         Series::new(
             "apps warm open: start → open settled",
             latency::WARM_OPEN_MS + 150.0 + 2.0 * frame_ms,
-            open_settled,
+            warm.settled.clone(),
         ),
     ];
     latency::record(c.compositor.kind().name(), &series);
+    warm.enforce_none_slow();
     if latency::enforce() {
         for s in &series {
             assert!(
@@ -420,19 +525,21 @@ fn apps_latency() {
 /// frame costs what a still one does, and the window never settles.
 #[test]
 fn dmenu_latency_with_continuous_effects() {
+    let _alone = latency::alone();
     let config = r#"{ "reduce-motion": false }"#;
     let Some(mut c) = Cogitator::start_with(&[], Some(config)) else {
         return;
     };
     let runs = latency::runs();
     let items = b"alpha\nbeta\ngamma\n";
-    let (open, _) = warm_open(&mut c, runs, false, |c| c.dmenu_all(&[], items));
+    let warm = warm_open(&mut c, runs, false, |c| c.dmenu_all(&[], items));
     let series = [Series::new(
         "dmenu warm open, continuous effects: start → first commit",
         latency::WARM_OPEN_MS,
-        open,
+        warm.first.clone(),
     )];
     latency::record(c.compositor.kind().name(), &series);
+    warm.enforce_none_slow();
     if latency::enforce() {
         let s = &series[0];
         assert!(

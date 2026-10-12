@@ -810,7 +810,16 @@ with `mod support;`.
   its own (warm open → open settled). Each warm open starts 100 ms after the
   previous window is gone (`faded`), not merely hidden: a nested niri that is
   still drawing a closing window answers the new window's setup round trips
-  up to two parent frames late (a real niri does not).
+  up to two parent frames late (a real niri does not). A warm open asks the
+  compositor nothing before it is shown: the surface's format, present mode
+  and alpha mode are negotiated with the daemon's first window and reused
+  (each query cost Mesa's WSI several round trips, 30 per open); the test
+  counts the daemon's `wl_display.sync` requests in its `WAYLAND_DEBUG` log.
+  The measurements run one at a time, so the nested niri measured is the
+  newest window of the session and drawn. A nested niri the session does not
+  draw (another workspace, out of view, screen off) gets frame callbacks about
+  once a second and blocks in its buffer swap meanwhile, answering no client
+  for up to two seconds.
 - **Motion** ([`tests/motion.rs`](tests/motion.rs)): the open and the band's
   glide take several frames and then nothing is drawn, the caller has its
   answer while the window still fades, a queued session does not wait for the
@@ -899,7 +908,11 @@ LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency
 ```
 
 A warm open slower than 100 ms prints `SLOW OPEN <ms>` with the window's trace
-between the client's start and its first frame, so an outlier names its cause.
+between the client's start and its first frame, and whether the test
+compositor itself stopped answering meanwhile (a watchdog makes a round trip
+to it every 10 ms), so an outlier names its cause. With
+`LOGIS_LATENCY_BUDGETS=enforce` such an open fails the run; keep the nested
+niri window in view while it runs.
 
 CI runs the unit and golden tests in one job and the E2E and latency suites in
 headless sway in another, recording latency as a trend (job summary and a

@@ -2,6 +2,27 @@
 
 use wgpu::{CompositeAlphaMode, PresentMode, TextureFormat};
 
+/// What every swapchain of the daemon is made with. A surface offers the
+/// same for every window of one connection and adapter, so it is asked of
+/// the first window only: each query costs several round trips to the
+/// compositor on the open path (Mesa sets its Wayland state up anew for
+/// each), and a warm open must not wait on the compositor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Negotiated {
+    pub format: TextureFormat,
+    pub present_mode: PresentMode,
+    pub alpha_mode: CompositeAlphaMode,
+}
+
+/// The choices from what a surface offers; `None` if it offers no format.
+pub fn negotiate(offered: &wgpu::SurfaceCapabilities) -> Option<Negotiated> {
+    Some(Negotiated {
+        format: choose_format(&offered.formats)?,
+        present_mode: choose_present_mode(&offered.present_modes),
+        alpha_mode: choose_alpha_mode(&offered.alpha_modes),
+    })
+}
+
 /// An 8-bit format that does not encode sRGB itself: colours are sRGB values
 /// blended as given, which is also what glyphon's `ColorMode::Web` expects.
 /// Falls back to the first offered format (the shader then stores linear).
@@ -74,6 +95,32 @@ mod tests {
             PresentMode::Fifo
         );
         assert_eq!(choose_present_mode(&[]), PresentMode::Fifo);
+    }
+
+    #[test]
+    fn a_surface_is_negotiated_from_its_offer_and_needs_a_format() {
+        let offered = wgpu::SurfaceCapabilities {
+            formats: vec![TextureFormat::Bgra8UnormSrgb, TextureFormat::Bgra8Unorm],
+            present_modes: vec![PresentMode::Fifo, PresentMode::Mailbox],
+            alpha_modes: vec![
+                CompositeAlphaMode::Opaque,
+                CompositeAlphaMode::PreMultiplied,
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            negotiate(&offered),
+            Some(Negotiated {
+                format: TextureFormat::Bgra8Unorm,
+                present_mode: PresentMode::Mailbox,
+                alpha_mode: CompositeAlphaMode::PreMultiplied,
+            })
+        );
+        let formatless = wgpu::SurfaceCapabilities {
+            formats: Vec::new(),
+            ..offered
+        };
+        assert_eq!(negotiate(&formatless), None);
     }
 
     #[test]

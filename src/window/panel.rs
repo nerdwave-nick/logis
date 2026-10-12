@@ -15,7 +15,7 @@ pub(super) use paint::Painter;
 use super::blur::{Blur, Effects};
 use super::drawing::SceneFn;
 use super::handle::SurfaceHandle;
-use super::present::{choose_alpha_mode, choose_format, choose_present_mode};
+use super::present::{Negotiated, negotiate};
 use super::state::{Geometry, SurfaceState};
 use super::{Shell, WindowError, Windows};
 use crate::motion::{Motion, Nanos, Transition};
@@ -60,7 +60,8 @@ pub struct Panel {
 impl Panel {
     /// Creates the layer surface (requesting `size` logical pixels) and its
     /// wgpu surface, and commits it so the compositor sends a configure.
-    /// It opens with `transition`; `effects` blur behind it.
+    /// It opens with `transition`; `effects` blur behind it. With what an
+    /// earlier surface `negotiated`, nothing is asked of the compositor.
     #[allow(clippy::too_many_arguments)] // the parts of one window, once
     pub(super) fn new(
         shell: &Shell,
@@ -71,6 +72,7 @@ impl Panel {
         scene: SceneFn,
         transition: Transition,
         effects: Option<&Effects>,
+        negotiated: Option<Negotiated>,
     ) -> Result<Self, WindowError> {
         let wl_surface = shell.compositor.create_surface(qh);
         let scaling = Scaling {
@@ -94,23 +96,18 @@ impl Panel {
             .instance
             .create_surface(wgpu::SurfaceTarget::DisplayAndWindow(Box::new(handle)))
             .map_err(|e| WindowError::Surface(e.to_string()))?;
-        if !gpu.adapter.is_surface_supported(&surface) {
-            return Err(WindowError::Surface(format!(
-                "the adapter '{}' cannot present to this compositor",
-                gpu.info().name
-            )));
-        }
-        let caps = surface.get_capabilities(&gpu.adapter);
-        let format = choose_format(&caps.formats)
-            .ok_or_else(|| WindowError::Surface("the surface offers no format".into()))?;
+        let chosen = match negotiated {
+            Some(chosen) => chosen,
+            None => Self::negotiate(gpu, &surface)?,
+        };
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format,
+            format: chosen.format,
             width: size.0,
             height: size.1,
-            present_mode: choose_present_mode(&caps.present_modes),
+            present_mode: chosen.present_mode,
             desired_maximum_frame_latency: 2,
-            alpha_mode: choose_alpha_mode(&caps.alpha_modes),
+            alpha_mode: chosen.alpha_mode,
             view_formats: Vec::new(),
             color_space: Default::default(),
         };
@@ -127,6 +124,27 @@ impl Panel {
             // So the first frame that leaves nothing moving reports it.
             was_moving: true,
         })
+    }
+
+    /// What `surface` offers, asked of the compositor, and the choices.
+    fn negotiate(gpu: &Gpu, surface: &wgpu::Surface<'_>) -> Result<Negotiated, WindowError> {
+        if !gpu.adapter.is_surface_supported(surface) {
+            return Err(WindowError::Surface(format!(
+                "the adapter '{}' cannot present to this compositor",
+                gpu.info().name
+            )));
+        }
+        negotiate(&surface.get_capabilities(&gpu.adapter))
+            .ok_or_else(|| WindowError::Surface("the surface offers no format".into()))
+    }
+
+    /// What this panel's swapchain is made with, for the next panel.
+    pub(super) fn negotiated(&self) -> Negotiated {
+        Negotiated {
+            format: self.config.format,
+            present_mode: self.config.present_mode,
+            alpha_mode: self.config.alpha_mode,
+        }
     }
 
     /// Whether `layer` is this panel's layer surface.

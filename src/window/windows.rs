@@ -39,6 +39,9 @@ pub struct Windows {
     pub(super) panel: Option<Panel>,
     closing: Option<Panel>,
     retired: Option<Panel>,
+    /// What the first panel's surface offered and was chosen; later panels
+    /// ask the compositor nothing before they are shown.
+    negotiated: Option<super::present::Negotiated>,
     verbose: bool,
     motion: Motion,
     clock: FrameClock,
@@ -150,6 +153,7 @@ impl Windows {
             panel: None,
             closing: None,
             retired: None,
+            negotiated: None,
             verbose: false,
             motion: Motion::OFF,
             clock: FrameClock::default(),
@@ -227,6 +231,7 @@ impl Windows {
             scene,
             transition,
             effects,
+            self.negotiated,
         );
         let panel = match panel {
             Ok(panel) => panel,
@@ -236,6 +241,7 @@ impl Windows {
             }
         };
         self.renderer.prepare(&self.gpu, panel.format());
+        self.negotiated = Some(panel.negotiated());
         self.panel = Some(panel);
         Ok(())
     }

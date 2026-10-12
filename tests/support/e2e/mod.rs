@@ -30,6 +30,7 @@ pub mod keyboard;
 pub mod pointer;
 pub mod screencopy;
 pub mod selection;
+pub mod watchdog;
 pub mod wire;
 
 use std::io::Write;

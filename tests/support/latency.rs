@@ -7,6 +7,41 @@ pub const WARM_OPEN_MS: f64 = 15.0;
 /// First open after the client starts the daemon (spec §4.10).
 pub const FIRST_OPEN_MS: f64 = 150.0;
 
+/// No single warm open may take longer (ticket d49bceee), enforced with
+/// the budgets: a median within budget can hide a two-second open.
+pub const SLOW_OPEN_MS: f64 = 100.0;
+
+/// Holds the test compositor to one measurement at a time in this process:
+/// take it before starting the compositor. Each nested niri is then the
+/// newest window of the session, the one it draws. One it does not draw
+/// (on another workspace, scrolled out of view) gets frame callbacks about
+/// once a second and blocks in its buffer swap meanwhile, answering no
+/// client for up to two seconds; with every measurement's niri open at
+/// once, most of them were such windows.
+pub fn alone() -> std::sync::MutexGuard<'static, ()> {
+    static ONE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    // A failed measurement does not spoil the next.
+    ONE.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// What to say of a warm open of `ms` that was over [`SLOW_OPEN_MS`], with
+/// the longest time the test compositor itself did not answer meanwhile.
+pub fn slow_open(ms: f64, compositor_stalled_ms: Option<f64>) -> String {
+    match compositor_stalled_ms {
+        Some(stall) => format!(
+            "a warm open took {ms:.1} ms, but the test compositor itself answered nobody \
+             for {stall:.1} ms of it: its window is not drawn by the session (another \
+             workspace, out of view, screen off), so it gets frame callbacks about once a \
+             second and blocks. Keep the nested niri in view while measuring."
+        ),
+        None => format!(
+            "a warm open took {ms:.1} ms (over {SLOW_OPEN_MS} ms) while the test \
+             compositor answered throughout: logis was slow"
+        ),
+    }
+}
+
 /// Samples of one metric in milliseconds, with its budget.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Series {
@@ -146,4 +181,28 @@ pub fn runs() -> usize {
 /// Whether budgets fail the run (`LOGIS_LATENCY_BUDGETS=enforce`).
 pub fn enforce() -> bool {
     std::env::var("LOGIS_LATENCY_BUDGETS").is_ok_and(|v| v == "enforce")
+}
+
+/// How many round trips (`wl_display.sync` requests) a `WAYLAND_DEBUG`
+/// log holds. libwayland may colour its lines; the colours are skipped.
+pub fn round_trips<'a>(lines: impl IntoIterator<Item = &'a str>) -> usize {
+    lines
+        .into_iter()
+        .map(uncoloured)
+        .filter(|l| l.contains("-> wl_display#") && l.contains(".sync("))
+        .count()
+}
+
+/// `line` without ANSI colour sequences (`ESC [ … m`).
+fn uncoloured(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            chars.by_ref().find(|&c| c == 'm');
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
