@@ -167,6 +167,7 @@ pub(super) fn post(body: [f32; 4], style: Style<'_>) -> Option<Post> {
         bloom: e.bloom,
         curvature: e.curvature,
         aberration: e.aberration,
+        inset: theme.border.width,
         time: if theme.is_continuous() {
             (style.at % 3_600_000_000_000) as f32 / 1e9
         } else {

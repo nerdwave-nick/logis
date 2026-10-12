@@ -228,7 +228,7 @@ fn params(target: &Target<'_>, post: &Post) -> [f32; PARAMS_FLOATS] {
         w,
         h,
         radius,
-        0.0,
+        (post.inset * s).clamp(0.0, w.min(h).max(0.0) / 2.0),
         0.0,
         0.0,
         unit(post.scanlines),

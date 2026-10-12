@@ -12,7 +12,7 @@ struct Params {
     time: f32,       // seconds
     body: vec4f,     // left, top, width, height in buffer pixels
     radius: f32,     // corner radius in buffer pixels
-    pad0: f32,
+    inset: f32,      // the straight edge (border) inside the body, buffer pixels
     pad1: f32,
     pad2: f32,
     a: vec4f,        // scanlines, grain, flicker, vignette
@@ -81,12 +81,20 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
     }
     let uv = (p - centre) / max(half, vec2f(1.0));
 
-    // Curved glass: each pixel shows what lies further out, more so
-    // towards the edges, so straight lines bow.
+    // Curved glass within the border: each pixel shows what lies further
+    // out, more so towards the edges, so straight lines bow. The border
+    // stays straight, and what the curve uncovers is dark glass as opaque
+    // as the body, never what lies behind it (a blur would show there).
     var q = p;
+    var screen = 1.0;
     let curvature = u.b.y;
-    if (curvature > 0.0) {
-        q = centre + uv * (1.0 + 0.25 * curvature * dot(uv, uv)) * half;
+    let glass_half = max(half - vec2f(u.inset), vec2f(1.0));
+    let glass_radius = max(u.radius - u.inset, 0.0);
+    let on_glass = sd_round_box(p - centre, glass_half, glass_radius) < 0.0;
+    if (curvature > 0.0 && on_glass) {
+        let g = (p - centre) / glass_half;
+        q = centre + g * (1.0 + 0.25 * curvature * dot(g, g)) * glass_half;
+        screen = clamp(0.5 - sd_round_box(q - centre, glass_half, glass_radius), 0.0, 1.0);
     }
     var c = here;
     let aberration = u.b.z;
@@ -98,6 +106,9 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
         c = vec4f(red.r, mid.g, blue.b, max(mid.a, max(red.a, blue.a)));
     } else if (curvature > 0.0) {
         c = sample(q);
+    }
+    if (screen < 1.0) {
+        c = mix(vec4f(0.0, 0.0, 0.0, here.a), c, screen);
     }
 
     // Bloom: light from bright pixels around, on two rings. The directions

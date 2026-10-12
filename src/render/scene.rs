@@ -245,6 +245,9 @@ pub struct Post {
     pub aberration: f32,
     /// Seconds, for grain and flicker; a frozen time gives a frozen frame.
     pub time: f32,
+    /// The edge kept straight inside the area (the panel's border): curved
+    /// glass bows only what lies within it (logical pixels).
+    pub inset: f32,
 }
 
 impl Post {

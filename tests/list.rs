@@ -4,7 +4,10 @@
 //! apart; a provider's stage with glyphs, badges, a pending row and a
 //! toast; the app launcher's icons; and the theme's own window (820×520,
 //! nine rows) with its effects. Compared with goldens per theme at scales
-//! 1.0, 1.3 and 2.0, in `tests/goldens/themes/<theme>/`.
+//! 1.0, 1.3 and 2.0, in `tests/goldens/themes/<theme>/`. They are stored
+//! with straight alpha, as PNG defines it ([`Alpha::Straight`]), so that a
+//! viewer shows the translucent glow in its colour; the comparison is made
+//! on the renderer's premultiplied pixels all the same.
 //!
 //! Deterministic: the frame's time is frozen (the glow at full strength,
 //! the highlight at the top, grain and flicker at time 0), and fonts are
@@ -24,7 +27,7 @@ use logis::list::{Decor, Entry, Level, ListView, Look, Notice, Options};
 use logis::render::{Gpu, OFFSCREEN_FORMAT, Renderer, Scale, Scene, render_offscreen};
 use logis::text::{FontConfig, Fonts};
 use logis::theme::{BUNDLED, Theme, Themes};
-use support::golden::{self, Goldens, Tolerance};
+use support::golden::{self, Alpha, Goldens, Tolerance};
 
 const RULES: &str = r#"<fontconfig>
   <alias><family>sans-serif</family><prefer><family>Noto Sans</family></prefer></alias>
@@ -86,7 +89,7 @@ fn check_with(
     let Some(gpu) = golden::env_gpu() else { return };
     let mut look = view.look();
     look.toast = toast;
-    let goldens = Goldens::checked_in();
+    let goldens = Goldens::checked_in().with_alpha(Alpha::Straight);
     let mut failures = Vec::new();
     for theme in themes() {
         let (logical, rows) = scene::fit(options, &theme);

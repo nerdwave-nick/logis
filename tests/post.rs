@@ -235,3 +235,37 @@ fn the_pass_scales_with_the_output() {
         assert_eq!(image.pixel(2, h / 2), [0, 0, 0, 255], "outside the body");
     }
 }
+
+/// Curved glass bows the screen inside the panel's edge, never through it:
+/// what the curve uncovers is the dark glass, as opaque as the body, so a
+/// compositor's blur behind the body never shows through, and the edge (the
+/// border) stays straight.
+#[test]
+fn curvature_never_uncovers_what_lies_behind_the_body() {
+    let border = rect(BODY, Rgba::hex(0x808080));
+    let mut scene = scene(None, vec![]);
+    scene.shapes = vec![RoundedRect {
+        border: Some(logis::render::Border {
+            width: 2.0,
+            paint: Paint::Solid(Rgba::hex(0x2fd36a)),
+            highlight: None,
+        }),
+        ..border
+    }];
+    scene.clear = Some(Rgba::TRANSPARENT);
+    scene.post = Some(Post {
+        curvature: 1.0,
+        inset: 2.0,
+        ..post()
+    });
+    let Some(image) = render(&scene) else { return };
+    for y in 10..80 {
+        for x in 10..110 {
+            let px = image.pixel(x, y);
+            assert_eq!(px[3], 255, "({x}, {y}) is see-through: {px:?}");
+        }
+    }
+    // The border is where it was drawn: green along the top edge.
+    let top = image.pixel(60, 10);
+    assert!(top[1] > 150 && top[0] < 100, "the border moved: {top:?}");
+}

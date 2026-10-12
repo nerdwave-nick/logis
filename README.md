@@ -565,7 +565,8 @@ Two themes are bundled (compiled in): **`forge-crimson-brass`** (the default:
 research spike) and **`cogitator-phosphor`**, a green CRT (curved glass, bloom,
 inverse selection, underlined matches:
 [themes/cogitator-phosphor.jsonc](themes/cogitator-phosphor.jsonc)), both seen on
-the owner's niri session at scale 1.3 with blur behind, the panel cropped
+the owner's niri session at scale 1.3 with blur behind and their glow (another
+window at the right edge cropped away)
 ([forge](docs/evidence/theme-forge-live.png),
 [phosphor](docs/evidence/theme-phosphor-live.png); IBM Plex Mono, Cinzel and
 VT323 were not installed there, so the fallbacks show). Choose one
@@ -610,6 +611,9 @@ overrides it.
   goes to the log and a notice over a shown list. A theme that cannot be worn at
   start leaves the bundled default in force. `logis --check-config` checks the
   theme the config names.
+- **Curved glass** (`curvature`) bows only what lies inside the border; the
+  border stays straight, and what the curve uncovers in the corners is dark
+  glass as opaque as the body, so blur behind the panel never shows through.
 - **Continuous effects** (glow pulse, travelling highlight, flicker, a pending
   row's shimmer) keep a visible window drawing at the output's refresh rate:
   measured on the owner's machine (Intel Arc, nested niri at 60 Hz, release
@@ -744,7 +748,8 @@ A mismatch leaves the render and a difference image under
 The themes have goldens of their own: `tests/list.rs` draws the same lists in
 each bundled theme at scales 1.0, 1.3 and 2.0 into `tests/goldens/themes/<theme>/`,
 the frame's time frozen (glow at full strength, the highlight at the top, grain
-and flicker at time 0), with the pinned Noto Sans Mono and Noto Serif standing in
+and flicker at time 0), stored with straight alpha so that a viewer shows the
+translucent glow in its colour (compared on the premultiplied pixels), with the pinned Noto Sans Mono and Noto Serif standing in
 for the themes' own families; `tests/faces.rs`, `tests/primitives.rs` and
 `tests/post.rs` cover faces and carets, gradients and the highlight, and each
 post-processing effect. The post pass reads pixels with `textureLoad` and draws
