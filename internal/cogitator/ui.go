@@ -12,6 +12,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/theme"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
@@ -96,6 +97,12 @@ type ui struct {
 	iconThemeName string
 	emit          func(format string, args ...any)
 	now           func() time.Time
+	// setFaces resolves a theme's faces in the renderer (nil: none to
+	// resolve); logf writes a line to the daemon's log; clock is the
+	// frame's time (CLOCK_MONOTONIC ns).
+	setFaces func([]text.Face) error
+	logf     func(string)
+	clock    func() uint64
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
@@ -133,20 +140,26 @@ func (u *ui) show(s daemon.Session) {
 	u.push(sh, s.Entries)
 }
 
-// painter draws sh's list each frame; it never animates (motion and the
-// theme's continuous effects are feat/logis-go G18's and the motion
-// ticket's: the scene is drawn at its resting moment).
+// painter draws sh's list each frame in the theme worn then, at the
+// frame's time: the theme's continuous effects (glow pulse, travelling
+// highlight, flicker, a pending row's shimmer) move with it, and keep the
+// window drawing on every frame callback while they do (scene.Moving).
+// Transitions are the motion ticket's.
 func (u *ui) painter(sh *shown) window.Painter {
 	return func(g window.Geometry) bool {
+		look := u.lookOf(sh)
 		if u.draw != nil {
-			look := u.lookOf(sh)
+			var at uint64
+			if u.clock != nil {
+				at = u.clock()
+			}
 			var icons scene.Icons
 			if u.icons != nil {
 				icons = u.icons(g)
 			}
-			u.draw(scene.DrawWith(&look, g.Logical, scene.Style{Theme: u.theme}, icons), g)
+			u.draw(scene.DrawWith(&look, g.Logical, scene.Style{Theme: u.theme, At: at}, icons), g)
 		}
-		return false
+		return scene.Moving(&look, u.theme)
 	}
 }
 
@@ -267,7 +280,11 @@ func (u *ui) toast(t daemon.Toast) {
 	if sh == nil || sh.lingering {
 		return
 	}
-	n := &list.Notice{Text: "the config is heretical: " + t.Error, Level: list.Error}
+	words := "the config is heretical: "
+	if t.Kind == daemon.ToastThemeRejected {
+		words = "the theme is heretical: "
+	}
+	n := &list.Notice{Text: words + t.Error, Level: list.Error}
 	u.emit("toast %s", trace.Quote(n.Text))
 	sh.toast = n
 	u.noticeUntil = u.now().Add(noticeFor)

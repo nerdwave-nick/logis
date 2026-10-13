@@ -69,7 +69,8 @@ func String(name uint32) string {
 }
 
 // Target is a texture with a framebuffer to render into offscreen (tests,
-// goldens).
+// goldens, the frame before the post-processing pass), read texel for
+// texel.
 type Target struct {
 	FBO, Tex uint32
 	W, H     int
@@ -81,6 +82,8 @@ func NewTarget(w, h int) *Target {
 	C.glGenTextures(1, &tex)
 	C.glBindTexture(C.GL_TEXTURE_2D, tex)
 	C.glTexStorage2D(C.GL_TEXTURE_2D, 1, C.GL_RGBA8, C.GLsizei(w), C.GLsizei(h))
+	C.glTexParameteri(C.GL_TEXTURE_2D, C.GL_TEXTURE_MIN_FILTER, C.GL_NEAREST)
+	C.glTexParameteri(C.GL_TEXTURE_2D, C.GL_TEXTURE_MAG_FILTER, C.GL_NEAREST)
 	C.glGenFramebuffers(1, &fbo)
 	C.glBindFramebuffer(C.GL_FRAMEBUFFER, fbo)
 	C.glFramebufferTexture2D(C.GL_FRAMEBUFFER, C.GL_COLOR_ATTACHMENT0, C.GL_TEXTURE_2D, tex, 0)

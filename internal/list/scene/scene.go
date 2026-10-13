@@ -172,6 +172,7 @@ func DrawAt(l *list.Look, logical scale.Size, band float32, banded bool, s Style
 	if l.Toast != nil {
 		toast(sc, *l.Toast, body, t)
 	}
+	sc.Post = post(body, s)
 	return sc
 }
 

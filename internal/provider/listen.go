@@ -72,6 +72,12 @@ func reap(proc *os.Process) string {
 	if err != nil {
 		return fmt.Sprintf("unknown (%v)", err)
 	}
+	return StatusOf(state)
+}
+
+// StatusOf says how a process ended as Rust's ExitStatus does: "exit
+// status: 0", "signal: 15 (SIGTERM)".
+func StatusOf(state *os.ProcessState) string {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	switch {
 	case !ok:

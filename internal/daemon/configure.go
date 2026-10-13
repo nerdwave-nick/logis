@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/nerdwave-nick/logis/internal/config"
+	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
 // The daemon's config (feat/logis §4.9): read before the socket is taken (an
@@ -19,6 +20,9 @@ const (
 	// ToastConfigRejected: an edit to the config was refused; the last
 	// sound config stays in force.
 	ToastConfigRejected ToastKind = iota
+	// ToastThemeRejected: the theme the config names could not be worn;
+	// the last sound theme stays in force.
+	ToastThemeRejected
 )
 
 // Toast is a short, themed notice for the user (CONTEXT.md: toast,
@@ -51,6 +55,12 @@ type configuration struct {
 	live     *config.Live
 	watcher  *config.Watcher
 	watchErr error
+	// themes is the theme in force, themeErr why the one named at the
+	// start could not be worn; themeWatcher watches the themes directory.
+	themes        *theme.Live
+	themeErr      error
+	themeWatcher  *config.Watcher
+	themeWatchErr error
 }
 
 // openConfig watches the config, then reads it, so that no edit falls
@@ -58,9 +68,12 @@ type configuration struct {
 func openConfig(o Options) (*configuration, error) {
 	c := &configuration{source: o.Config}
 	loaded := config.Default()
+	themesDir := ""
 	if o.Config != nil {
 		if path := o.Config.Path(); path != "" {
 			c.watcher, c.watchErr = config.Watch(path)
+			themesDir = config.ThemesDir(path)
+			c.themeWatcher, c.themeWatchErr = config.WatchFiles(themesDir, ".jsonc")
 		}
 		var err error
 		if loaded, err = o.Config.Load(); err != nil {
@@ -69,6 +82,7 @@ func openConfig(o Options) (*configuration, error) {
 		}
 	}
 	c.live = config.NewLive(loaded)
+	c.openTheme(themesDir, loaded)
 	// A non-zero IdleTimeout counts as given (callers before the config).
 	if o.IdleTimeoutSet || o.IdleTimeout != 0 {
 		c.live.WithIdleFlag(o.IdleTimeout)
@@ -77,32 +91,46 @@ func openConfig(o Options) (*configuration, error) {
 }
 
 func (c *configuration) close() {
-	if c.watcher != nil {
-		_ = c.watcher.Close()
+	for _, w := range []*config.Watcher{c.watcher, c.themeWatcher} {
+		if w != nil {
+			_ = w.Close()
+		}
 	}
 }
 
-// watch hands every settled edit to l as a reload, until the returned stop.
-// A config that cannot be watched is said in the log.
+// watch hands every settled edit to l as a reload, until the returned stop:
+// of the config, and of the themes (a changed theme file reads the config
+// again too: the theme the config names is read with it). What cannot be
+// watched is said in the log.
 func (c *configuration) watch(l *loop) (stop func()) {
-	if c.watchErr != nil {
-		l.logf("the config is not watched, edits need a restart: " + c.watchErr.Error())
+	var done []chan struct{}
+	for _, w := range []struct {
+		what    string
+		watcher *config.Watcher
+		err     error
+	}{{"config", c.watcher, c.watchErr}, {"themes", c.themeWatcher, c.themeWatchErr}} {
+		if w.err != nil {
+			l.logf("the " + w.what + " is not watched, edits need a restart: " + w.err.Error())
+		}
+		if w.watcher == nil {
+			continue
+		}
+		ended := make(chan struct{})
+		done = append(done, ended)
+		go func() {
+			defer close(ended)
+			w.watcher.Run(func() bool {
+				loaded, err := c.source.Load()
+				l.post(func(l *loop) { l.reconfigure(loaded, err) })
+				return true
+			})
+		}()
 	}
-	if c.watcher == nil {
-		return func() {}
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		c.watcher.Run(func() bool {
-			loaded, err := c.source.Load()
-			l.post(func(l *loop) { l.reconfigure(loaded, err) })
-			return true
-		})
-	}()
 	return func() {
 		c.close()
-		<-done
+		for _, ended := range done {
+			<-ended
+		}
 	}
 }
 
@@ -114,7 +142,7 @@ func configure(r Resolver, c config.Config) {
 }
 
 // reconfigure applies a reread config, or keeps the last sound one and says
-// why.
+// why; then the same for the theme it names.
 func (l *loop) reconfigure(loaded config.Config, err error) {
 	switch l.live.Reload(loaded, err) {
 	case config.Applied:
@@ -129,4 +157,5 @@ func (l *loop) reconfigure(loaded config.Config, err error) {
 			toaster.Toast(Toast{Kind: ToastConfigRejected, Error: err.Error()})
 		}
 	}
+	l.rewear()
 }

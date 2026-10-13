@@ -3,17 +3,12 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 )
 
 // ThemeCheck says whether the theme name can be worn, looking for user
-// themes in dir (themes/ beside the config; "" when there is none). The
-// theme engine (feat/logis-go G18) supplies the real one, which reads and
-// resolves the theme; FindTheme stands in until then.
+// themes in dir (themes/ beside the config; "" when there is none): the
+// theme engine's theme.Check, which reads and resolves the theme.
 type ThemeCheck func(dir, name string) error
 
 // ThemesDir is the themes directory beside the config file at path ("" for
@@ -45,35 +40,4 @@ func Check(s Source, theme ThemeCheck) (string, error) {
 		verdict = "no config at " + s.Path() + "; the defaults stand"
 	}
 	return fmt.Sprintf("%s; the theme '%s' is sound", verdict, c.Theme), nil
-}
-
-// bundledThemes are the themes compiled into logis (Rust src/theme/load.rs
-// BUNDLED); the theme engine (G18) owns them once it exists.
-var bundledThemes = []string{DefaultTheme, "cogitator-phosphor"}
-
-// FindTheme finds the theme name as the theme engine would: the user file
-// dir/<name>.jsonc, else a bundled theme. It does not read the file's
-// contents; that is the theme engine's (G18). Errors are worded as Rust's.
-func FindTheme(dir, name string) error {
-	if dir != "" {
-		path := filepath.Join(dir, name+".jsonc")
-		_, err := os.ReadFile(path)
-		var pathErr *fs.PathError
-		switch {
-		case err == nil:
-			return nil
-		case !errors.Is(err, fs.ErrNotExist) && errors.As(err, &pathErr):
-			return fmt.Errorf("%s: %w", path, pathErr.Err)
-		case !errors.Is(err, fs.ErrNotExist):
-			return fmt.Errorf("%s: %w", path, err)
-		}
-	}
-	if slices.Contains(bundledThemes, name) {
-		return nil
-	}
-	place := ""
-	if dir != "" {
-		place = " nor in " + dir
-	}
-	return fmt.Errorf("theme '%s': no such theme is bundled (%s)%s", name, strings.Join(bundledThemes, ", "), place)
 }

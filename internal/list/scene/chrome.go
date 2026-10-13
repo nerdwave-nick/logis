@@ -9,9 +9,8 @@ import (
 
 // The panel itself (Rust src/list/scene/chrome.rs): its body with the glow
 // (pulsing) and the border (its gradient and travelling highlight), the
-// corner rivets, the rule under the prompt line, and the gear sigil. The
-// post-processing effects over the body come with the theme engine
-// (feat/logis-go G18).
+// corner rivets, the rule under the prompt line, the gear sigil, and the
+// post-processing effects over the body.
 
 // panel draws the body, its glow and border, then the rivets.
 func panel(sc *render.Scene, body [4]float32, s Style) {
@@ -110,4 +109,21 @@ func gear(sc *render.Scene, cx, cy, size float32, c render.Color) {
 
 func dot(cx, cy, radius float32, c render.Color) render.RoundedRect {
 	return render.RoundedRect{Rect: [4]float32{cx - radius, cy - radius, 2 * radius, 2 * radius}, Radius: radius, Fill: render.Solid(c)}
+}
+
+// post is the theme's effects over the body. Their time is the frame's,
+// in seconds within the hour, while the theme moves on its own, and frozen
+// at 0 otherwise (motion reduced: the grain stands still).
+func post(body [4]float32, s Style) render.Post {
+	t := s.Theme
+	e := t.Effects
+	p := render.Post{
+		Rect: body, Radius: t.Panel.Radius, Inset: t.Border.Width,
+		Scanlines: e.Scanlines, Grain: e.Grain, Flicker: e.Flicker, Vignette: e.Vignette,
+		Bloom: e.Bloom, Curvature: e.Curvature, Aberration: e.Aberration,
+	}
+	if t.IsContinuous() {
+		p.Time = float32(s.At%3_600_000_000_000) / 1e9
+	}
+	return p
 }

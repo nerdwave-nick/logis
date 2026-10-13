@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,8 @@ type Value struct {
 	// character, a container's closing bracket. Errors about the value
 	// point there (serde_json's convention, which Rust logis v1 reported).
 	End int
+	// Start is the offset of the value's first byte.
+	Start int
 }
 
 // Member is one key of an object and its value.
@@ -49,6 +52,8 @@ type Member struct {
 // Doc is a parsed text; it locates errors in it.
 type Doc struct {
 	text []byte
+	// plain is text with its comments, BOM and trailing commas blanked.
+	plain []byte
 	// Root is the document's object; nil when the text holds only
 	// whitespace and comments.
 	Root *Value
@@ -71,6 +76,7 @@ func Parse(text []byte, what string) (*Doc, error) {
 	if plain[start] != '{' {
 		return nil, doc.Errorf(start, "the %s must be a JSON object: { \"key\": value, … }", what)
 	}
+	doc.plain = plain
 	p := &parser{doc: doc, dec: newDecoder(plain)}
 	if doc.Root, err = p.value(); err != nil {
 		return nil, err
@@ -102,11 +108,16 @@ func (p *parser) end() int { return int(p.dec.InputOffset()) - 1 }
 
 // value reads one value.
 func (p *parser) value() (*Value, error) {
+	// Between the last token and this one lie only blanks, ':' and ','.
+	start := int(p.dec.InputOffset())
+	for start < len(p.doc.plain) && strings.IndexByte(" \t\n\r\f:,", p.doc.plain[start]) >= 0 {
+		start++
+	}
 	tok, err := p.dec.Token()
 	if err != nil {
 		return nil, p.syntax(err, atValue)
 	}
-	v := &Value{End: p.end()}
+	v := &Value{Start: start, End: p.end()}
 	switch t := tok.(type) {
 	case json.Delim:
 		if t == '{' {
@@ -176,10 +187,7 @@ func (v *Value) Unexpected() string {
 	case Bool:
 		return fmt.Sprintf("boolean `%t`", v.Bool)
 	case Number:
-		if v.IsInteger() {
-			return fmt.Sprintf("integer `%s`", v.Number)
-		}
-		return fmt.Sprintf("floating point `%s`", v.Number)
+		return number(string(v.Number))
 	case String:
 		return "string " + strconv.Quote(v.String)
 	case Array:
@@ -190,7 +198,75 @@ func (v *Value) Unexpected() string {
 	return "null"
 }
 
+// number names a JSON number as serde_json parsed it: an integer while it
+// fits u64 (or i64, negative), else an f64 ("-0" is one), which Rust shows
+// without an exponent and with a decimal point.
+func number(text string) string {
+	if !strings.ContainsAny(text, ".eE") && text != "-0" {
+		_, uerr := strconv.ParseUint(text, 10, 64)
+		_, ierr := strconv.ParseInt(text, 10, 64)
+		if uerr == nil || ierr == nil {
+			return "integer `" + text + "`"
+		}
+	}
+	f, _ := strconv.ParseFloat(text, 64)
+	return "floating point `" + RustFloat(f, 64) + "`"
+}
+
+// RustFloat formats f as Rust's Display does for an f64 (bits 64) or f32
+// (bits 32) in serde's messages: the shortest digits that read back, no
+// exponent, "inf" for an infinity; f64s always with a decimal point.
+func RustFloat(f float64, bits int) string {
+	switch {
+	case math.IsInf(f, 1):
+		return "inf"
+	case math.IsInf(f, -1):
+		return "-inf"
+	case math.IsNaN(f):
+		return "NaN"
+	}
+	s := strconv.FormatFloat(f, 'f', -1, bits)
+	if bits == 64 && !strings.Contains(s, ".") {
+		s += ".0"
+	}
+	return s
+}
+
 // IsInteger says a number was written without a fraction or exponent.
 func (v *Value) IsInteger() bool {
 	return v.Kind == Number && !strings.ContainsAny(string(v.Number), ".eE")
+}
+
+// Settled is the offset of the last byte serde_json had read when it
+// placed an error raised once v was read inside a container that closes
+// with closer: past the blanks after v, then past the closer if it comes
+// next or, in an array, past a comma and the blanks after it.
+func (d *Doc) Settled(v *Value, closer byte) int {
+	next := d.significant(v.End + 1)
+	switch {
+	case next < len(d.plain) && d.plain[next] == closer:
+		return next
+	case closer == ']' && next < len(d.plain) && d.plain[next] == ',':
+		return d.significant(next+1) - 1
+	}
+	return next - 1
+}
+
+// Opened is the offset of the last byte serde_json had read when a visitor
+// refused container v once opened: past the blanks after its opening
+// bracket, and its closer when it is empty.
+func (d *Doc) Opened(v *Value) int {
+	if next := d.significant(v.Start + 1); next != v.End {
+		return next - 1
+	}
+	return v.End
+}
+
+// significant is the offset of the first byte at or after at that is no
+// blank (a comment is blank in plain), or the text's length.
+func (d *Doc) significant(at int) int {
+	for at < len(d.plain) && isSpace(rune(d.plain[at])) {
+		at++
+	}
+	return at
 }

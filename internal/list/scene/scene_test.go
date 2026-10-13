@@ -13,8 +13,8 @@ import (
 )
 
 // Ported from Rust src/list/scene/tests.rs for the bundled default theme;
-// the phosphor theme, the post pass and personal sigil images arrive with
-// the theme engine (feat/logis-go G18).
+// the phosphor theme, the post pass and personal sigil images are in
+// effects_test.go.
 
 func forge() *theme.Theme {
 	t := theme.Default()
