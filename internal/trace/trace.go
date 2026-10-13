@@ -15,6 +15,7 @@
 package trace
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -85,3 +86,13 @@ var process = sync.OnceValue(func() *Tracer {
 
 // Emit writes an event to stderr when LOGIS_TEST_TRACE enables the trace.
 func Emit(format string, args ...any) { process().Emit(format, args...) }
+
+// Quote is how the trace writes text (`query <JSON string>`): a JSON
+// string, with <, > and & as they are (as Rust's serde_json writes it).
+func Quote(text string) string {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(text)
+	return strings.TrimSuffix(b.String(), "\n")
+}

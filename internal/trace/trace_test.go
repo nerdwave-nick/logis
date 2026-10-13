@@ -61,3 +61,9 @@ func TestEmitWritesStampedLinesOnlyWhenEnabled(t *testing.T) {
 		t.Errorf("emitted %q", out.String())
 	}
 }
+
+func TestQuotedTextIsAJSONStringWithoutHTMLEscapes(t *testing.T) {
+	if got := Quote("ö<a>&\"\n"); got != `"ö<a>&\"\n"` {
+		t.Errorf("Quote = %s", got)
+	}
+}
