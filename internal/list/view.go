@@ -78,6 +78,8 @@ type View struct {
 	touched bool
 	// matched is reused by Push.
 	matched []Boosted
+	// pointing is what the pointer left: a press, scroll remainders.
+	pointing pointing
 }
 
 // NewView is an empty list opening with o.Search as its query.
