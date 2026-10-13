@@ -41,7 +41,8 @@ layout {
 prefer-no-csd
 `
 
-const patience = 10 * time.Second
+// nestedPatience bounds every wait on the nested niri and the panel in it.
+const nestedPatience = 10 * time.Second
 
 type nestedNiri struct {
 	t      *testing.T
@@ -103,7 +104,7 @@ func startNiri(t *testing.T, scale string) *nestedNiri {
 		_ = log.Close()
 		_ = os.RemoveAll(dir)
 	})
-	deadline := time.Now().Add(patience)
+	deadline := time.Now().Add(nestedPatience)
 	for n.socket == "" {
 		if time.Now().After(deadline) {
 			t.Fatalf("nested niri opened no socket:\n%s", n.log())
@@ -211,7 +212,7 @@ func startPanel(t *testing.T, n *nestedNiri, extraEnv ...string) *panelProcess {
 			_ = cmd.Process.Signal(syscall.SIGTERM)
 			select {
 			case <-p.exit:
-			case <-time.After(patience):
+			case <-time.After(nestedPatience):
 				_ = cmd.Process.Kill()
 			}
 		}
@@ -223,7 +224,7 @@ func startPanel(t *testing.T, n *nestedNiri, extraEnv ...string) *panelProcess {
 func (p *panelProcess) expect(re string) []string {
 	p.t.Helper()
 	pattern := regexp.MustCompile(re)
-	timeout := time.After(patience)
+	timeout := time.After(nestedPatience)
 	for {
 		select {
 		case line, ok := <-p.lines:
@@ -233,7 +234,7 @@ func (p *panelProcess) expect(re string) []string {
 				case err := <-p.exit:
 					status = fmt.Sprintf("%v", err)
 					p.exit <- err
-				case <-time.After(patience):
+				case <-time.After(nestedPatience):
 				}
 				p.t.Fatalf("logis ended (%s) without %q; stderr:\n%s", status, re, p.all.String())
 			}
@@ -242,7 +243,7 @@ func (p *panelProcess) expect(re string) []string {
 				return m
 			}
 		case <-timeout:
-			p.t.Fatalf("no %q in %v; stderr:\n%s", re, patience, p.all.String())
+			p.t.Fatalf("no %q in %v; stderr:\n%s", re, nestedPatience, p.all.String())
 		}
 	}
 }
@@ -254,7 +255,7 @@ func (p *panelProcess) exitCode() int {
 	}
 	select {
 	case <-p.exit:
-	case <-time.After(patience):
+	case <-time.After(nestedPatience):
 		p.t.Fatal("logis did not exit")
 	}
 	return p.cmd.ProcessState.ExitCode()
@@ -341,7 +342,7 @@ func panelProblems(img image.Image, f frame, scale float64) []string {
 func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64) {
 	t.Helper()
 	var problems []string
-	for deadline := time.Now().Add(patience); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+	for deadline := time.Now().Add(nestedPatience); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		if problems = panelProblems(n.screenshot(name), f, scale); len(problems) == 0 {
 			return
 		}
