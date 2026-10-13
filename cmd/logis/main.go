@@ -10,6 +10,11 @@ import (
 	"os"
 
 	"github.com/nerdwave-nick/logis/internal/version"
+
+	// The cgo link line (spec §4) and the wayland-scanner glue, until the
+	// Wayland, renderer and font bindings use them directly.
+	_ "github.com/nerdwave-nick/logis/internal/native"
+	_ "github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
 // exitError is the exit status for every error (caller contract): the message
@@ -32,11 +37,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 				"the rune '%s' is unknown to this cogitator. It knows only --version.", arg))
 		}
 	}
-	fmt.Fprintf(stdout, "logis %s\n", version.Version)
+	if _, err := fmt.Fprintf(stdout, "logis %s\n", version.Version); err != nil {
+		return fail(stderr, "cannot write to stdout: "+err.Error())
+	}
 	return 0
 }
 
+// fail reports message on stderr and returns the error status. A message
+// stderr cannot take has nowhere else to go.
 func fail(stderr io.Writer, message string) int {
-	fmt.Fprintf(stderr, "logis: %s\n", message)
+	_, _ = fmt.Fprintf(stderr, "logis: %s\n", message)
 	return exitError
 }

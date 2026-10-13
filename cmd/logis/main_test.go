@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/version"
@@ -71,5 +72,21 @@ func TestNoRunesFailUntilTheAppLauncherExists(t *testing.T) {
 	want := "logis: this cogitator has no app launcher yet. It knows only --version.\n"
 	if got := stderr.String(); got != want {
 		t.Errorf("stderr %q, want %q", got, want)
+	}
+}
+
+type brokenPipe struct{}
+
+func (brokenPipe) Write([]byte) (int, error) { return 0, errors.New("broken pipe") }
+
+// A version nobody can read is an error, not a success.
+func TestVersionUnwritableIsAnError(t *testing.T) {
+	var stderr bytes.Buffer
+	code := run([]string{"--version"}, brokenPipe{}, &stderr)
+	if code != 2 {
+		t.Errorf("exit %d, want 2", code)
+	}
+	if want := "logis: cannot write to stdout: broken pipe\n"; stderr.String() != want {
+		t.Errorf("stderr %q, want %q", stderr.String(), want)
 	}
 }
