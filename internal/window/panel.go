@@ -1,14 +1,14 @@
 package window
 
 import (
-	"github.com/nerdwave-nick/logis/internal/gles"
+	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/scale"
-	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
-// panel is one shown layer surface: its scaling objects, its EGL surface
-// and the configure/scale/pacing state machine its events feed.
+// panel is one shown layer surface: its scaling objects, its EGL surface,
+// the configure/scale/pacing state machine its events feed, and its open
+// or close transition. It is the visible panel or one closing.
 type panel struct {
 	surface    *wlproto.WlSurface
 	fractional *wlproto.WpFractionalScaleV1
@@ -19,21 +19,31 @@ type panel struct {
 	presenter presenter
 	frame     *wlproto.WlCallback // the pending frame callback, if any
 	state     *surfaceState
-	paint     Painter
+	paint     FramePainter
+	// blur is the blur behind it, while on and offered.
+	blur       *panelBlur
+	transition motion.Transition
+	// drawnOnce: a frame was shown; wasMoving: the last frame left
+	// something moving (true at first, so the first still frame settles).
+	drawnOnce, wasMoving bool
 	// closed: the compositor sent `closed`; the panel goes after the
 	// dispatch that brought it.
 	closed bool
 }
 
 // newPanel creates an overlay layer surface asking for size logical
-// pixels, with exclusive keyboard focus, and commits it without a buffer
-// so the compositor configures it.
-func (w *Window) newPanel(size scale.Size, paint Painter) (*panel, error) {
-	p := &panel{state: newSurfaceState(size), paint: paint, gpu: w.gpu}
+// pixels, with exclusive keyboard focus and blur behind it when on, and
+// commits it without a buffer so the compositor configures it. It opens
+// with transition.
+func (w *Window) newPanel(size scale.Size, paint FramePainter, transition motion.Transition) *panel {
+	p := &panel{state: newSurfaceState(size), paint: paint, gpu: w.gpu, transition: transition, wasMoving: true}
 	p.surface = w.compositor.CreateSurface()
 	p.fractional = w.fractional.GetFractionalScale(p.surface)
 	p.fractional.OnPreferredScale = func(n uint32) { p.state.setScale(scale.From120ths(n)) }
 	p.viewport = w.viewporter.GetViewport(p.surface)
+	if w.blur && w.effects != nil {
+		p.blur = newPanelBlur(w.effects, p.surface)
+	}
 	p.layer = w.layerShell.GetLayerSurface(p.surface, nil, wlproto.ZwlrLayerShellV1LayerOverlay, NAMESPACE)
 	p.layer.OnConfigure = func(serial, width, height uint32) {
 		// Acked at once: the next commit (the next frame) carries it.
@@ -44,7 +54,7 @@ func (w *Window) newPanel(size scale.Size, paint Painter) (*panel, error) {
 	p.layer.SetSize(size.W, size.H)
 	p.layer.SetKeyboardInteractivity(wlproto.ZwlrLayerSurfaceV1KeyboardInteractivityExclusive)
 	p.surface.Commit()
-	return p, nil
+	return p
 }
 
 // reconfigure resizes the buffers to g and sets the viewport to its
@@ -58,50 +68,23 @@ func (p *panel) reconfigure(g Geometry) {
 	p.state.applied(g)
 }
 
-// present draws one frame and presents it with a frame callback requested,
-// so the next frame waits for the compositor. The first frame makes the EGL
-// surface, at its own buffer size: Mesa defers a wl_egl_window resize while
-// it holds a back buffer, so a surface made at the requested size and
-// resized before its first frame could draw that frame at the old size.
-func (p *panel) present() error {
-	g, _ := p.state.geometry()
-	if p.presenter == nil {
-		var err error
-		if p.presenter, err = p.gpu.newSurface(p.surface, g.Physical); err != nil {
-			return err
-		}
-	}
-	if err := p.presenter.makeCurrent(); err != nil {
-		return err
-	}
-	gles.Viewport(0, 0, int(g.Physical.W), int(g.Physical.H))
-	animating := p.paint(g)
-	p.state.setAnimating(animating)
-	p.frame = p.surface.Frame()
-	frame := p.frame
-	frame.OnDone = func(uint32) {
-		if p.frame == frame {
-			p.frame = nil
-			p.state.frameDone()
-		}
-	}
-	if err := p.presenter.swap(); err != nil {
-		return err
-	}
-	trace.Emit("commit")
-	if !animating {
-		// The frame leaves nothing moving (Rust: `settled` after the first
-		// such frame once motion ends; until motion is ported every change
-		// is instant, so each still frame is one).
-		trace.Emit("settled")
-	}
-	p.state.drew()
-	return nil
+// close starts the close transition at now. The panel gives up keyboard
+// focus and pointer input at once (an empty input region), so whatever
+// comes next (the launched app, the next session) gets them; only its
+// look lingers.
+func (p *panel) close(m motion.Motion, now uint64, compositor *wlproto.WlCompositor) {
+	p.transition.Close(m.CloseTo, m.Close, now)
+	p.layer.SetKeyboardInteractivity(wlproto.ZwlrLayerSurfaceV1KeyboardInteractivityNone)
+	nothing := compositor.CreateRegion()
+	p.surface.SetInputRegion(nothing)
+	nothing.Destroy()
+	p.surface.Commit()
+	p.state.setAnimating(true)
 }
 
 // destroy releases the panel: its EGL surface before the wl_surface it is
-// on, the pending frame callback, the scaling objects, the layer surface,
-// then the wl_surface.
+// on, the pending frame callback, the blur, the scaling objects, the
+// layer surface, then the wl_surface.
 func (p *panel) destroy() {
 	if p.presenter != nil {
 		p.presenter.destroy()
@@ -110,6 +93,10 @@ func (p *panel) destroy() {
 	if p.frame != nil {
 		p.frame.Destroy()
 		p.frame = nil
+	}
+	if p.blur != nil {
+		p.blur.destroy()
+		p.blur = nil
 	}
 	p.viewport.Destroy()
 	p.fractional.Destroy()
