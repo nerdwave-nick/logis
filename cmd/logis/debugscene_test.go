@@ -3,12 +3,12 @@ package main
 import (
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
 // Ports of Rust src/window/debug/mod.rs's tests (the query itself comes
-// with the keyboard slice, columns and the ellipsis with the shaping
-// slice).
+// with the keyboard slice).
 
 func TestAtTheRequestedSizeTheBodyIsTheFullPanel(t *testing.T) {
 	sc := debugScene(debugSize)
@@ -98,6 +98,25 @@ func TestASmallerBodyShowsOnlyTheRowsThatFit(t *testing.T) {
 	for _, row := range rows {
 		if row.Origin[1]+22 > rule[1] {
 			t.Errorf("row %q at %v crosses the query rule at %v", row.Text, row.Origin[1], rule[1])
+		}
+	}
+}
+
+// Rust confines the panel's lines to the body: rows and the query line to
+// a column 44 px narrower than it, the title 24 px narrower still, all
+// ending with an ellipsis when too long.
+func TestTheLinesKeepToTheirColumns(t *testing.T) {
+	for _, size := range []scale.Size{debugSize, {W: 466, H: 300}} {
+		sc := debugScene(size)
+		body := sc.Shapes[0].Rect[2]
+		for i, text := range sc.Texts {
+			want := body - 44
+			if i == 0 {
+				want -= 24
+			}
+			if !text.Column || text.Width != want || text.Overflow != render.Ellipsis {
+				t.Errorf("%v: text %q column %v %g %v, want %g with an ellipsis", size, text.Text, text.Column, text.Width, text.Overflow, want)
+			}
 		}
 	}
 }

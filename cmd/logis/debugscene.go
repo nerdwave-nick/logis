@@ -49,9 +49,8 @@ const queryBlock = 44
 // band and marker, and the query rule; then its title, the rows that fit
 // above the query rule and the query line. The body fills the surface up
 // to 640×360, less the glow margin, so a smaller configure than requested
-// still shows the whole panel. Rust confines the rows to a column with an
-// ellipsis; columns come with the shaping slice, so until then the long
-// row runs past the body.
+// still shows the whole panel. Every line keeps to a column inside the
+// body and ends with an ellipsis when too long, as in Rust.
 func debugScene(logical scale.Size) *render.Scene {
 	fit := func(side uint32, most float32) float32 {
 		return min(max(float32(side)-2*debugMargin, 64), most)
@@ -76,7 +75,12 @@ func debugScene(logical scale.Size) *render.Scene {
 	marker := rect(10, 70, 3, 18, 1.5, render.Solid(brass))
 	marker.Glow = render.Glow{Radius: 6, Color: brass.WithAlpha(0.7)}
 	queryRule := rect(18, ph-queryBlock, pw-36, 1.5, 0.75, render.Solid(brass.WithAlpha(0.8)))
-	texts := []render.Text{render.NewText("COGITATOR // RITE OF TESTING", [2]float32{x + 46, y + 12}, 18, brass)}
+	column := pw - 44
+	line := func(dy float32, s string, size float32, c render.Color) render.Text {
+		return render.NewText(s, [2]float32{x + 22, y + dy}, size, c).InColumn(column, render.Ellipsis)
+	}
+	title := render.NewText("COGITATOR // RITE OF TESTING", [2]float32{x + 46, y + 12}, 18, brass)
+	texts := []render.Text{title.InColumn(column-24, render.Ellipsis)}
 	for i, row := range debugRows {
 		dy := 68 + debugRowPitch*float32(i)
 		if dy+22 > ph-queryBlock {
@@ -86,9 +90,9 @@ func debugScene(logical scale.Size) *render.Scene {
 		if i == 0 {
 			color = bone
 		}
-		texts = append(texts, render.NewText(row, [2]float32{x + 22, y + dy}, 15, color))
+		texts = append(texts, line(dy, row, 15, color))
 	}
-	texts = append(texts, render.NewText("> |", [2]float32{x + 22, y + ph - queryBlock + 10}, 15, brass))
+	texts = append(texts, line(ph-queryBlock+10, "> |", 15, brass))
 	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}, Texts: texts}
 }
 
