@@ -50,3 +50,15 @@ package wlproto
 //go:generate wayland-scanner client-header protocols/xdg-shell.xml xdg-shell-client-protocol.h
 //go:generate wayland-scanner private-code protocols/xdg-shell.xml xdg-shell-protocol.c
 //go:generate go run ../wlgen/cmd/wlgen protocols/xdg-shell.xml xdg_shell_gen.go
+
+//go:generate wayland-scanner client-header protocols/wlr-data-control-unstable-v1.xml wlr-data-control-unstable-v1-client-protocol.h
+//go:generate wayland-scanner private-code protocols/wlr-data-control-unstable-v1.xml wlr-data-control-unstable-v1-protocol.c
+//go:generate go run ../wlgen/cmd/wlgen protocols/wlr-data-control-unstable-v1.xml wlr_data_control_unstable_v1_gen.go
+
+//go:generate wayland-scanner client-header protocols/wlr-screencopy-unstable-v1.xml wlr-screencopy-unstable-v1-client-protocol.h
+//go:generate wayland-scanner private-code protocols/wlr-screencopy-unstable-v1.xml wlr-screencopy-unstable-v1-protocol.c
+//go:generate go run ../wlgen/cmd/wlgen protocols/wlr-screencopy-unstable-v1.xml wlr_screencopy_unstable_v1_gen.go
+
+//go:generate wayland-scanner client-header protocols/wlr-virtual-pointer-unstable-v1.xml wlr-virtual-pointer-unstable-v1-client-protocol.h
+//go:generate wayland-scanner private-code protocols/wlr-virtual-pointer-unstable-v1.xml wlr-virtual-pointer-unstable-v1-protocol.c
+//go:generate go run ../wlgen/cmd/wlgen protocols/wlr-virtual-pointer-unstable-v1.xml wlr_virtual_pointer_unstable_v1_gen.go
