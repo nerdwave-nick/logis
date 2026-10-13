@@ -22,21 +22,25 @@ func (c *cov) at(x, y int) float32 {
 	return c.a[(y-c.r.Min.Y)*c.r.Dx()+x-c.r.Min.X]
 }
 
-// fillCoverage rasterises p through m within bounds. vector accumulates
-// signed area and takes its magnitude, which is the nonzero rule; the
-// even-odd rule combines each subpath's coverage by exclusive or, exact
-// for subpaths that do not cross themselves.
+// fillTolerance is how far, in pixels, flattened curves may stray from
+// the exact ones. vector's own flattening is coarser (made for glyphs)
+// and loses area on round shapes, so curves arrive as lines.
+const fillTolerance = 0.02
+
+// fillCoverage rasterises p through m within bounds by the nonzero rule;
+// the even-odd rule combines each subpath's coverage by exclusive or,
+// exact for subpaths that do not cross themselves.
 func fillCoverage(p Path, m Matrix, evenOdd bool, bounds image.Rectangle) *cov {
 	r := deviceBounds(p.bounds(m), bounds)
 	if r.Empty() {
 		return nil
 	}
 	if !evenOdd {
-		return rasterise(r, func(z *vector.Rasterizer, o [2]float64) { feedPath(z, p, m, o) })
+		return rasterise(r, func(z *vector.Rasterizer, t Matrix, k float64) { feedPath(z, p, t.Mul(m), k) })
 	}
 	var acc *cov
 	for _, sub := range p.subpaths() {
-		c := rasterise(r, func(z *vector.Rasterizer, o [2]float64) { feedPath(z, sub, m, o) })
+		c := rasterise(r, func(z *vector.Rasterizer, t Matrix, k float64) { feedPath(z, sub, t.Mul(m), k) })
 		if acc == nil {
 			acc = c
 			continue
@@ -49,7 +53,7 @@ func fillCoverage(p Path, m Matrix, evenOdd bool, bounds image.Rectangle) *cov {
 }
 
 // polygonCoverage rasterises closed polygons (in device space) together
-// with the nonzero rule.
+// by the nonzero rule.
 func polygonCoverage(polys [][][2]float64, bounds image.Rectangle) *cov {
 	var b rect
 	for _, poly := range polys {
@@ -61,14 +65,14 @@ func polygonCoverage(polys [][][2]float64, bounds image.Rectangle) *cov {
 	if r.Empty() {
 		return nil
 	}
-	return rasterise(r, func(z *vector.Rasterizer, o [2]float64) {
+	return rasterise(r, func(z *vector.Rasterizer, t Matrix, _ float64) {
 		for _, poly := range polys {
 			for i, q := range poly {
-				x, y := float32(q[0]-o[0]), float32(q[1]-o[1])
+				x, y := t.Apply(q[0], q[1])
 				if i == 0 {
-					z.MoveTo(x, y)
+					z.MoveTo(float32(x), float32(y))
 				} else {
-					z.LineTo(x, y)
+					z.LineTo(float32(x), float32(y))
 				}
 			}
 			if len(poly) > 0 {
@@ -87,29 +91,50 @@ func deviceBounds(b rect, bounds image.Rectangle) image.Rectangle {
 	return r.Intersect(bounds)
 }
 
-func rasterise(r image.Rectangle, feed func(*vector.Rasterizer, [2]float64)) *cov {
-	z := vector.NewRasterizer(r.Dx(), r.Dy())
-	feed(z, [2]float64{float64(r.Min.X), float64(r.Min.Y)})
-	mask := image.NewAlpha(image.Rect(0, 0, r.Dx(), r.Dy()))
+// subpixels is how many subpixels per side coverage is accumulated at for
+// an area of n device pixels: vector's coverage is the magnitude of the
+// summed signed area, which is the nonzero rule only where no more than
+// one layer of outline overlaps; where overlapping parts (inner stroke
+// joins, overlapping subpaths) meet an edge it over-counts. Clamping
+// finer cells and averaging them cuts that error k-fold and leaves
+// coverage of non-overlapping outlines as it was.
+func subpixels(n int) int {
+	switch {
+	case n <= 256*256:
+		return 4
+	case n <= 512*512:
+		return 2
+	}
+	return 1
+}
+
+// rasterise accumulates coverage over r: feed gets the matrix from device
+// pixels to the subpixel grid and the subpixels per pixel.
+func rasterise(r image.Rectangle, feed func(z *vector.Rasterizer, toRaster Matrix, k float64)) *cov {
+	k := subpixels(r.Dx() * r.Dy())
+	z := vector.NewRasterizer(r.Dx()*k, r.Dy()*k)
+	feed(z, Scale(float64(k), float64(k)).Mul(Translate(-float64(r.Min.X), -float64(r.Min.Y))), float64(k))
+	mask := image.NewAlpha(z.Bounds())
 	z.DrawOp = draw.Src
 	z.Draw(mask, mask.Bounds(), image.Opaque, image.Point{})
-	c := &cov{r: r, a: make([]float32, len(mask.Pix))}
-	for i, v := range mask.Pix {
-		c.a[i] = float32(v) / 255
+	c := &cov{r: r, a: make([]float32, r.Dx()*r.Dy())}
+	w := r.Dx()
+	norm := float32(255 * k * k)
+	for y := range r.Dy() * k {
+		row := mask.Pix[y*mask.Stride : y*mask.Stride+w*k]
+		out := c.a[(y/k)*w : (y/k+1)*w]
+		for x, v := range row {
+			out[x/k] += float32(v) / norm
+		}
 	}
 	return c
 }
 
-// fillTolerance is how far, in pixels, flattened curves may stray from
-// the exact ones. vector's own flattening is coarser (made for glyphs)
-// and loses area on round shapes, so curves arrive as lines.
-const fillTolerance = 0.02
-
-// feedPath gives p, through m and shifted by −o, to the rasteriser,
-// closing every subpath (vector's MoveTo does not).
-func feedPath(z *vector.Rasterizer, p Path, m Matrix, o [2]float64) {
-	shifted := Translate(-o[0], -o[1]).Mul(m)
-	for _, l := range p.flatten(shifted, fillTolerance) {
+// feedPath gives p through m (onto the subpixel grid, k subpixels per
+// pixel) to the rasteriser, closing every subpath (vector's MoveTo does
+// not).
+func feedPath(z *vector.Rasterizer, p Path, m Matrix, k float64) {
+	for _, l := range p.flatten(m, fillTolerance*k) {
 		for i, q := range l.pts {
 			if i == 0 {
 				z.MoveTo(float32(q[0]), float32(q[1]))

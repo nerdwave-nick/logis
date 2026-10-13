@@ -535,3 +535,19 @@ func TestRenderDrawsOverTheDestinationThroughTheMatrix(t *testing.T) {
 	wantPx(t, dst, 3, 3, [4]uint8{255, 127, 127, 255}, 1)
 	wantPx(t, dst, 6, 6, [4]uint8{255, 255, 255, 255}, 0)
 }
+
+func TestOverlappingOutlinesAreNotCountedTwiceOnEdges(t *testing.T) {
+	// Two squares overlapping in x 5..10, their top edges halfway through
+	// row 0: under the nonzero rule that row is half covered, overlap or
+	// not.
+	img, _ := render(t, doc(16, 4, `<path d="M0 0.5H10V4H0Z M5 0.5H15V4H5Z"/>`), 16, 4)
+	for _, x := range []int{2, 7, 12} {
+		wantPx(t, img, x, 0, [4]uint8{0, 0, 0, 128}, 1)
+	}
+	// A stroke's two bands overlap at its inner corner (6.5, 3.5): the
+	// pixel there is three quarters covered. Union 21 + 27 − 2.25, plus
+	// the miter's 2.25.
+	img, _ = render(t, doc(12, 12, `<path d="M1 2 H8 V11" fill="none" stroke="black" stroke-width="3"/>`), 12, 12)
+	wantCoverage(t, img, 48, 0.3)
+	wantPx(t, img, 6, 3, [4]uint8{0, 0, 0, 191}, 1)
+}

@@ -193,7 +193,7 @@ func (r *renderer) strokeOutline(p Path, s style, m Matrix) [][][2]float64 {
 	if !ok || !(width > 0) {
 		return nil
 	}
-	tol := 0.1 / m.expansion()
+	tol := fillTolerance / m.expansion()
 	lines := p.flatten(Identity, tol)
 	if pattern, ok := r.dashPattern(s); ok {
 		offset, _ := parseLength(s.dashOffset, r.viewport.diagonal(), s.fontSize)

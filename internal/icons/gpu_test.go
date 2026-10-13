@@ -63,12 +63,12 @@ func TestTheCacheFillsTheAtlasOncePerFileAndPixelSize(t *testing.T) {
 // resvg and tiny-skia) are matched within Rust's GOLDEN_TOLERANCE of 3
 // levels by every PNG icon and the backdrop. The two SVG icons differ on
 // anti-aliased edges: tiny-skia's supersampled coverage against
-// x/image/vector's exact area coverage. Against an 8×8 supersampled
-// resvg render, logis's SVG pixels are the closer ones (forge-banner:
-// mean 0.35 vs resvg's 1.27 levels, worst 13.9 vs 59.5; cogitator-skull:
-// mean 1.15 vs 2.45, worst 29.1 vs 37.2). So the Rust goldens bound the
-// outliers (measured 151 of 11904 pixels at 1.0, worst 42; 292 of 19964
-// at 1.3, worst 49) and logis's own goldens in tests/goldens/go/icons,
+// x/image/vector's area coverage. Against an 8×8 oversampled resvg render
+// at 32 px, logis's SVG pixels are the closer ones (forge-banner: mean
+// 0.21 vs resvg's 1.27 levels, worst 12.0 vs 59.5; cogitator-skull: mean
+// 0.58 vs 2.45, worst 6.8 vs 37.2). So the Rust goldens bound the
+// outliers (measured 159 of 11904 pixels at 1.0, worst 48; 285 of 19964
+// at 1.3, worst 33) and logis's own goldens in tests/goldens/go/icons,
 // reviewed against the Rust ones, are matched within the offscreen
 // tolerance. LOGIS_UPDATE_GOLDENS=1 rewrites logis's own.
 var (
