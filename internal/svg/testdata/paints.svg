@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64">
+  <defs>
+    <pattern id="stripes" width="64" height="12" patternUnits="userSpaceOnUse">
+      <rect width="64" height="6" fill="#a01818"/>
+      <rect y="6" width="64" height="6" fill="#e8c070"/>
+    </pattern>
+    <pattern id="dots" width=".25" height=".25" patternContentUnits="objectBoundingBox" patternTransform="rotate(20)">
+      <circle cx=".125" cy=".125" r=".08" fill="#2fd060"/>
+    </pattern>
+    <path id="gem" d="M8 0 L16 8 L8 16 L0 8 Z" fill="context-fill" stroke="context-stroke" stroke-width="2"/>
+  </defs>
+  <rect x="2" y="2" width="28" height="60" rx="6" fill="url(#stripes)"/>
+  <circle cx="48" cy="18" r="14" fill="url(#dots) #000" stroke="#202020"/>
+  <use xlink:href="#gem" x="36" y="38" fill="#2f6fd0" stroke="#e8c070"/>
+</svg>
