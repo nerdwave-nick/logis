@@ -1,0 +1,77 @@
+name: Go
+
+# The Go rewrite on branch `go` (spec feat/logis-go §8 D6): this workflow runs
+# for the Go paths only; ci.yml runs for the Rust paths. The shared fixtures,
+# fonts and goldens under tests/ and the themes and schemas trigger both.
+on:
+  push:
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "**.go"
+      - "cmd/**"
+      - "internal/**"
+      - "tests/fixtures/**"
+      - "tests/fonts/**"
+      - "tests/goldens/**"
+      - "themes/**"
+      - "schema/**"
+      - ".github/workflows/go.yml"
+  pull_request:
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "**.go"
+      - "cmd/**"
+      - "internal/**"
+      - "tests/fixtures/**"
+      - "tests/fonts/**"
+      - "tests/goldens/**"
+      - "themes/**"
+      - "schema/**"
+      - ".github/workflows/go.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: gofmt, vet, test -race
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # cgo links exactly the libraries of spec §4 through pkg-config:
+      # wayland-client and wayland-egl (libwayland-dev), egl (libegl-dev),
+      # glesv2 (libgles-dev), fontconfig and freetype2. The wayland-scanner
+      # glue is committed, so the build needs no scanner; its freshness test
+      # skips unless the runner's scanner wrote the committed files.
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc pkg-config \
+            libwayland-dev libegl-dev libgles-dev libfontconfig-dev libfreetype-dev
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would rewrite:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # Includes building cmd/logis and checking the C libraries it links.
+      - name: go test -race
+        run: go test -race ./...
+
+      - name: Build (the documented one-line build)
+        run: |
+          go build -o logis ./cmd/logis
+          ./logis --version
