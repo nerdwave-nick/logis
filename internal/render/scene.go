@@ -168,9 +168,6 @@ func pack(shape RoundedRect) [instanceFloats]float32 {
 	radius := min(max(shape.Radius, 0), halfShort)
 	border := shape.Border
 	borderWidth := min(max(border.Width, 0), halfShort)
-	if border.Paint.n == 0 {
-		border.Paint = Solid(Transparent)
-	}
 	// Without a highlight: angle 0, width 1, transparent.
 	angle, width, highlight := float32(0), float32(1), Transparent
 	if hl := border.Highlight; hl.Color.A > 0 {

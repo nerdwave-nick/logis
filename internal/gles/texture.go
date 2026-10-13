@@ -5,10 +5,7 @@ package gles
 */
 import "C"
 
-import (
-	"fmt"
-	"unsafe"
-)
+import "unsafe"
 
 // Texture is an RGBA8 texture read texel for texel (nearest, no mipmaps).
 type Texture uint32
@@ -68,26 +65,4 @@ func MaxTextureSize() int {
 	var n C.GLint
 	C.glGetIntegerv(C.GL_MAX_TEXTURE_SIZE, &n)
 	return int(n)
-}
-
-// BindFramebuffer makes fbo the draw target (0: the window surface).
-func BindFramebuffer(fbo uint32) { C.glBindFramebuffer(C.GL_FRAMEBUFFER, C.GLuint(fbo)) }
-
-// BlendPremultiplied blends premultiplied colours over what is there:
-// src + dst × (1 − src alpha), for colour and alpha alike.
-func BlendPremultiplied() {
-	C.glEnable(C.GL_BLEND)
-	C.glBlendFunc(C.GL_ONE, C.GL_ONE_MINUS_SRC_ALPHA)
-}
-
-// NoBlend writes colours as they are.
-func NoBlend() { C.glDisable(C.GL_BLEND) }
-
-// Err is the context's first recorded GL error since the last call, if
-// any. It does not wait for the GPU, but it is not for the frame loop.
-func Err() error {
-	if e := C.glGetError(); e != C.GL_NO_ERROR {
-		return fmt.Errorf("GL error %#x", int(e))
-	}
-	return nil
 }
