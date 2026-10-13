@@ -84,6 +84,9 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		u.draw = func(sc *render.Scene, g window.Geometry) {
 			rend.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, sc)
 		}
+		u.measure = func(g window.Geometry) scene.Measure {
+			return scene.MeasureFunc(func(t render.Text) (float32, bool) { return rend.MeasureText(t, g.Scale) })
+		}
 		u.setFaces, u.clock = rend.SetFaces, trace.MonotonicNS
 		u.logf = func(message string) { _, _ = fmt.Fprintf(log, "logis: %s\n", message) }
 		u.iconTheme = func(name string) {

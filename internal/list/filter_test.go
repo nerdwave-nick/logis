@@ -236,3 +236,33 @@ func TestTheQueryInForceIsKept(t *testing.T) {
 	f.SetQuery("x") // the same query: nothing to do
 	want(t, indices(f), []uint32{}, "x")
 }
+
+// A deliberate difference from Rust v1 (feat/logis-go G20, the theme
+// window golden): nucleo-matcher 0.3.1 scores "power-profile\t·\t…" 16
+// for "o" (its first o, no bonus) where the same row with "-" for "·"
+// scores 36 (the o of "of" after a space), because its non-ASCII scan
+// carries the class of the last match instead of the character before
+// (internal/fuzzy divergence (a)). logis scores both 36, so the row keeps
+// its input place among the rows tied at 36 where Rust ranks it below
+// them: …, power-profile, night-light, theme, vox here; …, night-light,
+// theme, power-profile, vox in Rust's golden.
+func TestARowWithANonASCIICharacterTiesAsItsASCIITwin(t *testing.T) {
+	f := filter(
+		"do-not-disturb\ton\tSilence the vox of the desktop",
+		"keyboard-layout\tus\tThe tongue of the keys",
+		"mouse-autohide-toggle\toff\tVeil the cursor when idle",
+		"power-profile\t·\tThe hunger of the machine spirit",
+		"vox\tauto\tWho hears the machine",
+		"night-light\toff\tDim the light of the screens",
+		"theme\tforge\tThe visage of the machine",
+		"power-profile\t-\tThe hunger of the machine spirit",
+	)
+	f.SetQuery("o")
+	var scores []uint32
+	for _, m := range f.Matches() {
+		scores = append(scores, m.Score)
+	}
+	if got, want := indices(f), []uint32{0, 1, 2, 3, 5, 6, 7, 4}; !slices.Equal(got, want) {
+		t.Errorf("order %v (scores %v), want %v", got, scores, want)
+	}
+}

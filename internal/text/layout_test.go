@@ -52,6 +52,16 @@ var divergences = map[string]string{
 	// with the line, an empty word range, so "123" is never drawn and
 	// the line is measured without it. Go lays the span out like any other.
 	"123 שלום": "cosmic-text drops the leading incongruent span",
+	// A match at the start of an ASCII word (feat/logis-go G20): cosmic-
+	// text 0.19's ShapeWord fast path shapes a simple ASCII word in the
+	// attributes of its first byte when every span set on the word agrees
+	// with them, and set_rich_text sets no span for pieces equal to the
+	// line's defaults; so the whole word ("of", "off") takes the emphasis
+	// face while a match inside a word ("proof") does not. Go sets only the
+	// matched letters in the emphasis face, as Rust's list rows describe
+	// matches (colours were per letter in both).
+	"The tongue of the keys": "cosmic-text sets a word-start match's whole word in its face",
+	"off":                    "cosmic-text sets a word-start match's whole word in its face",
 }
 
 // The Go line layout equals cosmic-text 0.19's on every oracle case:
@@ -180,5 +190,25 @@ func TestALeadingNumberInARightToLeftLineIsKept(t *testing.T) {
 	}
 	if line.LayoutWidth < 50 {
 		t.Fatalf("the line is measured without its digits: %g", line.LayoutWidth)
+	}
+}
+
+// A match at a word's start sets only its own letters in the emphasis face
+// (cosmic-text sets the whole word: see divergences).
+func TestAnEmphasisAtAWordsStartKeepsToItsLetters(t *testing.T) {
+	f := pinned(t, "sans-serif")
+	if err := f.SetFaces(forgeFaces()); err != nil {
+		t.Fatal(err)
+	}
+	plain := f.Layout("of", 16, text.LineOptions{})
+	line := f.Layout("of", 16, text.LineOptions{Faces: []text.FaceSpan{{Start: 0, End: 1, Face: 2}}})
+	if len(line.Glyphs) != 2 || len(plain.Glyphs) != 2 {
+		t.Fatalf("glyphs %v / %v", line.Glyphs, plain.Glyphs)
+	}
+	if line.Glyphs[0].Font == plain.Glyphs[0].Font {
+		t.Errorf("the matched o is in the row's font %d", line.Glyphs[0].Font)
+	}
+	if line.Glyphs[1].Font != plain.Glyphs[1].Font {
+		t.Errorf("the f is in font %d, want the row's %d", line.Glyphs[1].Font, plain.Glyphs[1].Font)
 	}
 }

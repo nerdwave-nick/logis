@@ -372,8 +372,11 @@ compare with them.
 **Divergence**:
 A case where the Go build deliberately answers differently from the Rust reference,
 pinned with its reason; for the matcher, the nucleo defects it fixes
-(`internal/fuzzy/testdata/divergences.json`); for line layout, cosmic-text dropping
-the leading run of a right-to-left line that starts with digits
+(`internal/fuzzy/testdata/divergences.json`; visible in the list's order when a
+row with a non-ASCII character ties with others, as in the theme window golden);
+for line layout, cosmic-text dropping the leading run of a right-to-left line that
+starts with digits, and cosmic-text setting the whole word in the match face when a
+match starts an ASCII word, where logis sets only the matched letters apart
 (`divergences` in `internal/text/layout_test.go`).
 
 ## Grimdark UI vocabulary

@@ -65,6 +65,9 @@ type shown struct {
 	rows uint32
 	// count is how many items it has had.
 	count int
+	// columns are its list's columns as they grew; a new list (a
+	// provider's next stage) starts them afresh.
+	columns scene.Columns
 	// toast is a notice over the list: from the daemon, or the provider's.
 	toast *list.Notice
 	// asked are the first stage's lines and width (nil: the theme's): the
@@ -91,6 +94,9 @@ type ui struct {
 	draw func(sc *render.Scene, g window.Geometry)
 	// icons are a frame's icons (nil: none, rows show their glyphs).
 	icons func(g window.Geometry) scene.Icons
+	// measure measures a frame's text at its scale (nil: nothing is
+	// measured, columns are estimated).
+	measure func(g window.Geometry) scene.Measure
 	// iconTheme loads the icon theme of that name (nil: none is loaded);
 	// iconThemeName is the one loaded.
 	iconTheme     func(name string)
@@ -141,13 +147,18 @@ func (u *ui) show(s daemon.Session) {
 }
 
 // painter draws sh's list each frame in the theme worn then, at the
-// frame's time: the theme's continuous effects (glow pulse, travelling
+// frame's time, its columns measured as rows come into view (scene.Columns): the theme's continuous effects (glow pulse, travelling
 // highlight, flicker, a pending row's shimmer) move with it, and keep the
 // window drawing on every frame callback while they do (scene.Moving).
 // Transitions are the motion ticket's.
 func (u *ui) painter(sh *shown) window.Painter {
 	return func(g window.Geometry) bool {
 		look := u.lookOf(sh)
+		measure := scene.NoMeasure
+		if u.measure != nil {
+			measure = u.measure(g)
+		}
+		sh.columns.Fit(&look, u.theme, measure)
 		if u.draw != nil {
 			var at uint64
 			if u.clock != nil {

@@ -183,6 +183,27 @@ fn cases() -> Vec<Case> {
         width: Some(40.0),
         ..case(1, "Hail the machine")
     });
+    // A match at a word's start (feat/logis-go G20): cosmic-text sets the
+    // whole word in the emphasis face; logis only the match (divergence).
+    out.push(Case {
+        spans: vec![(11, 12)],
+        emphasis: vec![(11, 12)],
+        emphasis_face: Some(2),
+        ..case(1, "The tongue of the keys")
+    });
+    out.push(Case {
+        spans: vec![(0, 1)],
+        emphasis: vec![(0, 1)],
+        emphasis_face: Some(2),
+        ..case(1, "off")
+    });
+    // Mid-word, both set only the match apart.
+    out.push(Case {
+        spans: vec![(2, 3)],
+        emphasis: vec![(2, 3)],
+        emphasis_face: Some(2),
+        ..case(1, "proof")
+    });
     out
 }
 

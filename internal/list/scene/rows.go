@@ -2,8 +2,6 @@ package scene
 
 import (
 	"math"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/render"
@@ -98,18 +96,12 @@ func widths(l *list.Look, shown []list.Row, t *theme.Theme) []float32 {
 	if len(l.Columns) > 0 {
 		return l.Columns
 	}
-	var out []float32
-	for _, r := range shown {
-		cells := strings.Split(r.Text, "\t")
-		for i, cell := range cells[:len(cells)-1] {
-			if i == len(out) {
-				out = append(out, 0)
-			}
-			// An unmeasured cell: its characters at an average advance.
-			out[i] = max(out[i], float32(utf8.RuneCountInString(cell))*advance(t.Row.Font))
-		}
+	texts := make([]string, len(shown))
+	for i, r := range shown {
+		texts[i] = r.Text
 	}
-	return out
+	w, _ := widest(texts, t.Row.Font, NoMeasure)
+	return w
 }
 
 // stops are where the columns start, from the left of the row's text:
