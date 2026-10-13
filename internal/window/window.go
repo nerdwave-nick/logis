@@ -164,6 +164,18 @@ func (w *Window) Hide() {
 	}
 }
 
+// ReleaseKeyboard lets the visible panel go of the keyboard: it stays in
+// view, but keys go to whatever has focus beneath it (a toast left to
+// read). The keyboard starts over.
+func (w *Window) ReleaseKeyboard() {
+	if w.panel != nil {
+		w.panel.layer.SetKeyboardInteractivity(wlproto.ZwlrLayerSurfaceV1KeyboardInteractivityNone)
+		w.panel.surface.Commit()
+		_ = w.flush() // a lost compositor shows at the next Dispatch
+	}
+	w.resetKeyboard()
+}
+
 // Visible reports whether a panel is shown (and not closed by the
 // compositor).
 func (w *Window) Visible() bool { return w.panel != nil }

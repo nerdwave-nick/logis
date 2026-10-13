@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
 // wire is a peer that records what it was sent, and whether it was closed.
@@ -38,10 +40,10 @@ func (r *recorder) take() []string {
 	return l
 }
 
-func texts(items []protocol.Item) string {
+func texts(entries []list.Entry) string {
 	var t []string
-	for _, i := range items {
-		t = append(t, i.Text)
+	for _, e := range entries {
+		t = append(t, e.Text)
 	}
 	return strings.Join(t, ",")
 }
@@ -53,20 +55,37 @@ func (r *recorder) Accepts(protocol.Mode) error {
 	return nil
 }
 
+func (r *recorder) note(format string, args ...any) {
+	r.log = append(r.log, fmt.Sprintf(format, args...))
+}
+
 func (r *recorder) Show(s Session) {
-	options := ""
-	if s.Options != nil {
-		options = " " + string(s.Options)
+	prompt := ""
+	if s.Options.Prompt != list.DefaultOptions().Prompt {
+		prompt = " '" + s.Options.Prompt + "'"
 	}
-	r.log = append(r.log, fmt.Sprintf("show %d %s%s [%s]", s.ID, s.Mode, options, texts(s.Items)))
+	r.note("show %d %s%s [%s]", s.ID, s.Mode, prompt, texts(s.Entries))
 }
 
-func (r *recorder) Append(id SessionID, items []protocol.Item) {
-	r.log = append(r.log, fmt.Sprintf("append %d [%s]", id, texts(items)))
+func (r *recorder) Step(id SessionID, step provider.Step) {
+	switch step.Kind {
+	case provider.StepAppend:
+		r.note("append %d [%s]", id, texts(step.Entries))
+	case provider.StepStage:
+		r.note("stage %d [%s]", id, texts(step.Entries))
+	case provider.StepToast:
+		r.note("toast %d %s", id, step.Notice.Text)
+	case provider.StepUpdate:
+		r.note("update %d %d", id, step.Updates[0].Index)
+	default:
+		r.note("step %d %d", id, step.Kind)
+	}
 }
 
-func (r *recorder) End(id SessionID)  { r.log = append(r.log, fmt.Sprintf("end %d", id)) }
-func (r *recorder) Hide(id SessionID) { r.log = append(r.log, fmt.Sprintf("hide %d", id)) }
+func (r *recorder) End(id SessionID)     { r.note("end %d", id) }
+func (r *recorder) Hide(id SessionID)    { r.note("hide %d", id) }
+func (r *recorder) Linger(id SessionID)  { r.note("linger %d", id) }
+func (r *recorder) Untoast(id SessionID) { r.note("untoast %d", id) }
 
 const pid = 4242
 
@@ -151,7 +170,18 @@ func TestTheOptionsAClientOpenedWithReachTheResolverWhenShown(t *testing.T) {
 	c.receive(2, itemsOf("b"), nil)
 	wantLog(t, r, "show 1 dmenu []")
 	c.receive(1, protocol.Cancel(), nil)
-	wantLog(t, r, "hide 1", `show 2 dmenu {"prompt":"rite? "} [b]`)
+	wantLog(t, r, "hide 1", "show 2 dmenu 'rite? ' [b]")
+}
+
+// The list options are read when the session opens; malformed ones end it.
+func TestADmenuSessionWithMalformedOptionsIsRefusedAtOpen(t *testing.T) {
+	c, r := newTestCore()
+	w := greet(t, c, 1)
+	c.receive(1, protocol.Open(protocol.ModeDmenu, json.RawMessage(`{"password": "ab"}`)), nil)
+	if replies := w.take(); !isError(replies, "password 'ab' is not one character") || !w.closed {
+		t.Errorf("replies %+v, closed %v", replies, w.closed)
+	}
+	wantLog(t, r)
 }
 
 // Ported from a_greeting_of_another_version_is_refused.
@@ -267,10 +297,10 @@ func TestTypedTextIsTheOutcomeAndAnUnknownItemIsIgnored(t *testing.T) {
 // Ported from protocol_violations_end_the_connection_with_an_error, plus the
 // provider rules of Rust's Feed::new.
 func TestProtocolViolationsEndTheConnectionWithAnError(t *testing.T) {
-	provider := protocol.Open(protocol.ModeProvider, nil)
-	provider.Provider = &protocol.Launch{Argv: [][]byte{[]byte("rite")}}
+	rite := protocol.Open(protocol.ModeProvider, nil)
+	rite.Provider = &protocol.Launch{Argv: [][]byte{[]byte("rite")}}
 	dmenuWithProvider := protocol.Open(protocol.ModeDmenu, nil)
-	dmenuWithProvider.Provider = provider.Provider
+	dmenuWithProvider.Provider = rite.Provider
 	for _, tc := range []struct {
 		requests []protocol.Request
 		needle   string
@@ -305,10 +335,11 @@ func TestProtocolViolationsEndTheConnectionWithAnError(t *testing.T) {
 			}
 		})
 	}
+	// A provider session is shown; this core starts no providers.
 	c, _ := newTestCore()
 	w := greet(t, c, 1)
-	c.receive(1, provider, nil)
-	wantReplies(t, w, protocol.Visible())
+	c.receive(1, rite, nil)
+	wantReplies(t, w, protocol.Visible(), protocol.Error("the provider would not wake: this machine spirit starts no providers"))
 }
 
 // The first word must be hello.

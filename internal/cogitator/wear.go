@@ -3,6 +3,7 @@ package cogitator
 import (
 	"slices"
 
+	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -29,7 +30,9 @@ func (u *ui) retheme(th *theme.Theme) {
 	}
 	u.theme = th
 	if sh := u.shown; sh != nil {
-		size, rows := scene.Fit(sh.asked, th)
+		asked := list.DefaultOptions()
+		asked.Lines, asked.Width = sh.asked[0], sh.asked[1]
+		size, rows := scene.Fit(asked, th)
 		sh.view.SetLines(rows)
 		sh.rows = rows
 		if r, ok := u.surf.(resizer); ok {

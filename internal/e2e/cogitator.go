@@ -107,7 +107,13 @@ type Client struct {
 
 func (c *Cogitator) client(stdin []byte, keepOpen bool, args ...string) *Client {
 	c.t.Helper()
+	return c.clientWith(nil, stdin, keepOpen, args...)
+}
+
+func (c *Cogitator) clientWith(env []string, stdin []byte, keepOpen bool, args ...string) *Client {
+	c.t.Helper()
 	cl := &Client{t: c.t, cmd: c.Compositor.Logis(args...), exited: make(chan struct{})}
+	cl.cmd.Env = append(cl.cmd.Env, env...)
 	cl.cmd.Stdout, cl.cmd.Stderr = &cl.stdout, &cl.stderr
 	if stdin != nil {
 		in, err := cl.cmd.StdinPipe()
@@ -145,6 +151,12 @@ func (c *Cogitator) DmenuAll(input []byte, args ...string) *Client {
 // Provider starts `logis --provider argv…`.
 func (c *Cogitator) Provider(argv ...string) *Client {
 	return c.client(nil, false, append([]string{"--provider"}, argv...)...)
+}
+
+// ProviderWith starts `logis --provider argv…` with env added to the
+// client's environment, which the provider runs with.
+func (c *Cogitator) ProviderWith(env []string, argv ...string) *Client {
+	return c.clientWith(env, nil, false, append([]string{"--provider"}, argv...)...)
 }
 
 // Apps starts `logis --apps`.

@@ -85,6 +85,7 @@ func Run(ctx context.Context, o Options) int {
 		return fail(err.Error())
 	}
 	l.core = newCore(resolver, os.Getpid())
+	l.core.providers.spawn, l.core.logf = l.spawner, logf
 	configure(resolver, cfg.live.Config())
 	retheme(resolver, cfg.themes.Theme())
 	go l.accept(socket.ln)
@@ -99,7 +100,7 @@ func Run(ctx context.Context, o Options) int {
 	}
 	defer cfg.watch(l)()
 	stopped := l.serve(ctx)
-	l.core.closeAll()
+	l.retireAll()
 	if stopped.message != "" {
 		logf(stopped.message)
 	}

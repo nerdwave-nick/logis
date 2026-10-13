@@ -8,6 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/daemon"
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
+	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -167,5 +168,23 @@ func TestAMovingThemeKeepsTheWindowDrawingAndAStilledOneSettles(t *testing.T) {
 	r.ui.retheme(&still)
 	if _, animating := r.paint(); animating {
 		t.Fatal("a stilled theme keeps the window drawing")
+	}
+}
+
+// A provider's session wears a new theme too: its rows (which the pointer
+// finds rows by) follow the re-fitted panel, and a later stage is sized in
+// the new theme within the window its first stage asked for.
+func TestAProviderSessionWearsANewThemeAndItsLaterStagesToo(t *testing.T) {
+	r := newThemedRig()
+	r.showProvider(1, list.DefaultOptions(), list.Entry{Text: "rite"})
+	few := loaded(t, "cogitator-phosphor")
+	few.Window.Rows = 4
+	r.ui.retheme(few)
+	if _, rows := scene.Fit(list.DefaultOptions(), few); r.ui.shown.rows != rows || r.ui.shown.view.Look().Lines != rows {
+		t.Fatalf("rows %d, lines %d, want %d", r.ui.shown.rows, r.ui.shown.view.Look().Lines, rows)
+	}
+	r.ui.step(1, provider.Step{Kind: provider.StepStage, Options: list.DefaultOptions(), Entries: entries("on", "off")})
+	if r.ui.shown.rows != 4 || r.ui.shown.view.Look().Lines != 4 {
+		t.Fatalf("the next stage has %d rows, want the new theme's 4", r.ui.shown.rows)
 	}
 }

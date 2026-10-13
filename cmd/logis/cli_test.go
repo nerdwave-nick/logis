@@ -217,6 +217,23 @@ func TestListRunesWithoutDmenuAreRefused(t *testing.T) {
 	}
 }
 
+// Ported from Rust provider_takes_every_argument_after_it_as_the_program_and_its_arguments.
+func TestProviderTakesEveryArgumentAfterItAsTheProgramAndItsArguments(t *testing.T) {
+	c := mustParse(t, "--config", "/c", "--provider", "rite", "--dmenu", "-x")
+	if c.kind != providerCommand || c.config != "/c" || !reflect.DeepEqual(c.argv, []string{"rite", "--dmenu", "-x"}) {
+		t.Fatalf("%+v", c)
+	}
+	if _, err := parse([]string{"--provider"}); err == nil ||
+		err.Error() != "the rune --provider stands empty: it wants a program to run, then its arguments" {
+		t.Fatalf("%v", err)
+	}
+	for _, args := range [][]string{{"--dmenu", "--provider", "x"}, {"--prompt", "p", "--provider", "x"}, {"--version", "--provider", "x"}} {
+		if _, err := parse(args); err == nil {
+			t.Fatalf("%q accepted", args)
+		}
+	}
+}
+
 func TestConfigNamesTheConfigFileBeforeOrAfterTheCommand(t *testing.T) {
 	if c := mustParse(t, "--config", "/x/logis.jsonc", "--dmenu"); c.kind != dmenuCommand || c.config != "/x/logis.jsonc" {
 		t.Fatalf("%+v", c)

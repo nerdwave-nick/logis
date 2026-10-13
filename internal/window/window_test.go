@@ -285,6 +285,22 @@ func TestShowAsksForAnOverlayLayerSurfaceWithTheKeyboard(t *testing.T) {
 	}
 }
 
+func TestReleaseKeyboardKeepsThePanelButLetsTheKeyboardGo(t *testing.T) {
+	f := newFakeShell(t, niri)
+	w, _ := openFake(t, f)
+	w.ReleaseKeyboard() // nothing shown: harmless
+	p := &painter{}
+	if err := w.Show(size(requested, 408), p.paint); err != nil {
+		t.Fatal(err)
+	}
+	until(t, w, f, "commit")
+	w.ReleaseKeyboard()
+	until(t, w, f, fmt.Sprintf("keyboard %d", wlproto.ZwlrLayerSurfaceV1KeyboardInteractivityNone), "commit")
+	if !w.Visible() {
+		t.Error("the panel went with the keyboard")
+	}
+}
+
 func TestTheFirstConfigureIsAckedAndDrawnAtItsSize(t *testing.T) {
 	f := newFakeShell(t, niri)
 	w, g := openFake(t, f)

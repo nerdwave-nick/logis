@@ -100,10 +100,7 @@ func (v *View) exists(index uint32) bool {
 	return int(index) < len(v.removed) && !v.removed[index]
 }
 
-func (v *View) emblem(i int) bool {
-	d := v.decor[i]
-	return d != nil && (d.Glyph != "" || d.Icon != "")
-}
+func (v *View) emblem(i int) bool { return v.decor[i].emblem() }
 
 func (v *View) pending(index uint32) bool {
 	return int(index) < len(v.decor) && v.decor[index] != nil && v.decor[index].Pending

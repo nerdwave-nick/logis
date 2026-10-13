@@ -10,6 +10,7 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/theme"
 	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
@@ -117,14 +118,21 @@ func (l *loop) serve(ctx context.Context) stop {
 	return *l.stopped
 }
 
-// next waits for the next event and runs it; done when the daemon is
-// dismissed or the idle timeout ran out first.
+// next runs the timers that are due, waits for the next event or timer,
+// and runs it; done when the daemon is dismissed or the idle timeout ran
+// out first.
 func (l *loop) next(ctx context.Context, idleTimeout time.Duration, idleSince time.Time) (stop, bool) {
-	var expired <-chan time.Time
+	l.core.tick(l.core.now())
+	var expired, due <-chan time.Time
 	if idleTimeout > 0 && l.core.idle() {
 		timer := time.NewTimer(time.Until(idleSince.Add(idleTimeout)))
 		defer timer.Stop()
 		expired = timer.C
+	}
+	if at, ok := l.core.deadline(); ok {
+		timer := time.NewTimer(time.Until(at))
+		defer timer.Stop()
+		due = timer.C
 	}
 	select {
 	case <-ctx.Done():
@@ -132,6 +140,7 @@ func (l *loop) next(ctx context.Context, idleTimeout time.Duration, idleSince ti
 	case <-expired:
 		return stop{0, "no summons came for " + idleTimeout.String() +
 			"; the machine spirit returns to rest"}, true
+	case <-due:
 	case e := <-l.sockets:
 		e(l)
 	case <-l.wake:
@@ -201,6 +210,48 @@ func (p *streamPeer) send(reply protocol.Reply) {
 
 // close ends the connection; its reader then sees it closed and stops.
 func (p *streamPeer) close() { _ = p.c.Close() }
+
+// retireAll ends every session as the daemon's exit does: their providers
+// hear cancel and end of input, and one that may still be ended (it was
+// never sent an answer) gets its graces, then its signals, before the
+// daemon is gone (at most 2 × grace). One that was sent an answer may be
+// carrying out an action and is left alone.
+func (l *loop) retireAll() {
+	l.core.closeAll()
+	for {
+		now := l.core.now()
+		l.core.tick(now)
+		if len(l.core.providers.retiring) == 0 {
+			return
+		}
+		at, signalling := l.core.deadline()
+		if !signalling {
+			// Only killed ones are left: wait a grace for their exits.
+			at = now.Add(grace)
+		}
+		timer := time.NewTimer(time.Until(at))
+		select {
+		case <-timer.C:
+			if !signalling {
+				return
+			}
+		case <-l.wake:
+			for _, e := range l.drain() {
+				e(l) // a provider's exit forgets it
+			}
+		}
+		timer.Stop()
+	}
+}
+
+// spawner starts provider processes; what each says comes back as an event
+// for its session.
+func (l *loop) spawner(id SessionID, launch protocol.Launch) (provider.Running, error) {
+	return provider.Spawn(provider.LaunchOf(launch), func(h provider.Heard) bool {
+		l.post(func(l *loop) { l.core.heard(id, h) })
+		return true
+	})
+}
 
 // loopHost is the Host of a running daemon.
 type loopHost struct{ l *loop }

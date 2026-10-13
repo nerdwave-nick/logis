@@ -1,8 +1,9 @@
 // Command logis is a grimdark Wayland launcher and dmenu-compatible picker.
 //
 // This build knows --version, --dmenu/--dmenu0 with fuzzel's list runes,
-// --check-config [--config PATH] and daemon; the other runes arrive with
-// their tickets (feat/logis-go: apps, providers, servitor, CLI surface).
+// --provider PROGRAM [ARG]..., --check-config [--config PATH] and daemon;
+// the other runes arrive with their tickets (feat/logis-go: apps,
+// servitor, CLI surface).
 package main
 
 import (
@@ -39,6 +40,8 @@ func runWith(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch c.kind {
 	case dmenuCommand:
 		return runDmenu(c.config, c.dmenu, stdin, stdout, stderr)
+	case providerCommand:
+		return runProvider(c.config, c.argv, stderr)
 	case checkConfigCommand:
 		return runCheckConfig(c.config, stdout, stderr)
 	case versionCommand:

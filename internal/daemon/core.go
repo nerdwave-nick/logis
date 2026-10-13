@@ -1,10 +1,11 @@
 package daemon
 
 import (
-	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
 // peer is the sending half of one client connection.
@@ -26,34 +27,45 @@ const (
 	opened
 )
 
-// conn is one client connection and the session it may carry.
+// conn is one client connection and the session it may carry, with what
+// feeds that session (Rust Feed): the built-in dmenu provider (dmenu, and
+// the lists of apps and servitor sessions until their features), or an
+// external provider: its launch until the session is shown, then the
+// started provider.
 type conn struct {
-	peer    peer
-	phase   phase
-	mode    protocol.Mode
-	options json.RawMessage
-	// items are a dmenu session's items so far, in arrival order.
-	items []protocol.Item
+	peer  peer
+	phase phase
+	mode  protocol.Mode
+	dmenu *provider.Dmenu
 	// ended: the dmenu client sent all its items.
-	ended bool
+	ended  bool
+	launch *protocol.Launch
+	live   *live
 }
 
 // core is the daemon's protocol state machine: connections, their sessions,
-// the session policy and the resolver. It does no I/O of its own and runs on
-// the daemon's goroutine only; it answers through each connection's peer.
+// their providers, the session policy and the resolver. It does no I/O of
+// its own and runs on the daemon's goroutine only; it answers through each
+// connection's peer, and its timers (deadline, tick) run on the loop's
+// clock.
 type core struct {
-	resolver Resolver
-	sessions sessions
-	conns    map[SessionID]*conn
-	pid      int
+	resolver  Resolver
+	sessions  sessions
+	conns     map[SessionID]*conn
+	pid       int
+	providers providers
+	now       func() time.Time
+	// logf writes one line to the daemon's log.
+	logf func(message string)
 }
 
 func newCore(resolver Resolver, pid int) *core {
-	return &core{resolver: resolver, conns: map[SessionID]*conn{}, pid: pid}
+	return &core{resolver: resolver, conns: map[SessionID]*conn{}, pid: pid,
+		providers: providers{spawn: noSpawn}, now: time.Now, logf: func(string) {}}
 }
 
-// idle: no client is connected.
-func (c *core) idle() bool { return len(c.conns) == 0 }
+// idle: no client is connected and no provider is being ended.
+func (c *core) idle() bool { return len(c.conns) == 0 && len(c.providers.retiring) == 0 }
 
 func (c *core) connect(id SessionID, p peer) {
 	c.conns[id] = &conn{peer: p}
@@ -108,7 +120,17 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 		c.fail(id, err.Error())
 		return
 	}
-	cn.phase, cn.mode, cn.options = opened, request.Mode, request.Options
+	if request.Mode == protocol.ModeProvider {
+		cn.launch = request.Provider
+	} else {
+		o, err := protocol.DecodeOptions(request.Options)
+		if err != nil {
+			c.fail(id, err.Error())
+			return
+		}
+		cn.dmenu = provider.NewDmenu(o)
+	}
+	cn.phase, cn.mode = opened, request.Mode
 	c.apply(c.sessions.open(id, request.Mode.Interactive()))
 }
 
@@ -119,9 +141,8 @@ func (c *core) items(id SessionID, cn *conn, items []protocol.Item) {
 	case cn.ended:
 		c.fail(id, "items arrived after end")
 	default:
-		cn.items = append(cn.items, items...)
-		if visible, ok := c.sessions.visible(); ok && visible == id && len(items) > 0 {
-			c.resolver.Append(id, items)
+		if step, shown := cn.dmenu.Push(items); shown {
+			c.resolver.Step(id, step)
 		}
 	}
 }
@@ -141,7 +162,7 @@ func (c *core) disconnect(id SessionID) {
 	if cn, ok := c.conns[id]; ok {
 		delete(c.conns, id)
 		cn.peer.close()
-		c.apply(c.sessions.close(id))
+		c.closeSession(id, cn, false)
 	}
 }
 
@@ -152,17 +173,19 @@ func (c *core) answered(id SessionID, answer Answer) {
 		return
 	}
 	switch {
+	case cn.mode == protocol.ModeDmenu:
+		if outcome := cn.dmenu.Outcome(answer); outcome.Kind != protocol.Dismissed || answer.Kind == AnswerDismissed {
+			c.finish(id, outcome)
+		}
 	case answer.Kind == AnswerDismissed:
 		c.finish(id, protocol.Outcome{Kind: protocol.Dismissed})
-	case cn.mode != protocol.ModeDmenu:
-		// What the user chose in an apps, servitor or provider session is
-		// for those features' tickets to carry out.
-	case answer.Kind == AnswerTyped:
-		c.finish(id, protocol.Outcome{Kind: protocol.Typed, Text: answer.Text})
-	case answer.Index >= 0 && answer.Index < len(cn.items):
-		c.finish(id, protocol.Outcome{Kind: protocol.Selected, Index: uint64(answer.Index),
-			Item: cn.items[answer.Index]})
+	case cn.live != nil:
+		if err := cn.live.external.Answer(answer); err != nil {
+			c.fail(id, "the provider was lost: "+err.Error())
+		}
 	}
+	// What the user chose in an apps or servitor session is for those
+	// features' tickets to carry out.
 }
 
 // failed: the resolver could not show the session; its client gets message
@@ -175,15 +198,15 @@ func (c *core) failed(id SessionID, message string) {
 
 // finish ends a session with its outcome and closes its connection.
 func (c *core) finish(id SessionID, outcome protocol.Outcome) {
-	c.end(id, protocol.Result(outcome))
+	c.end(id, protocol.Result(outcome), outcome.Kind == protocol.Closed)
 }
 
 // fail ends a connection with an error, cancelling any session it had.
 func (c *core) fail(id SessionID, message string) {
-	c.end(id, protocol.Error(message))
+	c.end(id, protocol.Error(message), false)
 }
 
-func (c *core) end(id SessionID, last protocol.Reply) {
+func (c *core) end(id SessionID, last protocol.Reply, closed bool) {
 	cn, ok := c.conns[id]
 	if !ok {
 		return
@@ -191,14 +214,35 @@ func (c *core) end(id SessionID, last protocol.Reply) {
 	delete(c.conns, id)
 	cn.peer.send(last)
 	cn.peer.close()
-	c.apply(c.sessions.close(id))
+	c.closeSession(id, cn, closed)
 }
 
-// closeAll ends every connection without a word, as the daemon's exit does.
+// closeSession: the session of cn is over. Its provider retires, and the
+// window hides, or lingers on a toast after the provider's own close.
+func (c *core) closeSession(id SessionID, cn *conn, closed bool) {
+	linger := cn.live != nil && c.providers.retire(id, cn.live, closed, c.now())
+	effects := c.sessions.close(id)
+	if lingerer, ok := c.resolver.(Lingerer); ok && linger {
+		for i, e := range effects {
+			if e == (effect{hide, id}) {
+				effects = append(effects[:i:i], effects[i+1:]...)
+				lingerer.Linger(id)
+				break
+			}
+		}
+	}
+	c.apply(effects)
+}
+
+// closeAll ends every connection without a word, as the daemon's exit does;
+// their providers hear cancel and end of input.
 func (c *core) closeAll() {
 	for id, cn := range c.conns {
 		delete(c.conns, id)
 		cn.peer.close()
+		if cn.live != nil {
+			c.providers.retire(id, cn.live, false, c.now())
+		}
 	}
 }
 
@@ -225,8 +269,14 @@ func (c *core) show(id SessionID) {
 		return
 	}
 	cn.peer.send(protocol.Visible())
-	c.resolver.Show(Session{ID: id, Mode: cn.mode, Options: cn.options, Items: cn.items})
-	if cn.ended {
-		c.resolver.End(id)
+	switch {
+	case cn.dmenu != nil:
+		stage := cn.dmenu.Show()
+		c.resolver.Show(Session{ID: id, Mode: cn.mode, Options: stage.Options, Entries: stage.Entries})
+		if cn.ended {
+			c.resolver.End(id)
+		}
+	case cn.launch != nil:
+		c.start(id, cn)
 	}
 }
