@@ -14,17 +14,26 @@ const (
 	matcherData    = 2048*4 + 2048 + 2048*2 + 2048*8 + maxMatrixCells
 )
 
-// cell is one M entry: its score, the consecutive bonus carried into it,
-// and whether it continues a match in the previous row's previous column.
-type cell struct {
-	score       uint16
-	consecutive uint8
-	matched     bool
+// cell is one M entry, packed: its score (bits 0–15), the consecutive
+// bonus carried into it (16–23), and whether it continues a match in the
+// previous row's previous column (bit 24).
+type cell uint32
+
+func newCell(score, consecutive uint16, matched bool) cell {
+	c := cell(score) | cell(consecutive)<<16
+	if matched {
+		c |= 1 << 24
+	}
+	return c
 }
 
+func (c cell) score() uint16       { return uint16(c) }
+func (c cell) consecutive() uint16 { return uint16(c>>16) & 0xFF }
+func (c cell) matched() bool       { return c&(1<<24) != 0 }
+
 // unmatched marks a column where the row's character is not; nucleo's
-// sentinel, which a real cell never equals.
-var unmatched = cell{matched: true}
+// sentinel (score 0, matched), which a real cell never equals.
+const unmatched cell = 1 << 24
 
 type dpScratch struct {
 	hay        []rune
@@ -60,9 +69,17 @@ func optimal[H char](m *Matcher, hay []H, needle []rune, start, greedyEnd, end i
 	d.rowOff = resize(d.rowOff, n)
 	prev := classAt(hay, start-1)
 	k, found := 0, false
-	for j := range w {
-		c, cls := m.classAndFold(rune(hay[start+j]))
-		d.hay[j], d.bonus[j] = c, uint8(bonusFor(prev, cls))
+	for j, h := range hay[start:end] {
+		c := rune(h)
+		var cls class
+		if c < 0x80 {
+			if cls = asciiClass[c]; cls == classUpper {
+				c += 'a' - 'A'
+			}
+		} else {
+			c, cls = m.classAndFold(c)
+		}
+		d.hay[j], d.bonus[j] = c, bonusTable[prev][cls]
 		prev = cls
 		if c != needle[k] {
 			continue
@@ -77,13 +94,14 @@ func optimal[H char](m *Matcher, hay []H, needle []rune, start, greedyEnd, end i
 	if !found {
 		return 0, false
 	}
+	d.rowOff[0] = 0 // row 0 is scored from the window's start (nucleo too)
 	d.cur, d.next = resize(d.cur, w), resize(d.next, w)
 	if m.wantIndices {
 		d.matrixRows = resize(d.matrixRows, n-1)
 		size := 0
 		for k := range n - 1 {
-			d.matrixRows[k] = size - d.rowStart(k)
-			size += w - n + k + 1 - d.rowStart(k)
+			d.matrixRows[k] = size - d.rowOff[k]
+			size += w - n + k + 1 - d.rowOff[k]
 		}
 		d.matrix = resize(d.matrix, size)
 	}
@@ -93,57 +111,55 @@ func optimal[H char](m *Matcher, hay []H, needle []rune, start, greedyEnd, end i
 	}
 	best := d.rowOff[n-1]
 	for col := best + 1; col < w; col++ {
-		if d.cur[col].score >= d.cur[best].score {
+		if d.cur[col].score() >= d.cur[best].score() {
 			best = col
 		}
 	}
 	if m.wantIndices {
 		d.path(m, best, start)
 	}
-	return d.cur[best].score, true
-}
-
-// rowStart is the first column of row k (row 0 always starts at 0).
-func (d *dpScratch) rowStart(k int) int {
-	if k == 0 {
-		return 0
-	}
-	return d.rowOff[k]
+	return d.cur[best].score(), true
 }
 
 // row scores row k+1 (into next) from row k (in cur; for k 0 computed
-// here).
+// here). Columns before the next row's start only carry the gap score on.
 func (d *dpScratch) row(k int, needle []rune, keep bool) {
 	n, w := len(needle), len(d.hay)
-	from, nextOff, to := d.rowStart(k), d.rowOff[k+1], w-n+k
+	from, split, to := d.rowOff[k], d.rowOff[k+1]-1, w-n+k
+	first, want := needle[0], needle[k+1]
+	hay, bonus, cur, next := d.hay[:w], d.bonus[:w], d.cur[:w], d.next[:w]
+	var matrix []uint8
+	if keep {
+		matrix = d.matrix[d.matrixRows[k]+from : d.matrixRows[k]+to+1]
+	}
 	var prevP, prevM uint16
 	for col := from; col <= to; col++ {
 		p, pFromM := gap(prevP, prevM)
-		mc := unmatched
+		var mc cell
 		switch {
 		case k > 0:
-			mc = d.cur[col]
-		case d.hay[col] == needle[0]:
-			b := d.bonus[col]
-			mc = cell{score: uint16(b)*bonusFirstCharMul + scoreMatch, consecutive: b}
+			mc = cur[col]
+		case hay[col] == first:
+			b := uint16(bonus[col])
+			mc = newCell(b*bonusFirstCharMul+scoreMatch, b, false)
+		default:
+			mc = unmatched
 		}
-		if col+1 >= nextOff {
-			d.next[col+1] = unmatched
-			if d.hay[col+1] == needle[k+1] {
-				d.next[col+1] = extend(p, uint16(d.bonus[col+1]), mc)
+		if col >= split {
+			nc := unmatched
+			if hay[col+1] == want {
+				nc = extend(p, uint16(bonus[col+1]), mc)
 			}
+			next[col+1] = nc
 		}
 		if keep {
-			var v uint8
+			v := uint8(mc>>23) & 2
 			if pFromM {
 				v |= 1
 			}
-			if mc.matched {
-				v |= 2
-			}
-			d.matrix[d.matrixRows[k]+col] = v
+			matrix[col-from] = v
 		}
-		prevP, prevM = p, mc.score
+		prevP, prevM = p, mc.score()
 	}
 }
 
@@ -161,17 +177,17 @@ func gap(prevP, prevM uint16) (uint16, bool) {
 // a gap scoring p or right after the match m (ties take the gap).
 func extend(p, bonus uint16, m cell) cell {
 	if m == unmatched {
-		return cell{score: p + bonus + scoreMatch, consecutive: uint8(bonus)}
+		return newCell(p+bonus+scoreMatch, bonus, false)
 	}
-	consecutive := max(uint16(m.consecutive), bonusConsecutive)
+	consecutive := max(m.consecutive(), bonusConsecutive)
 	if bonus >= bonusBoundary && bonus > consecutive {
 		consecutive = bonus
 	}
-	continued, skipped := m.score+max(consecutive, bonus), p+bonus
+	continued, skipped := m.score()+max(consecutive, bonus), p+bonus
 	if continued > skipped {
-		return cell{score: continued + scoreMatch, consecutive: uint8(consecutive), matched: true}
+		return newCell(continued+scoreMatch, consecutive, true)
 	}
-	return cell{score: skipped + scoreMatch, consecutive: uint8(bonus)}
+	return newCell(skipped+scoreMatch, bonus, false)
 }
 
 // path walks back from the best end to the positions of the match.
@@ -181,7 +197,7 @@ func (d *dpScratch) path(m *Matcher, col, start int) {
 	m.indices = append(m.indices, make([]uint32, n)...)
 	pos := m.indices[base:]
 	pos[n-1] = uint32(start + col)
-	matched := d.cur[col].matched
+	matched := d.cur[col].matched()
 	row := n - 2
 	col--
 	for {

@@ -107,27 +107,29 @@ func prefilterASCII(hay []byte, needle []rune, onlyGreedy bool) (start, greedyEn
 
 // indexFolded finds c (lower case) in hay, either case of a letter.
 func indexFolded(hay []byte, c byte) int {
+	i := bytes.IndexByte(hay, c)
 	if c < 'a' || c > 'z' {
-		return bytes.IndexByte(hay, c)
+		return i
 	}
-	for i, b := range hay {
-		if b|0x20 == c {
-			return i
-		}
+	upper := hay
+	if i >= 0 {
+		upper = hay[:i]
 	}
-	return -1
+	if j := bytes.IndexByte(upper, c-('a'-'A')); j >= 0 {
+		return j
+	}
+	return i
 }
 
 func lastIndexFolded(hay []byte, c byte) int {
+	i := bytes.LastIndexByte(hay, c)
 	if c < 'a' || c > 'z' {
-		return bytes.LastIndexByte(hay, c)
+		return i
 	}
-	for i := len(hay) - 1; i >= 0; i-- {
-		if hay[i]|0x20 == c {
-			return i
-		}
+	if j := bytes.LastIndexByte(hay[i+1:], c-('a'-'A')); j >= 0 {
+		return i + 1 + j
 	}
-	return -1
+	return i
 }
 
 // prefilterRunes finds the first place needle can start and (unless
@@ -159,17 +161,19 @@ func (m *Matcher) prefilterRunes(hay []rune, needle []rune, onlyGreedy bool) (st
 // the highest bonus.
 func (m *Matcher) substring1ASCII(hay []byte, c byte) (uint16, bool) {
 	best, at := uint16(0), 0
-	for i, b := range hay {
-		if !sameFolded(b, c) {
-			continue
-		}
-		bonus := bonusFor(classAt(hay, i-1), asciiClass[b])
+	for i := indexFolded(hay, c); i >= 0; {
+		bonus := bonusFor(classAt(hay, i-1), asciiClass[hay[i]])
 		if s := bonus*bonusFirstCharMul + scoreMatch; s > best {
 			best, at = s, i
 			if bonus >= bonusWhite {
 				break
 			}
 		}
+		next := indexFolded(hay[i+1:], c)
+		if next < 0 {
+			break
+		}
+		i += 1 + next
 	}
 	if best == 0 {
 		return 0, false
@@ -178,12 +182,6 @@ func (m *Matcher) substring1ASCII(hay []byte, c byte) (uint16, bool) {
 		m.indices = append(m.indices, uint32(at))
 	}
 	return best, true
-}
-
-// sameFolded reports whether the haystack byte b is the lower-case needle
-// byte c, ignoring the case of letters.
-func sameFolded(b, c byte) bool {
-	return b == c || (c >= 'a' && c <= 'z' && b|0x20 == c)
 }
 
 // substring1Runes is substring1ASCII for other texts, from start on.

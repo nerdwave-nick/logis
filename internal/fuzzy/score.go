@@ -17,7 +17,18 @@ const (
 
 // bonusFor is the bonus for matching a character of class cur after one of
 // class prev: word starts, camelCase humps and digits after non-digits.
-func bonusFor(prev, cur class) uint16 {
+func bonusFor(prev, cur class) uint16 { return uint16(bonusTable[prev][cur]) }
+
+var bonusTable = func() (t [classNumber + 1][classNumber + 1]uint8) {
+	for prev := range t {
+		for cur := range t[prev] {
+			t[prev][cur] = uint8(computeBonus(class(prev), class(cur)))
+		}
+	}
+	return t
+}()
+
+func computeBonus(prev, cur class) uint16 {
 	if cur > classDelimiter {
 		switch prev {
 		case classWhitespace:
