@@ -73,6 +73,19 @@ func (l *logLines) rest() []string {
 	return l.seen
 }
 
+// connectFailing connects where the daemon should refuse to start; one
+// that starts anyway is stopped at the end, not left behind.
+func (r *rig) connectFailing(o client.Options) (*client.Conn, error) {
+	c, err := client.Connect(o)
+	if err == nil {
+		r.t.Cleanup(func() {
+			_ = c.Close()
+			stopDaemon(c.Daemon)
+		})
+	}
+	return c, err
+}
+
 func containsAll(s string, parts []string) bool {
 	for _, p := range parts {
 		if !strings.Contains(s, p) {
@@ -105,7 +118,7 @@ func TestE2ECheckConfigJudgesTheConfigAndExits0Or2(t *testing.T) {
 func TestE2EADaemonRefusesToStartOnAnInvalidConfigAndItsClientFails(t *testing.T) {
 	r := newRig(t)
 	writeFile(t, r.configFile(), `{"idle-timeout": "soon"}`)
-	_, err := client.Connect(client.Options{RuntimeDir: r.dir, Exe: r.bin})
+	_, err := r.connectFailing(client.Options{RuntimeDir: r.dir, Exe: r.bin})
 	if err == nil || !strings.Contains(err.Error(), "heretical") ||
 		!strings.Contains(err.Error(), r.configFile()+":1:") {
 		t.Errorf("%v", err)
@@ -119,7 +132,7 @@ func TestE2EAClientHandsItsConfigToTheDaemonItStarts(t *testing.T) {
 	r := newRig(t)
 	path := filepath.Join(t.TempDir(), "named.jsonc")
 	writeFile(t, path, `{"heresy": true}`)
-	_, err := client.Connect(client.Options{RuntimeDir: r.dir, Exe: r.bin,
+	_, err := r.connectFailing(client.Options{RuntimeDir: r.dir, Exe: r.bin,
 		DaemonArgs: config.NewSource(path).DaemonArgs()})
 	if err == nil || !strings.Contains(err.Error(), path) {
 		t.Errorf("%v", err)
