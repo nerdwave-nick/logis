@@ -94,6 +94,36 @@ jobs:
           go build -o logis ./cmd/logis
           ./logis --version
 
+  # The keyboard's differential suite (spec §4 test-only oracles, §6):
+  # internal/xkb against cgo libxkbcommon, which builds only with -tags
+  # xkbref and is never linked into logis (the check job's link test
+  # still finds the six libraries of §4 alone). It runs on Arch Linux, as
+  # the owner's machine does: that libxkbcommon, xkeyboard-config (keymaps
+  # compiled from names) and libx11's Compose tables are the reference, and
+  # a newer libxkbcommon there is the drift this job exists to catch.
+  # Ubuntu 24.04's libxkbcommon 1.6 predates the keysym and case tables the
+  # generated code follows (1.13).
+  xkb-oracle:
+    name: keyboard differential suite (libxkbcommon)
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    timeout-minutes: 15
+    steps:
+      - name: Install the C toolchain, libxkbcommon and the X11 locale data
+        run: |
+          pacman -Syu --noconfirm --needed git gcc pkgconf libxkbcommon xkeyboard-config libx11
+          pkg-config --modversion xkbcommon
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      - name: go test -tags xkbref ./internal/xkb/...
+        run: go test -count=1 -tags xkbref -v ./internal/xkb/...
+
   # End to end and latency in sway on wlroots' headless backend (spec §6):
   # installed on this runner only. internal/e2e starts sway itself
   # (WLR_BACKENDS=headless, pixman renderer, no input devices, one
