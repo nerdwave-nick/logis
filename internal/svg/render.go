@@ -30,6 +30,9 @@ type renderer struct {
 	// active guards references (use, clip paths, masks) against cycles.
 	active map[*node]bool
 	styles map[*node]style
+	// context is the style of the use elements being drawn, innermost
+	// last: what context-fill and context-stroke paint with.
+	context []style
 }
 
 // Render draws the document over dst (premultiplied RGBA8), its user
@@ -132,6 +135,8 @@ func (r *renderer) use(n *node, ctm Matrix, s style, c *canvas) {
 	r.active[n] = true
 	defer delete(r.active, n)
 	m := ctm.Mul(parseTransform(n.attr("transform")))
+	r.context = append(r.context, s)
+	defer func() { r.context = r.context[:len(r.context)-1] }()
 	r.effects(n, s, m, c, func(c *canvas) {
 		switch target.name {
 		case "symbol", "svg":
@@ -244,13 +249,26 @@ func (r *renderer) shader(p paint, s style, opacity float64, bbox rect, m Matrix
 		return solid(premultiplied(p.color, opacity))
 	case paintCurrent:
 		return solid(premultiplied(s.color, opacity))
+	case paintContext:
+		if len(r.context) == 0 {
+			return nil
+		}
+		ctx := r.context[len(r.context)-1]
+		from := ctx.fill
+		if p.url == "stroke" {
+			from = ctx.stroke
+		}
+		if from.kind == paintContext {
+			return nil
+		}
+		return r.shader(from, ctx, opacity, bbox, m)
 	case paintURL:
 		target := r.doc.ids[p.url]
 		if target != nil && (target.name == "linearGradient" || target.name == "radialGradient") {
 			return r.gradientShader(target, bbox, m, opacity)
 		}
 		if target != nil && target.name == "pattern" {
-			r.report["pattern"] = true
+			return r.patternShader(target, bbox, m, opacity)
 		}
 		if p.fallback != nil {
 			return r.shader(*p.fallback, s, opacity, bbox, m)

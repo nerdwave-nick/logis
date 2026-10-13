@@ -17,6 +17,9 @@ const (
 	paintColor
 	paintCurrent // currentColor, resolved with the element's color
 	paintURL     // a paint server; fallback when it cannot be used
+	// paintContext is SVG 2's context-fill (url "fill") or context-stroke
+	// (url "stroke"): the paint of the use element drawing this one.
+	paintContext
 )
 
 type paint struct {
@@ -190,6 +193,10 @@ func parsePaint(s string) (paint, bool) {
 		return paint{kind: paintNone}, true
 	case "currentColor", "currentcolor":
 		return paint{kind: paintCurrent}, true
+	case "context-fill":
+		return paint{kind: paintContext, url: "fill"}, true
+	case "context-stroke":
+		return paint{kind: paintContext, url: "stroke"}, true
 	}
 	if rest, ok := strings.CutPrefix(s, "url("); ok {
 		end := strings.IndexByte(rest, ')')

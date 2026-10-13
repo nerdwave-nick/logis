@@ -464,18 +464,17 @@ func TestHiddenAndUndrawableElementsDrawNothing(t *testing.T) {
 }
 
 func TestUnsupportedFeaturesDegradeAndAreReported(t *testing.T) {
-	body := `<defs><filter id="f"><feGaussianBlur stdDeviation="2"/></filter>
-		<pattern id="p" width="2" height="2"><rect width="1" height="1"/></pattern></defs>
+	body := `<defs><filter id="f"><feGaussianBlur stdDeviation="2"/></filter></defs>
 		<text x="0" y="10">rite</text>
 		<rect width="4" height="4" fill="red" filter="url(#f)"/>
-		<rect x="4" width="4" height="4" fill="url(#p) lime"/>
-		<rect x="8" width="4" height="4" fill="url(#p)"/>
+		<rect x="4" width="4" height="4" fill="url(#f) lime"/>
+		<rect x="8" width="4" height="4" fill="url(#f)"/>
 		<path d="M0 0 L4 4" marker-end="url(#m)" stroke="black"/>
 		<image width="4" height="4" href="x.png"/>
 		<foreignObject/><bogus/>
 		<rect x="12" width="4" height="4" fill="red"/>`
 	img, report := render(t, doc(16, 4, body), 16, 4)
-	want := []string{"<bogus>", "<foreignObject>", "<image>", "<text>", "filter", "marker", "pattern"}
+	want := []string{"<bogus>", "<foreignObject>", "<image>", "<text>", "filter", "marker"}
 	if !slices.Equal(report, want) {
 		t.Errorf("report %q, want %q", report, want)
 	}
@@ -550,4 +549,51 @@ func TestOverlappingOutlinesAreNotCountedTwiceOnEdges(t *testing.T) {
 	img, _ = render(t, doc(12, 12, `<path d="M1 2 H8 V11" fill="none" stroke="black" stroke-width="3"/>`), 12, 12)
 	wantCoverage(t, img, 48, 0.3)
 	wantPx(t, img, 6, 3, [4]uint8{0, 0, 0, 191}, 1)
+}
+
+func TestPatternsTileTheirContent(t *testing.T) {
+	green := [4]uint8{0, 255, 0, 255}
+	// A 4×4 tile in user space with a red 2×2 square in its corner.
+	img, report := render(t, doc(8, 8, `<pattern id="p" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2" fill="red"/></pattern>
+		<rect width="8" height="8" fill="url(#p)"/>`), 8, 8)
+	for _, c := range []struct {
+		x, y int
+		want [4]uint8
+	}{{0, 0, red}, {1, 1, red}, {2, 0, clear}, {3, 3, clear}, {4, 4, red}, {5, 4, red}, {6, 6, clear}} {
+		wantPx(t, img, c.x, c.y, c.want, 2)
+	}
+	if len(report) != 0 {
+		t.Errorf("report %q", report)
+	}
+	// Bounding box units (the default) for the tile, a view box for the
+	// content, a transform for the whole pattern, inherited through href.
+	img, _ = render(t, doc(16, 8, `<pattern id="base" width=".5" height="1" viewBox="0 0 1 1" preserveAspectRatio="none"><rect width=".5" height="1" fill="lime"/></pattern>
+		<pattern id="p" href="#base"/>
+		<pattern id="moved" href="#base" patternTransform="translate(2 0)"/>
+		<rect width="8" height="4" fill="url(#p)"/>
+		<rect y="4" width="8" height="4" fill="url(#moved)"/>`), 16, 8)
+	wantPx(t, img, 0, 1, green, 2)
+	wantPx(t, img, 1, 1, green, 2)
+	wantPx(t, img, 2, 1, clear, 2)
+	wantPx(t, img, 4, 1, green, 2)
+	wantPx(t, img, 2, 5, green, 2)
+	wantPx(t, img, 1, 5, clear, 2)
+	// An empty or zero-sized pattern paints nothing; its fallback does.
+	img, _ = render(t, doc(4, 4, `<pattern id="z" width="0" height="4"/><rect width="4" height="4" fill="url(#z) red"/>`), 4, 4)
+	wantPx(t, img, 1, 1, clear, 0)
+}
+
+func TestContextPaintsTakeTheUsesPaint(t *testing.T) {
+	body := `<defs><path id="d" d="M0 0H4V4H0Z" fill="context-fill" stroke="context-stroke"/></defs>
+		<use href="#d" fill="red" stroke="none"/>
+		<use href="#d" x="4" fill="none" stroke="blue" stroke-width="2"/>
+		<path d="M8 0H12V4H8Z" fill="context-fill"/>`
+	img, report := render(t, doc(12, 4, body), 12, 4)
+	wantPx(t, img, 1, 1, red, 0)
+	wantPx(t, img, 4, 1, [4]uint8{0, 0, 255, 255}, 0)
+	wantPx(t, img, 6, 1, clear, 0)
+	wantPx(t, img, 9, 1, clear, 0) // no context element: nothing
+	if len(report) != 0 {
+		t.Errorf("report %q", report)
+	}
 }
