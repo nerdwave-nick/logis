@@ -22,7 +22,7 @@ var (
 func (m Mods) Commands() bool { return m.Ctrl || m.Alt || m.Logo }
 
 // Binding is the action bound to keysym ks with the unconsumed modifiers
-// m (Rust src/input/bindings.rs; paste comes with G16).
+// m (Rust src/input/bindings.rs).
 func Binding(ks xkb.Keysym, m Mods) (Action, bool) {
 	plain, ctrl, shift := m == None, m == Ctrl, m == Shift
 	edit := func(k EditKind) (Action, bool) { return EditAction(Edit{Kind: k}), true }
@@ -53,6 +53,9 @@ func Binding(ks xkb.Keysym, m Mods) (Action, bool) {
 		return edit(DeleteWordBack)
 	case (ks == 'u' || ks == 'U') && ctrl:
 		return edit(Clear)
+	case (ks == 'v' || ks == 'V') && ctrl,
+		(ks == xkb.KeyInsert || ks == xkb.KeyKPInsert) && shift:
+		return Action{Kind: Paste, Selection: Clipboard}, true
 	case (ks == xkb.KeyLeft || ks == xkb.KeyKPLeft) && plain:
 		return edit(Left)
 	case (ks == xkb.KeyRight || ks == xkb.KeyKPRight) && plain:

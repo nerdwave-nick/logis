@@ -68,11 +68,14 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		} else {
 			rend.SetFonts(f) // the renderer owns them now
 		}
+		// Keys, the pointer and pasted text share one queue, in order.
 		var actions []input.Action
+		sink := func(a input.Action) { actions = append(actions, a) }
 		kb := input.NewKeyboard(input.ComposeFromEnv())
 		kb.SetLog(log)
-		kb.SetSink(func(a input.Action) { actions = append(actions, a) })
+		kb.SetSink(sink)
 		w.SetKeyboard(kb)
+		w.SetSink(sink)
 		u := newUI(host, w, &th, kb)
 		u.draw = func(sc *render.Scene, g window.Geometry) {
 			rend.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, sc)
@@ -91,7 +94,8 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 	return r, nil
 }
 
-// run serves commands and keys until the compositor is lost.
+// run serves commands, keys, the pointer and pastes until the compositor
+// is lost.
 func (r *Resolver) run(w *window.Window, u *ui, actions *[]input.Action) error {
 	for {
 		busy := false
