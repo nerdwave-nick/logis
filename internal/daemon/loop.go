@@ -208,6 +208,39 @@ func (p *streamPeer) send(reply protocol.Reply) {
 // close ends the connection; its reader then sees it closed and stops.
 func (p *streamPeer) close() { _ = p.c.Close() }
 
+// retireAll ends every session as the daemon's exit does: their providers
+// hear cancel and end of input, and one that may still be ended (it was
+// never sent an answer) gets its graces, then its signals, before the
+// daemon is gone (at most 2 × grace). One that was sent an answer may be
+// carrying out an action and is left alone.
+func (l *loop) retireAll() {
+	l.core.closeAll()
+	for {
+		now := l.core.now()
+		l.core.tick(now)
+		if len(l.core.providers.retiring) == 0 {
+			return
+		}
+		at, signalling := l.core.deadline()
+		if !signalling {
+			// Only killed ones are left: wait a grace for their exits.
+			at = now.Add(grace)
+		}
+		timer := time.NewTimer(time.Until(at))
+		select {
+		case <-timer.C:
+			if !signalling {
+				return
+			}
+		case <-l.wake:
+			for _, e := range l.drain() {
+				e(l) // a provider's exit forgets it
+			}
+		}
+		timer.Stop()
+	}
+}
+
 // spawner starts provider processes; what each says comes back as an event
 // for its session.
 func (l *loop) spawner(id SessionID, launch protocol.Launch) (provider.Running, error) {

@@ -201,8 +201,17 @@ func TestADismissedProviderThatNeverActedIsCancelledThenEndedIfItLingers(t *test
 	}
 	r.core.tick(kill)
 	wantSeenLines(t, f, "signal 9")
+	if _, ok := r.core.deadline(); ok {
+		t.Fatal("a timer after SIGKILL")
+	}
+	r.core.tick(kill.Add(time.Hour))
+	wantSeenLines(t, f) // killed once
+	if r.core.idle() {
+		t.Fatal("idle before the killed provider's exit is heard")
+	}
+	r.core.heard(1, provider.Heard{Exited: true, Status: "signal: 9 (SIGKILL)"})
 	if !r.core.idle() {
-		t.Fatal("not idle once it is ended")
+		t.Fatal("not idle once it is gone")
 	}
 }
 

@@ -10,8 +10,12 @@ import (
 // stand, every other argument naming the command. `logis daemon …` is
 // parsed apart (daemon.go).
 
+// providerRune: everything after it is the provider's command line.
+const providerRune = "--provider"
+
 // knownRunes are the runes this build knows, for the unknown-rune error.
-const knownRunes = "--version, --dmenu or --dmenu0 (with fuzzel's list runes), --check-config, " +
+const knownRunes = "--version, --dmenu or --dmenu0 (with fuzzel's list runes), " +
+	"--provider PROGRAM [ARG]..., --check-config, " +
 	"--config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]"
 
 type commandKind int
@@ -23,6 +27,8 @@ const (
 	checkConfigCommand
 	// dmenuCommand: --dmenu or --dmenu0, with command.dmenu.
 	dmenuCommand
+	// providerCommand: --provider PROGRAM [ARG]..., with command.argv.
+	providerCommand
 )
 
 // command is what one invocation of logis was asked to do; config is
@@ -32,6 +38,8 @@ type command struct {
 	kind   commandKind
 	config string
 	dmenu  dmenuOptions
+	// argv is the provider's command line: everything after --provider.
+	argv []string
 }
 
 // argQueue hands out the arguments in order; a rune takes its value from it.
@@ -81,6 +89,12 @@ func parse(args []string) (command, error) {
 			kind, nul = dmenuCommand, true
 		case checkConfigRune:
 			kind = checkConfigCommand
+		case providerRune:
+			kind, c.argv = providerCommand, rest.args[rest.at:]
+			rest.at = len(rest.args)
+			if len(c.argv) == 0 {
+				return c, emptyValue(providerRune, "a program to run, then its arguments")
+			}
 		case "-i":
 			continue // dmenu's case-insensitivity switch: logis always ignores case
 		default:

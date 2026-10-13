@@ -96,7 +96,7 @@ func Run(ctx context.Context, o Options) int {
 	// made meanwhile wait in the watch.
 	defer cfg.watch(l)()
 	stopped := l.serve(ctx)
-	l.core.closeAll()
+	l.retireAll()
 	if stopped.message != "" {
 		logf(stopped.message)
 	}

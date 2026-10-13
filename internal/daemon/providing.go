@@ -50,16 +50,22 @@ type live struct {
 	toast time.Time
 }
 
-// retiring is a retired provider that may still be ended.
+// retiring is a retired provider that may still be ended. Once killed it
+// stays until its exit is heard, without further timers.
 type retiring struct {
 	id      SessionID
 	running provider.Running
 	since   time.Time
 	termed  bool
+	killed  bool
 }
 
+// next is when its next signal is due (zero once killed).
 func (r retiring) next() time.Time {
-	if r.termed {
+	switch {
+	case r.killed:
+		return time.Time{}
+	case r.termed:
 		return r.since.Add(2 * grace)
 	}
 	return r.since.Add(grace)
@@ -217,17 +223,16 @@ func (c *core) tick(now time.Time) {
 		p.lingerUntil = time.Time{}
 		c.resolver.Hide(p.lingering)
 	}
-	kept := c.providers.retiring[:0]
-	for _, r := range c.providers.retiring {
+	for i := range c.providers.retiring {
+		r := &c.providers.retiring[i]
 		switch {
+		case r.killed:
 		case !now.Before(r.since.Add(2 * grace)):
 			r.running.Signal(syscall.SIGKILL)
-			continue
+			r.killed = true
 		case !now.Before(r.since.Add(grace)) && !r.termed:
 			r.running.Signal(syscall.SIGTERM)
 			r.termed = true
 		}
-		kept = append(kept, r)
 	}
-	c.providers.retiring = kept
 }
