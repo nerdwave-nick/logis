@@ -1,6 +1,7 @@
 package egl
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -9,14 +10,18 @@ import (
 )
 
 // surfaceless is an offscreen context for the test, on the test's locked
-// thread (a GL context is current on one thread only); without an EGL
-// driver (a CI runner without Mesa) the test is skipped.
+// thread (a GL context is current on one thread only). Without an EGL
+// driver the test is skipped, unless LOGIS_REQUIRE_EGL is set (CI, which
+// installs Mesa's llvmpipe, sets it so the GL tests cannot skip unseen).
 func surfaceless(t *testing.T) *Context {
 	t.Helper()
 	runtime.LockOSThread()
 	t.Cleanup(runtime.UnlockOSThread)
 	c, err := NewSurfaceless()
 	if err != nil {
+		if os.Getenv("LOGIS_REQUIRE_EGL") != "" {
+			t.Fatalf("LOGIS_REQUIRE_EGL is set, but: %v", err)
+		}
 		t.Skipf("no surfaceless EGL here: %v", err)
 	}
 	t.Cleanup(c.Close)

@@ -52,6 +52,12 @@ jobs:
           sudo apt-get install -y --no-install-recommends gcc pkg-config \
             libwayland-dev libegl-dev libgles-dev libfontconfig-dev libfreetype-dev
 
+      # Mesa's EGL and its software rasteriser: the GL tests draw on a
+      # surfaceless OpenGL ES 3 context, which a runner without a GPU gets
+      # from llvmpipe (spec: logis works on Mesa llvmpipe).
+      - name: Install Mesa EGL and llvmpipe
+        run: sudo apt-get install -y --no-install-recommends libegl-mesa0 libgl1-mesa-dri
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -70,6 +76,9 @@ jobs:
       # Includes building cmd/logis and checking the C libraries it links.
       - name: go test -race
         run: go test -race ./...
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          LOGIS_REQUIRE_EGL: "1"
 
       - name: Build (the documented one-line build)
         run: |
