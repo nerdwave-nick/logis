@@ -15,13 +15,13 @@ const providerRune = "--provider"
 
 // knownRunes are the runes this build knows, for the unknown-rune error.
 const knownRunes = "--version, --dmenu or --dmenu0 (with fuzzel's list runes), " +
-	"--provider PROGRAM [ARG]..., --check-config, " +
+	"--apps, --provider PROGRAM [ARG]..., --check-config, " +
 	"--config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]"
 
 type commandKind int
 
 const (
-	// appsCommand: plain logis, the app launcher.
+	// appsCommand: plain logis or --apps, the app launcher.
 	appsCommand commandKind = iota
 	versionCommand
 	checkConfigCommand
@@ -89,6 +89,8 @@ func parse(args []string) (command, error) {
 			kind, nul = dmenuCommand, true
 		case checkConfigRune:
 			kind = checkConfigCommand
+		case appsRune:
+			kind = appsCommand
 		case providerRune:
 			kind, c.argv = providerCommand, rest.args[rest.at:]
 			rest.at = len(rest.args)

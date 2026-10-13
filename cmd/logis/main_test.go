@@ -58,25 +58,6 @@ func TestUnknownRunesAreNamedAndExit2(t *testing.T) {
 	}
 }
 
-// Plain `logis` opens the app launcher in Rust; until that is ported the Go
-// build says so and fails with exit 2 instead of pretending, once the
-// session could host the cogitator.
-func TestNoRunesFailUntilTheAppLauncherExists(t *testing.T) {
-	session(t, withLayerShell)
-	var stdout, stderr bytes.Buffer
-	code := run(nil, &stdout, &stderr)
-	if code != 2 {
-		t.Errorf("exit %d, want 2", code)
-	}
-	if stdout.Len() != 0 {
-		t.Errorf("stdout %q, want empty", stdout.String())
-	}
-	want := "logis: this cogitator has no app launcher yet. It knows only " + knownRunes + ".\n"
-	if got := stderr.String(); got != want {
-		t.Errorf("stderr %q, want %q", got, want)
-	}
-}
-
 type brokenPipe struct{}
 
 func (brokenPipe) Write([]byte) (int, error) { return 0, errors.New("broken pipe") }
