@@ -12,6 +12,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/theme"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
@@ -46,6 +47,8 @@ type focusPolicy interface{ SetFocusLoss(config.FocusLoss) }
 type shown struct {
 	id   daemon.SessionID
 	view *list.View
+	// asked is the size its options asked for (the theme's when none).
+	asked list.Options
 	// count is how many items it has had.
 	count int
 	// toast is a notice from the daemon over the list.
@@ -64,6 +67,12 @@ type ui struct {
 	draw func(sc *render.Scene, g window.Geometry)
 	emit func(format string, args ...any)
 	now  func() time.Time
+	// setFaces resolves a theme's faces in the renderer (nil: none to
+	// resolve); logf writes a line to the daemon's log; clock is the
+	// frame's time (CLOCK_MONOTONIC ns).
+	setFaces func([]text.Face) error
+	logf     func(string)
+	clock    func() uint64
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
@@ -91,9 +100,10 @@ func (u *ui) show(s daemon.Session) {
 		u.host.Fail(s.ID, err.Error())
 		return
 	}
+	asked := o
 	size, rows := scene.Fit(o, u.theme)
 	o.Lines = &rows
-	sh := &shown{id: s.ID, view: list.NewView(o)}
+	sh := &shown{id: s.ID, view: list.NewView(o), asked: asked}
 	u.shown = nil
 	if err := u.surf.Show(size, u.painter(sh)); err != nil {
 		u.host.Fail(s.ID, err.Error())
@@ -104,16 +114,22 @@ func (u *ui) show(s daemon.Session) {
 	u.push(sh, s.Items)
 }
 
-// painter draws sh's list each frame; it never animates (motion and the
-// theme's continuous effects are feat/logis-go G18's and the motion
-// ticket's: the scene is drawn at its resting moment).
+// painter draws sh's list each frame in the theme worn then, at the
+// frame's time: the theme's continuous effects (glow pulse, travelling
+// highlight, flicker, a pending row's shimmer) move with it, and keep the
+// window drawing on every frame callback while they do (scene.Moving).
+// Transitions are the motion ticket's.
 func (u *ui) painter(sh *shown) window.Painter {
 	return func(g window.Geometry) bool {
+		look := u.lookOf(sh)
 		if u.draw != nil {
-			look := u.lookOf(sh)
-			u.draw(scene.Draw(&look, g.Logical, scene.Style{Theme: u.theme}), g)
+			var at uint64
+			if u.clock != nil {
+				at = u.clock()
+			}
+			u.draw(scene.Draw(&look, g.Logical, scene.Style{Theme: u.theme, At: at}), g)
 		}
-		return false
+		return scene.Moving(&look, u.theme)
 	}
 }
 
@@ -214,7 +230,11 @@ func (u *ui) toast(t daemon.Toast) {
 	if sh == nil {
 		return
 	}
-	n := &list.Notice{Text: "the config is heretical: " + t.Error, Level: list.Error}
+	words := "the config is heretical: "
+	if t.Kind == daemon.ToastThemeRejected {
+		words = "the theme is heretical: "
+	}
+	n := &list.Notice{Text: words + t.Error, Level: list.Error}
 	u.emit("toast %s", trace.Quote(n.Text))
 	sh.toast = n
 	u.noticeUntil = u.now().Add(noticeFor)

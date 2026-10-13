@@ -10,6 +10,7 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/theme"
 	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
 
@@ -34,6 +35,8 @@ type loop struct {
 	stopped *stop
 	// live is the config in force; it decides the idle timeout.
 	live *config.Live
+	// themes is the theme in force (with live's config).
+	themes *theme.Live
 	// logf writes one line to the daemon's log.
 	logf func(message string)
 

@@ -62,6 +62,8 @@ type running struct {
 	stdout *logBuffer
 	stderr *logBuffer
 	host   Host
+	// hosted brings the host once the default resolver starts.
+	hosted chan Host
 }
 
 // start runs a daemon with the Scripted resolver and waits until it listens.
@@ -71,6 +73,14 @@ func (r *rig) start(idle time.Duration) *running {
 	waitUntil(r.t, "the daemon to listen", func() bool {
 		return strings.Contains(d.stdout.String(), "listens at "+r.socket())
 	})
+	// The resolver started before the daemon said it listens: its host is
+	// there by now, however slowly the daemon read its config and theme.
+	if d.host == nil {
+		select {
+		case d.host = <-d.hosted:
+		default:
+		}
+	}
 	return d
 }
 
@@ -94,6 +104,7 @@ func (r *rig) run(o Options) *running {
 			r.t.Error("the daemon did not stop")
 		}
 	})
+	d.hosted = hosted
 	select {
 	case d.host = <-hosted:
 	case <-time.After(10 * time.Millisecond):
