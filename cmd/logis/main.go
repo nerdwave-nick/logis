@@ -10,11 +10,10 @@ import (
 	"os"
 
 	"github.com/nerdwave-nick/logis/internal/version"
+	"github.com/nerdwave-nick/logis/internal/window"
 
-	// The cgo link line (spec §4) and the wayland-scanner glue, until the
-	// Wayland, renderer and font bindings use them directly.
+	// The cgo link line (spec §4) for the libraries no binding calls yet.
 	_ "github.com/nerdwave-nick/logis/internal/native"
-	_ "github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
 // exitError is the exit status for every error (caller contract): the message
@@ -28,7 +27,15 @@ func main() {
 // run executes one invocation and returns its exit status.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
+		// Plain logis is the app launcher; a session that cannot host it
+		// is named first (caller contract: exit 2, the reason on stderr).
+		if err := window.Preflight(); err != nil {
+			return fail(stderr, err.Error())
+		}
 		return fail(stderr, "this cogitator has no app launcher yet. It knows only --version.")
+	}
+	if isDebugPanel(args) {
+		return debugPanel(stderr)
 	}
 	for i, arg := range args {
 		// As in Rust, a second command is as unknown as a foreign rune.
