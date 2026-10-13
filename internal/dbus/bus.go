@@ -11,11 +11,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
 
 // Timeout is how long one call may take before the bus counts as
@@ -43,9 +44,18 @@ func (e *RemoteError) Error() string { return e.Name + ": " + e.Message }
 
 // A Conn is a connection to a bus. It belongs to one goroutine at a time.
 type Conn struct {
-	conn   net.Conn
+	conn   stream
 	r      *bufio.Reader
 	serial uint32
+}
+
+// stream is a connected socket with deadlines (an *os.File from unixsock:
+// package net would link glibc's resolver into logis).
+type stream interface {
+	io.ReadWriteCloser
+	SetDeadline(t time.Time) error
+	SetReadDeadline(t time.Time) error
+	SetWriteDeadline(t time.Time) error
 }
 
 // Connect connects to the first reachable socket of address, authenticates
@@ -53,7 +63,7 @@ type Conn struct {
 func Connect(address string) (*Conn, error) {
 	last := ErrNoAddress
 	for _, socket := range Sockets(address) {
-		conn, err := net.DialTimeout("unix", socket.dialName(), Timeout)
+		conn, err := unixsock.Dial(socket.dialName())
 		if err != nil {
 			last = &UnreachableError{err}
 			continue

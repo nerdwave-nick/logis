@@ -33,7 +33,8 @@ import (
 )
 
 // Resolver is the resolver the daemon holds; the window's goroutine does
-// the work. It is also a daemon.Configurer, Toaster and Rethemer.
+// the work. It is also a daemon.Configurer, Toaster, Rethemer and
+// Activator.
 type Resolver struct {
 	mu    sync.Mutex
 	queue []func(*ui)
@@ -170,7 +171,7 @@ func (r *Resolver) drain() []func(*ui) {
 	return q
 }
 
-// Accepts dmenu sessions.
+// Accepts dmenu, provider and app sessions.
 func (r *Resolver) Accepts(m protocol.Mode) error { return accepts(m) }
 
 // Show shows a session's first stage.
@@ -199,6 +200,12 @@ func (r *Resolver) Configure(c config.Config) { r.post(func(u *ui) { u.configure
 
 // Toast shows a notice over the visible list.
 func (r *Resolver) Toast(t daemon.Toast) { r.post(func(u *ui) { u.toast(t) }) }
+
+// Activation asks the compositor for a token for the shown session's
+// launch of appID; it reaches the daemon through the Host.
+func (r *Resolver) Activation(id daemon.SessionID, appID string) {
+	r.post(func(u *ui) { u.activation(id, appID) })
+}
 
 // Retheme wears t from now on, the visible panel included.
 func (r *Resolver) Retheme(t *theme.Theme) { r.post(func(u *ui) { u.retheme(t) }) }

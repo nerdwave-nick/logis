@@ -17,17 +17,6 @@ var withoutLayerShell = []wltest.Global{
 	{Interface: "xdg_wm_base", Version: 6},
 }
 
-// Globals of a compositor offering everything the window needs
-// (niri/sway-like): layer shell, fractional scale and the viewporter.
-var withLayerShell = []wltest.Global{
-	{Interface: "wl_compositor", Version: 6},
-	{Interface: "wl_shm", Version: 1},
-	{Interface: "zwlr_layer_shell_v1", Version: 4},
-	{Interface: "wp_fractional_scale_manager_v1", Version: 1},
-	{Interface: "wp_viewporter", Version: 1},
-	{Interface: "xdg_wm_base", Version: 6},
-}
-
 // Layer shell, but no fractional scaling: the window cannot be crisp.
 var withoutFractionalScale = []wltest.Global{
 	{Interface: "wl_compositor", Version: 6},

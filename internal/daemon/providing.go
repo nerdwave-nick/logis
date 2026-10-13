@@ -189,6 +189,7 @@ func (c *core) deadline() (time.Time, bool) {
 		}
 	}
 	consider(c.providers.lingerUntil)
+	c.appsDeadline(consider)
 	for _, r := range c.providers.retiring {
 		consider(r.next())
 	}
@@ -197,6 +198,7 @@ func (c *core) deadline() (time.Time, bool) {
 
 // tick runs the timers due at now.
 func (c *core) tick(now time.Time) {
+	c.appsTick(now)
 	var late, spent []SessionID
 	for id, cn := range c.conns {
 		l := cn.live

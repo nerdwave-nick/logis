@@ -169,6 +169,12 @@ func (c *Cogitator) ServitorWith(env []string) *Client {
 // Apps starts `logis --apps`.
 func (c *Cogitator) Apps() *Client { return c.client(nil, false, "--apps") }
 
+// ClientWith starts `logis args…` (plain logis without args) with env
+// added to the client's environment.
+func (c *Cogitator) ClientWith(env []string, args ...string) *Client {
+	return c.clientWith(env, nil, false, args...)
+}
+
 // CloseStdin closes the client's stdin (the end of a dmenu list).
 func (cl *Client) CloseStdin() {
 	if cl.Stdin != nil {

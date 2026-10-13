@@ -147,6 +147,7 @@ func (l *loop) reconfigure(loaded config.Config, err error) {
 	switch l.live.Reload(loaded, err) {
 	case config.Applied:
 		l.logf("the machine spirit heeds the amended config")
+		l.core.configure(l.live.Config())
 		configure(l.core.resolver, l.live.Config())
 	case config.Restored:
 		l.logf("the config is sound once more; nothing has changed")

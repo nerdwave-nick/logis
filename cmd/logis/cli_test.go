@@ -285,3 +285,21 @@ func TestNoArgumentsOpenTheAppLauncher(t *testing.T) {
 		t.Fatalf("%+v", c)
 	}
 }
+
+// Ported from Rust src/cli/mod.rs apps_asks_for_the_app_launcher.
+func TestAppsAsksForTheAppLauncher(t *testing.T) {
+	if c := mustParse(t, "--apps"); c.kind != appsCommand || c.config != "" {
+		t.Fatalf("%+v", c)
+	}
+	if c := mustParse(t, "--apps", "--config", "/c"); c.kind != appsCommand || c.config != "/c" {
+		t.Fatalf("%+v", c)
+	}
+	for _, args := range [][]string{{"--apps", "--dmenu"}, {"--apps", "--prompt", "x"}, {"--apps", "--apps"}} {
+		if _, err := parse(args); err == nil {
+			t.Errorf("%v parsed", args)
+		}
+	}
+	if !strings.Contains(knownRunes, "--apps, --provider") {
+		t.Errorf("knownRunes %q", knownRunes)
+	}
+}
