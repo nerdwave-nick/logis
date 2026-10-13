@@ -46,6 +46,7 @@ type Window struct {
 	gpu        gpu
 	panel      *panel
 	log        io.Writer
+	repeat     repeatTimer
 }
 
 // Open connects to the session's compositor, binds the globals the window
@@ -76,9 +77,16 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.viewporter, _ = c.bind(wlproto.WpViewporterInterface, 1).(*wlproto.WpViewporter)
 	w.seat = bindSeat(c, w.shows)
 	c.removed = w.seat.removed
+	if w.repeat, err = newRepeatTimer(); err != nil {
+		w.seat.release()
+		c.display.Close()
+		return nil, err
+	}
+	c.display.Watch(w.repeat.fd, w.repeatDue)
 	if w.gpu, err = open(c.display.Ptr()); err != nil {
 		w.seat.release()
 		c.display.Close()
+		w.repeat.close()
 		return nil, err
 	}
 	return w, nil
@@ -92,8 +100,12 @@ func (w *Window) GPU() egl.Info { return w.gpu.info() }
 func (w *Window) SetLog(log io.Writer) { w.log = log }
 
 // SetKeyboard sends the seat's keyboard events to k from now on; without
-// one, keymaps are closed unread.
-func (w *Window) SetKeyboard(k Keyboard) { w.seat.consumer = k }
+// one, keymaps are closed unread. A Repeater is woken for its repeats, a
+// Resetter starts over when a panel is shown or hidden.
+func (w *Window) SetKeyboard(k Keyboard) {
+	w.seat.consumer = k
+	w.armRepeat()
+}
 
 // Seat is the seat the window listens to (the first one offered), or nil.
 func (w *Window) Seat() *wlproto.WlSeat { return w.seat.seat }
@@ -114,6 +126,7 @@ func (w *Window) Show(size scale.Size, paint Painter) error {
 		return err
 	}
 	w.panel = p
+	w.resetKeyboard()
 	return w.flush()
 }
 
@@ -122,6 +135,7 @@ func (w *Window) Hide() {
 	if w.panel != nil {
 		w.panel.destroy()
 		w.panel = nil
+		w.resetKeyboard()
 	}
 }
 
@@ -157,6 +171,7 @@ func (w *Window) Dispatch(timeout time.Duration) error {
 	if w.panel != nil && w.panel.closed {
 		w.Hide()
 	}
+	w.armRepeat()
 	if err := w.draw(); err != nil {
 		return err
 	}
@@ -221,5 +236,6 @@ func (w *Window) Close() {
 	w.seat.release()
 	w.gpu.close()
 	w.conn.display.Close()
+	w.repeat.close()
 	runtime.UnlockOSThread()
 }

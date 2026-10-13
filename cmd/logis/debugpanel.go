@@ -5,23 +5,33 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// keyEscape is evdev's KEY_ESC, the same key on every layout.
-const keyEscape = 1
-
-// debugPanel is `logis daemon --debug-panel`: it connects, wakes the GPU,
-// shows the panel and keeps it, redrawing only on configure, scale and
-// selection changes (Up, Down), until Escape dismisses it, the compositor
-// closes it, or SIGINT or SIGTERM ends it (exit 0). It is not the session daemon: it neither
-// listens nor serves sessions. Losing the compositor is exit 2.
-func debugPanel(stderr io.Writer) int {
+// debugPanel is `logis daemon --debug-panel [--config PATH]`: it reads the
+// config once (for focus-loss), connects, wakes the GPU, shows the panel
+// and keeps it, redrawing only on configure, scale, selection and query
+// changes, until it is dismissed (Escape, Ctrl+G, Ctrl+[, or focus loss
+// unless the config keeps it), accepted (Return: the selected row is
+// printed), closed by the compositor, or SIGINT or SIGTERM ends it (exit
+// 0). It is not the session daemon: it neither listens nor serves
+// sessions. Losing the compositor is exit 2.
+func debugPanel(src *config.Source, stdout, stderr io.Writer) int {
+	if src == nil {
+		s := config.NewSource("")
+		src = &s
+	}
+	cfg, err := src.Load()
+	if err != nil {
+		return fail(stderr, config.Heresy(err))
+	}
 	// Fonts are resolved at start on a goroutine of their own (Rust
 	// Windows::connect): fontconfig's start-up overlaps the compositor's
 	// and the GPU's, off the first frame's critical path.
@@ -49,22 +59,24 @@ func debugPanel(stderr io.Writer) int {
 		r.SetFonts(f) // the renderer owns them now
 	}
 	w.SetLog(stderr)
-	stop := &debugKeys{redraw: w.RequestRedraw}
-	w.SetKeyboard(stop)
+	// The Compose table is loaded now, at start, not on the first key.
+	session := &debugSession{stdout: stdout, redraw: w.RequestRedraw}
+	w.SetKeyboard(debugKeyboard(cfg, session, stderr))
+	var signalled atomic.Bool
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(signals)
 	go func() {
 		if _, ok := <-signals; ok {
-			stop.signalled.Store(true)
+			signalled.Store(true)
 			w.Wake()
 		}
 	}()
 	trace.Emit("show debug-panel")
-	if err := w.Show(debugSize, paintDebug(r, stop)); err != nil {
+	if err := w.Show(debugSize, paintDebug(r, session)); err != nil {
 		return fail(stderr, err.Error())
 	}
-	for w.Visible() && !stop.done() {
+	for w.Visible() && !session.done && !signalled.Load() {
 		if err := w.Dispatch(-1); err != nil {
 			return fail(stderr, err.Error())
 		}
@@ -73,11 +85,11 @@ func debugPanel(stderr io.Writer) int {
 }
 
 // paintDebug draws the debug scene for each frame's geometry, with the
-// keyboard's selected row, into the window surface through r. The scene
-// is still: it never animates.
-func paintDebug(r *render.Renderer, keys *debugKeys) window.Painter {
+// session's selected row and query, into the window surface through r.
+// The scene is still: it never animates.
+func paintDebug(r *render.Renderer, s *debugSession) window.Painter {
 	return func(g window.Geometry) bool {
-		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugSceneAt(g.Logical, keys.row))
+		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugSceneWithQuery(g.Logical, s.row, &s.query))
 		return false
 	}
 }

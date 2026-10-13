@@ -36,16 +36,8 @@ struct wl_proxy *logis_wl_marshal(struct wl_proxy *proxy, uint32_t opcode,
 	return wl_proxy_marshal_array_flags(proxy, opcode, iface, version, flags, args);
 }
 
-int logis_wl_poll(int fd, short events, int wake, int timeout_ms,
-	short *revents, short *wake_revents) {
-	struct pollfd fds[2] = {
-		{ .fd = fd, .events = events },
-		{ .fd = wake, .events = POLLIN },
-	};
-	int rc = poll(fds, 2, timeout_ms);
-	*revents = fds[0].revents;
-	*wake_revents = fds[1].revents;
-	return rc;
+int logis_wl_poll(struct pollfd *fds, int n, int timeout_ms) {
+	return poll(fds, (nfds_t)n, timeout_ms);
 }
 
 int logis_wl_eventfd(void) {

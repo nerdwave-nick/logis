@@ -23,9 +23,11 @@ import (
 // called from it. Close releases the connection and every proxy still
 // alive; nothing is left to a finalizer.
 type Display struct {
-	c    *C.struct_wl_display
-	live map[uintptr]Object // guarded by objects
-	wake int                // eventfd Wake writes to
+	c       *C.struct_wl_display
+	live    map[uintptr]Object // guarded by objects
+	wake    int                // eventfd Wake writes to
+	watches []watch            // more fds Dispatch waits on
+	fds     []C.struct_pollfd  // reused by every poll
 
 	mu     sync.Mutex // guards closed, for Wake
 	closed bool
@@ -140,12 +142,13 @@ func (d *Display) Dispatch(timeout time.Duration) error {
 		}
 		events |= C.POLLOUT
 	}
-	var revents, wakeRevents C.short
-	rc, err := d.poll(events, timeout, &revents, &wakeRevents)
+	fds := d.pollfds(events)
+	rc, err := d.poll(fds, timeout)
 	if rc < 0 && !errors.Is(err, syscall.EINTR) {
 		C.wl_display_cancel_read(d.c)
 		return &Error{"poll", errnoOr(err, syscall.EIO)}
 	}
+	revents, wakeRevents := fds[0].revents, fds[1].revents
 	if revents&(C.POLLIN|C.POLLHUP|C.POLLERR) != 0 {
 		if C.wl_display_read_events(d.c) < 0 {
 			return d.failure("read")
@@ -162,14 +165,18 @@ func (d *Display) Dispatch(timeout time.Duration) error {
 			return err
 		}
 	}
-	return d.dispatchPending()
+	if err := d.dispatchPending(); err != nil {
+		return err
+	}
+	d.runReady(fds[2:])
+	return nil
 }
 
-// poll waits for events on the display fd and for Wake, up to timeout
-// (negative: no limit). A signal interrupting poll (the Go runtime's own,
+// poll waits for events on fds (the display fd, Wake, the watched fds),
+// up to timeout (negative: no limit). A signal interrupting poll (the Go runtime's own,
 // in this cgo call) does not end the wait early: it is retried with the
 // time left, and reported as EINTR only once that is gone.
-func (d *Display) poll(events C.short, timeout time.Duration, revents, wakeRevents *C.short) (C.int, error) {
+func (d *Display) poll(fds []C.struct_pollfd, timeout time.Duration) (C.int, error) {
 	deadline := time.Now().Add(timeout)
 	for {
 		ms := C.int(-1)
@@ -177,7 +184,7 @@ func (d *Display) poll(events C.short, timeout time.Duration, revents, wakeReven
 			left := max(time.Until(deadline), 0)
 			ms = C.int((left + time.Millisecond - 1) / time.Millisecond)
 		}
-		rc, err := C.logis_wl_poll(C.wl_display_get_fd(d.c), events, C.int(d.wake), ms, revents, wakeRevents)
+		rc, err := C.logis_wl_poll(&fds[0], C.int(len(fds)), ms)
 		if rc >= 0 || !errors.Is(err, syscall.EINTR) || timeout >= 0 && !time.Now().Before(deadline) {
 			return rc, err
 		}

@@ -4,6 +4,7 @@
 #ifndef LOGIS_WLPROTO_GLUE_H
 #define LOGIS_WLPROTO_GLUE_H
 
+#include <poll.h>
 #include <stdint.h>
 #include <wayland-client.h>
 
@@ -18,10 +19,10 @@ struct wl_proxy *logis_wl_marshal(struct wl_proxy *proxy, uint32_t opcode,
 	const struct wl_interface *iface, uint32_t version, uint32_t flags,
 	union wl_argument *args);
 
-// Waits until fd has `events` or wake is readable, or timeout_ms passes
-// (-1: no timeout). Returns poll's result; revents are fd's and wake's.
-int logis_wl_poll(int fd, short events, int wake, int timeout_ms,
-	short *revents, short *wake_revents);
+// Waits until one of the n fds has its events, or timeout_ms passes (-1:
+// no timeout): the display's fd, the wake eventfd and the watched fds.
+// Returns poll's result.
+int logis_wl_poll(struct pollfd *fds, int n, int timeout_ms);
 
 // A non-blocking, close-on-exec eventfd.
 int logis_wl_eventfd(void);
