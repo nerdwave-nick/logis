@@ -116,3 +116,25 @@ func TestCloseEndsAWait(t *testing.T) {
 		t.Fatal("Wait outlived Close")
 	}
 }
+
+// A change that comes while the index is read, between two Arms, is not
+// lost with the watch it came on: the next Wait reports it at once (the
+// indexer reads again). Here the missing applications directory appears
+// under its watched ancestor, and the second Arm no longer watches the
+// ancestor.
+func TestAChangeBetweenTwoArmsIsNotLost(t *testing.T) {
+	dir := t.TempDir()
+	apps := filepath.Join(dir, "applications")
+	w := newWatcher(t)
+	w.Arm(nil, []string{apps})
+	if err := os.Mkdir(apps, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	w.Arm(nil, []string{apps})
+	if !waited(t, w, quiet) {
+		t.Fatal("the change between the arms was lost")
+	}
+	if waited(t, w, quiet) {
+		t.Fatal("it was reported twice")
+	}
+}

@@ -27,7 +27,9 @@ import (
 //
 // A burst of events (a package manager writes many files) is reported
 // once, when it has been quiet for Settle (at most MaxSettle after it
-// began).
+// began). Arm first reads what is pending under the watches it replaces: a
+// change that came meanwhile (while the index was read) is reported by the
+// next Wait at once, never lost with its watch.
 
 const (
 	// Settle is how long a burst must be quiet before it is reported.
@@ -54,6 +56,8 @@ type Watcher struct {
 	f       *os.File
 	watches map[int]*watched
 	buf     []byte
+	// changed: Arm found a change pending; the next Wait reports it.
+	changed bool
 }
 
 // NewWatcher is a watcher with nothing watched yet.
@@ -76,6 +80,7 @@ func (w *Watcher) Close() error { return w.f.Close() }
 // that does not exist, its nearest existing ancestor. It replaces what was
 // watched before.
 func (w *Watcher) Arm(read, roots []string) {
+	w.changed = w.drain() || w.changed
 	for wd := range w.watches {
 		w.control(func(fd int) { _, _ = syscall.InotifyRmWatch(fd, uint32(wd)) })
 	}
@@ -136,6 +141,10 @@ func isDir(path string) bool {
 // Wait waits for a settled burst of changes; false if timeout passed first
 // (a negative timeout waits for ever).
 func (w *Watcher) Wait(timeout time.Duration) (bool, error) {
+	if w.changed {
+		w.changed = false
+		return true, nil
+	}
 	var deadline time.Time
 	if timeout >= 0 {
 		deadline = time.Now().Add(timeout)
@@ -175,8 +184,35 @@ func (w *Watcher) read() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return w.relevant(w.buf[:n]), nil
+}
+
+// drain reads what is pending without waiting; whether any of it is a
+// change of the index.
+func (w *Watcher) drain() bool {
+	raw, err := w.f.SyscallConn()
+	if err != nil || w.f.SetReadDeadline(time.Time{}) != nil {
+		return false
+	}
 	relevant := false
-	for b := w.buf[:n]; len(b) >= syscall.SizeofInotifyEvent; {
+	for more := true; more; {
+		more = false
+		_ = raw.Read(func(fd uintptr) bool {
+			n, err := syscall.Read(int(fd), w.buf)
+			if err == nil && n > 0 {
+				relevant = w.relevant(w.buf[:n]) || relevant
+				more = true
+			}
+			return true // never wait
+		})
+	}
+	return relevant
+}
+
+// relevant says whether any event in b is a change of the index.
+func (w *Watcher) relevant(b []byte) bool {
+	relevant := false
+	for len(b) >= syscall.SizeofInotifyEvent {
 		wd := int(int32(binary.NativeEndian.Uint32(b[0:])))
 		mask := binary.NativeEndian.Uint32(b[4:])
 		size := int(binary.NativeEndian.Uint32(b[12:]))
@@ -185,7 +221,7 @@ func (w *Watcher) read() (bool, error) {
 		relevant = relevant || w.concerns(wd, mask, name)
 		b = b[end:]
 	}
-	return relevant, nil
+	return relevant
 }
 
 func (w *Watcher) concerns(wd int, mask uint32, name string) bool {
