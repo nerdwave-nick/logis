@@ -77,6 +77,7 @@ func Start(t testing.TB, kind Kind, opts ...Option) *Compositor {
 	}
 	go func() { _ = c.cmd.Wait(); close(c.exited) }()
 	c.socket = c.waitForSocket()
+	c.waitForAnswers()
 	return c
 }
 

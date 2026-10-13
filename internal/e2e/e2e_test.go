@@ -158,6 +158,12 @@ func TestE2ETheSelectionOwnerServesItsTexts(t *testing.T) {
 	}
 }
 
+// msFrom is the time from from to at in ms (negative: before).
+func msFrom(at, from uint64) float64 { return (float64(at) - float64(from)) / 1e6 }
+
+// Start returns a compositor that has finished starting up (it answers
+// promptly), so a stall seen before the stop would be the watchdog's
+// invention.
 func TestE2ETheWatchdogSeesTheCompositorStall(t *testing.T) {
 	c := Start(t, Requested(t))
 	w := StartWatchdog(t, c)
@@ -173,6 +179,13 @@ func TestE2ETheWatchdogSeesTheCompositorStall(t *testing.T) {
 	}
 	if _, stalled := w.StalledWithin(0, from-StallNS); stalled {
 		t.Error("a stall before the stop")
+	}
+	if t.Failed() {
+		w.mu.Lock()
+		for _, s := range w.stalls {
+			t.Logf("stall: asked %+.1f ms, answered %+.1f ms from the stop", msFrom(s[0], from), msFrom(s[1], from))
+		}
+		w.mu.Unlock()
 	}
 }
 
