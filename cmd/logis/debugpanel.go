@@ -7,21 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nerdwave-nick/logis/internal/gles"
-	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/window"
-)
-
-// debugSize is the surface the debug panel requests: Rust's 640×360 body
-// plus 24 logical pixels of glow margin on every side (DEBUG_SIZE).
-var debugSize = scale.Size{W: 688, H: 408}
-
-// Forge crimson & brass, premultiplied: the brass rim and the soot body of
-// Rust's debug panel. A cleared frame stands in for its shapes and text
-// until the renderer exists.
-var (
-	brass = [4]float32{0.83, 0.63, 0.09, 1}
-	soot  = [4]float32{0.085 * 0.86, 0.055 * 0.86, 0.045 * 0.86, 0.86}
 )
 
 // keyEscape is evdev's KEY_ESC, the same key on every layout.
@@ -40,6 +27,13 @@ func debugPanel(stderr io.Writer) int {
 	defer w.Close()
 	info := w.GPU()
 	_, _ = fmt.Fprintf(stderr, "logis: the machine spirit wakes on %s (%s)\n", info.Renderer, info.Version)
+	// The renderer is made at start on the window's GL context (shaders
+	// compiled now, not on the first frame) and goes before the context.
+	r, err := render.New()
+	if err != nil {
+		return fail(stderr, err.Error())
+	}
+	defer r.Close()
 	w.SetLog(stderr)
 	stop := &escape{}
 	w.SetKeyboard(stop)
@@ -52,7 +46,7 @@ func debugPanel(stderr io.Writer) int {
 			w.Wake()
 		}
 	}()
-	if err := w.Show(debugSize, paintDebug); err != nil {
+	if err := w.Show(debugSize, paintDebug(r)); err != nil {
 		return fail(stderr, err.Error())
 	}
 	for w.Visible() && !stop.done() {
@@ -63,19 +57,11 @@ func debugPanel(stderr io.Writer) int {
 	return 0
 }
 
-// paintDebug clears the frame brass, then everything but a rim of two
-// logical pixels soot: the rim shows the scale is honoured to the pixel.
-func paintDebug(g window.Geometry) bool {
-	rim := int(g.Scale.Physical(scale.Size{W: 2, H: 2}).W)
-	width, height := int(g.Physical.W), int(g.Physical.H)
-	gles.NoScissor()
-	gles.ClearColor(brass[0], brass[1], brass[2], brass[3])
-	gles.Clear()
-	if width > 2*rim && height > 2*rim {
-		gles.Scissor(rim, rim, width-2*rim, height-2*rim)
-		gles.ClearColor(soot[0], soot[1], soot[2], soot[3])
-		gles.Clear()
-		gles.NoScissor()
+// paintDebug draws the debug scene for each frame's geometry into the
+// window surface through r. The scene is static: it never animates.
+func paintDebug(r *render.Renderer) window.Painter {
+	return func(g window.Geometry) bool {
+		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugScene(g.Logical))
+		return false
 	}
-	return false
 }
