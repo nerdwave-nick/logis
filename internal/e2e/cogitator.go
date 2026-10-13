@@ -158,6 +158,14 @@ func (cl *Client) CloseStdin() {
 	}
 }
 
+// Kill ends the client at once, as a caller giving up does (its
+// connection's end cancels its session), and waits until it is gone.
+func (cl *Client) Kill() error {
+	err := cl.cmd.Process.Kill()
+	<-cl.exited
+	return err
+}
+
 // Ended is how a client ended: its exit code and stdout.
 type Ended struct {
 	Code   int
