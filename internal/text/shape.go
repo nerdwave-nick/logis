@@ -1,13 +1,15 @@
 package text
 
-// Glyph is one positioned glyph of a line, in buffer pixels: X is its
-// origin's distance from the line's start (offsets included), Y its
-// offset below the baseline. Glyphs are in visual order.
+// Glyph is one positioned glyph of a line, in buffer pixels: X is its pen
+// position's distance from the line's start, XOffset and Y where the glyph
+// is drawn relative to the pen (Y below the baseline), Advance its
+// whole-pixel advance. Glyphs are in visual order.
 type Glyph struct {
-	Font    FontID
-	ID      uint16
-	X, Y    float32
-	Advance float32
+	Font       FontID
+	ID         uint16
+	X, XOffset float32
+	Y          float32
+	Advance    float32
 	// Cluster and End are the byte range of the text the glyph shows; an
 	// ellipsis glyph has an empty range at the cut.
 	Cluster, End int

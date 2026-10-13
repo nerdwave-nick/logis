@@ -136,7 +136,7 @@ func describeLine(l text.Line, c cosmicCase) string {
 	}
 	fmt.Fprintf(&b, "rtl=%v w=%s y=%s:", l.RTL, r3(l.LayoutWidth), r3(lineY))
 	for _, g := range l.Glyphs {
-		fmt.Fprintf(&b, " %d/%d@%s,%s+%s[%d,%d]", g.Font, g.ID, r3(g.X), r3(g.Y), r3(g.Advance), g.Cluster, g.End)
+		fmt.Fprintf(&b, " %d/%d@%s,%s+%s[%d,%d]", g.Font, g.ID, r3(g.X+g.XOffset), r3(g.Y), r3(g.Advance), g.Cluster, g.End)
 	}
 	return b.String()
 }

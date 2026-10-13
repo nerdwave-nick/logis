@@ -221,7 +221,7 @@ func place(spans []span, ellipsis []shapedGlyph, vl *visualLine, rtl bool, size 
 		}
 		glyph := Glyph{
 			Font: g.font, ID: g.id, Advance: adv, Level: r.level,
-			X: x + float32(size*g.xOffset), Y: -float32(size * g.yOffset),
+			X: x, XOffset: float32(size * g.xOffset), Y: -float32(size * g.yOffset),
 			Cluster: g.start, End: g.end,
 		}
 		if r.span < 0 {

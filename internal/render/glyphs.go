@@ -2,6 +2,7 @@ package render
 
 import (
 	"github.com/nerdwave-nick/logis/internal/gles"
+	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
@@ -79,18 +80,27 @@ func (p *glyphPass) setFonts(f *text.Fonts) {
 	p.reset(int(side)) // FontIDs name other fonts now
 }
 
-// draw shapes texts, rasterises missing glyphs and draws them into t.
-// The blend state and target are already set.
-func (p *glyphPass) draw(t Target, texts []Text) {
-	if p.fonts == nil || len(texts) == 0 {
+// prepare shapes the frame's texts (before the shapes are drawn: their
+// underlines are drawn with them).
+func (p *glyphPass) prepare(texts []Text, s scale.Scale) {
+	if p.fonts == nil {
+		p.shaped = p.shaped[:0]
 		return
 	}
-	p.shape(texts, t.Scale)
-	if !p.pack() {
+	p.shape(texts, s)
+}
+
+// draw rasterises missing glyphs and draws the prepared lines into t.
+// The blend state and target are already set.
+func (p *glyphPass) draw(t Target) {
+	if p.fonts == nil || len(p.shaped) == 0 {
+		return
+	}
+	if !p.pack(t.Size) {
 		// The atlas is full at its largest: start it afresh, once.
 		side, _ := p.packer.size()
 		p.reset(int(side))
-		p.pack()
+		p.pack(t.Size)
 	}
 	if len(p.packed) == 0 {
 		return
@@ -104,15 +114,30 @@ func (p *glyphPass) draw(t Target, texts []Text) {
 	gles.DrawQuads(len(p.packed) / glyphFloats)
 }
 
+// bounds is the area a line's glyphs are clipped to, in buffer pixels:
+// its column (or the target's width) and the target's height, as glyphon
+// clips them.
+type bounds struct{ x0, x1, y0, y1 int }
+
+func lineBounds(l *shapedLine, size scale.Size) bounds {
+	left, right, ok := l.text.column(l.scale)
+	if !ok {
+		left, right = 0, int(size.W)
+	}
+	b := bounds{x0: max(left, 0), y1: int(size.H)}
+	b.x1 = max(min(right, int(size.W)), b.x0)
+	return b
+}
+
 // pack makes this frame's glyph instances; false if the atlas is full.
-func (p *glyphPass) pack() bool {
+func (p *glyphPass) pack(size scale.Size) bool {
 	p.packed = p.packed[:0]
 	for i := range p.shaped {
 		l := &p.shaped[i]
 		at := place(l)
-		ink := l.text.Color.Premultiplied()
+		clip := lineBounds(l, size)
 		for _, g := range l.line.Glyphs {
-			x, bin := subpixelBin(at.left + g.X)
+			x, bin := subpixelBin(at.left + (g.X + g.XOffset))
 			slot, ok := p.glyph(text.GlyphKey{Font: g.Font, ID: g.ID, Size: at.size, XBin: bin})
 			if !ok {
 				return false
@@ -120,17 +145,47 @@ func (p *glyphPass) pack() bool {
 			if slot.w == 0 {
 				continue
 			}
+			q := quad{x: x + slot.left, y: at.baseline + int(at.top+g.Y) - slot.top,
+				w: int(slot.w), h: int(slot.h), ax: int(slot.x), ay: int(slot.y)}
+			if !q.clip(clip) {
+				continue
+			}
 			kind := float32(0)
 			if slot.color {
 				kind = 1
 			}
-			y := at.baseline + int(at.top+g.Y) - slot.top
+			cluster := g.Cluster
+			if g.Ellipsis {
+				cluster = 0 // the ellipsis takes the first piece's colour
+			}
+			ink := l.text.colorAt(l.str, cluster).Premultiplied()
 			p.packed = append(p.packed,
-				float32(x+slot.left), float32(y), float32(slot.w), float32(slot.h),
-				float32(slot.x), float32(slot.y), kind, 0,
+				float32(q.x), float32(q.y), float32(q.w), float32(q.h),
+				float32(q.ax), float32(q.ay), kind, 0,
 				ink[0], ink[1], ink[2], ink[3])
 		}
 	}
+	return true
+}
+
+// quad is a glyph image's place on the target and in the atlas.
+type quad struct{ x, y, w, h, ax, ay int }
+
+// clip cuts q to b like glyphon: false if it lies wholly outside.
+func (q *quad) clip(b bounds) bool {
+	if q.x > b.x1 || q.x+q.w < b.x0 || q.y > b.y1 || q.y+q.h < b.y0 {
+		return false
+	}
+	if q.x < b.x0 {
+		d := b.x0 - q.x
+		q.x, q.w, q.ax = b.x0, q.w-d, q.ax+d
+	}
+	q.w = min(q.w, b.x1-q.x)
+	if q.y < b.y0 {
+		d := b.y0 - q.y
+		q.y, q.h, q.ay = b.y0, q.h-d, q.ay+d
+	}
+	q.h = min(q.h, b.y1-q.y)
 	return true
 }
 
