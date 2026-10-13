@@ -27,6 +27,9 @@ func main() {
 
 // run executes one invocation and returns its exit status.
 func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "daemon" {
+		return runDaemon(args[1:], stdout, stderr)
+	}
 	if len(args) == 0 {
 		return fail(stderr, "this cogitator has no app launcher yet. It knows only --version.")
 	}
