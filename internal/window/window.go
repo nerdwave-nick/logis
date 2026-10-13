@@ -46,6 +46,7 @@ type Window struct {
 	viewporter *wlproto.WpViewporter
 	seat       *seat
 	clipboard  *clipboard
+	activation activation
 	gpu        gpu
 	panel      *panel
 	log        io.Writer
@@ -81,6 +82,8 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.seat = bindSeat(c, w.shows)
 	w.seat.pointer.shapes, _ = w.Bind(wlproto.WpCursorShapeManagerV1Interface, 1).(*wlproto.WpCursorShapeManagerV1)
 	w.clipboard = bindClipboard(w, w.seat.seat)
+	w.activation.manager, _ = w.Bind(wlproto.XdgActivationV1Interface, 1).(*wlproto.XdgActivationV1)
+	w.seat.pressed, w.seat.pointer.pressed = w.activation.press, w.activation.press
 	c.removed = func(g Global) {
 		if w.seat.removed(g) {
 			w.clipboard.releaseDevices()
@@ -286,8 +289,9 @@ func (w *Window) resetInput() {
 }
 
 // releaseInput releases the selection devices, the seat with its keyboard
-// and pointer, and the cursor-shape manager.
+// and pointer, the cursor-shape manager and the activation global.
 func (w *Window) releaseInput() {
+	w.activation.release()
 	w.clipboard.close()
 	w.seat.release()
 	if shapes := w.seat.pointer.shapes; shapes != nil {

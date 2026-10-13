@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/nerdwave-nick/logis/internal/list"
@@ -39,8 +40,10 @@ const ScriptedMark = ">"
 //     typed text. After an answer it waits for the provider's next stage
 //     or ready, as the window does.
 //
-// Other sessions are never answered; they end by replacement, cancel or
-// disconnect.
+// App sessions are answered as provider stages are (an app whose name
+// starts with the mark), and get a stand-in activation token,
+// scripted-<session>, at once. Servitor sessions are never answered; they
+// end by replacement, cancel or disconnect.
 type Scripted struct {
 	host    Host
 	visible *scriptedSession
@@ -133,7 +136,7 @@ func (s *Scripted) current(id SessionID) *scriptedSession {
 // tryAnswer answers the visible provider stage if it can be answered now.
 func (s *Scripted) tryAnswer() {
 	v := s.visible
-	if v == nil || v.mode != protocol.ModeProvider || v.waiting {
+	if v == nil || v.mode != protocol.ModeProvider && v.mode != protocol.ModeApps || v.waiting {
 		return
 	}
 	var answer Answer
@@ -165,4 +168,9 @@ func typedFor(o list.Options) (string, bool) {
 		return "", false
 	}
 	return strings.CutPrefix(o.Placeholder, ScriptedMark)
+}
+
+// Activation hands out a stand-in token, scripted-<session>, at once.
+func (s *Scripted) Activation(id SessionID, _ string) {
+	s.host.Activated(id, fmt.Sprintf("scripted-%d", id))
 }

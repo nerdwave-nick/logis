@@ -32,6 +32,8 @@ func (w *wire) take() []protocol.Reply {
 type recorder struct {
 	log    []string
 	refuse string
+	// shown are the sessions shown, in order.
+	shown []Session
 }
 
 func (r *recorder) take() []string {
@@ -60,6 +62,7 @@ func (r *recorder) note(format string, args ...any) {
 }
 
 func (r *recorder) Show(s Session) {
+	r.shown = append(r.shown, s)
 	prompt := ""
 	if s.Options.Prompt != list.DefaultOptions().Prompt {
 		prompt = " '" + s.Options.Prompt + "'"
@@ -77,6 +80,8 @@ func (r *recorder) Step(id SessionID, step provider.Step) {
 		r.note("toast %d %s", id, step.Notice.Text)
 	case provider.StepUpdate:
 		r.note("update %d %d", id, step.Updates[0].Index)
+	case provider.StepReady:
+		r.note("ready %d", id)
 	default:
 		r.note("step %d %d", id, step.Kind)
 	}

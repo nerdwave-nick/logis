@@ -49,6 +49,9 @@ type surface interface {
 	Size() (scale.Size, bool)
 	// Paste reads a selection; its text comes back as an Insert edit.
 	Paste(input.Selection)
+	// RequestToken asks for an xdg-activation token for appID; done gets
+	// it ("" for none).
+	RequestToken(appID string, done func(token string))
 }
 
 // focusPolicy is the keyboard's focus-loss policy.
@@ -112,11 +115,11 @@ func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui 
 	return &ui{host: host, surf: surf, theme: th, keyboard: kb, emit: trace.Emit, now: time.Now}
 }
 
-// accepts says which sessions the window serves: dmenu and provider
-// sessions; apps arrive with their ticket (feat/logis-go G15).
+// accepts says which sessions the window serves: dmenu, provider and app
+// sessions.
 func accepts(m protocol.Mode) error {
 	switch m {
-	case protocol.ModeDmenu, protocol.ModeProvider:
+	case protocol.ModeDmenu, protocol.ModeProvider, protocol.ModeApps:
 		return nil
 	case protocol.ModeServitor:
 		return errors.New("the cogitator serves servitor mode as a provider session " +

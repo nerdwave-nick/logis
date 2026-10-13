@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/launch"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
@@ -29,14 +30,15 @@ const (
 
 // conn is one client connection and the session it may carry, with what
 // feeds that session (Rust Feed): the built-in dmenu provider (dmenu, and
-// the lists of apps and servitor sessions until their features), or an
-// external provider: its launch until the session is shown, then the
+// the list of servitor sessions until its feature), the app launcher, or
+// an external provider: its launch until the session is shown, then the
 // started provider.
 type conn struct {
 	peer  peer
 	phase phase
 	mode  protocol.Mode
 	dmenu *provider.Dmenu
+	apps  *appsFeed
 	// ended: the dmenu client sent all its items.
 	ended  bool
 	launch *protocol.Launch
@@ -54,6 +56,7 @@ type core struct {
 	conns     map[SessionID]*conn
 	pid       int
 	providers providers
+	apps      appsState
 	now       func() time.Time
 	// logf writes one line to the daemon's log.
 	logf func(message string)
@@ -61,7 +64,7 @@ type core struct {
 
 func newCore(resolver Resolver, pid int) *core {
 	return &core{resolver: resolver, conns: map[SessionID]*conn{}, pid: pid,
-		providers: providers{spawn: noSpawn}, now: time.Now, logf: func(string) {}}
+		providers: providers{spawn: noSpawn}, apps: newAppsState(), now: time.Now, logf: func(string) {}}
 }
 
 // idle: no client is connected and no provider is being ended.
@@ -120,9 +123,12 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 		c.fail(id, err.Error())
 		return
 	}
-	if request.Mode == protocol.ModeProvider {
+	switch request.Mode {
+	case protocol.ModeProvider:
 		cn.launch = request.Provider
-	} else {
+	case protocol.ModeApps:
+		cn.apps = &appsFeed{env: launch.EnvFromBytes(request.Env)}
+	default:
 		o, err := protocol.DecodeOptions(request.Options)
 		if err != nil {
 			c.fail(id, err.Error())
@@ -183,9 +189,11 @@ func (c *core) answered(id SessionID, answer Answer) {
 		if err := cn.live.external.Answer(answer); err != nil {
 			c.fail(id, "the provider was lost: "+err.Error())
 		}
+	case cn.apps != nil:
+		c.answeredApps(id, cn.apps, answer)
 	}
-	// What the user chose in an apps or servitor session is for those
-	// features' tickets to carry out.
+	// What the user chose in a servitor session is for that feature's
+	// ticket to carry out.
 }
 
 // failed: the resolver could not show the session; its client gets message
@@ -276,6 +284,8 @@ func (c *core) show(id SessionID) {
 		if cn.ended {
 			c.resolver.End(id)
 		}
+	case cn.apps != nil:
+		c.showApps(id, cn.apps)
 	case cn.launch != nil:
 		c.start(id, cn)
 	}

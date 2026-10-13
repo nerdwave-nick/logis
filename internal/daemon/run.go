@@ -42,6 +42,10 @@ type Options struct {
 	// the daemon (exit 2) and reaches a client that started it. Nil:
 	// Windowless.
 	Resolver func(Host) (Resolver, error)
+	// Getenv is the daemon's environment for its apps: where the app index,
+	// frecency and the session bus are, the current desktops, PATH and the
+	// locale. Nil: the process's own.
+	Getenv func(string) string
 	// Stdout takes the readiness line; Stderr is the daemon's log.
 	Stdout, Stderr io.Writer
 }
@@ -86,6 +90,12 @@ func Run(ctx context.Context, o Options) int {
 	}
 	l.core = newCore(resolver, os.Getpid())
 	l.core.providers.spawn, l.core.logf = l.spawner, logf
+	getenv := o.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	stopApps := l.startApps(getenv)
+	l.core.configure(cfg.live.Config())
 	configure(resolver, cfg.live.Config())
 	retheme(resolver, cfg.themes.Theme())
 	go l.accept(socket.ln)
@@ -101,6 +111,7 @@ func Run(ctx context.Context, o Options) int {
 	defer cfg.watch(l)()
 	stopped := l.serve(ctx)
 	l.retireAll()
+	stopApps()
 	if stopped.message != "" {
 		logf(stopped.message)
 	}
