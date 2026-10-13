@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"image"
-	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,168 +13,46 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/nerdwave-nick/logis/internal/e2e"
+	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 )
 
-// End to end in a nested niri the test starts itself, with a generated
-// config (never the owner's) and a scratch runtime dir, as Rust's
-// tests/support/e2e does. Runs only with LOGIS_E2E=niri (it opens a window
-// in the running session, so WAYLAND_DISPLAY must name one); otherwise the
-// tests skip. No input is injected anywhere: these tests only look.
+// End to end in a test compositor started by internal/e2e (a nested niri
+// with a generated config and a scratch runtime dir locally; headless sway
+// on CI), as Rust's tests/support/e2e does. Runs only with LOGIS_E2E set;
+// otherwise the tests skip. No input is injected: these tests only look,
+// through the harness's verified connection (screencopy).
 
-const niriConfig = `// logis test compositor (nested niri); generated, never the owner's config.
-output "winit" {
-    scale %s
-}
-hotkey-overlay {
-    skip-at-startup
-}
-animations {
-    off
-}
-xwayland-satellite {
-    off
-}
-layout {
-    background-color "#404040"
-}
-prefer-no-csd
-`
+// nestedPatience bounds every wait on the panel.
+const nestedPatience = e2e.Patience
 
-// nestedPatience bounds every wait on the nested niri and the panel in it.
-const nestedPatience = 10 * time.Second
-
-type nestedNiri struct {
-	t      *testing.T
-	dir    string
-	cmd    *exec.Cmd
-	socket string // the nested WAYLAND_DISPLAY, a name in dir
-}
-
-func requireNiri(t *testing.T) {
+// startCompositor starts the test compositor LOGIS_E2E asks for at the
+// output scale, and the harness's connection to it.
+func startCompositor(t *testing.T, scale string) (*e2e.Compositor, *e2e.Harness) {
 	t.Helper()
-	if os.Getenv("LOGIS_E2E") != "niri" {
-		t.Skip("SKIPPED: set LOGIS_E2E=niri (nested niri in the running session)")
-	}
+	c := e2e.Start(t, e2e.Requested(t), e2e.Scale(scale))
+	return c, e2e.Connect(t, c)
 }
 
-// parentSocket is the running session's socket, absolute: the nested
-// niri's own socket goes to the scratch runtime dir.
-func parentSocket(t *testing.T) string {
+// requireNiri skips a test that needs nested niri's IPC (niri msg).
+func requireNiri(t *testing.T, c *e2e.Compositor) {
 	t.Helper()
-	display := os.Getenv("WAYLAND_DISPLAY")
-	if display == "" {
-		t.Fatal("nested niri opens a window, so it needs WAYLAND_DISPLAY of a running session")
+	if c.Kind() != e2e.NestedNiri {
+		t.Skipf("needs nested niri, not %s", c.Kind().Name())
 	}
-	if filepath.IsAbs(display) {
-		return display
-	}
-	return filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), display)
 }
 
-func startNiri(t *testing.T, scale string) *nestedNiri {
+// screenshot captures the output upright; with LOGIS_E2E_SHOTS set, the
+// capture is also kept there.
+func screenshot(t *testing.T, h *e2e.Harness, name string) image.Image {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "logis-e2e-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chmod(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	config := filepath.Join(dir, "niri.kdl")
-	if err := os.WriteFile(config, fmt.Appendf(nil, niriConfig, scale), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	log, err := os.Create(filepath.Join(dir, "niri.log"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command("niri", "-c", config)
-	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"),
-		"XDG_RUNTIME_DIR=" + dir, "WAYLAND_DISPLAY=" + parentSocket(t), "RUST_LOG=niri=warn",
-	}
-	cmd.Stdout, cmd.Stderr = log, log
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("cannot start nested niri: %v", err)
-	}
-	n := &nestedNiri{t: t, dir: dir, cmd: cmd}
-	t.Cleanup(func() {
-		n.stop()
-		_ = log.Close()
-		_ = os.RemoveAll(dir)
-	})
-	deadline := time.Now().Add(nestedPatience)
-	for n.socket == "" {
-		if time.Now().After(deadline) {
-			t.Fatalf("nested niri opened no socket:\n%s", n.log())
-		}
-		if names, _ := filepath.Glob(filepath.Join(dir, "wayland-[0-9]*")); len(names) > 0 {
-			for _, name := range names {
-				if !strings.HasSuffix(name, ".lock") {
-					n.socket = filepath.Base(name)
-				}
-			}
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	return n
-}
-
-func (n *nestedNiri) log() string {
-	b, _ := os.ReadFile(filepath.Join(n.dir, "niri.log"))
-	return string(b)
-}
-
-func (n *nestedNiri) stop() {
-	if n.cmd.ProcessState == nil {
-		_ = n.cmd.Process.Signal(syscall.SIGTERM)
-		_ = n.cmd.Wait()
-	}
-}
-
-func (n *nestedNiri) env(extra ...string) []string {
-	return append([]string{
-		"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"),
-		"XDG_RUNTIME_DIR=" + n.dir, "WAYLAND_DISPLAY=" + n.socket,
-	}, extra...)
-}
-
-// msg runs `niri msg` against the nested niri (its IPC socket).
-func (n *nestedNiri) msg(args ...string) {
-	n.t.Helper()
-	sockets, _ := filepath.Glob(filepath.Join(n.dir, "niri.*.sock"))
-	if len(sockets) == 0 {
-		n.t.Fatal("the nested niri has no IPC socket")
-	}
-	cmd := exec.Command("niri", append([]string{"msg"}, args...)...)
-	cmd.Env = n.env("NIRI_SOCKET=" + sockets[0])
-	if out, err := cmd.CombinedOutput(); err != nil {
-		n.t.Fatalf("niri msg %v: %v\n%s", args, err, out)
-	}
-}
-
-// screenshot captures the nested output with grim.
-func (n *nestedNiri) screenshot(name string) image.Image {
-	n.t.Helper()
-	path := filepath.Join(n.dir, name+".png")
-	cmd := exec.Command("grim", path)
-	cmd.Env = n.env()
-	if out, err := cmd.CombinedOutput(); err != nil {
-		n.t.Fatalf("grim: %v\n%s", err, out)
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		n.t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-	img, err := png.Decode(f)
-	if err != nil {
-		n.t.Fatal(err)
-	}
+	img := h.Capture()
 	if dir := os.Getenv("LOGIS_E2E_SHOTS"); dir != "" {
-		_ = exec.Command("cp", path, filepath.Join(dir, n.t.Name()[strings.LastIndex(n.t.Name(), "/")+1:]+"-"+name+".png")).Run()
+		path := filepath.Join(dir, t.Name()[strings.LastIndex(t.Name(), "/")+1:]+"-"+name+".png")
+		_ = rendertest.WritePNG(path, img)
 	}
-	return img
+	return &image.RGBA{Pix: img.Pixels, Stride: img.Width * 4, Rect: image.Rect(0, 0, img.Width, img.Height)}
 }
 
 // panelProcess is a running `logis daemon --debug-panel` and its stderr.
@@ -187,10 +64,10 @@ type panelProcess struct {
 	exit  chan error
 }
 
-func startPanel(t *testing.T, n *nestedNiri, extraEnv ...string) *panelProcess {
+func startPanel(t *testing.T, c *e2e.Compositor, extraEnv ...string) *panelProcess {
 	t.Helper()
-	cmd := exec.Command(buildLogis(t), "daemon", "--debug-panel")
-	cmd.Env = n.env(extraEnv...)
+	cmd := c.Command(buildLogis(t), "daemon", "--debug-panel")
+	cmd.Env = append(cmd.Env, extraEnv...)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -274,7 +151,7 @@ func parseGlass(m []string) frame {
 // checkPanel captures the output until the panel drawn for f is on it
 // (the compositor shows a committed frame with its next repaint), and
 // fails with what is wrong if it never is.
-func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64) {
+func checkPanel(t *testing.T, h *e2e.Harness, name string, f frame, scale float64) {
 	t.Helper()
 	want, err := reference(f, scale)
 	if err != nil {
@@ -283,7 +160,7 @@ func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64
 	var problems []string
 	for attempt, deadline := 1, time.Now().Add(nestedPatience); time.Now().Before(deadline); attempt++ {
 		var summary string
-		if summary, problems = panelProblems(n.screenshot(name), want); len(problems) == 0 {
+		if summary, problems = panelProblems(screenshot(t, h, name), want); len(problems) == 0 {
 			t.Logf("%s after %d captures", summary, attempt)
 			return
 		}
@@ -295,7 +172,7 @@ func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64
 }
 
 func TestE2EDebugPanelIsDrawnAtEachOutputScale(t *testing.T) {
-	requireNiri(t)
+	e2e.Requested(t)
 	for _, tc := range []struct {
 		scale string
 		env   []string
@@ -310,8 +187,8 @@ func TestE2EDebugPanelIsDrawnAtEachOutputScale(t *testing.T) {
 			name += "-llvmpipe"
 		}
 		t.Run(name, func(t *testing.T) {
-			n := startNiri(t, tc.scale)
-			p := startPanel(t, n, tc.env...)
+			c, h := startCompositor(t, tc.scale)
+			p := startPanel(t, c, tc.env...)
 			spirit := p.expect(`the machine spirit wakes on (.*)`)[1]
 			if tc.env != nil && !strings.Contains(spirit, "llvmpipe") {
 				t.Errorf("LIBGL_ALWAYS_SOFTWARE=1 woke %q, not llvmpipe", spirit)
@@ -325,34 +202,32 @@ func TestE2EDebugPanelIsDrawnAtEachOutputScale(t *testing.T) {
 			if want := int(float64(f.logW)*scale + 0.5); f.physW != want {
 				t.Errorf("buffer %d px wide for %d logical at %v, want %d", f.physW, f.logW, scale, want)
 			}
-			checkPanel(t, n, "panel", f, scale)
+			checkPanel(t, h, "panel", f, scale)
 		})
 	}
 }
 
 func TestE2EAScaleChangeRedrawsAtTheNewScale(t *testing.T) {
-	requireNiri(t)
-	n := startNiri(t, "1.0")
-	p := startPanel(t, n)
+	c, h := startCompositor(t, "1.0")
+	requireNiri(t, c)
+	p := startPanel(t, c)
 	p.expect(glass)
 	for _, scale := range []string{"2", "1.3", "1"} {
-		n.msg("output", "winit", "scale", scale)
+		c.Msg("output", "winit", "scale", scale)
 		m := p.expect(glass)
 		want, _ := strconv.ParseFloat(scale, 64)
 		if got, _ := strconv.ParseFloat(m[5], 64); got != want {
 			t.Fatalf("redrawn at scale %v after the output went to %v", got, want)
 		}
-		checkPanel(t, n, "scale-"+scale, parseGlass(m), want)
+		checkPanel(t, h, "scale-"+scale, parseGlass(m), want)
 	}
 }
 
 func TestE2ELosingTheCompositorExits2(t *testing.T) {
-	requireNiri(t)
-	n := startNiri(t, "1.0")
-	p := startPanel(t, n)
+	c, _ := startCompositor(t, "1.0")
+	p := startPanel(t, c)
 	p.expect(glass)
-	_ = n.cmd.Process.Kill()
-	_ = n.cmd.Wait()
+	c.Kill()
 	p.expect(`^logis: the noosphere fell silent mid-rite: `)
 	if code := p.exitCode(); code != 2 {
 		t.Errorf("exit %d after the compositor died, want 2", code)
@@ -360,9 +235,8 @@ func TestE2ELosingTheCompositorExits2(t *testing.T) {
 }
 
 func TestE2ESigtermEndsThePanelCleanly(t *testing.T) {
-	requireNiri(t)
-	n := startNiri(t, "1.0")
-	p := startPanel(t, n)
+	c, _ := startCompositor(t, "1.0")
+	p := startPanel(t, c)
 	p.expect(glass)
 	_ = p.cmd.Process.Signal(syscall.SIGTERM)
 	if code := p.exitCode(); code != 0 {

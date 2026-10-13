@@ -59,3 +59,31 @@ func debugScene(logical scale.Size) *render.Scene {
 	queryRule := rect(18, ph-queryBlock, pw-36, 1.5, 0.75, render.Solid(brass.WithAlpha(0.8)))
 	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}}
 }
+
+// debugSelectable is the number of rows the selection can rest on (Rust's
+// nine debug rows); debugRowPitch is the distance between them.
+const (
+	debugSelectable = 9
+	debugRowPitch   = 26
+)
+
+// Indices of the selection band and its marker in debugScene's shapes.
+const (
+	debugSelected = 3
+	debugMarker   = 4
+)
+
+// debugSceneAt is debugScene with row selected (Rust's debug_scene_at,
+// without the query line): the band and its marker move down one row pitch
+// per row and stop at the last row above the query block.
+func debugSceneAt(logical scale.Size, row int) *render.Scene {
+	sc := debugScene(logical)
+	body, band := sc.Shapes[0].Rect, sc.Shapes[debugSelected].Rect
+	room := body[1] + body[3] - queryBlock - (band[1] + band[3])
+	fits := max(int(room/debugRowPitch), 0)
+	dy := debugRowPitch * float32(min(row, fits))
+	for _, i := range []int{debugSelected, debugMarker} {
+		sc.Shapes[i].Rect[1] += dy
+	}
+	return sc
+}

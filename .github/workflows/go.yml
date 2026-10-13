@@ -79,8 +79,80 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           LOGIS_REQUIRE_EGL: "1"
+          LOGIS_GOLDEN_FAILURES: ${{ runner.temp }}/golden-failures
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-go-check
+          path: ${{ runner.temp }}/golden-failures/
+          if-no-files-found: ignore
 
       - name: Build (the documented one-line build)
         run: |
           go build -o logis ./cmd/logis
           ./logis --version
+
+  # End to end and latency in sway on wlroots' headless backend (spec §6):
+  # installed on this runner only. internal/e2e starts sway itself
+  # (WLR_BACKENDS=headless, pixman renderer, no input devices, one
+  # 1280x720 output) in a scratch XDG_RUNTIME_DIR; logis draws on Mesa
+  # llvmpipe through the EGL Wayland platform. Locally the same tests run
+  # in a nested niri (LOGIS_E2E=niri).
+  headless:
+    name: headless E2E and latency (sway)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LOGIS_E2E: sway
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      LOGIS_GOLDEN_FAILURES: ${{ github.workspace }}/golden-failures
+    steps:
+      - uses: actions/checkout@v5
+
+      # sway brings wlroots and xkb-data (the injector's keymap includes
+      # resolve there). No swaybg: sway shows its default dark grey, which
+      # the harness covers with its own black backdrop surface.
+      - name: Install sway, Mesa and the system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sway gcc pkg-config \
+            libwayland-dev libegl-dev libgles-dev libfontconfig-dev libfreetype-dev \
+            libegl-mesa0 libgl1-mesa-dri
+          sway --version
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      # The harness's own tests (guard, keyboard, pointer, capture,
+      # selection owner, watchdog) and every slice's E2E tests.
+      - name: E2E (go test -run E2E)
+        run: go test -count=1 -run E2E -v ./...
+
+      # Relative trend only: budgets are recorded, never enforced here
+      # (absolute budgets are checked on the owner's machine with
+      # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
+      - name: Latency (go test -run Latency)
+        env:
+          LOGIS_LATENCY_RUNS: "20"
+          LOGIS_LATENCY_REPORT: ${{ github.workspace }}/latency.jsonl
+        run: go test -count=1 -run Latency -v ./...
+
+      - name: Keep latency samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-go-${{ github.sha }}
+          path: latency.jsonl
+          if-no-files-found: ignore
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-go-headless
+          path: golden-failures/
+          if-no-files-found: ignore
