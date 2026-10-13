@@ -234,9 +234,12 @@ func TestE2EAConfigEditTurnsBlurOnForTheVisibleWindow(t *testing.T) {
 }
 
 // Watched for 2.5 s (Rust: 1 s), past the 2 s write deadline of the last
-// reply: no timer may outlive what armed it.
+// reply: no timer may outlive what armed it. The daemon runs without the
+// garbage collector: a cycle the open started may otherwise end within
+// the span with the runtime's own housekeeping (sweeping, then returning
+// freed memory to the OS), which wakes threads once and is not ours.
 func TestE2EAnIdleWindowWakesNoThreadOfTheDaemon(t *testing.T) {
-	c := e2e.StartCogitator(t, nil, "")
+	c := e2e.StartCogitator(t, []string{"GOGC=off"}, "")
 	client := c.DmenuAll(motionItems)
 	c.Shown(3)
 	c.Daemon.WaitSeen("the open settles", e2e.Is("settled"))
