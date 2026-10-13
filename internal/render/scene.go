@@ -152,6 +152,8 @@ type Scene struct {
 	Clear  Color
 	Shapes []RoundedRect
 	Images []ImageQuad
+	// Texts are drawn last, over the shapes and images.
+	Texts []Text
 }
 
 // instanceFloats is floats per shape instance: fifteen vec4 attributes.

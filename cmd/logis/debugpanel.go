@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/nerdwave-nick/logis/internal/render"
+	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
 )
@@ -17,12 +18,17 @@ const keyEscape = 1
 
 // debugPanel is `logis daemon --debug-panel`: it connects, wakes the GPU,
 // shows the panel and keeps it, redrawing only on configure, scale and
-// selection changes (Up, Down), until Escape dismisses it, the compositor closes it, or SIGINT
-// or SIGTERM ends it (exit 0). It is not the session daemon: it neither
+// selection changes (Up, Down), until Escape dismisses it, the compositor
+// closes it, or SIGINT or SIGTERM ends it (exit 0). It is not the session daemon: it neither
 // listens nor serves sessions. Losing the compositor is exit 2.
 func debugPanel(stderr io.Writer) int {
+	// Fonts are resolved at start on a goroutine of their own (Rust
+	// Windows::connect): fontconfig's start-up overlaps the compositor's
+	// and the GPU's, off the first frame's critical path.
+	fonts := text.ResolveSystem()
 	w, err := window.Open()
 	if err != nil {
+		discard(fonts)
 		return fail(stderr, err.Error())
 	}
 	defer w.Close()
@@ -32,9 +38,16 @@ func debugPanel(stderr io.Writer) int {
 	// compiled now, not on the first frame) and goes before the context.
 	r, err := render.New()
 	if err != nil {
+		discard(fonts)
 		return fail(stderr, err.Error())
 	}
 	defer r.Close()
+	// Without fonts the cogitator still opens, only without text.
+	if f, err := fonts.Wait(); err != nil {
+		_, _ = fmt.Fprintf(stderr, "logis: %v; the cogitator stays mute\n", err)
+	} else {
+		r.SetFonts(f) // the renderer owns them now
+	}
 	w.SetLog(stderr)
 	stop := &debugKeys{redraw: w.RequestRedraw}
 	w.SetKeyboard(stop)
@@ -66,5 +79,12 @@ func paintDebug(r *render.Renderer, keys *debugKeys) window.Painter {
 	return func(g window.Geometry) bool {
 		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugSceneAt(g.Logical, keys.row))
 		return false
+	}
+}
+
+// discard waits for fonts nobody will draw with and releases them.
+func discard(p *text.PendingFonts) {
+	if f, err := p.Wait(); err == nil {
+		f.Close()
 	}
 }

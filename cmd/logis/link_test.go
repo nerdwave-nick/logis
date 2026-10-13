@@ -127,3 +127,30 @@ func TestTheBinaryCarriesTheScannerGlue(t *testing.T) {
 		t.Errorf("checked %d tables; wp_viewporter_interface defined: %v", tables, defined["wp_viewporter_interface"])
 	}
 }
+
+// libfontconfig and libfreetype are linked because the font and glyph
+// bindings call them (D2, D4), not merely pinned: the binary imports the
+// calls fonts are resolved and glyphs are rendered with.
+func TestTheBinaryCallsFontconfigAndFreeType(t *testing.T) {
+	bin, err := elf.Open(buildLogis(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = bin.Close() }()
+	imported, err := bin.ImportedSymbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+	from := map[string]string{}
+	for _, s := range imported {
+		from[s.Name] = s.Library
+	}
+	for _, name := range []string{
+		"FcInitLoadConfigAndFonts", "FcFontMatch", "FcFontSort", "FcCharSetHasChar",
+		"FT_New_Memory_Face", "FT_Load_Glyph", "FT_Render_Glyph", "FT_Select_Size",
+	} {
+		if _, ok := from[name]; !ok {
+			t.Errorf("the binary does not call %s", name)
+		}
+	}
+}

@@ -12,9 +12,6 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/version"
 	"github.com/nerdwave-nick/logis/internal/window"
-
-	// The cgo link line (spec §4) for the libraries no binding calls yet.
-	_ "github.com/nerdwave-nick/logis/internal/native"
 )
 
 // exitError is the exit status for every error (caller contract): the message
