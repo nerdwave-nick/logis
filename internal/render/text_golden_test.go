@@ -258,27 +258,14 @@ func runsScene(t testing.TB) *render.Scene {
 
 // Go's own goldens (spec §6: FreeType does not meet the Rust goldens'
 // tolerance at 1.3 and 2.0), tests/goldens/go/text/runs@<scale>.png,
-// reviewed against the Rust ones by the bounds above. With
-// LOGIS_UPDATE_GOLDENS set they are written instead.
+// reviewed against the Rust ones by the bounds above; G5's harness
+// rewrites them with LOGIS_UPDATE_GOLDENS=1.
 func TestSimpleRunsMatchTheirGoGoldens(t *testing.T) {
 	h := rendertest.Headless(t)
 	h.SetFonts(pinnedFonts(t))
+	var scales []scale.Scale
 	for _, sc := range corpusScales {
-		img, err := h.Offscreen(runsScene(t), goldenSize, scale.From120ths(sc.n))
-		if err != nil {
-			t.Fatal(err)
-		}
-		path := rendertest.Golden(t, filepath.Join("go", "text"), "runs@"+sc.name)
-		if os.Getenv("LOGIS_UPDATE_GOLDENS") != "" {
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := rendertest.WritePNG(path, img); err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("wrote %s", path)
-			continue
-		}
-		rendertest.Check(t, img, path, rendertest.Offscreen)
+		scales = append(scales, scale.From120ths(sc.n))
 	}
+	rendertest.CheckScene(t, h, "text", "runs", runsScene(t), goldenSize, scales...)
 }
