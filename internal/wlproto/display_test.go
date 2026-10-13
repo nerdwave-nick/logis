@@ -391,6 +391,13 @@ func TestWakeAndTimeoutEndAWaitingDispatch(t *testing.T) {
 	d, _ := connect(t, niriLike)
 	defer d.Close()
 	globals(t, d)
+	// Drain what may still come after the roundtrip (wl_display.delete_id
+	// of its callback): from now on only the timeout or Wake end a wait.
+	for range 5 {
+		if err := d.Dispatch(5 * time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+	}
 	start := time.Now()
 	if err := d.Dispatch(30 * time.Millisecond); err != nil {
 		t.Fatal(err)
