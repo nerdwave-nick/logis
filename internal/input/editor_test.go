@@ -63,7 +63,12 @@ func TestDeleteForwardRemovesTheGraphemeAfterTheCursor(t *testing.T) {
 
 func TestTheCursorMovesByGraphemesAndStopsAtTheEnds(t *testing.T) {
 	q := typed("a🇩🇪b")
-	if !apply(q, Left) || !apply(q, Left) || q.Cursor() != 1 {
+	for range 2 {
+		if !apply(q, Left) {
+			t.Fatal("Left did not move")
+		}
+	}
+	if q.Cursor() != 1 {
 		t.Fatalf("cursor %d", q.Cursor())
 	}
 	if !apply(q, Right) || q.Cursor() != 1+len("🇩🇪") {
