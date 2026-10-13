@@ -48,15 +48,18 @@ func (t Texture) Delete() {
 }
 
 // CopyTexture copies the w×h top-left corner of src into dst's, on the
-// GPU. It leaves the default framebuffer bound.
+// GPU. The framebuffer bound before stays bound.
 func CopyTexture(src, dst Texture, w, h int) {
+	// The frame's target stays bound: an atlas may grow mid-frame.
+	var bound C.GLint
+	C.glGetIntegerv(C.GL_FRAMEBUFFER_BINDING, &bound)
 	var fbo C.GLuint
 	C.glGenFramebuffers(1, &fbo)
 	C.glBindFramebuffer(C.GL_FRAMEBUFFER, fbo)
 	C.glFramebufferTexture2D(C.GL_FRAMEBUFFER, C.GL_COLOR_ATTACHMENT0, C.GL_TEXTURE_2D, C.GLuint(src), 0)
 	C.glBindTexture(C.GL_TEXTURE_2D, C.GLuint(dst))
 	C.glCopyTexSubImage2D(C.GL_TEXTURE_2D, 0, 0, 0, 0, 0, C.GLsizei(w), C.GLsizei(h))
-	C.glBindFramebuffer(C.GL_FRAMEBUFFER, 0)
+	C.glBindFramebuffer(C.GL_FRAMEBUFFER, C.GLuint(bound))
 	C.glDeleteFramebuffers(1, &fbo)
 }
 

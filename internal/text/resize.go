@@ -25,26 +25,83 @@ func abs32(x float32) float32 { return math.Float32frombits(math.Float32bits(x) 
 // the products as they are.
 func resize(src []byte, w, h, nw, nh int) []byte {
 	tmp := make([]byte, nw*h*4)
-	sample(src, w, h, nw, true, func(x, y int) int { return (y*w + x) * 4 },
-		tmp, func(x, y int) int { return (y*nw + x) * 4 })
+	// Along each row: taps 4 bytes apart, rows w*4.
+	sample(src, w, h, nw, true, axis{tap: 4, line: w * 4}, tmp, axis{tap: 4, line: nw * 4})
 	out := make([]byte, nw*nh*4)
-	sample(tmp, h, nw, nh, false, func(y, x int) int { return (y*nw + x) * 4 },
-		out, func(y, x int) int { return (y*nw + x) * 4 })
+	// Along each column of tmp: taps a row (nw*4) apart, columns 4.
+	sample(tmp, h, nw, nh, false, axis{tap: nw * 4, line: 4}, out, axis{tap: nw * 4, line: 4})
 	return out
 }
 
+// axis is how an image is walked: bytes from one sample to the next along
+// the resampled direction (tap), and from one line to the next.
+type axis struct{ tap, line int }
+
+// window is one output sample's filter: its first input sample and its
+// weights.
+type window struct {
+	left    int
+	weights []float32
+	isum    float32
+}
+
 // sample is swash's sample_dir: n samples along an axis per each of lines
-// lines resampled to m, at offsets at(i, line) in in and put(o, line) in
-// out.
-func sample(in []byte, n, lines, m int, premultiplied bool, at func(i, line int) int, out []byte, put func(o, line int) int) {
+// lines resampled to m. Each output's window and weights are computed
+// once and each line's samples converted once; then every line is
+// filtered, in the same arithmetic as the straightforward port.
+func sample(in []byte, n, lines, m int, premultiplied bool, from axis, out []byte, to axis) {
+	windows := filters(n, m)
+	const s = 1.0 / 255
+	// One line's samples as floats (v·s), each converted once.
+	v := make([]float32, n*4)
+	for line := range lines {
+		at := line * from.line
+		for i := range n {
+			p := in[at : at+4 : at+4]
+			v[4*i], v[4*i+1], v[4*i+2], v[4*i+3] = float32(p[0])*s, float32(p[1])*s, float32(p[2])*s, float32(p[3])*s
+			at += from.tap
+		}
+		for o, win := range windows {
+			var acc [4]float32
+			taps := v[4*win.left : 4*(win.left+len(win.weights))]
+			for i, wt := range win.weights {
+				p := taps[4*i : 4*i+4 : 4*i+4]
+				a := p[3]
+				if premultiplied {
+					acc[0] += p[0] * wt
+					acc[1] += p[1] * wt
+					acc[2] += p[2] * wt
+				} else {
+					acc[0] += p[0] * wt * a
+					acc[1] += p[1] * wt * a
+					acc[2] += p[2] * wt * a
+				}
+				acc[3] += a * wt
+			}
+			if acc[3] != 0 {
+				ia := 1 / acc[3]
+				acc[0], acc[1], acc[2], acc[3] = acc[0]*ia, acc[1]*ia, acc[2]*ia, acc[3]*win.isum
+			}
+			q := out[line*to.line+o*to.tap:]
+			q = q[:4:4]
+			for c := range 4 {
+				q[c] = byte(acc[c] * 255)
+			}
+		}
+	}
+}
+
+// filters are the windows of m outputs over n inputs (swash's support,
+// clamping and at most 64 taps).
+func filters(n, m int) []window {
 	const support = 2
 	const maxWeights = 64
-	var weights [maxWeights]float32
 	ratio := float32(n) / float32(m)
 	sratio := max(ratio, 1)
 	srcSupport := support * sratio
 	isratio := 1 / sratio
-	const s = 1.0 / 255
+	windows := make([]window, m)
+	all := make([]float32, 0, m*min(maxWeights, int(2*srcSupport)+3))
 	for o := range m {
 		inx := (float32(o) + 0.5) * ratio
 		left := min(max(int(math.Floor(float64(inx-srcSupport))), 0), n-1)
@@ -54,36 +111,14 @@ func sample(in []byte, n, lines, m int, premultiplied bool, at func(i, line int)
 			right--
 			left++
 		}
-		k := right - left
+		start := len(all)
 		var sum float32
-		for i := range k {
-			weights[i] = mitchell((float32(left+i) - inx) * isratio)
-			sum += weights[i]
+		for i := range right - left {
+			wt := mitchell((float32(left+i) - inx) * isratio)
+			all = append(all, wt)
+			sum += wt
 		}
-		isum := 1 / sum
-		for line := range lines {
-			var acc [4]float32
-			for i, wt := range weights[:k] {
-				p := in[at(left+i, line):]
-				a := float32(p[3]) * s
-				for c := range 3 {
-					v := float32(p[c]) * s
-					if premultiplied {
-						acc[c] += v * wt
-					} else {
-						acc[c] += v * wt * a
-					}
-				}
-				acc[3] += a * wt
-			}
-			if acc[3] != 0 {
-				ia := 1 / acc[3]
-				acc[0], acc[1], acc[2], acc[3] = acc[0]*ia, acc[1]*ia, acc[2]*ia, acc[3]*isum
-			}
-			q := out[put(o, line):]
-			for c := range 4 {
-				q[c] = byte(acc[c] * 255)
-			}
-		}
+		windows[o] = window{left: left, weights: all[start:len(all):len(all)], isum: 1 / sum}
 	}
+	return windows
 }
