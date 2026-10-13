@@ -14,7 +14,8 @@ import (
 // inset, a translucent bar), rendered at 120×80 logical at scales 1.0, 1.3
 // and 2.0 and compared with the checked-in Rust goldens
 // tests/goldens/harness/reference@<scale>.png within the offscreen
-// tolerance (2 levels per channel, no outliers).
+// tolerance (2 levels per channel, no outliers), through the golden
+// harness (LOGIS_UPDATE_GOLDENS=1 rewrites only Go goldens).
 func referenceScene() *render.Scene {
 	brass := render.RGBA(0.83, 0.63, 0.09, 1)
 	crimson := render.RGBA(0.70, 0.06, 0.05, 1)
@@ -34,16 +35,8 @@ func referenceScene() *render.Scene {
 func TestTheReferenceSceneMatchesTheRustGoldensAtEveryScale(t *testing.T) {
 	h := rendertest.Headless(t)
 	t.Logf("GL: %s", h.Info().Renderer)
-	for _, tc := range []struct {
-		n    uint32
-		name string
-	}{{120, "1.0"}, {156, "1.3"}, {240, "2.0"}} {
-		img, err := h.Offscreen(referenceScene(), scale.Size{W: 120, H: 80}, scale.From120ths(tc.n))
-		if err != nil {
-			t.Fatal(err)
-		}
-		rendertest.Check(t, img, rendertest.Golden(t, "harness", "reference@"+tc.name), rendertest.Offscreen)
-	}
+	rendertest.CheckScene(t, h, "harness", "reference", referenceScene(), scale.Size{W: 120, H: 80},
+		scale.From120ths(120), scale.From120ths(156), scale.From120ths(240))
 }
 
 func TestOffscreenReturnsTheScaledImage(t *testing.T) {
