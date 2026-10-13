@@ -8,8 +8,11 @@
 // Events so far: `keyboard-enter`, `keyboard-leave`, `key <evdev code>
 // pressed|released`, `modifiers <depressed> <latched> <locked> <group>`,
 // `repeat-info <rate> <delay>`, `commit` (a frame of the visible panel
-// was presented and its surface committed) and `settled` (that frame
-// leaves nothing moving) from the window; `keymap` (one
+// was presented and its surface committed), `settled` (the first frame
+// that leaves nothing moving), `commit closing` (a frame of a panel
+// fading out), `faded` (a hidden panel is gone), `cut` (a closing panel
+// cut short by the next one is gone), `blur <rectangles>` and
+// `blur-capable true|false` from the window; `keymap` (one
 // compiled) and `key <evdev code> repeated` from the keyboard; `show
 // debug-panel`, `query <JSON string>`, `select <row>`, `accept <row>` and
 // `dismiss` from the debug panel. The

@@ -2,10 +2,12 @@ package daemon
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/config"
@@ -205,10 +207,47 @@ func (l *loop) read(id SessionID, c *os.File) {
 // streamPeer answers a client over its connection.
 type streamPeer struct{ c *os.File }
 
+// send writes reply; a failed write surfaces as the reader's hang-up. The
+// socket usually takes it at once. Only a client slow to read is waited
+// for, at most writeTimeout: a deadline set on every reply would leave a
+// runtime timer behind that wakes the idle daemon when it runs out (a
+// cleared deadline's timer may still fire).
 func (p *streamPeer) send(reply protocol.Reply) {
-	// A failed write surfaces as the reader's hang-up.
+	var frame bytes.Buffer
+	if protocol.WriteFrame(&frame, reply) != nil {
+		return
+	}
+	b := frame.Bytes()
+	n := p.writeNow(b)
+	if n == len(b) {
+		return
+	}
 	_ = p.c.SetWriteDeadline(time.Now().Add(writeTimeout))
-	_ = protocol.WriteFrame(p.c, reply)
+	_, _ = p.c.Write(b[n:])
+	_ = p.c.SetWriteDeadline(time.Time{})
+}
+
+// writeNow writes what the socket takes of b without waiting.
+func (p *streamPeer) writeNow(b []byte) int {
+	raw, err := p.c.SyscallConn()
+	if err != nil {
+		return 0
+	}
+	n := 0
+	_ = raw.Write(func(fd uintptr) bool {
+		for n < len(b) {
+			w, err := syscall.Write(int(fd), b[n:])
+			if err == syscall.EINTR {
+				continue
+			}
+			if err != nil || w <= 0 {
+				break
+			}
+			n += w
+		}
+		return true // never wait here
+	})
+	return n
 }
 
 // close ends the connection; its reader then sees it closed and stops.

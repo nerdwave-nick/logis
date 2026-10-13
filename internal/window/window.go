@@ -13,13 +13,13 @@ package window
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"runtime"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/egl"
 	"github.com/nerdwave-nick/logis/internal/input"
+	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
@@ -48,9 +48,25 @@ type Window struct {
 	clipboard  *clipboard
 	activation activation
 	gpu        gpu
-	panel      *panel
-	log        io.Writer
-	repeat     repeatTimer
+	// panel is the visible panel; closing one fading out; retired one cut
+	// short by a Show, which goes once the new panel's first frame is out
+	// (motion.go).
+	panel, closing, retired *panel
+	log                     io.Writer
+	repeat                  repeatTimer
+	// motion is the motion of panels shown from now on; blur whether to
+	// blur behind them; clock the frames' timing; now reads
+	// CLOCK_MONOTONIC.
+	motion motion.Motion
+	blur   bool
+	clock  frameClock
+	now    func() uint64
+	// effects and presentation are the optional globals used when offered
+	// (spec §4.2): blur behind the panel, and when frames reach the screen
+	// (monotonic: in CLOCK_MONOTONIC, the only clock used).
+	effects      *wlproto.ExtBackgroundEffectManagerV1
+	presentation *wlproto.WpPresentation
+	monotonic    bool
 }
 
 // Open connects to the session's compositor, binds the globals the window
@@ -74,7 +90,7 @@ func openWith(open openGPU) (w *Window, err error) {
 		c.display.Close()
 		return nil, err
 	}
-	w = &Window{conn: c, display: c.display, log: io.Discard}
+	w = &Window{conn: c, display: c.display, log: io.Discard, motion: motion.Off, now: trace.MonotonicNS}
 	w.compositor, _ = c.bind(wlproto.WlCompositorInterface, 6).(*wlproto.WlCompositor)
 	w.layerShell, _ = c.bind(wlproto.ZwlrLayerShellV1Interface, 4).(*wlproto.ZwlrLayerShellV1)
 	w.fractional, _ = c.bind(wlproto.WpFractionalScaleManagerV1Interface, 1).(*wlproto.WpFractionalScaleManagerV1)
@@ -84,6 +100,7 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.clipboard = bindClipboard(w, w.seat.seat)
 	w.activation.manager, _ = w.Bind(wlproto.XdgActivationV1Interface, 1).(*wlproto.XdgActivationV1)
 	w.seat.pressed, w.seat.pointer.pressed = w.activation.press, w.activation.press
+	w.bindOptional()
 	c.removed = func(g Global) {
 		if w.seat.removed(g) {
 			w.clipboard.releaseDevices()
@@ -142,29 +159,10 @@ func (w *Window) Bind(iface *wlproto.Interface, max uint32) wlproto.Object {
 	return w.conn.bind(iface, max)
 }
 
-// Show shows a panel of size logical pixels drawn by paint, replacing any
-// visible one. It is drawn once the compositor configures it.
+// Show shows a panel of size logical pixels drawn by paint at rest (the
+// pose of a transition is ShowFrames'), as ShowFrames does.
 func (w *Window) Show(size scale.Size, paint Painter) error {
-	w.Hide()
-	p, err := w.newPanel(size, paint)
-	if err != nil {
-		return err
-	}
-	w.panel = p
-	w.resetInput()
-	return w.flush()
-}
-
-// Hide hides the visible panel at once, if any. With the test trace on it
-// reports `faded`: the window is gone (at once: there is no close
-// transition yet).
-func (w *Window) Hide() {
-	if w.panel != nil {
-		w.panel.destroy()
-		w.panel = nil
-		w.resetInput()
-		trace.Emit("faded")
-	}
+	return w.ShowFrames(size, func(f Frame) Drawing { return Drawing{Moving: paint(f.Geometry)} })
 }
 
 // ReleaseKeyboard lets the visible panel go of the keyboard: it stays in
@@ -205,12 +203,14 @@ func (w *Window) RequestRedraw() {
 // it in one batch make one frame. A lost compositor is a
 // DisconnectedError.
 func (w *Window) Dispatch(timeout time.Duration) error {
+	if left, ok := w.motionDeadline(); ok && (timeout < 0 || left < timeout) {
+		timeout = left
+	}
 	if err := w.conn.display.Dispatch(timeout); err != nil {
 		return disconnected(err)
 	}
-	if w.panel != nil && w.panel.closed {
-		w.Hide()
-	}
+	w.dropClosed()
+	w.expireClosing()
 	w.armRepeat()
 	if err := w.draw(); err != nil {
 		return err
@@ -236,44 +236,21 @@ func disconnected(err error) error {
 	return &DisconnectedError{Reason: err.Error()}
 }
 
-// draw draws the visible panel if a frame is due. A frame that fails
-// because the connection broke under EGL is the compositor's loss.
-func (w *Window) draw() error {
-	p := w.panel
-	if p == nil || !p.state.shouldDraw() {
-		return nil
-	}
-	g, reconfigured := p.state.pendingReconfigure()
-	if reconfigured {
-		p.reconfigure(g)
-	}
-	if err := p.present(); err != nil {
-		if lost := w.conn.display.Err(); lost != nil {
-			return disconnected(lost)
-		}
-		return &SurfaceError{Reason: err.Error()}
-	}
-	if reconfigured {
-		_, _ = fmt.Fprintf(w.log, "logis: cogitator glass %dx%d px for %dx%d logical at scale %g (EGL Wayland platform)\n",
-			g.Physical.W, g.Physical.H, g.Logical.W, g.Logical.H, g.Scale.Factor())
-	}
-	return nil
-}
-
 // shows reports whether s is the visible panel's surface.
 func (w *Window) shows(s *wlproto.WlSurface) bool {
 	return s != nil && w.panel != nil && w.panel.surface == s
 }
 
-// Close hides the panel and releases the seat, the globals, the GPU and
-// the connection; the owner goroutine is unlocked from its thread.
+// Close hides the panels at once and releases the seat, the globals, the
+// GPU and the connection; the owner goroutine is unlocked from its thread.
 func (w *Window) Close() {
 	if w.closed {
 		return
 	}
 	w.closed = true
-	w.Hide()
+	w.dropAll()
 	w.releaseInput()
+	w.releaseOptional()
 	w.gpu.close()
 	w.conn.display.Close()
 	w.repeat.close()

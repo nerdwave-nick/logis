@@ -23,6 +23,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/icons"
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
+	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/render"
@@ -44,8 +45,14 @@ type Resolver struct {
 // Start opens the window on a goroutine of its own: it connects to the
 // compositor (refusing one that cannot host the cogitator), wakes the GPU,
 // compiles the renderer's shaders and resolves the default theme's fonts.
-// It returns once that is done, or why it failed. Diagnostics go to log.
+// LOGIS_MOTION may turn motion off or slow it (motion.FromEnv); it
+// outranks the theme's timings. It returns once that is done, or why it
+// failed. Diagnostics go to log.
 func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
+	envMotion, envSet, err := motion.FromEnv()
+	if err != nil {
+		return nil, err
+	}
 	r := &Resolver{}
 	ready := make(chan error, 1)
 	go func() {
@@ -81,6 +88,10 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		w.SetKeyboard(kb)
 		w.SetSink(sink)
 		u := newUI(host, w, &th, kb)
+		if envSet {
+			u.envMotion = &envMotion
+		}
+		u.wearMotion()
 		u.draw = func(sc *render.Scene, g window.Geometry) {
 			rend.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, sc)
 		}
