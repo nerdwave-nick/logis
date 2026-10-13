@@ -116,3 +116,33 @@ func TestE2EEscapeAfterAnActivationNeverKillsTheActionItStarted(t *testing.T) {
 		t.Fatal("dismissal signalled the provider that started it")
 	}
 }
+
+func TestE2EARowsIconIsDrawnInPlaceOfItsGlyph(t *testing.T) {
+	c := e2e.StartCogitator(t, nil, "")
+	dir := t.TempDir()
+	icon, err := filepath.Abs("../../tests/fixtures/icons/share/icons/logis-forge/32x32/apps/both-formats.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "icons.sh")
+	body := "#!/bin/sh\nread -r hello\necho '{\"type\":\"hello\",\"protocol\":1}'\n" +
+		"echo '{\"type\":\"stage\",\"id\":\"s\",\"lines\":3,\"width\":30,\"items\":[" +
+		"{\"id\":\"a\",\"columns\":[\"an icon\"],\"icon\":\"" + icon + "\",\"glyph\":\"G\"}," +
+		"{\"id\":\"b\",\"columns\":[\"no icon found\"],\"icon\":\"logis-nowhere\",\"glyph\":\"\u2020\"}]}'\n" +
+		"while read -r line; do case $line in *cancel*) exit 0 ;; esac; done\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	client := c.ProviderWith(nil, script)
+	focused := c.Shown(2)
+	o := list.DefaultOptions()
+	lines, width := uint32(3), uint32(30)
+	o.Lines, o.Width = &lines, &width
+	th := theme.Default()
+	size, _ := scene.Fit(o, &th)
+	checkWindow(t, c.Harness, "provider-icons", int(size.W), int(size.H))
+	c.Tap(focused, e2e.KeyEsc)
+	if ended := client.Ended(); ended.Code != 1 {
+		t.Fatalf("%+v", ended)
+	}
+}
