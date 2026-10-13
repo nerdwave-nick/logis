@@ -28,11 +28,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/theme"
+	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
 // Resolver is the resolver the daemon holds; the window's goroutine does
-// the work. It is also a daemon.Configurer and a daemon.Toaster.
+// the work. It is also a daemon.Configurer, Toaster and Rethemer.
 type Resolver struct {
 	mu    sync.Mutex
 	queue []func(*ui)
@@ -82,6 +83,8 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		u.draw = func(sc *render.Scene, g window.Geometry) {
 			rend.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, sc)
 		}
+		u.setFaces, u.clock = rend.SetFaces, trace.MonotonicNS
+		u.logf = func(message string) { _, _ = fmt.Fprintf(log, "logis: %s\n", message) }
 		u.iconTheme = func(name string) {
 			cache := icons.NewCache(icons.LoadThemes(icons.FromEnv(), name))
 			u.icons = func(g window.Geometry) scene.Icons {
@@ -196,3 +199,6 @@ func (r *Resolver) Configure(c config.Config) { r.post(func(u *ui) { u.configure
 
 // Toast shows a notice over the visible list.
 func (r *Resolver) Toast(t daemon.Toast) { r.post(func(u *ui) { u.toast(t) }) }
+
+// Retheme wears t from now on, the visible panel included.
+func (r *Resolver) Retheme(t *theme.Theme) { r.post(func(u *ui) { u.retheme(t) }) }

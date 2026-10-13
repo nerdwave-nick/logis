@@ -77,3 +77,7 @@ func InstanceAttrib(index, size, stride, offset int) {
 func DrawQuads(instances int) {
 	C.glDrawArraysInstanced(C.GL_TRIANGLE_STRIP, 0, 4, C.GLsizei(instances))
 }
+
+// DrawTriangle draws one triangle of three vertices from gl_VertexID (a
+// full-screen pass's).
+func DrawTriangle() { C.glDrawArrays(C.GL_TRIANGLES, 0, 3) }
