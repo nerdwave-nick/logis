@@ -3,8 +3,8 @@ package render
 import "math"
 
 // decorations are what the prepared lines draw with the shapes: the
-// underlines under their emphasis (Rust TextPass::decorations), in logical
-// pixels.
+// underlines under their emphasis and their carets (Rust
+// TextPass::decorations), in logical pixels.
 func (p *glyphPass) decorations() []RoundedRect {
 	var out []RoundedRect
 	for i := range p.shaped {
@@ -12,8 +12,59 @@ func (p *glyphPass) decorations() []RoundedRect {
 		if l.text.UnderlineEmphasis && len(l.text.Emphasis) > 0 {
 			out = append(out, underlines(l)...)
 		}
+		if c, ok := caret(l); ok {
+			out = append(out, c)
+		}
 	}
 	return out
+}
+
+// caret is a line's caret: before the glyph its byte offset starts, or
+// after the last one, as tall as the glyphs (a bar or a block) or low at
+// the baseline (an underscore), with its glow; none outside the column.
+func caret(l *shapedLine) (RoundedRect, bool) {
+	c := l.text.Caret
+	if c == nil {
+		return RoundedRect{}, false
+	}
+	f := l.scale.Factor()
+	at := place(l)
+	baseline := (max(l.text.LineHeight*f, 1)-(l.line.Ascent+l.line.Descent))/2 + l.line.Ascent
+	ascent, descent := at.size*0.8, at.size*0.2
+	x, advance, found := float32(0), at.size*0.6, false
+	for _, g := range l.line.Glyphs {
+		if !g.Ellipsis && g.Cluster >= c.At {
+			x, advance, found = g.X, g.Advance, true
+			break
+		}
+	}
+	if !found {
+		for i := len(l.line.Glyphs) - 1; i >= 0; i-- {
+			if g := l.line.Glyphs[i]; !g.Ellipsis {
+				x = g.X + g.Advance
+				break
+			}
+		}
+	}
+	x += at.left
+	var rect [4]float32
+	switch c.Shape {
+	case CaretBlock:
+		rect = [4]float32{x, at.top + baseline - ascent, advance, ascent + descent}
+	case CaretUnderscore:
+		rect = [4]float32{x, at.top + baseline + max(at.size*0.08, 1), advance, max(at.size*0.1, 1)}
+	default:
+		w := max(c.Width*f, 1)
+		rect = [4]float32{x - w/2, at.top + baseline - ascent, w, ascent + descent}
+	}
+	if left, right, ok := l.text.column(l.scale); ok && (rect[0]+rect[2] <= float32(left) || rect[0] >= float32(right)) {
+		return RoundedRect{}, false
+	}
+	shape := bar(rect, f, c.Color)
+	if c.Glow.A > 0 {
+		shape.Glow = Glow{Radius: 6, Color: c.Glow}
+	}
+	return shape, true
 }
 
 // underlines are a line's underlines: one bar per run of consecutive

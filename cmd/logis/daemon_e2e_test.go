@@ -355,8 +355,10 @@ func TestE2EAnUnknownResolverIsAnError(t *testing.T) {
 	}
 }
 
-// Without LOGIS_RESOLVER (and until the window exists) sessions are refused.
-func TestE2EWithoutAWindowSessionsAreRefused(t *testing.T) {
+// Without LOGIS_RESOLVER the daemon opens the cogitator window before it
+// reports readiness; without a Wayland session it refuses to start (exit
+// 2, the preflight's words) and leaves no socket behind.
+func TestE2EWithoutAWaylandSessionTheWindowedDaemonRefusesToStart(t *testing.T) {
 	r := newRig(t)
 	cmd := r.logis("daemon")
 	var env []string
@@ -366,13 +368,19 @@ func TestE2EWithoutAWindowSessionsAreRefused(t *testing.T) {
 		}
 	}
 	cmd.Env = env
-	r.startCmd(cmd)
-	c := r.connect()
-	if err := c.Send(protocol.Open(protocol.ModeDmenu, nil)); err != nil {
-		t.Fatal(err)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 2 {
+		t.Fatalf("%v", err)
 	}
-	if _, err := c.Await(); err == nil || !strings.Contains(err.Error(), "no window to manifest in") {
-		t.Errorf("%v", err)
+	if want := "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). " +
+		"The cogitator manifests only within a Wayland session.\n"; stderr.String() != want {
+		t.Fatalf("stderr %q", stderr.String())
+	}
+	if !gone(r.socket()) {
+		t.Fatal("the socket stayed")
 	}
 }
 

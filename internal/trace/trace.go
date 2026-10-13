@@ -7,13 +7,15 @@
 //
 // Events so far: `keyboard-enter`, `keyboard-leave`, `key <evdev code>
 // pressed|released`, `modifiers <depressed> <latched> <locked> <group>`,
-// `repeat-info <rate> <delay>` and `commit` (a frame of the visible panel
-// was presented and its surface committed) from the window; `keymap` (one
+// `repeat-info <rate> <delay>`, `commit` (a frame of the visible panel
+// was presented and its surface committed) and `settled` (that frame
+// leaves nothing moving) from the window; `keymap` (one
 // compiled) and `key <evdev code> repeated` from the keyboard; `show
 // debug-panel`, `query <JSON string>`, `select <row>`, `accept <row>` and
 // `dismiss` from the debug panel. The
-// daemon's sessions add theirs (`show <session>`, `items <n>`, `hide
-// <session>`, `settled`, `faded` …) as Rust's README lists them.
+// daemon's sessions add theirs (`show <session>`, `items <n>`, `query`,
+// `select`, `accept`, `typed`, `dismiss`, `toast`, `hide <session>` …) as
+// Rust's README lists them.
 package trace
 
 import (

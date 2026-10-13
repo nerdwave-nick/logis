@@ -36,6 +36,13 @@ type glyphPass struct {
 	vao     gles.VertexArray
 	buf     gles.Buffer
 	packed  []float32
+	// pending are the frame's new glyph images, uploaded together by
+	// flush; staging is flush's reused buffer.
+	pending []pendingGlyph
+	staging []byte
+	// rasterised and uploads count glyph images made and texture uploads
+	// (for tests).
+	rasterised, uploads int
 }
 
 func newGlyphPass() (*glyphPass, error) {
@@ -68,6 +75,7 @@ func (p *glyphPass) reset(side int) {
 	}
 	p.tex = gles.NewTexture(side, side)
 	p.packer = newShelfPacker(uint32(side), uint32(side))
+	p.pending = p.pending[:0]
 	p.cache = map[text.GlyphKey]glyphSlot{}
 }
 
@@ -102,6 +110,7 @@ func (p *glyphPass) draw(t Target) {
 		p.reset(int(side))
 		p.pack(t.Size)
 	}
+	p.flush()
 	if len(p.packed) == 0 {
 		return
 	}
@@ -196,6 +205,7 @@ func (p *glyphPass) glyph(k text.GlyphKey) (glyphSlot, bool) {
 		return s, true
 	}
 	img, err := p.fonts.Glyph(k)
+	p.rasterised++
 	if err != nil || img.Width == 0 || img.Height == 0 || max(img.Width, img.Height) >= p.maxSide {
 		p.cache[k] = glyphSlot{}
 		return glyphSlot{}, true
@@ -209,7 +219,7 @@ func (p *glyphPass) glyph(k text.GlyphKey) (glyphSlot, bool) {
 		p.grow()
 		x, y, ok = p.packer.allocate(uint32(img.Width), uint32(img.Height))
 	}
-	p.tex.Upload(int(x), int(y), img.Width, img.Height, rgba(img))
+	p.pending = append(p.pending, pendingGlyph{x, y, img})
 	s := glyphSlot{x: x, y: y, w: uint32(img.Width), h: uint32(img.Height), left: img.Left, top: img.Top, color: img.Color}
 	p.cache[k] = s
 	return s, true
@@ -224,19 +234,6 @@ func (p *glyphPass) grow() {
 	gles.CopyTexture(p.tex, tex, int(old), int(old))
 	p.tex.Delete()
 	p.tex = tex
-}
-
-// rgba is a glyph image as atlas texels: colour as it is, coverage in
-// alpha.
-func rgba(img *text.GlyphImage) []byte {
-	if img.Color {
-		return img.Pixels
-	}
-	out := make([]byte, len(img.Pixels)*4)
-	for i, c := range img.Pixels {
-		out[4*i], out[4*i+1], out[4*i+2], out[4*i+3] = 255, 255, 255, c
-	}
-	return out
 }
 
 func (p *glyphPass) close() {

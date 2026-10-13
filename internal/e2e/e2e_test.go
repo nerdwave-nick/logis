@@ -191,9 +191,11 @@ func TestE2ETheWatchdogSeesTheCompositorStall(t *testing.T) {
 
 func TestE2EACogitatorsDaemonGreetsAndAnswersAClient(t *testing.T) {
 	c := StartCogitator(t, nil, "")
-	ended := c.DmenuAll([]byte("alpha\nbeta\n")).Ended()
-	t.Logf("dmenu client: exit %d, stdout %q", ended.Code, ended.Stdout)
-	if ended.Code < 0 {
-		t.Errorf("the dmenu client was killed: %+v", ended)
+	client := c.DmenuAll([]byte("alpha\nbeta\n"))
+	focused := c.Shown(2)
+	c.Tap(focused, KeyEsc)
+	c.Next("dismiss")
+	if ended := client.Ended(); ended.Code != 1 || len(ended.Stdout) != 0 {
+		t.Errorf("the dmenu client ended %+v, want exit 1 and no stdout", ended)
 	}
 }

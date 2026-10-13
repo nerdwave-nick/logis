@@ -62,6 +62,8 @@ type Text struct {
 	Emphasis          []Range
 	EmphasisFace      *int
 	UnderlineEmphasis bool
+	// Caret is where the next character goes, if shown.
+	Caret *Caret
 }
 
 // NewText is a line at origin with a line box of 1.3 × size.
@@ -83,7 +85,8 @@ func (t *Text) equal(u *Text) bool {
 		t.Tracking == u.Tracking && slices.Equal(t.Emphasis, u.Emphasis) &&
 		(t.EmphasisFace == nil) == (u.EmphasisFace == nil) &&
 		(t.EmphasisFace == nil || *t.EmphasisFace == *u.EmphasisFace) &&
-		t.UnderlineEmphasis == u.UnderlineEmphasis
+		t.UnderlineEmphasis == u.UnderlineEmphasis &&
+		(t.Caret == nil) == (u.Caret == nil) && (t.Caret == nil || *t.Caret == *u.Caret)
 }
 
 // column is the column's left and right edges in buffer pixels.
@@ -217,3 +220,29 @@ func subpixelBin(pos float32) (int, uint8) {
 	}
 	return trunc + 1, 0
 }
+
+// Caret is a caret drawn at a character of a line (Rust render::Caret).
+type Caret struct {
+	// At is the byte offset in the line's text it stands before.
+	At    int
+	Shape CaretShape
+	// Width is a bar's width in logical pixels (a block or an underscore
+	// is as wide as the character it stands at, or an average one at the
+	// end).
+	Width float32
+	Color Color
+	// Glow is its glow (transparent for none).
+	Glow Color
+}
+
+// CaretShape is a caret's form.
+type CaretShape int
+
+const (
+	// CaretBar is a thin upright bar as tall as the glyphs.
+	CaretBar CaretShape = iota
+	// CaretBlock is a block over the character.
+	CaretBlock
+	// CaretUnderscore is a low bar under the character.
+	CaretUnderscore
+)

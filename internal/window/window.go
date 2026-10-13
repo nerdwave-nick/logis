@@ -20,6 +20,7 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/egl"
 	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
@@ -130,12 +131,15 @@ func (w *Window) Show(size scale.Size, paint Painter) error {
 	return w.flush()
 }
 
-// Hide hides the visible panel at once, if any.
+// Hide hides the visible panel at once, if any. With the test trace on it
+// reports `faded`: the window is gone (at once: there is no close
+// transition yet).
 func (w *Window) Hide() {
 	if w.panel != nil {
 		w.panel.destroy()
 		w.panel = nil
 		w.resetKeyboard()
+		trace.Emit("faded")
 	}
 }
 
