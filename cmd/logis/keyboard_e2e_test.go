@@ -180,6 +180,28 @@ func TestE2EEveryEditingAndSelectionKeyDoesItsWork(t *testing.T) {
 	p.wantQuery("rite ", "Ctrl+W: the spaces, then the word")
 	p.tap(e2e.KeyBackspace)
 	p.wantQuery("rite", "Backspace")
+	// The cursor keys move the cursor (each move reports the query) and
+	// Delete deletes after it.
+	for _, s := range []struct {
+		key  uint32
+		text rune
+		want string
+	}{
+		{e2e.KeyHome, 0, "rite"},
+		{e2e.KeyDelete, 0, "ite"},
+		{e2e.KeyEnd, 0, "ite"},
+		{e2e.KeyLeft, 0, "ite"},
+		{0, 'x', "itxe"},
+		{e2e.KeyRight, 0, "itxe"},
+		{0, 'y', "itxey"},
+	} {
+		if s.key != 0 {
+			p.tap(s.key)
+		} else {
+			p.typeText(string(s.text))
+		}
+		p.wantQuery(s.want, "the cursor keys and Delete")
+	}
 	p.chord(e2e.Control, code(t, 'u'))
 	p.wantQuery("", "Ctrl+U clears")
 
