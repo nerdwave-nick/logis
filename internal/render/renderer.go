@@ -27,6 +27,7 @@ type Renderer struct {
 	shapeBuf          gles.Buffer
 	packed            []float32 // this frame's instances, reused
 	images            *imagePass
+	glyphs            *glyphPass
 }
 
 // New compiles the shaders and makes the buffers and the atlas, on the
@@ -53,6 +54,10 @@ func New() (*Renderer, error) {
 		r.Close()
 		return nil, fmt.Errorf("images: %w", err)
 	}
+	if r.glyphs, err = newGlyphPass(); err != nil {
+		r.Close()
+		return nil, fmt.Errorf("glyphs: %w", err)
+	}
 	if err := gles.Err(); err != nil {
 		r.Close()
 		return nil, err
@@ -64,7 +69,7 @@ func New() (*Renderer, error) {
 func (r *Renderer) Atlas() *Atlas { return r.images.atlas }
 
 // Draw draws sc into t: it clears t to sc.Clear, then paints every shape,
-// then every image, back to front in premultiplied alpha. Buffers are
+// then every image, then every text, back to front in premultiplied alpha. Buffers are
 // streamed and the GPU is never waited for.
 func (r *Renderer) Draw(t Target, sc *Scene) {
 	w, h := float32(t.Size.W), float32(t.Size.H)
@@ -89,6 +94,7 @@ func (r *Renderer) Draw(t Target, sc *Scene) {
 		gles.DrawQuads(len(sc.Shapes))
 	}
 	r.images.draw(t, sc.Images)
+	r.glyphs.draw(t, sc.Texts)
 	gles.VertexArray(0).Bind()
 	gles.NoBlend()
 }
@@ -101,6 +107,9 @@ func (r *Renderer) Close() {
 	}
 	if r.images != nil {
 		r.images.close()
+	}
+	if r.glyphs != nil {
+		r.glyphs.close()
 	}
 	r.sdf.Delete()
 	r.shapes.Delete()
