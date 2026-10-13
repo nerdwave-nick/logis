@@ -1,7 +1,10 @@
 // Package gles is logis's own thin binding to OpenGL ES 3 (spec §5, D1):
-// for now what a window needs to clear its frames and tests need to read
-// them back. The renderer (the sdf/post shaders) grows it. Every call runs
-// on the thread the context is current on: the window's owner goroutine.
+// what the renderer (internal/render) draws with — programs, instanced
+// vertex buffers, RGBA8 textures, offscreen targets, premultiplied
+// blending — and what tests read back. Every call runs on the thread the
+// context is current on: the window's owner goroutine, or a headless
+// renderer's. Objects are released explicitly (Delete), never by
+// finalizers.
 package gles
 
 /*
