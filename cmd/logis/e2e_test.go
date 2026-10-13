@@ -275,11 +275,11 @@ func isBrass(img image.Image, x, y int) bool {
 	return r>>8 > 150 && g>>8 > 100 && g>>8 < 190 && b>>8 < 60
 }
 
-// checkPanel finds the panel (its brass rim) in a capture and checks that
-// it has the buffer's size and a rim of round(2 × scale) pixels on every
-// side the output does not cut off.
-func checkPanel(t *testing.T, img image.Image, f frame, scale float64) {
-	t.Helper()
+// panelProblems finds the panel (its brass rim) in a capture and checks
+// that it has the buffer's size and a rim of round(2 × scale) pixels on
+// every side the output does not cut off; it lists what is wrong.
+func panelProblems(img image.Image, f frame, scale float64) []string {
+	var problems []string
 	b := img.Bounds()
 	minX, minY, maxX, maxY := b.Max.X, b.Max.Y, -1, -1
 	for y := b.Min.Y; y < b.Max.Y; y++ {
@@ -290,16 +290,16 @@ func checkPanel(t *testing.T, img image.Image, f frame, scale float64) {
 		}
 	}
 	if maxX < 0 {
-		t.Fatal("no panel on the output")
+		return []string{"no panel on the output"}
 	}
 	w, h := maxX-minX+1, maxY-minY+1
 	clippedX := minX == b.Min.X || maxX == b.Max.X-1
 	clippedY := minY == b.Min.Y || maxY == b.Max.Y-1
 	if !clippedX && (w < f.physW-1 || w > f.physW+1) {
-		t.Errorf("panel %d px wide, buffer %d", w, f.physW)
+		problems = append(problems, fmt.Sprintf("panel %d px wide, buffer %d", w, f.physW))
 	}
 	if !clippedY && (h < f.physH-1 || h > f.physH+1) {
-		t.Errorf("panel %d px high, buffer %d", h, f.physH)
+		problems = append(problems, fmt.Sprintf("panel %d px high, buffer %d", h, f.physH))
 	}
 	rim := int(2*scale + 0.5)
 	count := func(x, y, dx, dy int) int {
@@ -329,8 +329,25 @@ func checkPanel(t *testing.T, img image.Image, f frame, scale float64) {
 		}
 		// Fractional positions blend the rim's edges into a pixel more.
 		if side.n < rim-1 || side.n > rim+1 {
-			t.Errorf("%s rim %d px, want %d±1 at scale %g", side.name, side.n, rim, scale)
+			problems = append(problems, fmt.Sprintf("%s rim %d px, want %d±1 at scale %g", side.name, side.n, rim, scale))
 		}
+	}
+	return problems
+}
+
+// checkPanel captures the output until the panel drawn for f is on it
+// (the compositor shows a committed frame with its next repaint), and
+// fails with what is wrong if it never is.
+func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64) {
+	t.Helper()
+	var problems []string
+	for deadline := time.Now().Add(patience); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if problems = panelProblems(n.screenshot(name), f, scale); len(problems) == 0 {
+			return
+		}
+	}
+	for _, p := range problems {
+		t.Error(p)
 	}
 }
 
@@ -365,8 +382,7 @@ func TestE2EDebugPanelIsDrawnAtEachOutputScale(t *testing.T) {
 			if want := int(float64(f.logW)*scale + 0.5); f.physW != want {
 				t.Errorf("buffer %d px wide for %d logical at %v, want %d", f.physW, f.logW, scale, want)
 			}
-			time.Sleep(300 * time.Millisecond) // the frame reaches the screen
-			checkPanel(t, n.screenshot("panel"), f, scale)
+			checkPanel(t, n, "panel", f, scale)
 		})
 	}
 }
@@ -383,8 +399,7 @@ func TestE2EAScaleChangeRedrawsAtTheNewScale(t *testing.T) {
 		if got, _ := strconv.ParseFloat(m[5], 64); got != want {
 			t.Fatalf("redrawn at scale %v after the output went to %v", got, want)
 		}
-		time.Sleep(300 * time.Millisecond)
-		checkPanel(t, n.screenshot("scale-"+scale), parseGlass(m), want)
+		checkPanel(t, n, "scale-"+scale, parseGlass(m), want)
 	}
 }
 
