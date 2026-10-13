@@ -24,9 +24,6 @@ import (
 const (
 	idleRune  = "--idle-timeout"
 	idleWants = "a number of seconds (0 keeps the daemon resident)"
-	// knownRunes are the runes this build knows, for the unknown-rune error.
-	knownRunes = "--version, --check-config, --config PATH and " +
-		"daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]"
 )
 
 // runDaemon is `logis daemon ARGS`.
