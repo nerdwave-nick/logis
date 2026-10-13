@@ -337,7 +337,9 @@ layer surface, shown with `eglSwapBuffers`.
 **Shaper**:
 logis's own OpenType shaping engine (GSUB, GPOS, normalisation, bidi, Arabic and
 Hebrew joining, grapheme clusters). It decides which glyphs go where; FreeType only
-draws them.
+draws them. `internal/ot` applies the lookups, `internal/shape` shapes one run as
+HarfBuzz does, and `text.Fonts.Layout` sets a line as cosmic-text does for the Rust
+reference (bidi runs, words, fallback, tabs, columns, the ellipsis).
 
 **Hinting**:
 Fitting glyph outlines to the pixel grid, done by FreeType (TrueType bytecode, the
@@ -350,8 +352,8 @@ its modifier masks, and resolves keysyms, consumed modifiers, Compose and repeat
 
 **Test-only oracle**:
 A library linked only into tests to check logis's own code against (libxkbcommon
-for the keyboard, libharfbuzz for shaping, `fc-match` for font resolution); never
-part of the shipped binary.
+for the keyboard, `fc-match` for font resolution); never part of the shipped
+binary.
 
 **Differential suite**:
 The tests that run the same inputs through logis's own code and a test-only oracle
@@ -361,12 +363,18 @@ and require the same answers.
 A reference library's answers over a fixed corpus, committed as test data next to
 the standalone program that produced them, where the library cannot be linked into
 Go tests: `internal/fuzzy/testdata/nucleo.json`, from nucleo-matcher 0.3.1 as the
-Rust reference configured it. The matcher's differential suite compares with it.
+Rust reference configured it; `internal/shape/testdata/hb.json`, from the system
+libharfbuzz through Python ctypes (runs over the pinned fonts, subsets of system
+fonts and a synthetic layout font); `internal/text/testdata/cosmic.json`, from
+cosmic-text 0.19 laying out lines as Rust logis v1 does. The differential suites
+compare with them.
 
 **Divergence**:
 A case where the Go build deliberately answers differently from the Rust reference,
 pinned with its reason; for the matcher, the nucleo defects it fixes
-(`internal/fuzzy/testdata/divergences.json`).
+(`internal/fuzzy/testdata/divergences.json`); for line layout, cosmic-text dropping
+the leading run of a right-to-left line that starts with digits
+(`divergences` in `internal/text/layout_test.go`).
 
 ## Grimdark UI vocabulary
 
