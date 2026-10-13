@@ -79,6 +79,11 @@ func (r *rig) run(o Options) *running {
 	d := &running{cancel: cancel, done: make(chan int, 1), stdout: &logBuffer{}, stderr: &logBuffer{}}
 	hosted := make(chan Host, 1)
 	o.RuntimeDir, o.Stdout, o.Stderr = r.dir, d.stdout, d.stderr
+	if o.Getenv == nil {
+		// Never the owner's applications, frecency or session bus.
+		o.Getenv = vars("XDG_DATA_HOME", filepath.Join(r.dir, "data"),
+			"XDG_DATA_DIRS", filepath.Join(r.dir, "data-dirs"), "XDG_STATE_HOME", filepath.Join(r.dir, "state"))
+	}
 	if o.Resolver == nil {
 		o.Resolver = func(h Host) (Resolver, error) {
 			hosted <- h

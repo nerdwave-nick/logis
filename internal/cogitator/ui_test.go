@@ -60,6 +60,7 @@ type answered struct {
 type fakeHost struct {
 	answers []answered
 	fails   []string
+	tokens  []string
 }
 
 func (h *fakeHost) Answer(id daemon.SessionID, a daemon.Answer) {
@@ -67,6 +68,9 @@ func (h *fakeHost) Answer(id daemon.SessionID, a daemon.Answer) {
 }
 func (h *fakeHost) Fail(id daemon.SessionID, message string) { h.fails = append(h.fails, message) }
 func (h *fakeHost) Exit(int, string)                         {}
+func (h *fakeHost) Activated(id daemon.SessionID, token string) {
+	h.tokens = append(h.tokens, fmt.Sprintf("%d %s", id, token))
+}
 
 type fakeKeyboard struct{ policy config.FocusLoss }
 

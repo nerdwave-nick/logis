@@ -45,6 +45,9 @@ type loop struct {
 	queue  []event
 	wake   chan struct{}
 	closed bool
+
+	// keeper keeps frecency.
+	keeper keeper
 }
 
 func newLoop() *loop {
@@ -263,4 +266,8 @@ func (h loopHost) Fail(id SessionID, message string) {
 
 func (h loopHost) Exit(status int, message string) {
 	h.l.post(func(l *loop) { l.stopped = &stop{status, message} })
+}
+
+func (h loopHost) Activated(id SessionID, token string) {
+	h.l.post(func(l *loop) { l.core.activated(id, token) })
 }

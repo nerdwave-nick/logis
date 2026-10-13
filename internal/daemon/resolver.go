@@ -87,4 +87,7 @@ type Host interface {
 	// to its log first. The compositor's loss is Exit(2, "the noosphere fell
 	// silent: …").
 	Exit(status int, message string)
+	// Activated hands over the compositor's xdg-activation token for a
+	// session's launch ("" for none), as an Activator was asked.
+	Activated(id SessionID, token string)
 }
