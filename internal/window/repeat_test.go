@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
 // repeatingKeys is a keyboard that repeats keys itself: it holds a key
@@ -105,5 +107,28 @@ func TestShowAndHideResetTheKeyboard(t *testing.T) {
 	w.Hide()
 	if k.resets != 2 {
 		t.Errorf("%d resets after Hide", k.resets)
+	}
+}
+
+// A keyboard the seat no longer has starts over: a key it held stops
+// repeating (Rust resets the input model when the capability goes).
+func TestALostKeyboardCapabilityEndsTheRepeat(t *testing.T) {
+	f := newFakeShell(t, niri)
+	w, _ := openFake(t, f)
+	k := &repeatingKeys{}
+	w.SetKeyboard(k)
+	showConfigured(t, f, w, &painter{})
+	seat := func(f *fakeShell) uint32 { return f.client.Bound("wl_seat") }
+	f.send(seat, 0, uint32(wlproto.WlSeatCapabilityKeyboard))
+	for deadline := time.Now().Add(5 * time.Second); w.seat.keyboard == nil && time.Now().Before(deadline); {
+		settle(t, w)
+	}
+	resets := k.resets
+	f.send(seat, 0, uint32(0))
+	for deadline := time.Now().Add(5 * time.Second); w.seat.keyboard != nil && time.Now().Before(deadline); {
+		settle(t, w)
+	}
+	if w.seat.keyboard != nil || k.resets != resets+1 {
+		t.Errorf("keyboard %v, %d resets, want released and one more reset", w.seat.keyboard, k.resets-resets)
 	}
 }

@@ -113,7 +113,12 @@ func keyState(state uint32) string {
 	return "released"
 }
 
+// releaseKeyboard lets go of the keyboard; its consumer starts over (no
+// repeat or Compose sequence outlives the keyboard).
 func (s *seat) releaseKeyboard() {
+	if r, ok := s.consumer.(Resetter); ok {
+		r.Reset()
+	}
 	if s.keyboard.Version() >= 3 {
 		s.keyboard.Release()
 	} else {

@@ -172,8 +172,8 @@ func (d *Display) Dispatch(timeout time.Duration) error {
 	return nil
 }
 
-// poll waits for events on fds (the display fd, Wake, the watched fds), up to timeout
-// (negative: no limit). A signal interrupting poll (the Go runtime's own,
+// poll waits for events on fds (the display fd, Wake, the watched fds),
+// up to timeout (negative: no limit). A signal interrupting poll (the Go runtime's own,
 // in this cgo call) does not end the wait early: it is retried with the
 // time left, and reported as EINTR only once that is gone.
 func (d *Display) poll(fds []C.struct_pollfd, timeout time.Duration) (C.int, error) {
