@@ -30,6 +30,7 @@ func (u *ui) step(id daemon.SessionID, step provider.Step) {
 		_, rows := scene.Fit(o, u.theme)
 		o.Lines = &rows
 		sh.view, sh.rows, sh.count, sh.waiting = list.NewView(o), rows, 0, false
+		sh.glide.Reset() // a new list: the band takes its row at once
 		u.emit("stage %d", id)
 		u.push(sh, step.Entries)
 		changed = true

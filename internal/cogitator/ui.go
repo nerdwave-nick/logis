@@ -9,6 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
+	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
@@ -74,6 +75,8 @@ type shown struct {
 	waiting bool
 	// lingering: the session is over; its toast is left to read.
 	lingering bool
+	// glide moves the selection band to the selected row.
+	glide motion.Glide
 }
 
 type ui struct {
@@ -100,6 +103,10 @@ type ui struct {
 	setFaces func([]text.Face) error
 	logf     func(string)
 	clock    func() uint64
+	// envMotion is LOGIS_MOTION's motion, if set: it outranks the theme's
+	// timings; blur is the config's (wear.go).
+	envMotion *motion.Motion
+	blur      bool
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
@@ -126,38 +133,16 @@ func (u *ui) show(s daemon.Session) {
 	asked := [2]*uint32{o.Lines, o.Width}
 	size, rows := scene.Fit(o, u.theme)
 	o.Lines = &rows
-	sh := &shown{id: s.ID, view: list.NewView(o), rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu}
+	sh := &shown{id: s.ID, view: list.NewView(o), rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu,
+		glide: motion.NewGlide(u.motion().Selection)}
 	u.shown = nil
-	if err := u.surf.Show(size, u.painter(sh)); err != nil {
+	if err := u.present(size, sh); err != nil {
 		u.host.Fail(s.ID, err.Error())
 		return
 	}
 	u.shown = sh
 	u.emit("show %d", s.ID)
 	u.push(sh, s.Entries)
-}
-
-// painter draws sh's list each frame in the theme worn then, at the
-// frame's time: the theme's continuous effects (glow pulse, travelling
-// highlight, flicker, a pending row's shimmer) move with it, and keep the
-// window drawing on every frame callback while they do (scene.Moving).
-// Transitions are the motion ticket's.
-func (u *ui) painter(sh *shown) window.Painter {
-	return func(g window.Geometry) bool {
-		look := u.lookOf(sh)
-		if u.draw != nil {
-			var at uint64
-			if u.clock != nil {
-				at = u.clock()
-			}
-			var icons scene.Icons
-			if u.icons != nil {
-				icons = u.icons(g)
-			}
-			u.draw(scene.DrawWith(&look, g.Logical, scene.Style{Theme: u.theme, At: at}, icons), g)
-		}
-		return scene.Moving(&look, u.theme)
-	}
 }
 
 func (u *ui) push(sh *shown, entries []list.Entry) {
@@ -260,10 +245,12 @@ func (u *ui) check() {
 	}
 }
 
-// configure applies the config: what losing keyboard focus does, and the
-// icon theme rows' icons come from.
+// configure applies the config: what losing keyboard focus does, the
+// icon theme rows' icons come from, and blur behind the body.
 func (u *ui) configure(c config.Config) {
 	u.keyboard.SetFocusLoss(c.FocusLoss)
+	u.blur = c.Blur
+	u.wearBlur()
 	if u.iconTheme != nil && c.IconTheme != u.iconThemeName {
 		u.iconThemeName = c.IconTheme
 		u.iconTheme(c.IconTheme)
