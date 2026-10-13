@@ -240,7 +240,10 @@ What scripts, servitor and other callers of `logis --dmenu` and `logis
 [`docs/man/logis.1`](docs/man/logis.1) (`man -l docs/man/logis.1`). Every
 statement here is pinned by the tests named beside it as `file::test`
 (`tests/docs.rs` checks that they exist); those marked *E2E* run only in a test
-compositor (`LOGIS_E2E`), the rest in every `cargo test`. Anything not stated
+compositor (`LOGIS_E2E`), the rest in every `cargo test`. The Go build holds
+the same contract: `cmd/logis/docs_test.go` names the Go test or tests that
+pin each of these and checks that they exist, and its `TestE2E…` tests that
+need a compositor run in a nested niri (`LOGIS_E2E=niri`). Anything not stated
 here (message wording, timings, the socket protocol) may change.
 
 ### Exit status
