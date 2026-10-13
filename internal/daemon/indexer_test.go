@@ -122,3 +122,37 @@ func TestAnAppInstalledWhileTheDaemonRunsIsFound(t *testing.T) {
 		t.Errorf("%q", heard)
 	}
 }
+
+// The config's terminal runs Terminal=true apps, from the start and after
+// every applied edit.
+func TestTheConfigsTerminalRunsTerminalAppsFromTheStartAndAfterAnEdit(t *testing.T) {
+	r := newRig(t)
+	scratch := t.TempDir()
+	share := filepath.Join(scratch, "share")
+	shell := "[Desktop Entry]\nType=Application\nName=>Cogitator shell\nTerminal=true\nExec=anoint --shell\n"
+	if err := os.MkdirAll(filepath.Join(share, "applications"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(share, "applications/forge-shell.desktop"), []byte(shell), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	anoint := filepath.Join(appFixtures(t), "bin/anoint")
+	glass := func(n string) string { return `{"terminal": ["` + anoint + `", "--glass=` + n + `"]}` }
+	writeConfig(t, r.configFile(), glass("one"))
+	source := r.named()
+	d, _ := r.startConfigured(source, Options{Getenv: appsEnv(filepath.Join(scratch, "none"), share, filepath.Join(scratch, "state"))})
+	summon := func(want string) {
+		t.Helper()
+		_ = os.Remove(filepath.Join(scratch, "record"))
+		if got := r.openAppsOver(scratch).outcome(); got.Kind != protocol.Closed {
+			t.Fatalf("outcome %+v", got)
+		}
+		if heard := recorded(t, scratch); !strings.Contains(heard, want) {
+			t.Errorf("%q lacks %q", heard, want)
+		}
+	}
+	summon("arg --glass=one\narg anoint\narg --shell\n")
+	writeConfig(t, r.configFile(), glass("two"))
+	waitUntil(t, "the edit to be applied", func() bool { return strings.Contains(d.stderr.String(), heeds) })
+	summon("arg --glass=two\narg anoint\narg --shell\n")
+}
