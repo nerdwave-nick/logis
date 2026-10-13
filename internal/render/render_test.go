@@ -138,7 +138,7 @@ func TestAGlowFadesOutsideTheEdgeAndStaysOutOfTheInterior(t *testing.T) {
 	lit.Glow = render.Glow{Radius: 20, Color: render.Hex(0xb30f0d)}
 	img := renderAt(t, shapes(lit), scale.One)
 	alphaRightOfEdge := func(gap int) byte { return img.Pixel(60+gap, 40)[3] }
-	if !(alphaRightOfEdge(2) > alphaRightOfEdge(10)) || alphaRightOfEdge(10) == 0 {
+	if alphaRightOfEdge(2) <= alphaRightOfEdge(10) || alphaRightOfEdge(10) == 0 {
 		t.Errorf("alpha 2 px out %d, 10 px out %d: not fading", alphaRightOfEdge(2), alphaRightOfEdge(10))
 	}
 	if a := alphaRightOfEdge(21); a != 0 {
