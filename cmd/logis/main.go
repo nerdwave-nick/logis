@@ -37,9 +37,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return fail(stderr, "this cogitator has no app launcher yet. It knows only --version.")
 	}
-	if isDebugPanel(args) {
-		return debugPanel(stderr)
-	}
 	for i, arg := range args {
 		// As in Rust, a second command is as unknown as a foreign rune.
 		if i > 0 || (arg != "--version" && arg != "-V") {

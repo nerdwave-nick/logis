@@ -27,11 +27,6 @@ var (
 // keyEscape is evdev's KEY_ESC, the same key on every layout.
 const keyEscape = 1
 
-// isDebugPanel recognises `logis daemon --debug-panel`.
-func isDebugPanel(args []string) bool {
-	return len(args) == 2 && args[0] == "daemon" && args[1] == "--debug-panel"
-}
-
 // debugPanel is `logis daemon --debug-panel`: it connects, wakes the GPU,
 // shows the panel and keeps it, redrawing only on configure and scale
 // changes, until Escape dismisses it, the compositor closes it, or SIGINT
