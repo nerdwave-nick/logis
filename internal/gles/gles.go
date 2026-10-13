@@ -1,7 +1,10 @@
 // Package gles is logis's own thin binding to OpenGL ES 3 (spec §5, D1):
-// for now what a window needs to clear its frames and tests need to read
-// them back. The renderer (the sdf/post shaders) grows it. Every call runs
-// on the thread the context is current on: the window's owner goroutine.
+// what the renderer (internal/render) draws with — programs, instanced
+// vertex buffers, RGBA8 textures, offscreen targets, premultiplied
+// blending — and what tests read back. Every call runs on the thread the
+// context is current on: the window's owner goroutine, or a headless
+// renderer's. Objects are released explicitly (Delete), never by
+// finalizers.
 package gles
 
 /*
@@ -10,7 +13,10 @@ package gles
 */
 import "C"
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // Names for String.
 const (
@@ -87,4 +93,26 @@ func (t *Target) Delete() {
 	C.glBindFramebuffer(C.GL_FRAMEBUFFER, 0)
 	C.glDeleteFramebuffers(1, &fbo)
 	C.glDeleteTextures(1, &tex)
+}
+
+// BindFramebuffer makes fbo the draw target (0: the window surface).
+func BindFramebuffer(fbo uint32) { C.glBindFramebuffer(C.GL_FRAMEBUFFER, C.GLuint(fbo)) }
+
+// BlendPremultiplied blends premultiplied colours over what is there:
+// src + dst × (1 − src alpha), for colour and alpha alike.
+func BlendPremultiplied() {
+	C.glEnable(C.GL_BLEND)
+	C.glBlendFunc(C.GL_ONE, C.GL_ONE_MINUS_SRC_ALPHA)
+}
+
+// NoBlend writes colours as they are.
+func NoBlend() { C.glDisable(C.GL_BLEND) }
+
+// Err is the context's first recorded GL error since the last call, if
+// any. It does not wait for the GPU, but it is not for the frame loop.
+func Err() error {
+	if e := C.glGetError(); e != C.GL_NO_ERROR {
+		return fmt.Errorf("GL error %#x", int(e))
+	}
+	return nil
 }

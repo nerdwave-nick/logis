@@ -271,81 +271,23 @@ func parseGlass(m []string) frame {
 	return frame{atoi(m[1]), atoi(m[2]), atoi(m[3]), atoi(m[4])}
 }
 
-func isBrass(img image.Image, x, y int) bool {
-	r, g, b, _ := img.At(x, y).RGBA()
-	return r>>8 > 150 && g>>8 > 100 && g>>8 < 190 && b>>8 < 60
-}
-
-// panelProblems finds the panel (its brass rim) in a capture and checks
-// that it has the buffer's size and a rim of round(2 × scale) pixels on
-// every side the output does not cut off; it lists what is wrong.
-func panelProblems(img image.Image, f frame, scale float64) []string {
-	var problems []string
-	b := img.Bounds()
-	minX, minY, maxX, maxY := b.Max.X, b.Max.Y, -1, -1
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			if isBrass(img, x, y) {
-				minX, minY, maxX, maxY = min(minX, x), min(minY, y), max(maxX, x), max(maxY, y)
-			}
-		}
-	}
-	if maxX < 0 {
-		return []string{"no panel on the output"}
-	}
-	w, h := maxX-minX+1, maxY-minY+1
-	clippedX := minX == b.Min.X || maxX == b.Max.X-1
-	clippedY := minY == b.Min.Y || maxY == b.Max.Y-1
-	if !clippedX && (w < f.physW-1 || w > f.physW+1) {
-		problems = append(problems, fmt.Sprintf("panel %d px wide, buffer %d", w, f.physW))
-	}
-	if !clippedY && (h < f.physH-1 || h > f.physH+1) {
-		problems = append(problems, fmt.Sprintf("panel %d px high, buffer %d", h, f.physH))
-	}
-	rim := int(2*scale + 0.5)
-	count := func(x, y, dx, dy int) int {
-		n := 0
-		for ; x >= minX && x <= maxX && y >= minY && y <= maxY && n < 4*rim; x, y = x+dx, y+dy {
-			if isBrass(img, x, y) {
-				n++
-			} else if n > 0 {
-				break
-			}
-		}
-		return n
-	}
-	midX, midY := (minX+maxX)/2, (minY+maxY)/2
-	for _, side := range []struct {
-		name    string
-		clipped bool
-		n       int
-	}{
-		{"left", clippedX, count(minX, midY, 1, 0)},
-		{"right", clippedX, count(maxX, midY, -1, 0)},
-		{"top", clippedY, count(midX, minY, 0, 1)},
-		{"bottom", clippedY, count(midX, maxY, 0, -1)},
-	} {
-		if side.clipped {
-			continue
-		}
-		// Fractional positions blend the rim's edges into a pixel more.
-		if side.n < rim-1 || side.n > rim+1 {
-			problems = append(problems, fmt.Sprintf("%s rim %d px, want %d±1 at scale %g", side.name, side.n, rim, scale))
-		}
-	}
-	return problems
-}
-
 // checkPanel captures the output until the panel drawn for f is on it
 // (the compositor shows a committed frame with its next repaint), and
 // fails with what is wrong if it never is.
 func checkPanel(t *testing.T, n *nestedNiri, name string, f frame, scale float64) {
 	t.Helper()
+	want, err := reference(f, scale)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var problems []string
-	for deadline := time.Now().Add(nestedPatience); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-		if problems = panelProblems(n.screenshot(name), f, scale); len(problems) == 0 {
+	for attempt, deadline := 1, time.Now().Add(nestedPatience); time.Now().Before(deadline); attempt++ {
+		var summary string
+		if summary, problems = panelProblems(n.screenshot(name), want); len(problems) == 0 {
+			t.Logf("%s after %d captures", summary, attempt)
 			return
 		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	for _, p := range problems {
 		t.Error(p)
