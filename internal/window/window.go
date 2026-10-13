@@ -33,7 +33,11 @@ type Painter func(g Geometry) (animating bool)
 
 // Window is the daemon's compositor connection, its GPU and its panel.
 type Window struct {
-	conn       *connection
+	conn *connection
+	// display is conn's, set once at Open: Wake reads it from other
+	// goroutines, also after Close (wlproto's Wake allows that).
+	display    *wlproto.Display
+	closed     bool
 	compositor *wlproto.WlCompositor
 	layerShell *wlproto.ZwlrLayerShellV1
 	fractional *wlproto.WpFractionalScaleManagerV1
@@ -65,7 +69,7 @@ func openWith(open openGPU) (w *Window, err error) {
 		c.display.Close()
 		return nil, err
 	}
-	w = &Window{conn: c, log: io.Discard}
+	w = &Window{conn: c, display: c.display, log: io.Discard}
 	w.compositor, _ = c.bind(wlproto.WlCompositorInterface, 6).(*wlproto.WlCompositor)
 	w.layerShell, _ = c.bind(wlproto.ZwlrLayerShellV1Interface, 4).(*wlproto.ZwlrLayerShellV1)
 	w.fractional, _ = c.bind(wlproto.WpFractionalScaleManagerV1Interface, 1).(*wlproto.WpFractionalScaleManagerV1)
@@ -160,7 +164,7 @@ func (w *Window) Dispatch(timeout time.Duration) error {
 }
 
 // Wake makes a waiting Dispatch return; any goroutine may call it.
-func (w *Window) Wake() { w.conn.display.Wake() }
+func (w *Window) Wake() { w.display.Wake() }
 
 func (w *Window) flush() error {
 	if err := w.conn.display.Flush(); err != nil {
@@ -209,13 +213,13 @@ func (w *Window) shows(s *wlproto.WlSurface) bool {
 // Close hides the panel and releases the seat, the globals, the GPU and
 // the connection; the owner goroutine is unlocked from its thread.
 func (w *Window) Close() {
-	if w.conn == nil {
+	if w.closed {
 		return
 	}
+	w.closed = true
 	w.Hide()
 	w.seat.release()
 	w.gpu.close()
 	w.conn.display.Close()
-	w.conn = nil
 	runtime.UnlockOSThread()
 }

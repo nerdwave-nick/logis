@@ -463,18 +463,40 @@ func TestLosingTheCompositorIsDisconnected(t *testing.T) {
 func TestWakeEndsAWaitingDispatch(t *testing.T) {
 	f := newFakeShell(t, niri)
 	w, _ := openFake(t, f)
+	settle(t, w) // nothing queued: only Wake can end the wait
+	woke := make(chan struct{})
 	go func() {
+		defer close(woke)
 		time.Sleep(20 * time.Millisecond)
 		w.Wake()
 	}()
-	done := make(chan error, 1)
 	start := time.Now()
 	// The window's own goroutine waits; Wake comes from another.
 	err := w.Dispatch(5 * time.Second)
-	done <- err
-	if err != nil || time.Since(start) > 4*time.Second {
-		t.Errorf("Dispatch returned %v after %v", err, time.Since(start))
+	waited := time.Since(start)
+	<-woke
+	if err != nil || waited < 15*time.Millisecond || waited > 4*time.Second {
+		t.Errorf("Dispatch returned %v after %v, want nil after the 20 ms wake", err, waited)
 	}
+}
+
+// Wake may come from another goroutine at any time, also after Close (a
+// signal arriving as the debug panel ends).
+func TestWakeAfterCloseIsHarmless(t *testing.T) {
+	newFakeShell(t, niri)
+	g := &fakeGPU{}
+	w, err := openWith(g.open)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Close()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		w.Wake()
+	}()
+	<-done
+	w.Close() // twice is harmless too
 }
 
 type keys struct {
