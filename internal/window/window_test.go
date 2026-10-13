@@ -591,3 +591,30 @@ func TestASurfaceTheGPURefusesIsASurfaceError(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 }
+
+// A withdrawn seat (global_remove) takes its keyboard with it: both are
+// released, and the window keeps working.
+func TestAWithdrawnSeatIsReleasedWithItsKeyboard(t *testing.T) {
+	f := newFakeShell(t, niri)
+	w, _ := openFake(t, f)
+	showConfigured(t, f, w, &painter{})
+	f.send(func(f *fakeShell) uint32 { return f.client.Bound("wl_seat") }, 0, uint32(wlproto.WlSeatCapabilityKeyboard))
+	for deadline := time.Now().Add(5 * time.Second); w.seat.keyboard == nil && time.Now().Before(deadline); {
+		settle(t, w)
+	}
+	if w.Seat() == nil || w.seat.keyboard == nil {
+		t.Fatal("no seat with a keyboard to withdraw")
+	}
+	live := w.conn.display.Live()
+	f.comp.RemoveGlobal(uint32(len(niri))) // wl_seat is the last global
+	settle(t, w)
+	if w.Seat() != nil || w.seat.keyboard != nil {
+		t.Error("the seat or its keyboard survived its global")
+	}
+	if got := w.conn.display.Live(); got != live-2 {
+		t.Errorf("%d proxies alive, want %d", got, live-2)
+	}
+	w.RequestRedraw()
+	f.frameDone()
+	until(t, w, f, "frame", "commit")
+}
