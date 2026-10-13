@@ -357,6 +357,17 @@ part of the shipped binary.
 The tests that run the same inputs through logis's own code and a test-only oracle
 and require the same answers.
 
+**Recorded oracle**:
+A reference library's answers over a fixed corpus, committed as test data next to
+the standalone program that produced them, where the library cannot be linked into
+Go tests: `internal/fuzzy/testdata/nucleo.json`, from nucleo-matcher 0.3.1 as the
+Rust reference configured it. The matcher's differential suite compares with it.
+
+**Divergence**:
+A case where the Go build deliberately answers differently from the Rust reference,
+pinned with its reason; for the matcher, the nucleo defects it fixes
+(`internal/fuzzy/testdata/divergences.json`).
+
 ## Grimdark UI vocabulary
 
 The words flavoured text draws on. Each stands for the plain term in brackets, and a
