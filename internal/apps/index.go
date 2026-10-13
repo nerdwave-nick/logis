@@ -63,6 +63,8 @@ func (a *App) AppID() string { return strings.TrimSuffix(a.ID, ".desktop") }
 // came from.
 type Index struct {
 	apps []App
+	// before runs before each directory is read (a Watcher's watch).
+	before func(dir string)
 	// Dirs is every directory read (the applications directories and those
 	// below).
 	Dirs []string
@@ -125,13 +127,21 @@ func (cx Context) finds(program string) bool {
 	return ok
 }
 
+// afterRead, in tests, runs right after each directory is read (or found
+// missing): where a change could slip past a scan.
+var afterRead func(dir string)
+
 // maxDepth is how deep below an applications directory entries are looked
 // for.
 const maxDepth = 8
 
 // Scan reads every entry of dirs.
-func Scan(dirs Dirs, cx Context) *Index {
-	ix := &Index{}
+func Scan(dirs Dirs, cx Context) *Index { return scan(dirs, cx, nil) }
+
+// scan reads every entry of dirs, calling before ahead of reading each
+// directory.
+func scan(dirs Dirs, cx Context, before func(dir string)) *Index {
+	ix := &Index{before: before}
 	seen := map[string]bool{}
 	for _, dir := range dirs {
 		ix.walk(dir, "", 0, seen, cx)
@@ -151,7 +161,13 @@ func Scan(dirs Dirs, cx Context) *Index {
 
 // walk reads the files below dir, whose IDs start with prefix.
 func (ix *Index) walk(dir, prefix string, depth int, seen map[string]bool, cx Context) {
+	if ix.before != nil {
+		ix.before(dir)
+	}
 	names, err := os.ReadDir(dir)
+	if afterRead != nil {
+		afterRead(dir)
+	}
 	if err != nil {
 		return
 	}

@@ -3,6 +3,7 @@ package apps
 import (
 	"encoding/binary"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,19 +18,21 @@ import (
 // through the runtime's poller, so a waiting watcher costs no thread and
 // no wake-up, and Close ends a Wait.
 //
-//   - Every directory the last scan read is watched for files created,
-//     written, moved or deleted (inotify does not recurse: subdirectories
-//     are watched one by one, and a new one shows up as a change of its
-//     parent).
-//   - An applications directory that does not exist yet is watched through
-//     its nearest existing ancestor, for the creation of the next directory
-//     on the way.
+// Scan reads the index and watches what it reads, so that no change can
+// fall between the two:
+//
+//   - every directory is watched before it is read (inotify does not
+//     recurse: subdirectories are watched one by one as the scan reaches
+//     them, and a new one shows up as a change of its parent);
+//   - an applications directory that does not exist is watched through its
+//     nearest existing ancestor, for the creation of the next directory on
+//     the way, and checked again once that watch is in place;
+//   - the last scan's watches stay until this scan has its own; only then
+//     do those it did not renew go, and anything pending counts.
 //
 // A burst of events (a package manager writes many files) is reported
 // once, when it has been quiet for Settle (at most MaxSettle after it
-// began). Arm first reads what is pending under the watches it replaces: a
-// change that came meanwhile (while the index was read) is reported by the
-// next Wait at once, never lost with its watch.
+// began).
 
 const (
 	// Settle is how long a burst must be quiet before it is reported.
@@ -50,13 +53,13 @@ type watched struct {
 	next     []string
 }
 
-// Watcher watches the app index's directories. Arm and Wait belong to one
-// goroutine; Close may come from another.
+// Watcher watches the app index's directories. Scan and Wait belong to
+// one goroutine; Close may come from another.
 type Watcher struct {
 	f       *os.File
 	watches map[int]*watched
 	buf     []byte
-	// changed: Arm found a change pending; the next Wait reports it.
+	// changed: a scan may have missed a change; the next Wait reports it.
 	changed bool
 }
 
@@ -76,42 +79,60 @@ func NewWatcher() (*Watcher, error) {
 // Close stops the watcher; a Wait returns with an error.
 func (w *Watcher) Close() error { return w.f.Close() }
 
-// Arm watches read (the directories a scan read) and, for each of roots
-// that does not exist, its nearest existing ancestor. It replaces what was
-// watched before.
-func (w *Watcher) Arm(read, roots []string) {
-	w.changed = w.drain() || w.changed
-	for wd := range w.watches {
-		w.control(func(fd int) { _, _ = syscall.InotifyRmWatch(fd, uint32(wd)) })
-	}
-	clear(w.watches)
-	for _, dir := range read {
+// Scan reads the index of dirs (as Scan does) and watches it from now on,
+// replacing what the last scan watched.
+func (w *Watcher) Scan(dirs Dirs, cx Context) *Index {
+	old := w.watches
+	w.watches = map[int]*watched{}
+	watching := map[string]bool{}
+	ix := scan(dirs, cx, func(dir string) {
 		if wd, ok := w.add(dir); ok {
 			w.watches[wd] = &watched{}
+			watching[dir] = true
+		}
+	})
+	for _, root := range dirs {
+		if !watching[root] { // missing when the scan came to it
+			w.watchMissing(root)
 		}
 	}
-	for _, root := range roots {
-		if isDir(root) {
-			continue
+	all := maps.Clone(old)
+	maps.Copy(all, w.watches)
+	w.changed = w.drain(all) || w.changed
+	for wd := range old {
+		if _, kept := w.watches[wd]; !kept {
+			w.control(func(fd int) { _, _ = syscall.InotifyRmWatch(fd, uint32(wd)) })
 		}
-		ancestor := filepath.Dir(root)
-		for !isDir(ancestor) && ancestor != filepath.Dir(ancestor) {
-			ancestor = filepath.Dir(ancestor)
-		}
-		wd, ok := w.add(ancestor)
-		if !ok {
-			continue
-		}
-		entry, known := w.watches[wd]
-		if !known {
-			entry = &watched{ancestor: true}
-			w.watches[wd] = entry
-		}
-		rel, err := filepath.Rel(ancestor, root)
-		if entry.ancestor && err == nil {
-			name, _, _ := strings.Cut(rel, string(filepath.Separator))
-			entry.next = append(entry.next, name)
-		}
+	}
+	return ix
+}
+
+// watchMissing watches the nearest existing ancestor of root for the next
+// directory on the way, then looks again: one made meanwhile is a change.
+func (w *Watcher) watchMissing(root string) {
+	ancestor := filepath.Dir(root)
+	for !isDir(ancestor) && ancestor != filepath.Dir(ancestor) {
+		ancestor = filepath.Dir(ancestor)
+	}
+	rel, err := filepath.Rel(ancestor, root)
+	if err != nil {
+		return
+	}
+	next, _, _ := strings.Cut(rel, string(filepath.Separator))
+	wd, ok := w.add(ancestor)
+	if !ok {
+		return
+	}
+	entry, known := w.watches[wd]
+	if !known {
+		entry = &watched{ancestor: true}
+		w.watches[wd] = entry
+	}
+	if entry.ancestor {
+		entry.next = append(entry.next, next)
+	}
+	if isDir(filepath.Join(ancestor, next)) {
+		w.changed = true
 	}
 }
 
@@ -184,12 +205,12 @@ func (w *Watcher) read() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return w.relevant(w.buf[:n]), nil
+	return relevantIn(w.watches, w.buf[:n]), nil
 }
 
 // drain reads what is pending without waiting; whether any of it is a
-// change of the index.
-func (w *Watcher) drain() bool {
+// change of the index, judged by watches.
+func (w *Watcher) drain(watches map[int]*watched) bool {
 	raw, err := w.f.SyscallConn()
 	if err != nil || w.f.SetReadDeadline(time.Time{}) != nil {
 		return false
@@ -200,7 +221,7 @@ func (w *Watcher) drain() bool {
 		_ = raw.Read(func(fd uintptr) bool {
 			n, err := syscall.Read(int(fd), w.buf)
 			if err == nil && n > 0 {
-				relevant = w.relevant(w.buf[:n]) || relevant
+				relevant = relevantIn(watches, w.buf[:n]) || relevant
 				more = true
 			}
 			return true // never wait
@@ -209,8 +230,9 @@ func (w *Watcher) drain() bool {
 	return relevant
 }
 
-// relevant says whether any event in b is a change of the index.
-func (w *Watcher) relevant(b []byte) bool {
+// relevantIn says whether any event in b is a change of the index, judged
+// by watches.
+func relevantIn(watches map[int]*watched, b []byte) bool {
 	relevant := false
 	for len(b) >= syscall.SizeofInotifyEvent {
 		wd := int(int32(binary.NativeEndian.Uint32(b[0:])))
@@ -218,17 +240,17 @@ func (w *Watcher) relevant(b []byte) bool {
 		size := int(binary.NativeEndian.Uint32(b[12:]))
 		end := min(syscall.SizeofInotifyEvent+size, len(b))
 		name := strings.TrimRight(string(b[syscall.SizeofInotifyEvent:end]), "\x00")
-		relevant = relevant || w.concerns(wd, mask, name)
+		relevant = relevant || concerns(watches, wd, mask, name)
 		b = b[end:]
 	}
 	return relevant
 }
 
-func (w *Watcher) concerns(wd int, mask uint32, name string) bool {
+func concerns(watches map[int]*watched, wd int, mask uint32, name string) bool {
 	if mask&syscall.IN_Q_OVERFLOW != 0 {
 		return true
 	}
-	entry, ok := w.watches[wd]
+	entry, ok := watches[wd]
 	switch {
 	case !ok:
 		return false
