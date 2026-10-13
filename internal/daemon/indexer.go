@@ -47,21 +47,16 @@ func (l *loop) indexApps(getenv func(string) string) (stop func()) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		var read []string
 		for {
-			// Watched before reading, so no change falls between the two.
-			if w != nil {
-				w.Arm(read, dirs)
-			}
-			ix := apps.Scan(dirs, cx)
-			read = ix.Dirs
-			if w != nil {
-				w.Arm(read, dirs)
-			}
-			l.post(func(l *loop) { l.core.indexed(ix) })
 			if w == nil {
+				ix := apps.Scan(dirs, cx)
+				l.post(func(l *loop) { l.core.indexed(ix) })
 				return
 			}
+			// Each directory is watched before it is read, so no change
+			// falls between the two.
+			ix := w.Scan(dirs, cx)
+			l.post(func(l *loop) { l.core.indexed(ix) })
 			if _, err := w.Wait(-1); err != nil {
 				return // closed
 			}
