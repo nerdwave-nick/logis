@@ -8,6 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/text"
 )
 
 // The panel a compositor shows must be the image the renderer draws: the
@@ -26,13 +27,20 @@ import (
 // a missing shape or geometry off by more than a pixel; the exact pixels
 // are the offscreen goldens' business.
 
-// reference renders the debug scene for f at s offscreen.
+// reference renders the debug scene for f at s offscreen, its text with
+// the system fonts the live panel uses.
 func reference(f frame, s float64) (*render.Image, error) {
 	h, err := render.OpenHeadless()
 	if err != nil {
 		return nil, err
 	}
 	defer h.Close()
+	// The panel's text is drawn with the system fonts, as the live one.
+	fonts, err := text.ResolveSystem().Wait()
+	if err != nil {
+		return nil, err
+	}
+	h.SetFonts(fonts)
 	sc := scale.From120ths(uint32(math.Round(s * 120)))
 	logical := scale.Size{W: uint32(f.logW), H: uint32(f.logH)}
 	img, err := h.Offscreen(debugScene(logical), logical, sc)

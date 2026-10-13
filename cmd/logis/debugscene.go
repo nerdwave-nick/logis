@@ -21,7 +21,26 @@ var (
 	crimson    = render.RGBA(0.70, 0.06, 0.05, 1)
 	sootTop    = render.RGBA(0.085, 0.055, 0.045, 0.86)
 	sootBottom = render.RGBA(0.045, 0.030, 0.026, 0.86)
+	ash        = render.RGBA(0.54, 0.48, 0.40, 0.28)
+	bone       = render.Hex(0xeadfc4)
 )
+
+// debugRows are the panel's rows: every script and feature the text
+// slices cover, the eighth too long for its column (Rust ROWS).
+var debugRows = []string{
+	"The machine spirit wakes: 0123456789",
+	"Ça déjà vu, naïve Ærø — Œuvre, Šťastný",
+	"機械の精霊 万机之神 기계 정령",
+	"logis: שָׁלוֹם and مرحبا بالعالم (42) ok",
+	"Praise 🔥⚙\ufe0f💀🤖 the Omnissiah 👍🏽 🧑\u200d💻",
+	"fi fl ffi — ligatures, kerning: AVATAR Tolkien",
+	"Ἐν ἀρχῇ ἦν ὁ λόγος · Съешь же ещё",
+	"Ellipsis rite: this line is far too long for its column, so the cogitator cuts it short and seals it",
+	"Scale is taken from the compositor (1.0, 1.3, 2.0)",
+}
+
+// rowPitch is the distance between rows in logical pixels.
+const rowPitch = 26
 
 // queryBlock is the room at the bottom of the body for the query rule and
 // line.
@@ -30,9 +49,12 @@ const queryBlock = 44
 // debugScene is the debug panel's scene for a surface of logical size, as
 // Rust's debug_scene draws its shapes: a soot body with a brass-to-crimson
 // border and a crimson glow, the title rune, a rule, the selected row's
-// band and marker, and the query rule. The body fills the surface up to
-// 640×360, less the glow margin, so a smaller configure than requested
-// still shows the whole panel. Its text rows come with the text slice.
+// band and marker, and the query rule; then its title, the rows that fit
+// above the query rule and the query line. The body fills the surface up
+// to 640×360, less the glow margin, so a smaller configure than requested
+// still shows the whole panel. Rust confines the rows to a column with an
+// ellipsis; columns come with the shaping slice, so until then the long
+// row runs past the body.
 func debugScene(logical scale.Size) *render.Scene {
 	fit := func(side uint32, most float32) float32 {
 		return min(max(float32(side)-2*debugMargin, 64), most)
@@ -57,5 +79,18 @@ func debugScene(logical scale.Size) *render.Scene {
 	marker := rect(10, 70, 3, 18, 1.5, render.Solid(brass))
 	marker.Glow = render.Glow{Radius: 6, Color: brass.WithAlpha(0.7)}
 	queryRule := rect(18, ph-queryBlock, pw-36, 1.5, 0.75, render.Solid(brass.WithAlpha(0.8)))
-	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}}
+	texts := []render.Text{render.NewText("COGITATOR // RITE OF TESTING", [2]float32{x + 46, y + 12}, 18, brass)}
+	for i, row := range debugRows {
+		dy := 68 + rowPitch*float32(i)
+		if dy+22 > ph-queryBlock {
+			break
+		}
+		color := ash.WithAlpha(0.9)
+		if i == 0 {
+			color = bone
+		}
+		texts = append(texts, render.NewText(row, [2]float32{x + 22, y + dy}, 15, color))
+	}
+	texts = append(texts, render.NewText("> |", [2]float32{x + 22, y + ph - queryBlock + 10}, 15, brass))
+	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}, Texts: texts}
 }
