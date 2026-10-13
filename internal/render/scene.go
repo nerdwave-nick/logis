@@ -154,6 +154,9 @@ type Scene struct {
 	Images []ImageQuad
 	// Texts are drawn last, over the shapes and images.
 	Texts []Text
+	// Post is the post-processing pass over the finished frame, if any
+	// effect is on (Post.Any).
+	Post Post
 }
 
 // instanceFloats is floats per shape instance: fifteen vec4 attributes.

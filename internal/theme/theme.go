@@ -3,10 +3,15 @@
 // a size, every part that may be off a flag. Lengths are logical pixels;
 // the renderer multiplies by the output scale.
 //
-// This build has only the bundled default, forge-crimson-brass (Default).
-// The theme engine (palette → elements → effects, extends, user themes,
-// live reload, the post-processing pass) is feat/logis-go G18's; it reads
-// themes/*.jsonc into this model.
+// The engine (feat/logis §4.9, the theme model of three layers): a theme
+// file is a palette of named colours with alpha, the elements of the
+// cogitator, which refer to palette names, and effects and motion. A theme
+// is themes/<name>.jsonc beside the config, or one of the bundled themes
+// compiled in (package themes); a user file overrides a bundled theme of
+// the same name. It may "extends" one other theme by name; whatever it does
+// not give comes from the bundled default (DefaultName). Its JSON Schema is
+// schema/theme.schema.json. Themes.Load reads one into this model; Live
+// keeps the one in force while the daemon runs.
 package theme
 
 import (
@@ -30,6 +35,9 @@ type Font struct {
 type Theme struct {
 	// Name is forge-crimson-brass, or a user file's stem.
 	Name string
+	// Dir is where its relative image paths start: the user file's
+	// directory; "" for a bundled theme.
+	Dir string
 	// Faces are the faces its fonts use, each once; the first is the body's.
 	Faces     []text.Face
 	Window    Window

@@ -72,7 +72,7 @@ func Run(ctx context.Context, o Options) int {
 		return 0
 	}
 	l := newLoop()
-	l.live, l.logf = cfg.live, logf
+	l.live, l.themes, l.logf = cfg.live, cfg.themes, logf
 	defer l.shut()
 	defer socket.release()
 	start := o.Resolver
@@ -87,6 +87,7 @@ func Run(ctx context.Context, o Options) int {
 	l.core = newCore(resolver, os.Getpid())
 	l.core.providers.spawn, l.core.logf = l.spawner, logf
 	configure(resolver, cfg.live.Config())
+	retheme(resolver, cfg.themes.Theme())
 	go l.accept(socket.ln)
 	announce(o.Stdout, "the machine spirit wakes and listens at "+socket.path)
 	if o.Detach {
@@ -94,6 +95,9 @@ func Run(ctx context.Context, o Options) int {
 	}
 	// After detaching, so that what a reload logs reaches logis.log; edits
 	// made meanwhile wait in the watch.
+	if cfg.themeErr != nil {
+		logf(themeStands(cfg.themeErr))
+	}
 	defer cfg.watch(l)()
 	stopped := l.serve(ctx)
 	l.retireAll()

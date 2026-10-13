@@ -80,8 +80,25 @@ func TestCheckConfigNamesTheKeyOfAWrongValue(t *testing.T) {
 	}
 }
 
-// The theme is looked up beside the config or among the bundled ones; its
-// contents are judged by the theme engine (G18), not yet here.
+// The theme is looked up beside the config or among the bundled ones, and
+// read with what it extends: its contents are judged too (Rust check).
+func TestCheckConfigJudgesTheThemesContents(t *testing.T) {
+	home := scratchConfigHome(t)
+	writeFile(t, filepath.Join(home, "logis", "logis.jsonc"), `{"theme": "mine"}`)
+	mine := filepath.Join(home, "logis", "themes", "mine.jsonc")
+	writeFile(t, mine, "{\n  \"glow\": 1\n}")
+	code, stdout, stderr := runLogis("--check-config")
+	want := "logis: the theme is heretical: " + mine + ":2:11: invalid type: integer `1`, expected struct GlowDoc\n"
+	if code != 2 || stdout != "" || stderr != want {
+		t.Errorf("exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	writeFile(t, mine, `{"effects": {"bloom": 2}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ": effects.bloom: 2 is out of range (0 to 1)\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+}
+
 func TestCheckConfigFindsTheThemeItNames(t *testing.T) {
 	home := scratchConfigHome(t)
 	config := filepath.Join(home, "logis", "logis.jsonc")
