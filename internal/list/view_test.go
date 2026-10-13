@@ -299,6 +299,25 @@ func TestRowsCarryGlyphsBadgesAndPendingAndTheListReservesAGlyphColumn(t *testin
 	eq(t, [2]any{look.Rows[1].Glyph, look.Rows[1].Pending}, [2]any{"", false})
 }
 
+func TestAnEmptyGlyphStillKeepsTheGlyphColumnUntilItGoes(t *testing.T) {
+	v := NewView(DefaultOptions())
+	v.Push([]Entry{decorated("oil", Decor{HasGlyph: true}), settledEntry("plain")})
+	look := v.Look()
+	if !look.Glyphs {
+		t.Fatal("an empty glyph gave up the glyph column")
+	}
+	eq(t, look.Rows[0].Glyph, "")
+	v.Update(0, settledEntry("oil"))
+	if v.Look().Glyphs {
+		t.Fatal("the glyph column outlived its last glyph")
+	}
+	v.Update(0, decorated("oil", Decor{HasIcon: true}))
+	v.Remove(0)
+	if v.Look().Glyphs {
+		t.Fatal("the glyph column outlived its removed icon")
+	}
+}
+
 func TestItemsMatchedByAnotherTextAreNotHighlighted(t *testing.T) {
 	v := NewView(DefaultOptions())
 	v.Push([]Entry{{Text: "Shown", MatchText: "hidden key", HasMatchText: true}})
