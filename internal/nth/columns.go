@@ -71,16 +71,18 @@ func maximalSubpart(b []byte) int {
 		need = 2
 	case c >= 0xE0 && c <= 0xEF:
 		need = 3
-		if c == 0xE0 {
+		switch c {
+		case 0xE0:
 			lo = 0xA0
-		} else if c == 0xED {
+		case 0xED:
 			hi = 0x9F
 		}
 	case c >= 0xF0 && c <= 0xF4:
 		need = 4
-		if c == 0xF0 {
+		switch c {
+		case 0xF0:
 			lo = 0x90
-		} else if c == 0xF4 {
+		case 0xF4:
 			hi = 0x8F
 		}
 	default:
