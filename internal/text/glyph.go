@@ -18,8 +18,14 @@ const (
 )
 
 // DefaultHinting is the load target chosen by comparing the Go renders
-// with the Rust text goldens at scales 1.0, 1.3 and 2.0 (G6 handoff).
-const DefaultHinting = Light
+// with the Rust text goldens (tests/goldens/text) at scales 1.0, 1.3 and
+// 2.0 (G6 handoff): FT_LOAD_TARGET_LCD with interpreter v40 is what
+// swash's skrifa runs (HintingMode::Smooth with a horizontal LCD layout:
+// the bytecode hints vertically and is told it renders ClearType; CFF and
+// the autohinter hint lightly). On the pinned Noto fonts it renders like
+// Normal and matches the goldens at 1.0 within their tolerance; Light is
+// 3-6 % of pixels off, unhinted 10-18 %.
+const DefaultHinting = LCD
 
 // SetHinting changes how glyphs are hinted from now on (for comparisons;
 // the renderer keeps DefaultHinting). Images already cached elsewhere are
