@@ -52,6 +52,7 @@ type Face struct {
 	kern        table
 	loca, glyf  table
 	longLoca    bool
+	os2         table
 }
 
 // Parse reads face index of data, a font file or a collection.
@@ -95,6 +96,7 @@ func Parse(data []byte, index int) (*Face, error) {
 		loca:        tables[MakeTag("loca")],
 		glyf:        tables[MakeTag("glyf")],
 		longLoca:    head.u16(50) == 1,
+		os2:         tables[MakeTag("OS/2")],
 	}
 	if f.upem < 16 || f.upem > 16384 {
 		f.upem = 1000
@@ -211,4 +213,15 @@ func (f *Face) lsb(g uint16) int16 {
 		return f.hmtx.i16(4*int(g) + 2)
 	}
 	return f.hmtx.i16(4*n + 2*(int(g)-n))
+}
+
+// Style is the face's OS/2 width class (1–9, 5 normal) and whether it is
+// italic or oblique, as font databases read them.
+func (f *Face) Style() (widthClass int, italic, oblique bool) {
+	widthClass = int(f.os2.u16(6))
+	if widthClass < 1 || widthClass > 9 {
+		widthClass = 5
+	}
+	sel := f.os2.u16(62)
+	return widthClass, sel&1 != 0, sel&(1<<9) != 0
 }
