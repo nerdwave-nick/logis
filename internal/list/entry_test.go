@@ -24,6 +24,10 @@ func TestDecorMakesAnEntryPendingOrEmblemed(t *testing.T) {
 		{Decor{Glyph: "⚙"}, false, true},
 		{Decor{Icon: "forge-cog"}, false, true},
 		{Decor{Badges: []string{"current"}, Boost: 3}, false, false},
+		// A provider's "glyph": "" or "icon": "" is there, though empty
+		// (Rust Some("")): it claims the icon column.
+		{Decor{HasGlyph: true}, false, true},
+		{Decor{HasIcon: true}, false, true},
 	} {
 		e := Entry{Text: "x", Decor: &tc.decor}
 		if e.IsPending() != tc.pending || e.HasEmblem() != tc.emblem {

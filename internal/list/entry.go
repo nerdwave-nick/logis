@@ -34,6 +34,9 @@ type Decor struct {
 	Pending bool
 	// Boost is how much higher its matches score (an app's frecency).
 	Boost uint32
+	// HasGlyph, HasIcon: a glyph or icon is there even when empty (a
+	// provider's "glyph": ""), and claims the icon column all the same.
+	HasGlyph, HasIcon bool
 }
 
 // Matched is the text the item is matched by.
@@ -48,8 +51,10 @@ func (e Entry) Matched() string {
 func (e Entry) IsPending() bool { return e.Decor != nil && e.Decor.Pending }
 
 // HasEmblem reports whether the item has something for the icon column.
-func (e Entry) HasEmblem() bool {
-	return e.Decor != nil && (e.Decor.Glyph != "" || e.Decor.Icon != "")
+func (e Entry) HasEmblem() bool { return e.Decor.emblem() }
+
+func (d *Decor) emblem() bool {
+	return d != nil && (d.Glyph != "" || d.Icon != "" || d.HasGlyph || d.HasIcon)
 }
 
 // Highlightable reports whether matches show on the shown text: it is what
