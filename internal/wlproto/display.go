@@ -140,12 +140,8 @@ func (d *Display) Dispatch(timeout time.Duration) error {
 		}
 		events |= C.POLLOUT
 	}
-	ms := C.int(-1)
-	if timeout >= 0 {
-		ms = C.int((timeout + time.Millisecond - 1) / time.Millisecond)
-	}
 	var revents, wakeRevents C.short
-	rc, err := C.logis_wl_poll(C.wl_display_get_fd(d.c), events, C.int(d.wake), ms, &revents, &wakeRevents)
+	rc, err := d.poll(events, timeout, &revents, &wakeRevents)
 	if rc < 0 && !errors.Is(err, syscall.EINTR) {
 		C.wl_display_cancel_read(d.c)
 		return &Error{"poll", errnoOr(err, syscall.EIO)}
@@ -167,6 +163,25 @@ func (d *Display) Dispatch(timeout time.Duration) error {
 		}
 	}
 	return d.dispatchPending()
+}
+
+// poll waits for events on the display fd and for Wake, up to timeout
+// (negative: no limit). A signal interrupting poll (the Go runtime's own,
+// in this cgo call) does not end the wait early: it is retried with the
+// time left, and reported as EINTR only once that is gone.
+func (d *Display) poll(events C.short, timeout time.Duration, revents, wakeRevents *C.short) (C.int, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		ms := C.int(-1)
+		if timeout >= 0 {
+			left := max(time.Until(deadline), 0)
+			ms = C.int((left + time.Millisecond - 1) / time.Millisecond)
+		}
+		rc, err := C.logis_wl_poll(C.wl_display_get_fd(d.c), events, C.int(d.wake), ms, revents, wakeRevents)
+		if rc >= 0 || !errors.Is(err, syscall.EINTR) || timeout >= 0 && !time.Now().Before(deadline) {
+			return rc, err
+		}
+	}
 }
 
 func (d *Display) dispatchPending() error {
