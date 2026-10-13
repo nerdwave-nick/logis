@@ -36,7 +36,7 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, err.Error())
 	}
 	if o.debugPanel {
-		return debugPanel(stderr)
+		return debugPanel(o.Config, stdout, stderr)
 	}
 	// A starter that stopped reading must not kill the daemon (the runtime
 	// would on a broken stdout or stderr); a notified signal also leaves
