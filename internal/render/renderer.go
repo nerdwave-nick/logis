@@ -29,6 +29,7 @@ type Renderer struct {
 	packed            []float32 // this frame's instances, reused
 	images            *imagePass
 	glyphs            *glyphPass
+	post              *postPass
 }
 
 // New compiles the shaders and makes the buffers and the atlas, on the
@@ -59,6 +60,10 @@ func New() (*Renderer, error) {
 		r.Close()
 		return nil, fmt.Errorf("glyphs: %w", err)
 	}
+	if r.post, err = newPostPass(); err != nil {
+		r.Close()
+		return nil, err
+	}
 	if err := gles.Err(); err != nil {
 		r.Close()
 		return nil, err
@@ -70,9 +75,21 @@ func New() (*Renderer, error) {
 func (r *Renderer) Atlas() *Atlas { return r.images.atlas }
 
 // Draw draws sc into t: it clears t to sc.Clear, then paints every shape,
-// then every image, then every text, back to front in premultiplied alpha. Buffers are
-// streamed and the GPU is never waited for.
+// then every image, then every text, back to front in premultiplied alpha,
+// then the scene's post-processing effects, if any is on (into a frame of
+// t's size first, which the pass then draws into t). Buffers are streamed
+// and the GPU is never waited for.
 func (r *Renderer) Draw(t Target, sc *Scene) {
+	if !sc.Post.Any() {
+		r.drawScene(t, sc)
+		return
+	}
+	frame := Target{FBO: r.post.source(t.Size), Size: t.Size, Scale: t.Scale}
+	r.drawScene(frame, sc)
+	r.post.draw(t, sc.Post)
+}
+
+func (r *Renderer) drawScene(t Target, sc *Scene) {
 	w, h := float32(t.Size.W), float32(t.Size.H)
 	gles.BindFramebuffer(t.FBO)
 	gles.Viewport(0, 0, int(t.Size.W), int(t.Size.H))
@@ -117,6 +134,9 @@ func (r *Renderer) Close() {
 	}
 	if r.glyphs != nil {
 		r.glyphs.close()
+	}
+	if r.post != nil {
+		r.post.close()
 	}
 	r.sdf.Delete()
 	r.shapes.Delete()

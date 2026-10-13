@@ -29,10 +29,13 @@ func promptLine(sc *render.Scene, l *list.Look, body [4]float32, s Style, icons 
 		switch {
 		case sigil.Image == "gear":
 			gear(sc, left+sigil.Size/2, centre, sigil.Size, sigil.Color)
-		case filepath.IsAbs(sigil.Image) && icons != nil:
-			// A personal theme's relative path is the theme engine's (G18).
+		case icons != nil:
+			path, found := sigilPath(t, sigil.Image)
+			if !found {
+				break
+			}
 			side := uint32(max(math.Round(float64(sigil.Size)), 1))
-			if id, ok := icons.Image(sigil.Image, side); ok {
+			if id, ok := icons.Image(path, side); ok {
 				sc.Images = append(sc.Images, render.ImageQuad{Image: id,
 					Origin: [2]float32{left, centre - float32(side)/2}, Opacity: 1})
 			}
@@ -53,6 +56,18 @@ func promptLine(sc *render.Scene, l *list.Look, body [4]float32, s Style, icons 
 		sc.Texts = append(sc.Texts, counter)
 	}
 	sc.Texts = append(sc.Texts, query(l, left, centre, room, t))
+}
+
+// sigilPath is where a sigil image is: an absolute path as it is, a
+// relative one beside the theme's file; a bundled theme has no directory.
+func sigilPath(t *theme.Theme, image string) (string, bool) {
+	switch {
+	case filepath.IsAbs(image):
+		return image, true
+	case t.Dir != "":
+		return filepath.Join(t.Dir, image), true
+	}
+	return "", false
 }
 
 // query is the session's prompt and the query (or the placeholder), one
