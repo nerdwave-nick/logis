@@ -27,7 +27,7 @@ var (
 
 // debugRows are the panel's rows: every script and feature the text
 // slices cover, the eighth too long for its column (Rust ROWS).
-var debugRows = []string{
+var debugRows = [...]string{
 	"The machine spirit wakes: 0123456789",
 	"Ça déjà vu, naïve Ærø — Œuvre, Šťastný",
 	"機械の精霊 万机之神 기계 정령",
@@ -38,9 +38,6 @@ var debugRows = []string{
 	"Ellipsis rite: this line is far too long for its column, so the cogitator cuts it short and seals it",
 	"Scale is taken from the compositor (1.0, 1.3, 2.0)",
 }
-
-// rowPitch is the distance between rows in logical pixels.
-const rowPitch = 26
 
 // queryBlock is the room at the bottom of the body for the query rule and
 // line.
@@ -81,7 +78,7 @@ func debugScene(logical scale.Size) *render.Scene {
 	queryRule := rect(18, ph-queryBlock, pw-36, 1.5, 0.75, render.Solid(brass.WithAlpha(0.8)))
 	texts := []render.Text{render.NewText("COGITATOR // RITE OF TESTING", [2]float32{x + 46, y + 12}, 18, brass)}
 	for i, row := range debugRows {
-		dy := 68 + rowPitch*float32(i)
+		dy := 68 + debugRowPitch*float32(i)
 		if dy+22 > ph-queryBlock {
 			break
 		}
@@ -93,4 +90,32 @@ func debugScene(logical scale.Size) *render.Scene {
 	}
 	texts = append(texts, render.NewText("> |", [2]float32{x + 22, y + ph - queryBlock + 10}, 15, brass))
 	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}, Texts: texts}
+}
+
+// debugSelectable is the number of rows the selection can rest on (Rust's
+// SELECTABLE: the text rows); debugRowPitch is the distance between them.
+const (
+	debugSelectable = len(debugRows)
+	debugRowPitch   = 26
+)
+
+// Indices of the selection band and its marker in debugScene's shapes.
+const (
+	debugSelected = 3
+	debugMarker   = 4
+)
+
+// debugSceneAt is debugScene with row selected (Rust's debug_scene_at,
+// without the query line): the band and its marker move down one row pitch
+// per row and stop at the last row above the query block.
+func debugSceneAt(logical scale.Size, row int) *render.Scene {
+	sc := debugScene(logical)
+	body, band := sc.Shapes[0].Rect, sc.Shapes[debugSelected].Rect
+	room := body[1] + body[3] - queryBlock - (band[1] + band[3])
+	fits := max(int(room/debugRowPitch), 0)
+	dy := debugRowPitch * float32(min(row, fits))
+	for _, i := range []int{debugSelected, debugMarker} {
+		sc.Shapes[i].Rect[1] += dy
+	}
+	return sc
 }

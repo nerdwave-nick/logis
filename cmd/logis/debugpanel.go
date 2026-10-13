@@ -9,6 +9,7 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
+	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
@@ -16,9 +17,9 @@ import (
 const keyEscape = 1
 
 // debugPanel is `logis daemon --debug-panel`: it connects, wakes the GPU,
-// shows the panel and keeps it, redrawing only on configure and scale
-// changes, until Escape dismisses it, the compositor closes it, or SIGINT
-// or SIGTERM ends it (exit 0). It is not the session daemon: it neither
+// shows the panel and keeps it, redrawing only on configure, scale and
+// selection changes (Up, Down), until Escape dismisses it, the compositor
+// closes it, or SIGINT or SIGTERM ends it (exit 0). It is not the session daemon: it neither
 // listens nor serves sessions. Losing the compositor is exit 2.
 func debugPanel(stderr io.Writer) int {
 	// Fonts are resolved at start on a goroutine of their own (Rust
@@ -48,7 +49,7 @@ func debugPanel(stderr io.Writer) int {
 		r.SetFonts(f) // the renderer owns them now
 	}
 	w.SetLog(stderr)
-	stop := &escape{}
+	stop := &debugKeys{redraw: w.RequestRedraw}
 	w.SetKeyboard(stop)
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -59,7 +60,8 @@ func debugPanel(stderr io.Writer) int {
 			w.Wake()
 		}
 	}()
-	if err := w.Show(debugSize, paintDebug(r)); err != nil {
+	trace.Emit("show debug-panel")
+	if err := w.Show(debugSize, paintDebug(r, stop)); err != nil {
 		return fail(stderr, err.Error())
 	}
 	for w.Visible() && !stop.done() {
@@ -70,11 +72,12 @@ func debugPanel(stderr io.Writer) int {
 	return 0
 }
 
-// paintDebug draws the debug scene for each frame's geometry into the
-// window surface through r. The scene is static: it never animates.
-func paintDebug(r *render.Renderer) window.Painter {
+// paintDebug draws the debug scene for each frame's geometry, with the
+// keyboard's selected row, into the window surface through r. The scene
+// is still: it never animates.
+func paintDebug(r *render.Renderer, keys *debugKeys) window.Painter {
 	return func(g window.Geometry) bool {
-		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugScene(g.Logical))
+		r.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, debugSceneAt(g.Logical, keys.row))
 		return false
 	}
 }

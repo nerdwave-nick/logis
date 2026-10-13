@@ -5,9 +5,8 @@
 // fraction of outlier pixels), and PNG files holding premultiplied bytes
 // as the checked-in goldens do.
 //
-// It is deliberately small: the golden harness with update mode and
-// failure artefacts is its own ticket (G5), which can build on Compare and
-// the PNG helpers here.
+// The golden harness proper (Goldens: update mode, Go goldens beside the
+// Rust ones, failure artefacts; CheckScene) is in goldens.go.
 package rendertest
 
 import (
@@ -147,13 +146,20 @@ func WritePNG(path string, img *render.Image) error {
 // directory).
 func Golden(t testing.TB, set, name string) string {
 	t.Helper()
+	return filepath.Join(moduleRoot(t), "tests", "goldens", set, name+".png")
+}
+
+// moduleRoot is the directory of go.mod, from the working directory
+// upwards.
+func moduleRoot(t testing.TB) string {
+	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return filepath.Join(dir, "tests", "goldens", set, name+".png")
+			return dir
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
