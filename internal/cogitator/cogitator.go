@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"sync"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/daemon"
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/theme"
@@ -158,16 +158,12 @@ func (r *Resolver) drain() []func(*ui) {
 // Accepts dmenu sessions.
 func (r *Resolver) Accepts(m protocol.Mode) error { return accepts(m) }
 
-// Show shows a session's items so far.
-func (r *Resolver) Show(s daemon.Session) {
-	// The daemon keeps appending to its own slice.
-	s.Items = slices.Clone(s.Items)
-	r.post(func(u *ui) { u.show(s) })
-}
+// Show shows a session's first stage.
+func (r *Resolver) Show(s daemon.Session) { r.post(func(u *ui) { u.show(s) }) }
 
-// Append: more items for the shown session.
-func (r *Resolver) Append(id daemon.SessionID, items []protocol.Item) {
-	r.post(func(u *ui) { u.appendItems(id, items) })
+// Step applies what the shown session's provider asks next.
+func (r *Resolver) Step(id daemon.SessionID, step provider.Step) {
+	r.post(func(u *ui) { u.step(id, step) })
 }
 
 // End: the list needs no word that the input ended.
@@ -175,6 +171,13 @@ func (r *Resolver) End(daemon.SessionID) {}
 
 // Hide takes a session away.
 func (r *Resolver) Hide(id daemon.SessionID) { r.post(func(u *ui) { u.hide(id) }) }
+
+// Linger keeps a session that is over in view on its toast, without the
+// keyboard, until Hide.
+func (r *Resolver) Linger(id daemon.SessionID) { r.post(func(u *ui) { u.linger(id) }) }
+
+// Untoast takes the shown session's toast away.
+func (r *Resolver) Untoast(id daemon.SessionID) { r.post(func(u *ui) { u.untoast(id) }) }
 
 // Configure applies the config in force.
 func (r *Resolver) Configure(c config.Config) { r.post(func(u *ui) { u.configure(c) }) }

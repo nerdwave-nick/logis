@@ -85,6 +85,7 @@ func Run(ctx context.Context, o Options) int {
 		return fail(err.Error())
 	}
 	l.core = newCore(resolver, os.Getpid())
+	l.core.providers.spawn, l.core.logf = l.spawner, logf
 	configure(resolver, cfg.live.Config())
 	go l.accept(socket.ln)
 	announce(o.Stdout, "the machine spirit wakes and listens at "+socket.path)

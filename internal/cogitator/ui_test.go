@@ -13,6 +13,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/theme"
 	"github.com/nerdwave-nick/logis/internal/window"
@@ -22,23 +23,27 @@ import (
 // without a compositor: a fake surface, a recording host and trace.
 
 type fakeSurface struct {
-	shown   bool
-	size    scale.Size
-	paint   window.Painter
-	redraws int
-	fail    error
+	shown    bool
+	size     scale.Size
+	paint    window.Painter
+	redraws  int
+	fail     error
+	shows    int
+	released bool
 }
 
 func (s *fakeSurface) Show(size scale.Size, paint window.Painter) error {
 	if s.fail != nil {
 		return s.fail
 	}
-	s.shown, s.size, s.paint = true, size, paint
+	s.shown, s.size, s.paint, s.released = true, size, paint, false
+	s.shows++
 	return nil
 }
-func (s *fakeSurface) Hide()          { s.shown = false }
-func (s *fakeSurface) Visible() bool  { return s.shown }
-func (s *fakeSurface) RequestRedraw() { s.redraws++ }
+func (s *fakeSurface) Hide()            { s.shown = false }
+func (s *fakeSurface) ReleaseKeyboard() { s.released = true }
+func (s *fakeSurface) Visible() bool    { return s.shown }
+func (s *fakeSurface) RequestRedraw()   { s.redraws++ }
 
 type answered struct {
 	id     daemon.SessionID
@@ -76,16 +81,20 @@ func newRig() *rig {
 	return r
 }
 
-func items(texts ...string) []protocol.Item {
-	out := make([]protocol.Item, len(texts))
+func entries(texts ...string) []list.Entry {
+	out := make([]list.Entry, len(texts))
 	for i, t := range texts {
-		out[i] = protocol.Item{Text: t, Raw: []byte(t)}
+		out[i] = list.Entry{Text: t}
 	}
 	return out
 }
 
 func (r *rig) show(id daemon.SessionID, options list.Options, texts ...string) {
-	r.ui.show(daemon.Session{ID: id, Mode: protocol.ModeDmenu, Options: protocol.EncodeOptions(options), Items: items(texts...)})
+	r.ui.show(daemon.Session{ID: id, Mode: protocol.ModeDmenu, Options: options, Entries: entries(texts...)})
+}
+
+func (r *rig) appendItems(id daemon.SessionID, texts ...string) {
+	r.ui.step(id, provider.Step{Kind: provider.StepAppend, Entries: entries(texts...)})
 }
 
 func (r *rig) act(actions ...input.Action) {
@@ -115,9 +124,9 @@ func TestAShownSessionIsSizedByItsOptionsAndReportsItsItems(t *testing.T) {
 		t.Fatalf("shown %v at %v, want %v", r.surf.shown, r.surf.size, want)
 	}
 	r.saw(t, "show 7", "items 2")
-	r.ui.appendItems(7, items("gamma"))
+	r.appendItems(7, "gamma")
 	r.saw(t, "items 3")
-	r.ui.appendItems(8, items("not mine"))
+	r.appendItems(8, "not mine")
 	if r.events[len(r.events)-1] != "items 3" {
 		t.Fatalf("%q", r.events)
 	}
@@ -206,7 +215,7 @@ func TestStreamedItemsAreDrawnAsTheyCome(t *testing.T) {
 	r := newRig()
 	r.show(1, list.DefaultOptions(), "first")
 	before := r.surf.redraws
-	r.ui.appendItems(1, items("second", "third"))
+	r.appendItems(1, "second", "third")
 	if r.surf.redraws == before {
 		t.Fatal("no frame for the new items")
 	}
@@ -250,13 +259,9 @@ func TestASurfaceTheCompositorClosedDismissesItsSession(t *testing.T) {
 
 func TestASessionThatCannotBeShownFails(t *testing.T) {
 	r := newRig()
-	r.ui.show(daemon.Session{ID: 1, Mode: protocol.ModeDmenu, Options: []byte(`{"password": "ab"}`)})
-	if len(r.host.fails) != 1 || !strings.Contains(r.host.fails[0], "options") || r.surf.shown {
-		t.Fatalf("%+v", r.host.fails)
-	}
 	r.surf.fail = &window.SurfaceError{Reason: "no glass"}
 	r.show(2, list.DefaultOptions())
-	if len(r.host.fails) != 2 || !strings.Contains(r.host.fails[1], "no glass") || r.ui.shown != nil {
+	if len(r.host.fails) != 1 || !strings.Contains(r.host.fails[0], "no glass") || r.ui.shown != nil {
 		t.Fatalf("%+v", r.host.fails)
 	}
 }
@@ -304,11 +309,13 @@ func TestTheConfigsFocusLossReachesTheKeyboard(t *testing.T) {
 	}
 }
 
-func TestOnlyDmenuSessionsAreServedYet(t *testing.T) {
-	if err := accepts(protocol.ModeDmenu); err != nil {
-		t.Fatal(err)
+func TestDmenuAndProviderSessionsAreServed(t *testing.T) {
+	for _, m := range []protocol.Mode{protocol.ModeDmenu, protocol.ModeProvider} {
+		if err := accepts(m); err != nil {
+			t.Fatal(err)
+		}
 	}
-	for _, m := range []protocol.Mode{protocol.ModeApps, protocol.ModeProvider, protocol.ModeServitor} {
+	for _, m := range []protocol.Mode{protocol.ModeApps, protocol.ModeServitor} {
 		if err := accepts(m); err == nil {
 			t.Fatalf("%s accepted", m)
 		}
