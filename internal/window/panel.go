@@ -3,6 +3,7 @@ package window
 import (
 	"github.com/nerdwave-nick/logis/internal/gles"
 	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
@@ -86,6 +87,7 @@ func (p *panel) present() error {
 	if err := p.presenter.swap(); err != nil {
 		return err
 	}
+	trace.Emit("commit")
 	p.state.drew()
 	return nil
 }

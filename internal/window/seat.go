@@ -3,6 +3,7 @@ package window
 import (
 	"encoding/binary"
 
+	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
@@ -65,6 +66,9 @@ func (s *seat) listen(k *wlproto.WlKeyboard) {
 		s.consumer.Keymap(format, fd, size)
 	}
 	k.OnEnter = func(serial uint32, surface *wlproto.WlSurface, keys []byte) {
+		if s.shows(surface) {
+			trace.Emit("keyboard-enter")
+		}
 		if s.consumer != nil && s.shows(surface) {
 			pressed := make([]uint32, 0, len(keys)/4)
 			for i := 0; i+4 <= len(keys); i += 4 {
@@ -74,25 +78,39 @@ func (s *seat) listen(k *wlproto.WlKeyboard) {
 		}
 	}
 	k.OnLeave = func(serial uint32, surface *wlproto.WlSurface) {
+		if s.shows(surface) {
+			trace.Emit("keyboard-leave")
+		}
 		if s.consumer != nil && s.shows(surface) {
 			s.consumer.Leave(serial)
 		}
 	}
 	k.OnKey = func(serial, time, key, state uint32) {
+		trace.Emit("key %d %s", key, keyState(state))
 		if s.consumer != nil {
 			s.consumer.Key(serial, time, key, state)
 		}
 	}
 	k.OnModifiers = func(serial, depressed, latched, locked, group uint32) {
+		trace.Emit("modifiers %d %d %d %d", depressed, latched, locked, group)
 		if s.consumer != nil {
 			s.consumer.Modifiers(serial, depressed, latched, locked, group)
 		}
 	}
 	k.OnRepeatInfo = func(rate, delay int32) {
+		trace.Emit("repeat-info %d %d", rate, delay)
 		if s.consumer != nil {
 			s.consumer.RepeatInfo(rate, delay)
 		}
 	}
+}
+
+// keyState names a wl_keyboard key state in the test trace.
+func keyState(state uint32) string {
+	if state == wlproto.WlKeyboardKeyStatePressed {
+		return "pressed"
+	}
+	return "released"
 }
 
 func (s *seat) releaseKeyboard() {
