@@ -3,7 +3,6 @@ package daemon
 import (
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
 
 // lockName is the lock file beside the socket; whoever holds it owns the
@@ -26,7 +26,7 @@ const listenFDsStart = 3
 
 // listening is the claimed socket.
 type listening struct {
-	ln   *net.UnixListener
+	ln   *unixsock.Listener
 	path string
 	// ownsPath: the daemon bound the path itself; systemd's socket stays.
 	ownsPath bool
@@ -71,7 +71,7 @@ func claim(runtimeDir string) (*listening, error) {
 			}
 			return &listening{ln: l, path: path, ownsPath: true, lock: lock}, nil
 		}
-		if c, err := net.Dial("unix", path); err == nil {
+		if c, err := unixsock.Dial(path); err == nil {
 			_ = c.Close()
 			return nil, nil
 		}
@@ -84,16 +84,14 @@ func claim(runtimeDir string) (*listening, error) {
 }
 
 // bind listens at path; holding the lock, any socket file there is stale.
-func bind(path string) (*net.UnixListener, error) {
+func bind(path string) (*unixsock.Listener, error) {
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
-	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	ln, err := unixsock.Listen(path)
 	if err != nil {
 		return nil, err
 	}
-	// release removes the path itself, while it still holds the lock.
-	ln.SetUnlinkOnClose(false)
 	// As logis.socket's SocketMode; the runtime directory is private anyway.
 	_ = os.Chmod(path, 0o600)
 	return ln, nil
@@ -121,25 +119,16 @@ func lockSocket(runtimeDir string) (*os.File, error) {
 
 // activated is the socket systemd passed (logis.socket), if any: with
 // LISTEN_PID naming this process, its first socket is descriptor 3.
-func activated() (*net.UnixListener, error) {
+func activated() (*unixsock.Listener, error) {
 	if os.Getenv("LISTEN_PID") != strconv.Itoa(os.Getpid()) {
 		return nil, nil
 	}
 	if n, err := strconv.Atoi(os.Getenv("LISTEN_FDS")); err != nil || n < 1 {
 		return nil, nil
 	}
-	f := os.NewFile(listenFDsStart, "logis.socket")
-	// FileListener keeps a close-on-exec duplicate, so launched programs do
-	// not inherit the socket.
-	ln, err := net.FileListener(f)
-	_ = f.Close()
+	ln, err := unixsock.FromFD(listenFDsStart)
 	if err != nil {
 		return nil, fmt.Errorf("the socket systemd passed: %w", err)
 	}
-	unix, ok := ln.(*net.UnixListener)
-	if !ok {
-		_ = ln.Close()
-		return nil, errors.New("the socket systemd passed is not a Unix stream socket")
-	}
-	return unix, nil
+	return ln, nil
 }

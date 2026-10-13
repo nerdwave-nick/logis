@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"net"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
 
 // writeTimeout: a client that stops reading must not stall the daemon.
@@ -136,11 +137,11 @@ func (l *loop) next(ctx context.Context, idleTimeout time.Duration, idleSince ti
 }
 
 // accept turns each connection into events, with a reader goroutine each.
-func (l *loop) accept(ln *net.UnixListener) {
+func (l *loop) accept(ln *unixsock.Listener) {
 	var next SessionID
 	for {
-		c, err := ln.AcceptUnix()
-		if errors.Is(err, net.ErrClosed) {
+		c, err := ln.Accept()
+		if errors.Is(err, os.ErrClosed) {
 			l.fromSocket(func(l *loop) {
 				l.stopped = &stop{2, "the machine spirit can no longer hear its socket"}
 			})
@@ -164,7 +165,7 @@ func (l *loop) accept(ln *net.UnixListener) {
 // read hands each request of connection id to the loop, then its hang-up.
 // The core alone closes the connection (its peer), so that a reply to the
 // last request still goes out.
-func (l *loop) read(id SessionID, c *net.UnixConn) {
+func (l *loop) read(id SessionID, c *os.File) {
 	r := bufio.NewReader(c)
 	for {
 		var request protocol.Request
@@ -182,7 +183,7 @@ func (l *loop) read(id SessionID, c *net.UnixConn) {
 }
 
 // streamPeer answers a client over its connection.
-type streamPeer struct{ c *net.UnixConn }
+type streamPeer struct{ c *os.File }
 
 func (p *streamPeer) send(reply protocol.Reply) {
 	// A failed write surfaces as the reader's hang-up.

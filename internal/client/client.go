@@ -10,11 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"syscall"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
 
 // startPatience is how long a client waits for a daemon to start and greet
@@ -43,13 +43,19 @@ type Options struct {
 // Conn is a greeted connection to the daemon. One goroutine may Send while
 // another receives.
 type Conn struct {
-	c net.Conn
+	c stream
 	r *bufio.Reader
 	// Daemon is the daemon's process ID, from its welcome.
 	Daemon int
 }
 
-func newConn(c net.Conn) *Conn { return &Conn{c: c, r: bufio.NewReader(c)} }
+// stream is a connection: a socket from unixsock, or a pipe in tests.
+type stream interface {
+	io.ReadWriteCloser
+	SetReadDeadline(t time.Time) error
+}
+
+func newConn(c stream) *Conn { return &Conn{c: c, r: bufio.NewReader(c)} }
 
 // Connect connects to the daemon, starting it if none answers, and greets
 // it.
@@ -65,7 +71,7 @@ func Connect(o Options) (*Conn, error) {
 	deadline := time.Now().Add(patience)
 	started, hangUps := false, 0
 	for {
-		c, err := net.Dial("unix", path)
+		c, err := unixsock.Dial(path)
 		switch {
 		case err == nil:
 			conn, err := greet(newConn(c), deadline)
