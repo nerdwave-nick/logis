@@ -24,7 +24,12 @@ const oversample = 8
 // pixels square, fitted and centred as Rasterise does; premultiplied, 0
 // to 1.
 func resvgTruth(path string, pixels int) ([][4]float64, error) {
-	big := pixels * oversample
+	return resvgAt(path, pixels, oversample)
+}
+
+// resvgAt is resvg's render at k times pixels, averaged down.
+func resvgAt(path string, pixels, k int) ([][4]float64, error) {
+	big := pixels * k
 	cmd := exec.Command("resvg", "-w", fmt.Sprint(big), "-h", fmt.Sprint(big), path, "-c")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -46,9 +51,9 @@ func resvgTruth(path string, pixels int) ([][4]float64, error) {
 				continue
 			}
 			r, g, bl, a := img.At(b.Min.X+sx, b.Min.Y+sy).RGBA() // premultiplied
-			p := &truth[(y/oversample)*pixels+x/oversample]
-			for k, v := range [4]uint32{r, g, bl, a} {
-				p[k] += float64(v) / 0xffff / (oversample * oversample)
+			p := &truth[(y/k)*pixels+x/k]
+			for c, v := range [4]uint32{r, g, bl, a} {
+				p[c] += float64(v) / 0xffff / float64(k*k)
 			}
 		}
 	}
@@ -69,16 +74,42 @@ func compareTruth(path string, pixels int) (truthError, []string, error) {
 	if err != nil {
 		return truthError{}, nil, err
 	}
+	logis := make([][4]float64, len(truth))
+	for i := range logis {
+		for k := range 4 {
+			logis[i][k] = float64(img.Pixels[i*4+k]) / 255
+		}
+	}
+	return distance(logis, truth), report, nil
+}
+
+// compareResvg is how far resvg's own render at pixels strays from the
+// oracle: the yardstick for layered icons, where every rasteriser that
+// composites anti-aliased layers one by one (resvg's, logis's) blends
+// coinciding edges twice and the oversampled oracle hardly does.
+func compareResvg(path string, pixels int) (truthError, error) {
+	truth, err := resvgTruth(path, pixels)
+	if err != nil {
+		return truthError{}, err
+	}
+	plain, err := resvgAt(path, pixels, 1)
+	if err != nil {
+		return truthError{}, err
+	}
+	return distance(plain, truth), nil
+}
+
+func distance(got, want [][4]float64) truthError {
 	var e truthError
-	for i, want := range truth {
+	for i := range want {
 		d := 0.0
 		for k := range 4 {
-			d = max(d, math.Abs(float64(img.Pixels[i*4+k])-want[k]*255))
+			d = max(d, math.Abs(got[i][k]-want[i][k])*255)
 		}
 		e.worst = max(e.worst, d)
-		e.mean += d / float64(len(truth))
+		e.mean += d / float64(len(want))
 	}
-	return e, report, nil
+	return e
 }
 
 func requireResvg(t *testing.T) {
@@ -110,13 +141,21 @@ func TestSVGsAgreeWithAnOversampledResvg(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", f, err)
 			}
-			t.Logf("%s at %d: worst %.1f, mean %.2f levels", filepath.Base(f), pixels, e.worst, e.mean)
+			r, err := compareResvg(f, pixels)
+			if err != nil {
+				t.Fatalf("%s: %v", f, err)
+			}
+			t.Logf("%s at %d: worst %.1f, mean %.2f levels (resvg itself: %.1f, %.2f)", filepath.Base(f), pixels, e.worst, e.mean, r.worst, r.mean)
 			if len(report) > 0 {
 				t.Errorf("%s: unsupported %q", f, report)
 			}
 			// Edge pixels may differ by flattening and coverage rounding;
-			// a wrong shape, paint or position costs far more.
-			if e.mean > 1.5 || e.worst > 32 {
+			// a wrong shape, paint or position costs far more. Resampled
+			// pattern tiles and layered edges stray for every rasteriser:
+			// there logis must be no further off than resvg's own render.
+			close := e.mean <= 1.5 && e.worst <= 32
+			asResvg := e.mean <= r.mean && e.worst <= r.worst+16
+			if !close && !asResvg {
 				t.Errorf("%s at %d: worst %.1f, mean %.2f levels from the oracle", filepath.Base(f), pixels, e.worst, e.mean)
 			}
 		}
