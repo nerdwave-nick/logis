@@ -40,10 +40,16 @@ func Binary(t testing.TB) string {
 // `func TestMain(m *testing.M) { e2e.Main(m) }`.
 func Main(m *testing.M) {
 	code := m.Run()
+	RemoveBinary()
+	os.Exit(code)
+}
+
+// RemoveBinary removes the binary Binary built, for a TestMain that
+// cannot hand over to Main.
+func RemoveBinary() {
 	if built.dir != "" {
 		_ = os.RemoveAll(built.dir)
 	}
-	os.Exit(code)
 }
 
 // moduleRoot is the directory of go.mod, from the working directory

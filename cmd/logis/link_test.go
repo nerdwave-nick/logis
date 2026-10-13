@@ -9,6 +9,8 @@ import (
 	"slices"
 	"sync"
 	"testing"
+
+	"github.com/nerdwave-nick/logis/internal/e2e"
 )
 
 // specLibraries are the C libraries spec §4 allows in the shipped binary
@@ -36,6 +38,7 @@ func TestMain(m *testing.M) {
 	buildDir = dir
 	code := m.Run()
 	_ = os.RemoveAll(dir)
+	e2e.RemoveBinary() // the E2E tests' logis
 	os.Exit(code)
 }
 
