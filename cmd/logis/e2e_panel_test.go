@@ -28,14 +28,14 @@ import (
 // are the offscreen goldens' business.
 
 // reference renders the debug scene for f at s offscreen, its text with
-// the system fonts the live panel uses.
+// the fonts fontconfig gives this process: checkPanel points it at the
+// compositor's fonts.conf, the one the live panel resolves.
 func reference(f frame, s float64) (*render.Image, error) {
 	h, err := render.OpenHeadless()
 	if err != nil {
 		return nil, err
 	}
 	defer h.Close()
-	// The panel's text is drawn with the system fonts, as the live one.
 	fonts, err := text.ResolveSystem().Wait()
 	if err != nil {
 		return nil, err

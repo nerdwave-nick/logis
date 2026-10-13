@@ -150,9 +150,11 @@ func parseGlass(m []string) frame {
 
 // checkPanel captures the output until the panel drawn for f is on it
 // (the compositor shows a committed frame with its next repaint), and
-// fails with what is wrong if it never is.
-func checkPanel(t *testing.T, h *e2e.Harness, name string, f frame, scale float64) {
+// fails with what is wrong if it never is. The reference draws its text
+// with the fonts c gives its clients (the pinned test fonts).
+func checkPanel(t *testing.T, c *e2e.Compositor, h *e2e.Harness, name string, f frame, scale float64) {
 	t.Helper()
+	t.Setenv("FONTCONFIG_FILE", filepath.Join(c.RuntimeDir(), "fonts.conf"))
 	want, err := reference(f, scale)
 	if err != nil {
 		t.Fatal(err)
@@ -202,7 +204,7 @@ func TestE2EDebugPanelIsDrawnAtEachOutputScale(t *testing.T) {
 			if want := int(float64(f.logW)*scale + 0.5); f.physW != want {
 				t.Errorf("buffer %d px wide for %d logical at %v, want %d", f.physW, f.logW, scale, want)
 			}
-			checkPanel(t, h, "panel", f, scale)
+			checkPanel(t, c, h, "panel", f, scale)
 		})
 	}
 }
@@ -219,7 +221,7 @@ func TestE2EAScaleChangeRedrawsAtTheNewScale(t *testing.T) {
 		if got, _ := strconv.ParseFloat(m[5], 64); got != want {
 			t.Fatalf("redrawn at scale %v after the output went to %v", got, want)
 		}
-		checkPanel(t, h, "scale-"+scale, parseGlass(m), want)
+		checkPanel(t, c, h, "scale-"+scale, parseGlass(m), want)
 	}
 }
 
