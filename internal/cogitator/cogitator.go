@@ -20,7 +20,9 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
+	"github.com/nerdwave-nick/logis/internal/icons"
 	"github.com/nerdwave-nick/logis/internal/input"
+	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/render"
@@ -76,6 +78,12 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		u := newUI(host, w, &th, kb)
 		u.draw = func(sc *render.Scene, g window.Geometry) {
 			rend.Draw(render.Target{Size: g.Physical, Scale: g.Scale}, sc)
+		}
+		u.iconTheme = func(name string) {
+			cache := icons.NewCache(icons.LoadThemes(icons.FromEnv(), name))
+			u.icons = func(g window.Geometry) scene.Icons {
+				return &icons.FrameIcons{Cache: cache, Atlas: rend.Atlas(), Scale: g.Scale}
+			}
 		}
 		r.mu.Lock()
 		r.wake = w.Wake

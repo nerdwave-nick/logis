@@ -78,8 +78,14 @@ type ui struct {
 	noticeUntil time.Time
 	// draw paints a frame's scene (nil: nothing is painted, as in tests).
 	draw func(sc *render.Scene, g window.Geometry)
-	emit func(format string, args ...any)
-	now  func() time.Time
+	// icons are a frame's icons (nil: none, rows show their glyphs).
+	icons func(g window.Geometry) scene.Icons
+	// iconTheme loads the icon theme of that name (nil: none is loaded);
+	// iconThemeName is the one loaded.
+	iconTheme     func(name string)
+	iconThemeName string
+	emit          func(format string, args ...any)
+	now           func() time.Time
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
@@ -124,7 +130,11 @@ func (u *ui) painter(sh *shown) window.Painter {
 	return func(g window.Geometry) bool {
 		if u.draw != nil {
 			look := u.lookOf(sh)
-			u.draw(scene.Draw(&look, g.Logical, scene.Style{Theme: u.theme}), g)
+			var icons scene.Icons
+			if u.icons != nil {
+				icons = u.icons(g)
+			}
+			u.draw(scene.DrawWith(&look, g.Logical, scene.Style{Theme: u.theme}, icons), g)
 		}
 		return false
 	}
@@ -215,8 +225,16 @@ func (u *ui) check() {
 	}
 }
 
-// configure applies the config: what losing keyboard focus does.
-func (u *ui) configure(c config.Config) { u.keyboard.SetFocusLoss(c.FocusLoss) }
+// configure applies the config: what losing keyboard focus does, and the
+// icon theme rows' icons come from.
+func (u *ui) configure(c config.Config) {
+	u.keyboard.SetFocusLoss(c.FocusLoss)
+	if u.iconTheme != nil && c.IconTheme != u.iconThemeName {
+		u.iconThemeName = c.IconTheme
+		u.iconTheme(c.IconTheme)
+		u.surf.RequestRedraw()
+	}
+}
 
 // toast shows a notice from the daemon over the visible list for a while.
 func (u *ui) toast(t daemon.Toast) {

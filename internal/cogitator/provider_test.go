@@ -5,11 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/list"
+	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/provider"
+	"github.com/nerdwave-nick/logis/internal/render"
+	"github.com/nerdwave-nick/logis/internal/scale"
+	"github.com/nerdwave-nick/logis/internal/window"
 )
 
 // Provider sessions in the window (Rust src/daemon/window/ui.rs): after an
@@ -165,5 +170,48 @@ func TestALingeringSessionGoesAtItsHide(t *testing.T) {
 	r.saw(t, "hide 1")
 	if r.surf.shown || r.ui.shown != nil {
 		t.Fatal("still shown")
+	}
+}
+
+// fakeIcons find the icons they name.
+type fakeIcons map[string]render.ImageID
+
+func (f fakeIcons) Image(name string, _ uint32) (render.ImageID, bool) {
+	id, ok := f[name]
+	return id, ok
+}
+
+func TestARowsIconIsDrawnInPlaceOfItsGlyphAndAMissingOneShowsTheGlyph(t *testing.T) {
+	r := newRig()
+	var drawn *render.Scene
+	r.ui.draw = func(sc *render.Scene, _ window.Geometry) { drawn = sc }
+	r.ui.icons = func(window.Geometry) scene.Icons { return fakeIcons{"forge-cog": 7} }
+	found := list.Entry{Text: "cog", Decor: &list.Decor{Icon: "forge-cog", HasIcon: true, Glyph: "⚙", HasGlyph: true}}
+	lost := list.Entry{Text: "lost", Decor: &list.Decor{Icon: "nowhere", HasIcon: true, Glyph: "†", HasGlyph: true}}
+	r.showProvider(1, list.DefaultOptions(), found, lost)
+	r.surf.paint(window.Geometry{Logical: r.surf.size, Physical: r.surf.size, Scale: scale.From120ths(120)})
+	if drawn == nil || len(drawn.Images) != 1 || drawn.Images[0].Image != 7 {
+		t.Fatalf("images %+v", drawn.Images)
+	}
+	var texts []string
+	for _, x := range drawn.Texts {
+		texts = append(texts, x.Text)
+	}
+	if !slices.Contains(texts, "†") || slices.Contains(texts, "⚙") {
+		t.Fatalf("%q", texts)
+	}
+}
+
+func TestTheConfigsIconThemeIsLoadedWhenItChanges(t *testing.T) {
+	r := newRig()
+	var loaded []string
+	r.ui.iconTheme = func(name string) { loaded = append(loaded, name) }
+	c := config.Default()
+	r.ui.configure(c)
+	r.ui.configure(c)
+	c.IconTheme = "Papirus"
+	r.ui.configure(c)
+	if !slices.Equal(loaded, []string{"hicolor", "Papirus"}) {
+		t.Fatalf("%q", loaded)
 	}
 }
