@@ -15,7 +15,7 @@ const providerRune = "--provider"
 
 // knownRunes are the runes this build knows, for the unknown-rune error.
 const knownRunes = "--version, --dmenu or --dmenu0 (with fuzzel's list runes), " +
-	"--provider PROGRAM [ARG]..., --check-config, " +
+	"--provider PROGRAM [ARG]..., --servitor, --check-config, " +
 	"--config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]"
 
 type commandKind int
@@ -29,6 +29,9 @@ const (
 	dmenuCommand
 	// providerCommand: --provider PROGRAM [ARG]..., with command.argv.
 	providerCommand
+	// servitorCommand: --servitor, a provider session whose provider is
+	// logis itself (`logis provide servitor`).
+	servitorCommand
 )
 
 // command is what one invocation of logis was asked to do; config is
@@ -95,6 +98,8 @@ func parse(args []string) (command, error) {
 			if len(c.argv) == 0 {
 				return c, emptyValue(providerRune, "a program to run, then its arguments")
 			}
+		case "--servitor":
+			kind = servitorCommand
 		case "-i":
 			continue // dmenu's case-insensitivity switch: logis always ignores case
 		default:
