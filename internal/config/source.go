@@ -127,3 +127,13 @@ func Heresy(err error) string { return "the config is heretical: " + err.Error()
 // ThemeHeresy is how an invalid theme is reported on the command line and
 // in the log.
 func ThemeHeresy(err error) string { return "the theme is heretical: " + err.Error() }
+
+// DaemonArgs are the runes that hand this config to a daemon a client
+// starts: `--config ABSPATH` when the user named one, else none (the daemon
+// finds the default itself). A daemon already running keeps its own.
+func (s Source) DaemonArgs() []string {
+	if !s.explicit {
+		return nil
+	}
+	return []string{"--config", s.path}
+}

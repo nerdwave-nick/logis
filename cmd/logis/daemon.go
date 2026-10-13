@@ -12,17 +12,20 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
 )
 
-// The `daemon` command: `logis daemon [--idle-timeout SECONDS] [--detach]`.
-// G3 (the window) replaces resolverFromEnv's default; the config ticket adds
-// --config (and the config's idle-timeout, which the flag outranks).
+// The `daemon` command: `logis daemon [--idle-timeout SECONDS]
+// [--config PATH] [--detach]`. G3 (the window) replaces resolverFromEnv's
+// default.
 
 const (
-	idleRune    = "--idle-timeout"
-	idleWants   = "a number of seconds (0 keeps the daemon resident)"
-	daemonRunes = "--version and daemon [--idle-timeout SECONDS] [--detach]"
+	idleRune  = "--idle-timeout"
+	idleWants = "a number of seconds (0 keeps the daemon resident)"
+	// knownRunes are the runes this build knows, for the unknown-rune error.
+	knownRunes = "--version, --check-config, --config PATH and " +
+		"daemon [--idle-timeout SECONDS] [--config PATH] [--detach]"
 )
 
 // runDaemon is `logis daemon ARGS`.
@@ -39,6 +42,10 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	o.RuntimeDir = os.Getenv("XDG_RUNTIME_DIR")
+	if o.Config == nil {
+		source := config.NewSource("")
+		o.Config = &source
+	}
 	o.Resolver = resolverFromEnv
 	o.Stdout, o.Stderr = stdout, stderr
 	return daemon.Run(ctx, o)
@@ -67,6 +74,14 @@ func (e runeError) Error() string { return string(e) }
 // parseDaemon parses the arguments after `daemon`.
 func parseDaemon(args []string) (daemon.Options, error) {
 	var o daemon.Options
+	path, args, err := takeConfig(args)
+	if err != nil {
+		return o, err
+	}
+	if path != "" {
+		source := config.NewSource(path)
+		o.Config = &source
+	}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		var value string
@@ -83,14 +98,14 @@ func parseDaemon(args []string) (daemon.Options, error) {
 			value = arg[len(idleRune)+1:]
 		default:
 			return o, runeError(fmt.Sprintf(
-				"the rune '%s' is unknown to this cogitator. It knows only %s.", arg, daemonRunes))
+				"the rune '%s' is unknown to this cogitator. It knows only %s.", arg, knownRunes))
 		}
 		idle, ok := seconds(value)
 		if !ok {
 			return o, runeError(fmt.Sprintf("the rune %s cannot bear '%s': it wants %s",
 				idleRune, value, idleWants))
 		}
-		o.IdleTimeout = idle
+		o.IdleTimeout, o.IdleTimeoutSet = idle, true
 	}
 	return o, nil
 }

@@ -209,3 +209,13 @@ func TestFindThemeLooksBesideTheConfigThenAmongTheBundled(t *testing.T) {
 		t.Errorf("an unreadable theme file: %v", err)
 	}
 }
+
+func TestOnlyANamedConfigIsHandedToADaemonAClientStarts(t *testing.T) {
+	if args := NewSource("/x/logis.jsonc").DaemonArgs(); len(args) != 2 || args[0] != "--config" || args[1] != "/x/logis.jsonc" {
+		t.Errorf("%q", args)
+	}
+	t.Setenv("XDG_CONFIG_HOME", "/cfg")
+	if args := NewSource("").DaemonArgs(); args != nil {
+		t.Errorf("the default is the daemon's own: %q", args)
+	}
+}

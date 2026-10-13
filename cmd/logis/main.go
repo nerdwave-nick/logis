@@ -1,7 +1,8 @@
 // Command logis is a grimdark Wayland launcher and dmenu-compatible picker.
 //
-// This build knows only --version; the other runes arrive with their tickets
-// (feat/logis-go: daemon/client, dmenu, apps, servitor, CLI surface).
+// This build knows --version, --check-config [--config PATH] and daemon; the
+// other runes arrive with their tickets (feat/logis-go: dmenu, apps,
+// servitor, CLI surface).
 package main
 
 import (
@@ -30,15 +31,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == "daemon" {
 		return runDaemon(args[1:], stdout, stderr)
 	}
+	configPath, args, err := takeConfig(args)
+	if err != nil {
+		return fail(stderr, err.Error())
+	}
 	if len(args) == 0 {
-		return fail(stderr, "this cogitator has no app launcher yet. It knows only --version.")
+		return fail(stderr, "this cogitator has no app launcher yet. It knows only "+knownRunes+".")
 	}
 	for i, arg := range args {
 		// As in Rust, a second command is as unknown as a foreign rune.
-		if i > 0 || (arg != "--version" && arg != "-V") {
+		if i > 0 || (arg != "--version" && arg != "-V" && arg != checkConfigRune) {
 			return fail(stderr, fmt.Sprintf(
-				"the rune '%s' is unknown to this cogitator. It knows only --version.", arg))
+				"the rune '%s' is unknown to this cogitator. It knows only %s.", arg, knownRunes))
 		}
+	}
+	if args[0] == checkConfigRune {
+		return runCheckConfig(configPath, stdout, stderr)
 	}
 	if _, err := fmt.Fprintf(stdout, "logis %s\n", version.Version); err != nil {
 		return fail(stderr, "cannot write to stdout: "+err.Error())
