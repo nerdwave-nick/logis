@@ -426,3 +426,19 @@ func TestFixedPointRoundTrips(t *testing.T) {
 		t.Errorf("FixedFrom(1) = %d, FixedFrom(-0.5) = %d", FixedFrom(1), FixedFrom(-0.5))
 	}
 }
+
+func TestErrNamesABrokenConnectionOnly(t *testing.T) {
+	d, comp := connect(t, niriLike)
+	defer d.Close()
+	globals(t, d)
+	if err := d.Err(); err != nil {
+		t.Fatalf("a healthy connection reports %v", err)
+	}
+	comp.Close()
+	for d.Roundtrip() == nil {
+	}
+	var wlErr *Error
+	if err := d.Err(); !errors.As(err, &wlErr) {
+		t.Errorf("after the hang-up Err() = %v", err)
+	}
+}

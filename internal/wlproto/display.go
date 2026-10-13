@@ -233,3 +233,12 @@ func (d *Display) Close() {
 	_ = syscall.Close(d.wake)
 	d.mu.Unlock()
 }
+
+// Err is why the connection broke, or nil while it works: a broken
+// connection stays broken, also for whatever else (EGL) shares it.
+func (d *Display) Err() error {
+	if C.wl_display_get_error(d.c) == 0 {
+		return nil
+	}
+	return d.failure("connection")
+}
