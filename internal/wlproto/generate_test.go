@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/nerdwave-nick/logis/internal/wlgen"
 )
 
 // directive is one `//go:generate wayland-scanner MODE XML OUT` line.
@@ -28,7 +30,28 @@ func directives(t *testing.T) []directive {
 	return ds
 }
 
-// Every protocol XML has both a client header and its interface tables.
+// core is the protocol libwayland-client carries the C side of: scanner
+// glue for it would define its interface tables a second time.
+const core = "protocols/wayland.xml"
+
+// wrapperDirectives are the `//go:generate go run ../wlgen/cmd/wlgen XML OUT`
+// lines: XML → OUT.
+func wrapperDirectives(t *testing.T) map[string]string {
+	t.Helper()
+	src, err := os.ReadFile("generate.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	re := regexp.MustCompile(`(?m)^//go:generate go run \.\./wlgen/cmd/wlgen (\S+) (\S+)$`)
+	ds := map[string]string{}
+	for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+		ds[m[1]] = m[2]
+	}
+	return ds
+}
+
+// Every protocol XML has Go wrappers, and every one but the core protocol
+// has both a client header and its interface tables.
 func TestEveryProtocolIsGenerated(t *testing.T) {
 	xmls, err := filepath.Glob("protocols/*.xml")
 	if err != nil {
@@ -38,16 +61,51 @@ func TestEveryProtocolIsGenerated(t *testing.T) {
 		t.Fatal("no protocol XML files in protocols/")
 	}
 	ds := directives(t)
+	wrappers := wrapperDirectives(t)
 	for _, xml := range xmls {
 		name := strings.TrimSuffix(filepath.Base(xml), ".xml")
+		if want := strings.ReplaceAll(name, "-", "_") + "_gen.go"; wrappers[xml] != want {
+			t.Errorf("generate.go lacks //go:generate go run ../wlgen/cmd/wlgen %s %s", xml, want)
+		}
 		for _, want := range []directive{
 			{"client-header", xml, name + "-client-protocol.h"},
 			{"private-code", xml, name + "-protocol.c"},
 		} {
-			if !slices.Contains(ds, want) {
+			has := slices.Contains(ds, want)
+			if xml == core && has {
+				t.Errorf("generate.go runs wayland-scanner %s on the core protocol, "+
+					"whose tables libwayland-client already defines", want.mode)
+			}
+			if xml != core && !has {
 				t.Errorf("generate.go lacks //go:generate wayland-scanner %s %s %s",
 					want.mode, want.xml, want.out)
 			}
+		}
+	}
+}
+
+// The committed Go wrappers are what wlgen writes from the committed XML.
+// wlgen is ours, so unlike the scanner check this runs everywhere.
+func TestCommittedWrappersMatchWlgen(t *testing.T) {
+	for xml, out := range wrapperDirectives(t) {
+		data, err := os.ReadFile(xml)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := wlgen.Parse(data)
+		if err != nil {
+			t.Fatalf("%s: %v", xml, err)
+		}
+		want, err := wlgen.Generate(p, wlgen.OptionsFor(xml))
+		if err != nil {
+			t.Fatalf("%s: %v", xml, err)
+		}
+		committed, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(committed, want) {
+			t.Errorf("%s is stale: run go generate ./internal/wlproto", out)
 		}
 	}
 }

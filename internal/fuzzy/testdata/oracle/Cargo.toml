@@ -1,0 +1,15 @@
+# Differential oracle for internal/fuzzy: runs nucleo-matcher 0.3.1 (the
+# matcher Rust logis v1 used) over a deterministic corpus and writes the
+# results the Go tests compare with. Standalone: not part of the Rust crate.
+#   cargo run --release --offline > ../nucleo.json
+[package]
+name = "nucleo-oracle"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+nucleo-matcher = "=0.3.1"
+unicode-segmentation = "=1.13.3"
+
+[workspace]

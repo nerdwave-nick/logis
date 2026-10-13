@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sync"
 	"testing"
@@ -83,7 +84,9 @@ func TestTheBinaryLinksExactlyTheSpecLibraries(t *testing.T) {
 }
 
 // The protocol glue wayland-scanner generates (go generate) is compiled and
-// linked into the binary.
+// linked into the binary: the interface table of every interface of every
+// protocol in internal/wlproto/protocols but the core one, whose tables
+// libwayland-client defines.
 func TestTheBinaryCarriesTheScannerGlue(t *testing.T) {
 	bin, err := elf.Open(buildLogis(t))
 	if err != nil {
@@ -94,10 +97,33 @@ func TestTheBinaryCarriesTheScannerGlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defined := map[string]bool{}
 	for _, s := range symbols {
-		if s.Name == "wp_viewporter_interface" && s.Section != elf.SHN_UNDEF {
-			return
+		if s.Section != elf.SHN_UNDEF {
+			defined[s.Name] = true
 		}
 	}
-	t.Error("wp_viewporter_interface is not defined in the binary")
+	xmls, err := filepath.Glob("../../internal/wlproto/protocols/*.xml")
+	if err != nil || len(xmls) == 0 {
+		t.Fatalf("no protocol XML files: %v", err)
+	}
+	tables := 0
+	for _, path := range xmls {
+		if filepath.Base(path) == "wayland.xml" {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range regexp.MustCompile(`<interface name="(\w+)"`).FindAllStringSubmatch(string(data), -1) {
+			tables++
+			if !defined[m[1]+"_interface"] {
+				t.Errorf("%s_interface (%s) is not defined in the binary", m[1], filepath.Base(path))
+			}
+		}
+	}
+	if !defined["wp_viewporter_interface"] || tables < 2 {
+		t.Errorf("checked %d tables; wp_viewporter_interface defined: %v", tables, defined["wp_viewporter_interface"])
+	}
 }
