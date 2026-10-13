@@ -160,12 +160,12 @@ func TestCheckNamesTheSoundConfigAndItsTheme(t *testing.T) {
 
 func TestCheckWithoutAFileAcceptsTheDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
-	verdict, err := Check(Source{path: path}, FindTheme)
+	verdict, err := Check(Source{path: path}, soundTheme)
 	want := "no config at " + path + "; the defaults stand; the theme 'forge-crimson-brass' is sound"
 	if err != nil || verdict != want {
 		t.Errorf("%q %v", verdict, err)
 	}
-	verdict, err = Check(Source{}, FindTheme)
+	verdict, err = Check(Source{}, soundTheme)
 	want = "no config to be found (neither XDG_CONFIG_HOME nor HOME is set); the defaults stand; " +
 		"the theme 'forge-crimson-brass' is sound"
 	if err != nil || verdict != want {
@@ -176,37 +176,17 @@ func TestCheckWithoutAFileAcceptsTheDefaults(t *testing.T) {
 func TestCheckReportsAHereticalConfigOrTheme(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
 	write(t, path, `{"thme": 1}`)
-	if _, err := Check(NewSource(path), FindTheme); err == nil ||
+	if _, err := Check(NewSource(path), soundTheme); err == nil ||
 		!strings.HasPrefix(err.Error(), "the config is heretical: "+path+":1:7: unknown field") {
 		t.Errorf("%v", err)
 	}
 	write(t, path, `{"theme": "purple"}`)
-	_, err := Check(NewSource(path), FindTheme)
-	themes := filepath.Join(filepath.Dir(path), "themes")
-	want := "the theme is heretical: theme 'purple': no such theme is bundled " +
-		"(forge-crimson-brass, cogitator-phosphor) nor in " + themes
+	_, err := Check(NewSource(path), func(dir, name string) error {
+		return errors.New("theme '" + name + "': no such theme is bundled")
+	})
+	want := "the theme is heretical: theme 'purple': no such theme is bundled"
 	if err == nil || err.Error() != want {
 		t.Errorf("%v", err)
-	}
-}
-
-func TestFindThemeLooksBesideTheConfigThenAmongTheBundled(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "themes")
-	write(t, filepath.Join(dir, "mine.jsonc"), "{}")
-	for _, name := range []string{"mine", "forge-crimson-brass", "cogitator-phosphor"} {
-		if err := FindTheme(dir, name); err != nil {
-			t.Errorf("%s: %v", name, err)
-		}
-	}
-	if err := FindTheme("", "mine"); err == nil ||
-		err.Error() != "theme 'mine': no such theme is bundled (forge-crimson-brass, cogitator-phosphor)" {
-		t.Errorf("%v", err)
-	}
-	if err := os.Mkdir(filepath.Join(dir, "odd.jsonc"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := FindTheme(dir, "odd"); err == nil || !strings.HasPrefix(err.Error(), filepath.Join(dir, "odd.jsonc")+": ") {
-		t.Errorf("an unreadable theme file: %v", err)
 	}
 }
 
@@ -219,3 +199,6 @@ func TestOnlyANamedConfigIsHandedToADaemonAClientStarts(t *testing.T) {
 		t.Errorf("the default is the daemon's own: %q", args)
 	}
 }
+
+// soundTheme stands for the theme engine's check: every theme is sound.
+func soundTheme(string, string) error { return nil }
