@@ -2,6 +2,7 @@ package scene_test
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/icons"
@@ -22,9 +23,9 @@ import (
 // 2.0 in tests/goldens/themes/<theme>/, stored with straight alpha
 // (rendertest.Straight). Deterministic: the frame's time is frozen (the
 // glow at full strength, the highlight at the top, grain and flicker at
-// time 0), fonts are pinned. Columns are estimated from the rows in view
-// until measured columns arrive (feat/logis-go G20); Rust's goldens have
-// measured ones, so where a case has tab columns the Go golden stands in.
+// time 0), fonts are pinned. Columns are measured with the renderer's
+// fonts at each scale, afresh per theme and scale, as Rust's check_with
+// does.
 
 var goldenScales = []scale.Scale{scale.One, scale.From120ths(156), scale.FromInteger(2)}
 
@@ -57,6 +58,8 @@ func checkThemes(t *testing.T, name string, view *list.View, o list.Options, toa
 			t.Fatal(err)
 		}
 		for _, s := range goldenScales {
+			l := l
+			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
 			img, err := h.Offscreen(make(h, s, &l, logical, scene.Style{Theme: &th}), logical, s)
 			if err != nil {
 				t.Fatal(err)
@@ -64,6 +67,11 @@ func checkThemes(t *testing.T, name string, view *list.View, o list.Options, toa
 			g.Assert(t, "themes/"+th.Name, name+"@"+rendertest.ScaleSuffix(s), img, rendertest.Offscreen)
 		}
 	}
+}
+
+// measureAt measures with h's fonts at s (Rust Renderer::measure).
+func measureAt(h *render.Headless, s scale.Scale) scene.Measure {
+	return scene.MeasureFunc(func(t render.Text) (float32, bool) { return h.MeasureText(t, s) })
 }
 
 func u32(n uint32) *uint32 { return &n }
@@ -122,12 +130,21 @@ func TestGoldenAProviderStageWithGlyphsBadgesAPendingRowAndAToast(t *testing.T) 
 }
 
 // The theme's own window: no size asked, as servitor mode and the app
-// launcher open; the rows of the design canvas.
+// launcher open; the rows of the design canvas. Its Go golden stands in for
+// Rust's because of two pinned divergences (row order, emphasis face; see
+// TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences).
 func TestGoldenTheThemesWindowWithTheRitesOfTheCanvas(t *testing.T) {
 	o := list.DefaultOptions()
 	o.Counter = true
 	v := list.NewView(o)
-	v.Push([]list.Entry{
+	v.Push(windowRows())
+	v.Apply(input.Insert("o"))
+	checkThemes(t, "window", v, o, nil, plainScene)
+}
+
+// windowRows are the rows of the theme's window case.
+func windowRows() []list.Entry {
+	return []list.Entry{
 		decorated("do-not-disturb\ton\tSilence the vox of the desktop", "", nil, false),
 		decorated("keyboard-layout\tus\tThe tongue of the keys", "", nil, false),
 		decorated("mouse-autohide-toggle\toff\tVeil the cursor when idle", "", nil, false),
@@ -135,9 +152,98 @@ func TestGoldenTheThemesWindowWithTheRitesOfTheCanvas(t *testing.T) {
 		decorated("vox\tauto\tWho hears the machine", "", []string{"edict"}, false),
 		decorated("night-light\toff\tDim the light of the screens", "", nil, false),
 		decorated("theme\tforge\tThe visage of the machine", "", nil, false),
-	})
-	v.Apply(input.Insert("o"))
-	checkThemes(t, "window", v, o, nil, plainScene)
+	}
+}
+
+// The window case differs from Rust's golden by two pinned divergences
+// only (feat/logis-go G20), not by its measured columns: drawn with
+// Rust's row order and cosmic-text's word-wide emphasis face imitated, it
+// equals Rust's golden but for anti-aliasing.
+//   - Tie order: nucleo scores "power-profile\t·\t…" 16 for "o" where its
+//     ASCII twin scores 36: its non-ASCII scan carries the class of the
+//     last match, not of the character before (internal/fuzzy divergence
+//     (a), testdata/divergences.json). logis scores it 36, so it keeps its
+//     input place among the rows tied at 36; Rust ranks it below them.
+//   - Emphasis face: cosmic-text 0.19 shapes a simple ASCII word in the
+//     attributes of its first byte when every span set on it agrees with
+//     them, and spans equal to the line's defaults are never set; so a
+//     match at a word's start sets the whole word in the match face ("of",
+//     "off", "on" semibold in forge; the colour stays per letter). logis
+//     sets only the matched letters apart, as Rust's rows.rs describes
+//     (internal/text divergences).
+func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T) {
+	h := rendertest.Headless(t)
+	g := rendertest.CheckedIn(t)
+	g.Alpha = rendertest.Straight
+	o := list.DefaultOptions()
+	o.Counter = true
+	for _, themeName := range theme.Bundled() {
+		th, err := theme.Themes{}.Load(themeName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logical, rows := scene.Fit(o, &th)
+		v := list.NewView(o)
+		v.SetLines(rows)
+		v.Push(windowRows())
+		v.Apply(input.Insert("o"))
+		l := v.Look()
+		var order []string
+		for _, r := range l.Rows {
+			order = append(order, strings.SplitN(r.Text, "\t", 2)[0])
+		}
+		if want := "do-not-disturb keyboard-layout mouse-autohide-toggle power-profile night-light theme vox"; strings.Join(order, " ") != want {
+			t.Fatalf("rows %v, want %s", order, want)
+		}
+		// Rust's order: the power-profile row below night-light and theme.
+		l.Rows = append(l.Rows[:3:3], l.Rows[4], l.Rows[5], l.Rows[3], l.Rows[6])
+		h.SetFonts(rendertest.PinnedFonts(t))
+		if err := h.SetFaces(th.Faces); err != nil {
+			t.Fatal(err)
+		}
+		for _, s := range goldenScales {
+			l := l
+			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
+			sc := scene.Draw(&l, logical, scene.Style{Theme: &th})
+			for i := range sc.Texts {
+				if !sc.Texts[i].UnderlineEmphasis {
+					wordWide(&sc.Texts[i])
+				}
+			}
+			img, err := h.Offscreen(sc, logical, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rust, err := rendertest.ReadPNG(g.RustPath("themes/"+th.Name, "window@"+rendertest.ScaleSuffix(s)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rust = rendertest.Premultiply(rust)
+			c, err := rendertest.Compare(img, rust, rendertest.Offscreen.Channel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("%s @%s: %v", th.Name, rendertest.ScaleSuffix(s), c)
+			if float64(c.Outliers) > 0.003*float64(c.Total) {
+				t.Errorf("%s @%s: beyond anti-aliasing: %v", th.Name, rendertest.ScaleSuffix(s), c)
+			}
+		}
+	}
+}
+
+// wordWide imitates cosmic-text's fast path: an emphasis that starts an
+// ASCII word takes the face to the word's end (its colour spans stay).
+func wordWide(t *render.Text) {
+	for i, e := range t.Emphasis {
+		if e.Start > 0 && t.Text[e.Start-1] != ' ' {
+			continue
+		}
+		end := e.End
+		for end < len(t.Text) && t.Text[end] != ' ' {
+			end++
+		}
+		t.Emphasis[i].End = end
+	}
 }
 
 // The app launcher's list: icons from the fixture icon theme in the icon
@@ -173,4 +279,57 @@ func TestGoldenAnAppListDrawsItsIcons(t *testing.T) {
 		}
 		return sc
 	})
+}
+
+// The columns are measured with each theme's row font at each scale: the
+// first is as wide as the widest name in view (21 characters of a
+// monospace face, about 0.6 em each), the second as "auto", and every
+// row's columns start at the same place (Rust
+// columns_are_measured_with_the_row_font).
+func TestGoldenColumnsAreMeasuredWithTheRowFont(t *testing.T) {
+	h := rendertest.Headless(t)
+	for _, themeName := range theme.Bundled() {
+		th, err := theme.Themes{}.Load(themeName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.SetFonts(rendertest.PinnedFonts(t))
+		if err := h.SetFaces(th.Faces); err != nil {
+			t.Fatal(err)
+		}
+		for _, s := range goldenScales {
+			v := list.NewView(list.DefaultOptions())
+			v.Push(entries("mouse-autohide-toggle\toff\tVeil the cursor when idle", "vox\tauto\tWho hears the machine"))
+			l := v.Look()
+			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
+			em := th.Row.Font.Size
+			if len(l.Columns) != 2 {
+				t.Fatalf("%s: two measured columns: %v", th.Name, l.Columns)
+			}
+			name, aspect := l.Columns[0], l.Columns[1]
+			if name < 21*0.5*em || name >= 21*0.7*em {
+				t.Errorf("%s @%v: name column %v", th.Name, s, name)
+			}
+			if d := aspect - name*4/21; d <= -2 || d >= 2 {
+				t.Errorf("%s @%v: aspect %v, name %v", th.Name, s, aspect, name)
+			}
+			logical, _ := scene.Fit(list.DefaultOptions(), &th)
+			sc := scene.Draw(&l, logical, scene.Style{Theme: &th})
+			x := func(words string) float32 {
+				for _, t := range sc.Texts {
+					if t.Text == words {
+						return t.Origin[0]
+					}
+				}
+				t.Fatalf("%q not drawn", words)
+				return 0
+			}
+			if x("off") != x("auto") || x("Veil the cursor when idle") != x("Who hears the machine") {
+				t.Errorf("%s @%v: columns do not line up", th.Name, s)
+			}
+			if x("off") < x("mouse-autohide-toggle")+name {
+				t.Errorf("%s @%v: off at %v, before the name's end %v", th.Name, s, x("off"), x("mouse-autohide-toggle")+name)
+			}
+		}
+	}
 }
