@@ -38,18 +38,18 @@ func (r *rig) wantAnswers(t *testing.T, want ...daemon.Answer) {
 	}
 }
 
-func lines(n uint32) *uint32 { return &n }
+func u32(n uint32) *uint32 { return &n }
 
 // Ported from Rust a_later_stage_keeps_the_rows_the_window_has_room_for.
 func TestALaterStageKeepsTheRowsTheWindowHasRoomFor(t *testing.T) {
 	r := newRig()
 	first := list.DefaultOptions()
-	first.Lines, first.Width = lines(6), lines(44)
+	first.Lines, first.Width = u32(6), u32(44)
 	r.showProvider(1, first, list.Entry{Text: "oil"})
 	r.act(input.ActAccept)
 	r.wantAnswers(t, daemon.Answer{Kind: daemon.AnswerItem})
 	next := list.DefaultOptions()
-	next.Lines, next.Prompt = lines(15), "aspect: "
+	next.Lines, next.Prompt = u32(15), "aspect: "
 	r.events = nil
 	r.ui.step(1, provider.Step{Kind: provider.StepStage, Options: next, Entries: entries("on", "off")})
 	look := r.ui.look()

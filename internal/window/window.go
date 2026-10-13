@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/egl"
+	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
@@ -44,6 +45,7 @@ type Window struct {
 	fractional *wlproto.WpFractionalScaleManagerV1
 	viewporter *wlproto.WpViewporter
 	seat       *seat
+	clipboard  *clipboard
 	gpu        gpu
 	panel      *panel
 	log        io.Writer
@@ -77,15 +79,21 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.fractional, _ = c.bind(wlproto.WpFractionalScaleManagerV1Interface, 1).(*wlproto.WpFractionalScaleManagerV1)
 	w.viewporter, _ = c.bind(wlproto.WpViewporterInterface, 1).(*wlproto.WpViewporter)
 	w.seat = bindSeat(c, w.shows)
-	c.removed = w.seat.removed
+	w.seat.pointer.shapes, _ = w.Bind(wlproto.WpCursorShapeManagerV1Interface, 1).(*wlproto.WpCursorShapeManagerV1)
+	w.clipboard = bindClipboard(w, w.seat.seat)
+	c.removed = func(g Global) {
+		if w.seat.removed(g) {
+			w.clipboard.releaseDevices()
+		}
+	}
 	if w.repeat, err = newRepeatTimer(); err != nil {
-		w.seat.release()
+		w.releaseInput()
 		c.display.Close()
 		return nil, err
 	}
 	c.display.Watch(w.repeat.fd, w.repeatDue)
 	if w.gpu, err = open(c.display.Ptr()); err != nil {
-		w.seat.release()
+		w.releaseInput()
 		c.display.Close()
 		w.repeat.close()
 		return nil, err
@@ -108,6 +116,19 @@ func (w *Window) SetKeyboard(k Keyboard) {
 	w.armRepeat()
 }
 
+// SetSink sends what the pointer does over the visible panel and the text
+// of each paste (as an Insert edit) to sink, on the window's goroutine.
+// Sharing the keyboard's sink keeps their order.
+func (w *Window) SetSink(sink func(input.Action)) {
+	w.seat.pointer.sink = sink
+	w.clipboard.sink = sink
+}
+
+// Paste starts reading selection s's text, replacing a paste still being
+// read; the text reaches the sink once its owner has written it all.
+// Hiding or showing a panel drops it.
+func (w *Window) Paste(s input.Selection) { w.clipboard.start(s) }
+
 // Seat is the seat the window listens to (the first one offered), or nil.
 func (w *Window) Seat() *wlproto.WlSeat { return w.seat.seat }
 
@@ -127,7 +148,7 @@ func (w *Window) Show(size scale.Size, paint Painter) error {
 		return err
 	}
 	w.panel = p
-	w.resetKeyboard()
+	w.resetInput()
 	return w.flush()
 }
 
@@ -138,7 +159,7 @@ func (w *Window) Hide() {
 	if w.panel != nil {
 		w.panel.destroy()
 		w.panel = nil
-		w.resetKeyboard()
+		w.resetInput()
 		trace.Emit("faded")
 	}
 }
@@ -249,9 +270,28 @@ func (w *Window) Close() {
 	}
 	w.closed = true
 	w.Hide()
-	w.seat.release()
+	w.releaseInput()
 	w.gpu.close()
 	w.conn.display.Close()
 	w.repeat.close()
 	runtime.UnlockOSThread()
+}
+
+// resetInput: nothing typed, pointed at or pasted carries over to another
+// panel.
+func (w *Window) resetInput() {
+	w.resetKeyboard()
+	w.seat.pointer.reset()
+	w.clipboard.cancel()
+}
+
+// releaseInput releases the selection devices, the seat with its keyboard
+// and pointer, and the cursor-shape manager.
+func (w *Window) releaseInput() {
+	w.clipboard.close()
+	w.seat.release()
+	if shapes := w.seat.pointer.shapes; shapes != nil {
+		shapes.Destroy()
+		w.seat.pointer.shapes = nil
+	}
 }

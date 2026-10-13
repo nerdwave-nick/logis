@@ -39,7 +39,8 @@
 //     beside Keyboard.Enter and Keyboard.Leave in the window's seat.
 //
 // Nothing here assumes keys are the only source of edits, so adding the
-// protocol adds a feeder, not a rewrite. Paste (G16) is such a feeder.
+// protocol adds a feeder, not a rewrite. Paste is such a feeder: the
+// window reads the selection and hands its text back as an Insert edit.
 package input
 
 // Kind is what an Action asks of the visible session.
@@ -59,6 +60,13 @@ const (
 	Select
 	// EditQuery changes the query by Edit.
 	EditQuery
+	// Paste inserts the text of Action.Selection at the cursor (Ctrl+V,
+	// Shift+Insert, the middle button). The window reads it and hands it
+	// back as an Insert edit; sessions never see this action.
+	Paste
+	// PointAt: the pointer moved, clicked or scrolled over the window
+	// (Action.Point).
+	PointAt
 )
 
 // Step is a direction for the selection.
@@ -71,11 +79,14 @@ const (
 	Next
 )
 
-// Action is what a key (or focus loss) asks of the visible session.
+// Action is what a key, the pointer (or focus loss) asks of the visible
+// session.
 type Action struct {
-	Kind Kind
-	Step Step // for Select
-	Edit Edit // for EditQuery
+	Kind      Kind
+	Step      Step      // for Select
+	Edit      Edit      // for EditQuery
+	Selection Selection // for Paste
+	Point     Point     // for PointAt
 }
 
 // Actions as values, for bindings and tests.

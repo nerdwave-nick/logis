@@ -30,6 +30,9 @@ type fakeSurface struct {
 	fail     error
 	shows    int
 	released bool
+	// unconfigured: the compositor has not sized the panel yet.
+	unconfigured bool
+	pastes       []input.Selection
 }
 
 func (s *fakeSurface) Show(size scale.Size, paint window.Painter) error {
@@ -44,6 +47,10 @@ func (s *fakeSurface) Hide()            { s.shown = false }
 func (s *fakeSurface) ReleaseKeyboard() { s.released = true }
 func (s *fakeSurface) Visible() bool    { return s.shown }
 func (s *fakeSurface) RequestRedraw()   { s.redraws++ }
+func (s *fakeSurface) Size() (scale.Size, bool) {
+	return s.size, s.shown && !s.unconfigured
+}
+func (s *fakeSurface) Paste(sel input.Selection) { s.pastes = append(s.pastes, sel) }
 
 type answered struct {
 	id     daemon.SessionID
