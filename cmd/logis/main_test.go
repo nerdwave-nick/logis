@@ -50,7 +50,7 @@ func TestUnknownRunesAreNamedAndExit2(t *testing.T) {
 				t.Errorf("stdout %q, want empty", stdout.String())
 			}
 			want := "logis: the rune '" + tc.unknown + "' is unknown to this cogitator. " +
-				"It knows only --version.\n"
+				"It knows only " + knownRunes + ".\n"
 			if got := stderr.String(); got != want {
 				t.Errorf("stderr %q, want %q", got, want)
 			}
@@ -71,7 +71,7 @@ func TestNoRunesFailUntilTheAppLauncherExists(t *testing.T) {
 	if stdout.Len() != 0 {
 		t.Errorf("stdout %q, want empty", stdout.String())
 	}
-	want := "logis: this cogitator has no app launcher yet. It knows only --version.\n"
+	want := "logis: this cogitator has no app launcher yet. It knows only " + knownRunes + ".\n"
 	if got := stderr.String(); got != want {
 		t.Errorf("stderr %q, want %q", got, want)
 	}

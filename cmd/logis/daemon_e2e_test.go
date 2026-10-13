@@ -39,15 +39,17 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	// A daemon a client starts inherits the test's environment.
+	// A daemon a client starts inherits the test's environment: a scratch
+	// config home, never the real one.
 	t.Setenv("LOGIS_RESOLVER", "scripted")
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	return &rig{t, dir, bin, map[int]bool{}}
 }
 
 func (r *rig) socket() string { return filepath.Join(r.dir, protocol.SocketName) }
 
 // env is this rig's environment: no inherited socket activation, no
-// compositor, the scratch runtime directory.
+// compositor, the scratch runtime directory and config home.
 func (r *rig) env(extra ...string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
@@ -58,7 +60,8 @@ func (r *rig) env(extra ...string) []string {
 			env = append(env, kv)
 		}
 	}
-	return append(append(env, "XDG_RUNTIME_DIR="+r.dir, "LOGIS_RESOLVER=scripted"), extra...)
+	return append(append(env, "XDG_RUNTIME_DIR="+r.dir, "LOGIS_RESOLVER=scripted",
+		"XDG_CONFIG_HOME="+filepath.Join(r.dir, "config")), extra...)
 }
 
 func (r *rig) logis(args ...string) *exec.Cmd {

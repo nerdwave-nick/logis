@@ -53,7 +53,7 @@ func TestTheDaemonRunesIncludeTheDebugPanel(t *testing.T) {
 	if code := run([]string{"daemon", "--heresy"}, &stdout, &stderr); code != 2 {
 		t.Errorf("exit %d", code)
 	}
-	if !strings.Contains(stderr.String(), "daemon [--idle-timeout SECONDS] [--detach] [--debug-panel]") {
+	if !strings.Contains(stderr.String(), "daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel]") {
 		t.Errorf("stderr %q", stderr.String())
 	}
 }
