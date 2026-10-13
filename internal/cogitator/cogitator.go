@@ -32,7 +32,8 @@ import (
 )
 
 // Resolver is the resolver the daemon holds; the window's goroutine does
-// the work. It is also a daemon.Configurer and a daemon.Toaster.
+// the work. It is also a daemon.Configurer, a daemon.Toaster and a
+// daemon.Activator.
 type Resolver struct {
 	mu    sync.Mutex
 	queue []func(*ui)
@@ -167,7 +168,7 @@ func (r *Resolver) drain() []func(*ui) {
 	return q
 }
 
-// Accepts dmenu sessions.
+// Accepts dmenu, provider and app sessions.
 func (r *Resolver) Accepts(m protocol.Mode) error { return accepts(m) }
 
 // Show shows a session's first stage.
@@ -196,3 +197,9 @@ func (r *Resolver) Configure(c config.Config) { r.post(func(u *ui) { u.configure
 
 // Toast shows a notice over the visible list.
 func (r *Resolver) Toast(t daemon.Toast) { r.post(func(u *ui) { u.toast(t) }) }
+
+// Activation asks the compositor for a token for the shown session's
+// launch of appID; it reaches the daemon through the Host.
+func (r *Resolver) Activation(id daemon.SessionID, appID string) {
+	r.post(func(u *ui) { u.activation(id, appID) })
+}
