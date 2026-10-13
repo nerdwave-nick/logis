@@ -114,6 +114,11 @@ func (u *ui) present(size scale.Size, sh *shown) error {
 func (u *ui) painter(sh *shown) window.FramePainter {
 	return func(f window.Frame) window.Drawing {
 		look := u.lookOf(sh)
+		measure := scene.NoMeasure
+		if u.measure != nil {
+			measure = u.measure(f.Geometry)
+		}
+		sh.columns.Fit(&look, u.theme, measure)
 		target, selected := scene.BandTop(&look, f.Logical, u.theme)
 		band, banded, gliding := sh.glide.Toward(target, selected, f.At, f.Interval)
 		if u.draw != nil {

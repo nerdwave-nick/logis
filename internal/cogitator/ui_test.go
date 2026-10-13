@@ -33,6 +33,9 @@ type fakeSurface struct {
 	// unconfigured: the compositor has not sized the panel yet.
 	unconfigured bool
 	pastes       []input.Selection
+	// asked are the apps tokens were asked for; token answers them.
+	asked []string
+	token string
 }
 
 func (s *fakeSurface) Show(size scale.Size, paint window.Painter) error {
@@ -51,6 +54,10 @@ func (s *fakeSurface) Size() (scale.Size, bool) {
 	return s.size, s.shown && !s.unconfigured
 }
 func (s *fakeSurface) Paste(sel input.Selection) { s.pastes = append(s.pastes, sel) }
+func (s *fakeSurface) RequestToken(appID string, done func(string)) {
+	s.asked = append(s.asked, appID)
+	done(s.token)
+}
 
 type answered struct {
 	id     daemon.SessionID
@@ -60,6 +67,7 @@ type answered struct {
 type fakeHost struct {
 	answers []answered
 	fails   []string
+	tokens  []string
 }
 
 func (h *fakeHost) Answer(id daemon.SessionID, a daemon.Answer) {
@@ -67,6 +75,9 @@ func (h *fakeHost) Answer(id daemon.SessionID, a daemon.Answer) {
 }
 func (h *fakeHost) Fail(id daemon.SessionID, message string) { h.fails = append(h.fails, message) }
 func (h *fakeHost) Exit(int, string)                         {}
+func (h *fakeHost) Activated(id daemon.SessionID, token string) {
+	h.tokens = append(h.tokens, fmt.Sprintf("%d %s", id, token))
+}
 
 type fakeKeyboard struct{ policy config.FocusLoss }
 
@@ -316,16 +327,14 @@ func TestTheConfigsFocusLossReachesTheKeyboard(t *testing.T) {
 	}
 }
 
-func TestDmenuAndProviderSessionsAreServed(t *testing.T) {
-	for _, m := range []protocol.Mode{protocol.ModeDmenu, protocol.ModeProvider} {
+func TestDmenuProviderAndAppSessionsAreServed(t *testing.T) {
+	for _, m := range []protocol.Mode{protocol.ModeDmenu, protocol.ModeProvider, protocol.ModeApps} {
 		if err := accepts(m); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, m := range []protocol.Mode{protocol.ModeApps, protocol.ModeServitor} {
-		if err := accepts(m); err == nil {
-			t.Fatalf("%s accepted", m)
-		}
+	if err := accepts(protocol.ModeServitor); err == nil {
+		t.Fatal("servitor accepted")
 	}
 	if err := accepts(protocol.ModeServitor); !strings.Contains(err.Error(), "logis --servitor") {
 		t.Fatal(err)

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 // hostLog records what reaches a Host.
 type hostLog struct {
 	answers []answered
+	tokens  []string
 }
 
 type answered struct {
@@ -22,6 +24,9 @@ type answered struct {
 func (h *hostLog) Answer(id SessionID, a Answer) { h.answers = append(h.answers, answered{id, a}) }
 func (h *hostLog) Fail(SessionID, string)        {}
 func (h *hostLog) Exit(int, string)              {}
+func (h *hostLog) Activated(id SessionID, token string) {
+	h.tokens = append(h.tokens, fmt.Sprintf("%d %s", id, token))
+}
 
 func (h *hostLog) take() []answered {
 	a := h.answers
@@ -87,15 +92,29 @@ func TestAHiddenSessionIsNeverAnswered(t *testing.T) {
 	wantAnswers(t, h)
 }
 
-// Ported from servitor_sessions_are_left_open: servitor sessions, and app
-// sessions until the app launcher brings answers for them.
-func TestServitorAndAppSessionsAreLeftOpen(t *testing.T) {
+// Ported from servitor_sessions_are_left_open.
+func TestServitorSessionsAreLeftOpen(t *testing.T) {
 	h := &hostLog{}
 	r := NewScripted(h)
-	for _, mode := range []protocol.Mode{protocol.ModeServitor, protocol.ModeApps} {
-		r.Show(Session{ID: 2, Mode: mode, Entries: entries(">a")})
-		r.End(2)
-		wantAnswers(t, h)
+	r.Show(Session{ID: 2, Mode: protocol.ModeServitor, Entries: entries(">a")})
+	r.End(2)
+	wantAnswers(t, h)
+}
+
+// App sessions are answered as provider stages are (an app whose name
+// starts with the mark), and get a stand-in token at once (Rust Scripted).
+func TestAnAppSessionIsAnsweredAndGetsAStandInToken(t *testing.T) {
+	h := &hostLog{}
+	r := NewScripted(h)
+	r.Show(Session{ID: 2, Mode: protocol.ModeApps, Options: list.DefaultOptions()})
+	wantAnswers(t, h) // the census is still being taken
+	o := list.DefaultOptions()
+	o.OnlyMatch = true
+	r.Step(2, provider.Step{Kind: provider.StepStage, Options: o, Entries: entries("Oil", ">Rite")})
+	wantAnswers(t, h, answered{2, Answer{Kind: AnswerItem, Index: 1}})
+	r.Activation(2, "forge-rite")
+	if !reflect.DeepEqual(h.tokens, []string{"2 scripted-2"}) {
+		t.Errorf("tokens %q", h.tokens)
 	}
 }
 

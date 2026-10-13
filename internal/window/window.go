@@ -46,6 +46,7 @@ type Window struct {
 	viewporter *wlproto.WpViewporter
 	seat       *seat
 	clipboard  *clipboard
+	activation activation
 	gpu        gpu
 	// panel is the visible panel; closing one fading out; retired one cut
 	// short by a Show, which goes once the new panel's first frame is out
@@ -97,6 +98,8 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.seat = bindSeat(c, w.shows)
 	w.seat.pointer.shapes, _ = w.Bind(wlproto.WpCursorShapeManagerV1Interface, 1).(*wlproto.WpCursorShapeManagerV1)
 	w.clipboard = bindClipboard(w, w.seat.seat)
+	w.activation.manager, _ = w.Bind(wlproto.XdgActivationV1Interface, 1).(*wlproto.XdgActivationV1)
+	w.seat.pressed, w.seat.pointer.pressed = w.activation.press, w.activation.press
 	w.bindOptional()
 	c.removed = func(g Global) {
 		if w.seat.removed(g) {
@@ -263,8 +266,9 @@ func (w *Window) resetInput() {
 }
 
 // releaseInput releases the selection devices, the seat with its keyboard
-// and pointer, and the cursor-shape manager.
+// and pointer, the cursor-shape manager and the activation global.
 func (w *Window) releaseInput() {
+	w.activation.release()
 	w.clipboard.close()
 	w.seat.release()
 	if shapes := w.seat.pointer.shapes; shapes != nil {

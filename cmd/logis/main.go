@@ -1,9 +1,10 @@
 // Command logis is a grimdark Wayland launcher and dmenu-compatible picker.
 //
-// This build knows --version, --dmenu/--dmenu0 with fuzzel's list runes,
-// --provider PROGRAM [ARG]..., --check-config [--config PATH] and daemon;
-// the other runes arrive with their tickets (feat/logis-go: apps,
-// servitor, CLI surface).
+// This build knows plain logis and --apps (the app launcher), --version,
+// --dmenu/--dmenu0 with fuzzel's list runes, --provider PROGRAM [ARG]...,
+// --servitor (and its provider, `provide servitor`), --check-config
+// [--config PATH] and daemon; the other runes arrive with their tickets
+// (feat/logis-go: CLI surface).
 package main
 
 import (
@@ -12,7 +13,6 @@ import (
 	"os"
 
 	"github.com/nerdwave-nick/logis/internal/version"
-	"github.com/nerdwave-nick/logis/internal/window"
 )
 
 // exitError is the exit status for every error (caller contract): the message
@@ -33,6 +33,9 @@ func runWith(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == "daemon" {
 		return runDaemon(args[1:], stdout, stderr)
 	}
+	if len(args) > 0 && args[0] == "provide" {
+		return runProvide(args[1:], stdin, stdout, stderr)
+	}
 	c, err := parse(args)
 	if err != nil {
 		return fail(stderr, err.Error())
@@ -42,6 +45,8 @@ func runWith(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runDmenu(c.config, c.dmenu, stdin, stdout, stderr)
 	case providerCommand:
 		return runProvider(c.config, c.argv, stderr)
+	case servitorCommand:
+		return runServitor(c.config, stderr)
 	case checkConfigCommand:
 		return runCheckConfig(c.config, stdout, stderr)
 	case versionCommand:
@@ -50,12 +55,8 @@ func runWith(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	// Plain logis is the app launcher; a session that cannot host it is
-	// named first (caller contract: exit 2, the reason on stderr).
-	if err := window.Preflight(); err != nil {
-		return fail(stderr, err.Error())
-	}
-	return fail(stderr, "this cogitator has no app launcher yet. It knows only "+knownRunes+".")
+	// Plain logis is the app launcher, as in fuzzel.
+	return runApps(c.config, stderr)
 }
 
 // eofReader is an empty stdin.

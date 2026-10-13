@@ -33,6 +33,8 @@ type pointer struct {
 	shows  func(*wlproto.WlSurface) bool
 	// sink receives the pointer's actions (nil: they are dropped).
 	sink func(input.Action)
+	// pressed is told the serial of each button press (xdg-activation's).
+	pressed func(serial uint32)
 }
 
 // capability: the seat gained or lost its pointer.
@@ -127,8 +129,11 @@ func (p *pointer) listen(wl *wlproto.WlPointer) {
 			p.point(moved)
 		}
 	}
-	wl.OnButton = func(_, _, button, state uint32) {
+	wl.OnButton = func(serial, _, button, state uint32) {
 		pressed := state == wlproto.WlPointerButtonStatePressed
+		if pressed && p.pressed != nil {
+			p.pressed(serial)
+		}
 		if _, _, over := p.model.Position(); over {
 			word := "released"
 			if pressed {

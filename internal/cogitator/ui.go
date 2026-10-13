@@ -50,6 +50,9 @@ type surface interface {
 	Size() (scale.Size, bool)
 	// Paste reads a selection; its text comes back as an Insert edit.
 	Paste(input.Selection)
+	// RequestToken asks for an xdg-activation token for appID; done gets
+	// it ("" for none).
+	RequestToken(appID string, done func(token string))
 }
 
 // focusPolicy is the keyboard's focus-loss policy.
@@ -63,6 +66,9 @@ type shown struct {
 	rows uint32
 	// count is how many items it has had.
 	count int
+	// columns are its list's columns as they grew; a new list (a
+	// provider's next stage) starts them afresh.
+	columns scene.Columns
 	// toast is a notice over the list: from the daemon, or the provider's.
 	toast *list.Notice
 	// asked are the first stage's lines and width (nil: the theme's): the
@@ -91,6 +97,9 @@ type ui struct {
 	draw func(sc *render.Scene, g window.Geometry)
 	// icons are a frame's icons (nil: none, rows show their glyphs).
 	icons func(g window.Geometry) scene.Icons
+	// measure measures a frame's text at its scale (nil: nothing is
+	// measured, columns are estimated).
+	measure func(g window.Geometry) scene.Measure
 	// iconTheme loads the icon theme of that name (nil: none is loaded);
 	// iconThemeName is the one loaded.
 	iconTheme     func(name string)
@@ -113,11 +122,11 @@ func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui 
 	return &ui{host: host, surf: surf, theme: th, keyboard: kb, emit: trace.Emit, now: time.Now}
 }
 
-// accepts says which sessions the window serves: dmenu and provider
-// sessions; apps arrive with their ticket (feat/logis-go G15).
+// accepts says which sessions the window serves: dmenu, provider and app
+// sessions.
 func accepts(m protocol.Mode) error {
 	switch m {
-	case protocol.ModeDmenu, protocol.ModeProvider:
+	case protocol.ModeDmenu, protocol.ModeProvider, protocol.ModeApps:
 		return nil
 	case protocol.ModeServitor:
 		return errors.New("the cogitator serves servitor mode as a provider session " +

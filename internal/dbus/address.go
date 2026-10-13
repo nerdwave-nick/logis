@@ -63,11 +63,11 @@ func isHex(c byte) bool {
 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
 
-// dialName is the name net dials for a socket.
+// dialName is the name unixsock dials for a socket.
 func (s Socket) dialName() string {
 	if s.Abstract {
-		// Go's net reads a leading NUL (or @) as Linux's abstract namespace.
-		return "\x00" + s.Name
+		// Package syscall reads a leading @ as Linux's abstract namespace.
+		return "@" + s.Name
 	}
 	return s.Name
 }

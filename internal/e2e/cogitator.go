@@ -18,7 +18,7 @@ import (
 
 // Cogitator is a logis daemon in a test compositor, traced, with a virtual
 // keyboard to work its window, and `logis --dmenu` / `--provider` /
-// `--apps` clients with piped stdout (Rust tests/support/e2e/cogitator.rs).
+// `--servitor` / `--apps` clients with piped stdout (Rust tests/support/e2e/cogitator.rs).
 // The waits follow the daemon's session trace (`show <session>`, `items
 // <n>`, `query <JSON string>` …), which the daemon emits once it shows
 // sessions in its window (G11).
@@ -159,8 +159,21 @@ func (c *Cogitator) ProviderWith(env []string, argv ...string) *Client {
 	return c.clientWith(env, nil, false, append([]string{"--provider"}, argv...)...)
 }
 
+// ServitorWith starts `logis --servitor` with env added to the client's
+// environment, which servitor mode's provider runs with (PATH finds the
+// fake servitor).
+func (c *Cogitator) ServitorWith(env []string) *Client {
+	return c.clientWith(env, nil, false, "--servitor")
+}
+
 // Apps starts `logis --apps`.
 func (c *Cogitator) Apps() *Client { return c.client(nil, false, "--apps") }
+
+// ClientWith starts `logis args…` (plain logis without args) with env
+// added to the client's environment.
+func (c *Cogitator) ClientWith(env []string, args ...string) *Client {
+	return c.clientWith(env, nil, false, args...)
+}
 
 // CloseStdin closes the client's stdin (the end of a dmenu list).
 func (cl *Client) CloseStdin() {

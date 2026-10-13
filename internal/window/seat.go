@@ -29,6 +29,8 @@ type seat struct {
 	consumer Keyboard
 	shows    func(*wlproto.WlSurface) bool
 	pointer  pointer
+	// pressed is told the serial of each key press (xdg-activation's).
+	pressed func(serial uint32)
 }
 
 // bindSeat binds the first seat, if any, up to version 9 (the pointer's
@@ -90,6 +92,9 @@ func (s *seat) listen(k *wlproto.WlKeyboard) {
 	}
 	k.OnKey = func(serial, time, key, state uint32) {
 		trace.Emit("key %d %s", key, keyState(state))
+		if state == wlproto.WlKeyboardKeyStatePressed && s.pressed != nil {
+			s.pressed(serial)
+		}
 		if s.consumer != nil {
 			s.consumer.Key(serial, time, key, state)
 		}
