@@ -12,6 +12,19 @@ import "sort"
 
 //go:generate go run gen.go
 
+// ascii caches the ASCII values of the most used properties.
+var ascii struct {
+	gc, lb, script [0x80]uint8
+}
+
+func init() {
+	for r := range rune(0x80) {
+		ascii.gc[r] = find(generalCategories[:], r)
+		ascii.lb[r] = find(lineBreaks[:], r)
+		ascii.script[r] = find(scripts[:], r)
+	}
+}
+
 // find is the value of r in runs of (start<<8 | value).
 func find(runs []uint32, r rune) uint8 {
 	if r < 0 || r > 0x10FFFF {
@@ -63,6 +76,9 @@ func GeneralCategory(r rune) uint8 {
 	if r < 0 || r > 0x10FFFF {
 		return Cn
 	}
+	if r < 0x80 {
+		return ascii.gc[r]
+	}
 	return find(generalCategories[:], r)
 }
 
@@ -87,7 +103,13 @@ const (
 
 // ScriptOf is r's Script property.
 func ScriptOf(r rune) Script {
-	c := scriptCodes[find(scripts[:], r)]
+	var i uint8
+	if r >= 0 && r < 0x80 {
+		i = ascii.script[r]
+	} else {
+		i = find(scripts[:], r)
+	}
+	c := scriptCodes[i]
 	return Script(uint32(c[0])<<24 | uint32(c[1])<<16 | uint32(c[2])<<8 | uint32(c[3]))
 }
 
@@ -166,7 +188,12 @@ func Compose(a, b rune) (rune, bool) {
 }
 
 // LineBreak is r's Line_Break class, an index into linebreak's classes.
-func LineBreak(r rune) uint8 { return find(lineBreaks[:], r) }
+func LineBreak(r rune) uint8 {
+	if r >= 0 && r < 0x80 {
+		return ascii.lb[r]
+	}
+	return find(lineBreaks[:], r)
+}
 
 // East_Asian_Width values.
 const (

@@ -47,17 +47,27 @@ type Glyph struct {
 // features. A Font is not safe for concurrent use.
 type Font struct {
 	face  *ot.Face
-	plans map[string]*plan
+	plans map[planKey]*plan
+}
+
+// planKey names a plan; features are rare and keyed as text.
+type planKey struct {
+	script   ucd.Script
+	rtl      bool
+	features string
 }
 
 // NewFont shapes with face.
-func NewFont(face *ot.Face) *Font { return &Font{face: face, plans: map[string]*plan{}} }
+func NewFont(face *ot.Face) *Font { return &Font{face: face, plans: map[planKey]*plan{}} }
 
 // Face is the face the font shapes with.
 func (f *Font) Face() *ot.Face { return f.face }
 
 func (f *Font) plan(script ucd.Script, rtl bool, features []Feature) *plan {
-	key := fmt.Sprint(script, rtl, features)
+	key := planKey{script: script, rtl: rtl}
+	if len(features) > 0 {
+		key.features = fmt.Sprint(features)
+	}
 	p, ok := f.plans[key]
 	if !ok {
 		p = newPlan(f.face, script, rtl, features)
