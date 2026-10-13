@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/cogitator"
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
 )
@@ -19,7 +20,6 @@ import (
 // The `daemon` command: `logis daemon [--idle-timeout SECONDS]
 // [--config PATH] [--detach] [--debug-panel]`; --debug-panel shows the
 // window's debug panel instead of serving sessions (debugpanel.go).
-// G3 (the window) replaces resolverFromEnv's default.
 
 const (
 	idleRune  = "--idle-timeout"
@@ -47,19 +47,22 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 		source := config.NewSource("")
 		o.Config = &source
 	}
-	o.Resolver = resolverFromEnv
+	o.Resolver = func(host daemon.Host) (daemon.Resolver, error) { return resolverFromEnv(host, stderr) }
 	o.Stdout, o.Stderr = stdout, stderr
 	return daemon.Run(ctx, o.Options)
 }
 
-// resolverFromEnv is what answers sessions: with LOGIS_RESOLVER=scripted
-// the Scripted resolver (tests and measurements without a window);
-// otherwise, until the window exists, none.
-func resolverFromEnv(host daemon.Host) (daemon.Resolver, error) {
+// resolverFromEnv is what answers sessions: the cogitator window, or with
+// LOGIS_RESOLVER=scripted the Scripted resolver (tests and measurements
+// without a window). The window is opened here, after the socket is
+// claimed and before readiness, so a deferring second daemon never touches
+// Wayland and a session that cannot host the window ends the daemon (exit
+// 2, its reason relayed to the client that started it).
+func resolverFromEnv(host daemon.Host, log io.Writer) (daemon.Resolver, error) {
 	name, set := os.LookupEnv("LOGIS_RESOLVER")
 	switch {
 	case !set:
-		return daemon.Windowless{}, nil
+		return cogitator.Start(host, log)
 	case name == "scripted":
 		return daemon.NewScripted(host), nil
 	default:

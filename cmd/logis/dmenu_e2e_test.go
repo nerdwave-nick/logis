@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/client"
+	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
 // The dmenu runes at the process boundary (Rust tests/dmenu_runes.rs): real
@@ -166,5 +167,48 @@ func TestE2EADaemonThatCannotStartIsReportedWithExit2(t *testing.T) {
 	got := r.runClient(cmd, []byte("a\n"))
 	if got.code != 2 || got.stdout != "" || !strings.Contains(got.stderr, "LOGIS_RESOLVER names no known resolver") {
 		t.Fatalf("%+v", got)
+	}
+}
+
+// Ported from Rust tests/cli.rs a_dmenu_caller_without_a_usable_session_exits_2_naming_why
+// (the caller contract): a `logis --dmenu` caller learns that logis cannot
+// serve it from exit 2 and an empty stdout, with the plain reason on
+// stderr, whatever stands in the way. The daemon it starts opens the
+// window, and relays why it could not.
+func TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy(t *testing.T) {
+	r := newRig(t)
+	if _, err := wltest.Serve(r.dir, "wayland-test", withoutLayerShell); err != nil {
+		t.Fatal(err)
+	}
+	windowed := func(display string, runtimeDir bool) *exec.Cmd {
+		cmd := r.logis("--dmenu")
+		var env []string
+		for _, kv := range cmd.Env {
+			name, _, _ := strings.Cut(kv, "=")
+			if name != "LOGIS_RESOLVER" && (runtimeDir || name != "XDG_RUNTIME_DIR") {
+				env = append(env, kv)
+			}
+		}
+		if display != "" {
+			env = append(env, "WAYLAND_DISPLAY="+display)
+		}
+		cmd.Env = env
+		return cmd
+	}
+	for _, c := range []struct {
+		cmd    *exec.Cmd
+		reason string
+	}{
+		{windowed("", true), "WAYLAND_DISPLAY is not set"},
+		{windowed("wayland-test", true), "zwlr_layer_shell_v1"},
+		{windowed("wayland-test", false), "XDG_RUNTIME_DIR is not set"},
+	} {
+		got := r.runClient(c.cmd, nil)
+		if got.code != 2 || got.stdout != "" || !strings.Contains(got.stderr, c.reason) {
+			t.Fatalf("%s: %+v", c.reason, got)
+		}
+		if !gone(r.socket()) {
+			t.Fatalf("%s: a daemon stayed", c.reason)
+		}
 	}
 }

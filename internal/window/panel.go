@@ -75,7 +75,8 @@ func (p *panel) present() error {
 		return err
 	}
 	gles.Viewport(0, 0, int(g.Physical.W), int(g.Physical.H))
-	p.state.setAnimating(p.paint(g))
+	animating := p.paint(g)
+	p.state.setAnimating(animating)
 	p.frame = p.surface.Frame()
 	frame := p.frame
 	frame.OnDone = func(uint32) {
@@ -88,6 +89,12 @@ func (p *panel) present() error {
 		return err
 	}
 	trace.Emit("commit")
+	if !animating {
+		// The frame leaves nothing moving (Rust: `settled` after the first
+		// such frame once motion ends; until motion is ported every change
+		// is instant, so each still frame is one).
+		trace.Emit("settled")
+	}
 	p.state.drew()
 	return nil
 }
