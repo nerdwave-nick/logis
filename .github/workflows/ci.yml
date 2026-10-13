@@ -1,8 +1,41 @@
 name: CI
 
+# The Rust reference implementation. While the Go rewrite lives beside it on
+# branch `go` (spec feat/logis-go §8 D6), this workflow runs for the Rust
+# paths and everything its build and tests read; go.yml runs for the Go paths.
 on:
   push:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "clippy.toml"
+      - "themes/**"
+      - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "LICENSE"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "clippy.toml"
+      - "themes/**"
+      - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "LICENSE"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read

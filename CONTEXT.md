@@ -5,7 +5,8 @@ the Machine God. It serves scripts as a drop-in `dmenu`, launches desktop
 applications, and drives servitor through its CLI. This file records the words the
 code, the documentation and the tracker use, and what each one means. The shared
 specification is the description of the lit project `feat/logis`; the decisions
-behind it are in `docs/adr/`.
+behind it are in `docs/adr/`. The Go rewrite on branch `go` follows the lit project
+`feat/logis-go` and ADR 0003; its own words are under "The Go rewrite" below.
 
 Flag names, code identifiers and protocol fields use the plain terms below. The
 grimdark flavour lives only in help, error and UI text (spec §4.6).
@@ -237,7 +238,8 @@ The window logis shows for a visible session, on the overlay layer, namespace
 
 **Renderer**:
 logis's own small GPU renderer on wgpu: SDF primitives, glyph quads, an icon atlas
-and an optional post-processing pass. There is no CPU renderer. See ADR 0001.
+and an optional post-processing pass. There is no CPU renderer. See ADR 0001. The Go
+build draws the same on EGL + OpenGL ES 3 (ADR 0003).
 
 **Theme**:
 A named look in `themes/<name>.jsonc` (beside the config), selected by
@@ -286,6 +288,74 @@ the config's `blur`; where the compositor does not offer it, there is none.
 The two bundled themes of v1 (`forge-crimson-brass`, the default, and
 `cogitator-phosphor`): the glowing brass-to-crimson panel of the research spike,
 and a green CRT with curved glass, bloom and an inverse selection.
+
+## The Go rewrite
+
+The words of the Go build on branch `go` (lit project `feat/logis-go`, ADR 0003).
+Everything above keeps its meaning there.
+
+**Rust reference**:
+The Rust logis on `main` (2ffdd02 at the branch point). Its behaviour, tests,
+goldens, fixtures and documentation are what the Go build must match; Go work
+never edits it.
+
+**Go branch**:
+The long-lived branch `go`, branched from `main`, where Go implementation tickets
+integrate. One Go module at the repository root (`github.com/nerdwave-nick/logis`),
+the binary in `cmd/logis`, packages under `internal/`.
+
+**Switch-over**:
+The single merge that replaces the Rust code on `main` with the Go build, once it
+passes the parity bar: every E2E scenario carried over from `feat/logis` and the
+performance budgets under the latency harness on a quiet machine.
+
+**x package**:
+A package from a `golang.org/x` module, the only Go code logis uses beyond the
+standard library. Each is justified by the ticket that introduces it.
+
+**cgo set**:
+The C libraries the shipped binary links, through pkg-config, and nothing else:
+libwayland-client, libwayland-egl, libEGL, libGLESv2, libfontconfig and
+libfreetype. A test holds the binary to exactly this set.
+
+**Owner goroutine**:
+The one goroutine, pinned with `runtime.LockOSThread`, that owns a C object (the
+`wl_display` and its proxies, the EGL/GL context, the fontconfig config, an
+`FT_Library` or `FT_Face`). It releases what it owns explicitly; finalizers never
+do.
+
+**Protocol glue**:
+The C code `wayland-scanner` writes from a Wayland protocol's XML file on
+`go generate` (a client header and the interface tables), committed in
+`internal/wlproto`. The **Go-side wrappers** over it are generated from the same
+XML by logis's own generator.
+
+**EGL Wayland platform**:
+How the renderer presents: an EGL window surface on a `wl_egl_window` for the
+layer surface, shown with `eglSwapBuffers`.
+
+**Shaper**:
+logis's own OpenType shaping engine (GSUB, GPOS, normalisation, bidi, Arabic and
+Hebrew joining, grapheme clusters). It decides which glyphs go where; FreeType only
+draws them.
+
+**Hinting**:
+Fitting glyph outlines to the pixel grid, done by FreeType (TrueType bytecode, the
+CFF hinter, the autohinter for unhinted fonts), the engine skrifa emulates for the
+Rust reference.
+
+**Client-side XKB**:
+logis's own pure-Go keyboard: it parses the compositor's keymap, tracks state from
+its modifier masks, and resolves keysyms, consumed modifiers, Compose and repeat.
+
+**Test-only oracle**:
+A library linked only into tests to check logis's own code against (libxkbcommon
+for the keyboard, libharfbuzz for shaping, `fc-match` for font resolution); never
+part of the shipped binary.
+
+**Differential suite**:
+The tests that run the same inputs through logis's own code and a test-only oracle
+and require the same answers.
 
 ## Grimdark UI vocabulary
 
