@@ -138,8 +138,9 @@ func (c *core) outOfPlace(id SessionID, cn *conn, name string) {
 }
 
 func (c *core) disconnect(id SessionID) {
-	if _, ok := c.conns[id]; ok {
+	if cn, ok := c.conns[id]; ok {
 		delete(c.conns, id)
+		cn.peer.close()
 		c.apply(c.sessions.close(id))
 	}
 }
