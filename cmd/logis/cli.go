@@ -71,7 +71,7 @@ func parse(args []string) (command, error) {
 			}
 			continue
 		}
-		kind := appsCommand
+		var kind commandKind
 		switch arg {
 		case "--version", "-V":
 			kind = versionCommand

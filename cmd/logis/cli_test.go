@@ -39,8 +39,6 @@ func mustRunes(t *testing.T, args ...string) dmenuOptions {
 	return d
 }
 
-func n(v uint32) *uint32 { return &v }
-
 func TestValuesFollowTheirFlagOrAnEqualsSign(t *testing.T) {
 	d := mustRunes(t, "--prompt", "rite? ", "--lines=4", "-w", "50", "-p", "again> ")
 	if d.view.Prompt != "again> " || *d.view.Lines != 4 || *d.view.Width != 50 {
