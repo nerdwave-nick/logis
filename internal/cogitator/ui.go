@@ -38,6 +38,11 @@ type surface interface {
 	Hide()
 	Visible() bool
 	RequestRedraw()
+	// Size is the panel's logical size once configured: the space
+	// pointer positions are in.
+	Size() (scale.Size, bool)
+	// Paste reads a selection; its text comes back as an Insert edit.
+	Paste(input.Selection)
 }
 
 // focusPolicy is the keyboard's focus-loss policy.
@@ -49,6 +54,8 @@ type shown struct {
 	view *list.View
 	// asked is the size its options asked for (the theme's when none).
 	asked list.Options
+	// rows is how many rows its panel was sized for.
+	rows uint32
 	// count is how many items it has had.
 	count int
 	// toast is a notice from the daemon over the list.
@@ -103,7 +110,7 @@ func (u *ui) show(s daemon.Session) {
 	asked := o
 	size, rows := scene.Fit(o, u.theme)
 	o.Lines = &rows
-	sh := &shown{id: s.ID, view: list.NewView(o), asked: asked}
+	sh := &shown{id: s.ID, view: list.NewView(o), asked: asked, rows: rows}
 	u.shown = nil
 	if err := u.surf.Show(size, u.painter(sh)); err != nil {
 		u.host.Fail(s.ID, err.Error())
@@ -171,13 +178,28 @@ func (u *ui) mine(id daemon.SessionID) *shown {
 	return nil
 }
 
-// act applies a key's action to the shown list.
+// act applies a key's or the pointer's action to the shown list. A point
+// means the row drawn under it, on the panel's current size; a paste is
+// the window's to read (its text comes back as an Insert edit).
 func (u *ui) act(a input.Action) {
 	sh := u.shown
 	if sh == nil {
 		return
 	}
-	r := sh.view.Apply(a)
+	var r list.Reaction
+	switch a.Kind {
+	case input.Paste:
+		u.surf.Paste(a.Selection)
+		return
+	case input.PointAt:
+		size, ok := u.surf.Size()
+		if !ok {
+			return
+		}
+		r = sh.view.Point(a.Point, scene.GridOf(size, sh.rows, u.theme))
+	default:
+		r = sh.view.Apply(a)
+	}
 	var answer daemon.Answer
 	switch {
 	case r.Kind == list.Changed:

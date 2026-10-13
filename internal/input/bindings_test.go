@@ -114,3 +114,14 @@ func TestTextIsTypedOnlyPrintableAndWithoutCommandModifiers(t *testing.T) {
 		}
 	}
 }
+
+func TestCtrlVAndShiftInsertPasteTheClipboard(t *testing.T) {
+	paste := Action{Kind: Paste, Selection: Clipboard}
+	wantBinding(t, "v", Ctrl, paste)
+	wantBinding(t, "V", Ctrl, paste) // Caps Lock on
+	wantBinding(t, "Insert", Shift, paste)
+	wantBinding(t, "KP_Insert", Shift, paste)
+	wantNone(t, "v", None) // v types
+	wantNone(t, "Insert", None)
+	wantNone(t, "Insert", Ctrl)
+}

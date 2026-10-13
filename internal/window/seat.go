@@ -3,6 +3,7 @@ package window
 import (
 	"encoding/binary"
 
+	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/trace"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
@@ -19,20 +20,21 @@ type Keyboard interface {
 	RepeatInfo(rate, delay int32)
 }
 
-// seat is the first seat the compositor offers and its keyboard while it
-// has one (Rust src/window/seat.rs).
+// seat is the first seat the compositor offers and its keyboard and
+// pointer while it has them (Rust src/window/seat.rs).
 type seat struct {
 	name     uint32
 	seat     *wlproto.WlSeat
 	keyboard *wlproto.WlKeyboard
 	consumer Keyboard
 	shows    func(*wlproto.WlSurface) bool
+	pointer  pointer
 }
 
 // bindSeat binds the first seat, if any, up to version 9 (the pointer's
 // axis_value120); its keyboard follows once the seat announces it.
 func bindSeat(c *connection, shows func(*wlproto.WlSurface) bool) *seat {
-	s := &seat{shows: shows}
+	s := &seat{shows: shows, pointer: pointer{model: input.NewPointer(), shows: shows}}
 	for _, g := range c.globals {
 		if g.Interface == wlproto.WlSeatInterface.Name {
 			s.name = g.Name
@@ -47,6 +49,7 @@ func bindSeat(c *connection, shows func(*wlproto.WlSurface) bool) *seat {
 }
 
 func (s *seat) capabilities(caps uint32) {
+	s.pointer.capability(s.seat, caps&wlproto.WlSeatCapabilityPointer != 0)
 	has := caps&wlproto.WlSeatCapabilityKeyboard != 0
 	switch {
 	case has && s.keyboard == nil:
@@ -128,15 +131,18 @@ func (s *seat) releaseKeyboard() {
 }
 
 // removed: the compositor withdrew global g; if it is the seat, its
-// keyboard and the seat go.
-func (s *seat) removed(g Global) {
+// keyboard, its pointer and the seat go, and removed reports it.
+func (s *seat) removed(g Global) bool {
 	if s.seat != nil && g.Name == s.name {
 		s.release()
+		return true
 	}
+	return false
 }
 
-// release lets go of the keyboard and the seat.
+// release lets go of the pointer, the keyboard and the seat.
 func (s *seat) release() {
+	s.pointer.release()
 	if s.keyboard != nil {
 		s.releaseKeyboard()
 	}

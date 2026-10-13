@@ -100,6 +100,11 @@ func (g Grid) RowAt(x, y float64) (int, bool) {
 	return int(i), inside
 }
 
+// RowPitch is the distance from one row's top to the next (list.Rows).
+func (g Grid) RowPitch() float32 { return g.Pitch }
+
+var _ list.Rows = Grid{}
+
 // Top is the top of row i in view.
 func (g Grid) Top(i int) float32 { return g.First + float32(i)*g.Pitch }
 

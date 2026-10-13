@@ -83,7 +83,7 @@ func TestAWornThemeReachesTheVisibleWindowAtOnce(t *testing.T) {
 	r.ui.retheme(phosphor)
 	r.saw(t, "theme cogitator-phosphor")
 	size, rows := scene.Fit(o, phosphor)
-	if len(r.surf.resized) != 1 || r.surf.resized[0] != size || r.ui.shown.view.Look().Lines != rows {
+	if len(r.surf.resized) != 1 || r.surf.resized[0] != size || r.ui.shown.view.Look().Lines != rows || r.ui.shown.rows != rows {
 		t.Fatalf("resized %v (want %v), %d rows (want %d)", r.surf.resized, size, r.ui.shown.view.Look().Lines, rows)
 	}
 	if r.surf.redraws <= redraws {

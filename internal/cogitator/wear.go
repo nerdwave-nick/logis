@@ -31,6 +31,7 @@ func (u *ui) retheme(th *theme.Theme) {
 	if sh := u.shown; sh != nil {
 		size, rows := scene.Fit(sh.asked, th)
 		sh.view.SetLines(rows)
+		sh.rows = rows
 		if r, ok := u.surf.(resizer); ok {
 			r.Resize(size)
 		}
