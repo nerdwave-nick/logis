@@ -21,16 +21,18 @@ import (
 
 // An Answer is how the fake bus answers a call.
 type Answer struct {
-	silent       bool
-	body         []dbus.Value
-	name, reason string
+	silent bool
+	body   []dbus.Value
+	name   string
 }
 
 // Return answers with a method return of body.
 func Return(body ...dbus.Value) Answer { return Answer{body: body} }
 
 // Fail answers with an error of name, with message.
-func Fail(name, message string) Answer { return Answer{name: name, reason: message} }
+func Fail(name, message string) Answer {
+	return Answer{name: name, body: []dbus.Value{dbus.Str(message)}}
+}
 
 // Silent answers nothing (the call expects no reply, or the bus is slow).
 func Silent() Answer { return Answer{silent: true} }
@@ -159,9 +161,6 @@ func (b *Bus) serve(conn net.Conn) {
 			continue
 		}
 		reply := dbus.EncodeReply(serial, call.Serial, answer.name, answer.body)
-		if answer.name != "" {
-			reply = dbus.EncodeReply(serial, call.Serial, answer.name, []dbus.Value{dbus.Str(answer.reason)})
-		}
 		if _, err := conn.Write(reply); err != nil {
 			return
 		}
