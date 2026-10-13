@@ -63,11 +63,21 @@ func TestEachCharacterFallsBackToTheFirstLoadedFaceThatCoversIt(t *testing.T) {
 	}
 }
 
+// Default ignorables are hidden as HarfBuzz hides them: the font's space
+// glyph with no advance, in the cluster of the grapheme they belong to.
 func TestIgnorablesAreHidden(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	line := f.Shape("a\u200Db\uFE0F", 0, 16, 0)
-	if len(line.Glyphs) != 2 || line.Glyphs[0].Cluster != 0 || line.Glyphs[1].Cluster != 4 {
-		t.Errorf("glyphs %+v", line.Glyphs)
+	space := f.Shape(" ", 0, 16, 0).Glyphs[0].ID
+	clusters := []int{0, 0, 4, 4}
+	if len(line.Glyphs) != 4 {
+		t.Fatalf("glyphs %+v", line.Glyphs)
+	}
+	for i, g := range line.Glyphs {
+		hidden := i%2 == 1
+		if g.Cluster != clusters[i] || hidden != (g.ID == space && g.Advance == 0) {
+			t.Errorf("glyph %d: %+v", i, g)
+		}
 	}
 }
 

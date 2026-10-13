@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/nerdwave-nick/logis/internal/gles"
 	"github.com/nerdwave-nick/logis/internal/scale"
@@ -80,9 +81,15 @@ func (r *Renderer) Draw(t Target, sc *Scene) {
 	gles.ClearColor(c[0], c[1], c[2], c[3])
 	gles.Clear()
 	gles.BlendPremultiplied()
-	if len(sc.Shapes) > 0 {
+	// Text is shaped first: its underlines are drawn with the shapes.
+	r.glyphs.prepare(sc.Texts, t.Scale)
+	shapes := sc.Shapes
+	if deco := r.glyphs.decorations(); len(deco) > 0 {
+		shapes = append(slices.Clip(sc.Shapes), deco...)
+	}
+	if len(shapes) > 0 {
 		r.packed = r.packed[:0]
-		for _, s := range sc.Shapes {
+		for _, s := range shapes {
 			p := pack(s)
 			r.packed = append(r.packed, p[:]...)
 		}
@@ -91,10 +98,10 @@ func (r *Renderer) Draw(t Target, sc *Scene) {
 		gles.Uniform1f(r.sdfScale, t.Scale.Factor())
 		r.shapes.Bind()
 		r.shapeBuf.Stream(r.packed)
-		gles.DrawQuads(len(sc.Shapes))
+		gles.DrawQuads(len(shapes))
 	}
 	r.images.draw(t, sc.Images)
-	r.glyphs.draw(t, sc.Texts)
+	r.glyphs.draw(t)
 	gles.VertexArray(0).Bind()
 	gles.NoBlend()
 }

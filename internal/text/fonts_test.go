@@ -52,7 +52,7 @@ func pinnedConfig() (*fc.Config, error) {
 	return text.Isolated(rules, paths)
 }
 
-func pinned(t *testing.T, family string) *text.Fonts {
+func pinned(t testing.TB, family string) *text.Fonts {
 	t.Helper()
 	c, err := pinnedConfig()
 	if err != nil {

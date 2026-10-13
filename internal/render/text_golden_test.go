@@ -31,7 +31,8 @@ func corpus(t testing.TB) []string {
 	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 }
 
-// corpusScene is Rust's corpus_scene without the two column lines.
+// corpusScene is Rust's corpus_scene: the corpus lines on a panel, then
+// the first line in a 150 px column twice, ellipsised and clipped.
 func corpusScene(lines []string) *render.Scene {
 	sc := &render.Scene{Clear: render.Hex(0x140c0a)}
 	for _, y := range []float32{126, 150} {
@@ -39,6 +40,10 @@ func corpusScene(lines []string) *render.Scene {
 	}
 	for i, l := range lines {
 		sc.Texts = append(sc.Texts, render.NewText(l, [2]float32{8, 6 + 24*float32(i)}, 16, corpusInk))
+	}
+	for i, o := range []render.Overflow{render.Ellipsis, render.Clip} {
+		y := 6 + 24*float32(len(lines)+i)
+		sc.Texts = append(sc.Texts, render.NewText(lines[0], [2]float32{8, y}, 16, corpusInk).InColumn(150, o))
 	}
 	return sc
 }
@@ -158,24 +163,6 @@ func TestTextComparisonWithTheRustGoldens(t *testing.T) {
 	t.Log(out.String())
 }
 
-// inScope is the part of corpus line i that simple runs shape (columns
-// left of x1 at f): whole Latin and CJK lines, the Latin before the
-// Hebrew of line 4, and line 5 up to the skin-tone and ZWJ sequences (the
-// rest needs the OpenType shaper and bidi).
-func inScope(h *render.Headless, lines []string, i int, f float32) int {
-	stop := map[int]string{3: "ש", 4: "\U0001F44D"}[i]
-	if stop == "" {
-		return 1 << 30
-	}
-	line := h.Fonts().Shape(lines[i], 0, 16*f, 0)
-	for _, g := range line.Glyphs {
-		if strings.HasPrefix(lines[i][g.Cluster:], stop) {
-			return int(round(8*f)) + int(g.X)
-		}
-	}
-	return 1 << 30
-}
-
 func round(v float32) float32 { return float32(math.Round(float64(v))) }
 
 // The bounds measured when text.DefaultHinting was chosen (G6 handoff):
@@ -188,7 +175,24 @@ var rustBounds = map[string]struct {
 	worst int
 }{"1.0": {0.0002, 3}, "1.3": {0.025, 30}, "2.0": {0.015, 30}}
 
-func TestSimpleRunsMatchTheRustGoldensWithinTheirBounds(t *testing.T) {
+// checkBand holds a band to the Rust bounds: the same ink box and ink
+// mass (±1 %), few pixels beyond 2 levels.
+func checkBand(t *testing.T, what string, b band, scaleName string) {
+	t.Helper()
+	bound := rustBounds[scaleName]
+	t.Logf("%s @%s: %.2f%% beyond 2 levels, worst %d, mean %.3f", what, scaleName, 100*b.over2, b.worst, b.meanAbs)
+	if b.goldInk != b.goInk || math.Abs(b.goMass-b.goldMass) > 0.01*b.goldMass ||
+		b.over2 > bound.over2 || b.worst > bound.worst || b.meanAbs > 0.15 {
+		t.Errorf("%s @%s: %.2f%% beyond 2 levels, worst %d, mean %.3f, ink %v vs %v, mass %.1f vs %.1f",
+			what, scaleName, 100*b.over2, b.worst, b.meanAbs, b.goInk, b.goldInk, b.goMass, b.goldMass)
+	}
+}
+
+// The whole Rust corpus scene — Latin, accents, CJK and Hangul, Hebrew
+// points and Arabic joining in a bidi line, emoji with skin tone and ZWJ
+// sequences, an ellipsised and a clipped column — against the Rust
+// goldens, band by band.
+func TestTheCorpusMatchesTheRustGoldensWithinTheirBounds(t *testing.T) {
 	h := rendertest.Headless(t)
 	lines := corpus(t)
 	for _, sc := range corpusScales {
@@ -202,24 +206,17 @@ func TestSimpleRunsMatchTheRustGoldensWithinTheirBounds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bound := rustBounds[sc.name]
-		for i := range lines {
+		for i := range len(lines) + 2 {
 			y0, y1 := bandRows(i, s)
-			b := compareBand(gold, got, 0, inScope(h, lines, i, s.Factor()), y0, y1)
-			if b.goldInk != b.goInk || math.Abs(b.goMass-b.goldMass) > 0.01*b.goldMass ||
-				b.over2 > bound.over2 || b.worst > bound.worst || b.meanAbs > 0.15 {
-				t.Errorf("@%s line %d: %.2f%% beyond 2 levels, worst %d, mean %.3f, ink %v vs %v, mass %.1f vs %.1f",
-					sc.name, i+1, 100*b.over2, b.worst, b.meanAbs, b.goInk, b.goldInk, b.goMass, b.goldMass)
-			}
+			checkBand(t, fmt.Sprintf("line %d", i+1), compareBand(gold, got, 0, gold.Width, y0, y1), sc.name)
 		}
 	}
 }
 
-// The label line of tests/faces.rs's scene (faces@<scale>.png): a theme
-// face (Cinzel, else serif, at 600: the pinned Noto Serif SemiBold) with
-// 0.2 em of tracking. The rows below it hold colour spans, emphasis and
-// underlines, the shaping slice's line features.
-func TestAThemeFacesTrackedLabelMatchesTheRustGolden(t *testing.T) {
+// tests/faces.rs's scene against the Rust goldens (faces@<scale>.png):
+// the tracked label in a theme face, the row with colour spans and
+// emphasis in another face, and the row with the emphasis underlined.
+func TestTheFacesSceneMatchesTheRustGoldensWithinTheirBounds(t *testing.T) {
 	h := rendertest.Headless(t)
 	for _, sc := range corpusScales {
 		s := scale.From120ths(sc.n)
@@ -228,44 +225,44 @@ func TestAThemeFacesTrackedLabelMatchesTheRustGolden(t *testing.T) {
 			t.Fatal(err)
 		}
 		h.SetFonts(pinnedFonts(t))
-		if err := h.SetFaces([]text.Face{
-			{Families: []string{"IBM Plex Mono", "monospace"}, Weight: 400},
-			{Families: []string{"Cinzel", "serif"}, Weight: 600},
-			{Families: []string{"IBM Plex Mono", "monospace"}, Weight: 600},
-		}); err != nil {
+		if err := h.SetFaces(forgeFaces); err != nil {
 			t.Fatal(err)
 		}
-		label := render.NewText("INVOKE", [2]float32{8, 6}, 13, render.Hex(0xf2c14e))
-		label.Face, label.Tracking = 1, 0.2
-		got, err := h.Offscreen(&render.Scene{Clear: render.Hex(0x170e0b), Texts: []render.Text{label}}, scale.Size{W: 220, H: 84}, s)
+		got, err := h.Offscreen(facesScene(), scale.Size{W: 220, H: 84}, s)
 		if err != nil {
 			t.Fatal(err)
 		}
-		b := compareBand(gold, got, 0, gold.Width, 0, int(round(30*s.Factor())))
-		t.Logf("@%s: %.2f%% beyond 2 levels, worst %d, mean %.3f, ink %v vs %v", sc.name, 100*b.over2, b.worst, b.meanAbs, b.goInk, b.goldInk)
-		if bound := rustBounds[sc.name]; b.goldInk != b.goInk || b.over2 > bound.over2 || b.worst > bound.worst {
-			t.Errorf("@%s: %.2f%% beyond 2 levels, worst %d, ink %v vs %v", sc.name, 100*b.over2, b.worst, b.goInk, b.goldInk)
+		f := float32(s.Factor())
+		for i, rows := range [][2]float32{{0, 30}, {30, 56}, {56, 84}} {
+			y0, y1 := int(round(rows[0]*f)), min(int(round(rows[1]*f)), gold.Height)
+			checkBand(t, []string{"label", "row", "underlined row"}[i], compareBand(gold, got, 0, gold.Width, y0, y1), sc.name)
 		}
 	}
 }
 
-// runsScene is the corpus as simple runs set it: the Latin, Latin
-// Extended and CJK lines, and the Latin and emoji parts of the others.
-func runsScene(t testing.TB) *render.Scene {
-	lines := corpus(t)
-	return corpusScene([]string{lines[0], lines[1], lines[2], "logis: (42) ok", "Praise \U0001F525⚙️\U0001F480\U0001F916 the Omnissiah"})
-}
-
 // Go's own goldens (spec §6: FreeType does not meet the Rust goldens'
-// tolerance at 1.3 and 2.0), tests/goldens/go/text/runs@<scale>.png,
+// tolerance at 1.3 and 2.0), tests/goldens/go/text/{corpus,faces}@<scale>,
 // reviewed against the Rust ones by the bounds above; G5's harness
 // rewrites them with LOGIS_UPDATE_GOLDENS=1.
-func TestSimpleRunsMatchTheirGoGoldens(t *testing.T) {
+func TestTheCorpusMatchesItsGoGoldens(t *testing.T) {
 	h := rendertest.Headless(t)
 	h.SetFonts(pinnedFonts(t))
-	var scales []scale.Scale
-	for _, sc := range corpusScales {
-		scales = append(scales, scale.From120ths(sc.n))
+	rendertest.CheckScene(t, h, "text", "corpus", corpusScene(corpus(t)), goldenSize, goldenScales()...)
+}
+
+func TestTheFacesSceneMatchesItsGoGoldens(t *testing.T) {
+	h := rendertest.Headless(t)
+	h.SetFonts(pinnedFonts(t))
+	if err := h.SetFaces(forgeFaces); err != nil {
+		t.Fatal(err)
 	}
-	rendertest.CheckScene(t, h, "text", "runs", runsScene(t), goldenSize, scales...)
+	rendertest.CheckScene(t, h, "text", "faces", facesScene(), scale.Size{W: 220, H: 84}, goldenScales()...)
+}
+
+func goldenScales() []scale.Scale {
+	var out []scale.Scale
+	for _, sc := range corpusScales {
+		out = append(out, scale.From120ths(sc.n))
+	}
+	return out
 }

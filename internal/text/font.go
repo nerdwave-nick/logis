@@ -1,12 +1,14 @@
 package text
 
 import (
-	"golang.org/x/image/font"
+	"strings"
+
 	"golang.org/x/image/font/sfnt"
-	"golang.org/x/image/math/fixed"
 
 	"github.com/nerdwave-nick/logis/internal/fc"
 	"github.com/nerdwave-nick/logis/internal/ft"
+	"github.com/nerdwave-nick/logis/internal/ot"
+	"github.com/nerdwave-nick/logis/internal/shape"
 )
 
 // FontID names a loaded font: its index in Fonts.Loaded.
@@ -27,7 +29,13 @@ type Font struct {
 	face    *ft.Face
 	sfnt    *sfnt.Font
 	buf     sfnt.Buffer
-	upem    fixed.Int26_6
+	layout  *ot.Face
+	shaper  *shape.Font
+	// match is how cosmic-text orders fonts for fallback: emoji fonts
+	// first (by PostScript name), then by stretch and style.
+	emoji   bool
+	stretch int
+	slanted bool
 }
 
 // openFont maps file and opens it with lib; any failure is Unreadable.
@@ -46,11 +54,20 @@ func openFont(lib *ft.Library, file fc.FontFile) (*Font, error) {
 		f.close()
 		return nil, unreadable
 	}
+	if f.layout, err = ot.Parse(m.Bytes(), file.Index); err != nil {
+		f.close()
+		return nil, unreadable
+	}
+	f.shaper = shape.NewFont(f.layout)
 	f.Metrics = f.face.Metrics()
 	// FreeType has no units per em for faces of bitmaps only; head has.
 	f.Metrics.UnitsPerEm = int(f.sfnt.UnitsPerEm())
 	f.Weight = f.Metrics.Weight
-	f.upem = fixed.Int26_6(f.sfnt.UnitsPerEm())
+	width, italic, oblique := f.layout.Style()
+	f.stretch, f.slanted = stretchNumbers[width-1], italic || oblique
+	if ps, err := f.sfnt.Name(&f.buf, sfnt.NameIDPostScript); err == nil {
+		f.emoji = strings.Contains(ps, "Emoji")
+	}
 	f.Family, err = f.sfnt.Name(&f.buf, sfnt.NameIDTypographicFamily)
 	if err != nil || f.Family == "" {
 		f.Family, err = f.sfnt.Name(&f.buf, sfnt.NameIDFamily)
@@ -89,24 +106,11 @@ func (f *Font) GlyphIndex(r rune) uint16 {
 	return uint16(g)
 }
 
-// advance is glyph g's advance width in font units.
-func (f *Font) advance(g uint16) int {
-	a, err := f.sfnt.GlyphAdvance(&f.buf, sfnt.GlyphIndex(g), f.upem, font.HintingNone)
-	if err != nil {
-		return 0
-	}
-	return int(a)
-}
+// stretchNumbers are fontdb's numbers for OS/2 width classes 1–9.
+var stretchNumbers = [9]int{50, 62, 75, 87, 100, 112, 125, 150, 200}
 
-// kern is the kerning between glyphs a and b in font units: GPOS pair
-// adjustments of the kern feature, or the legacy kern table.
-func (f *Font) kern(a, b uint16) int {
-	k, err := f.sfnt.Kern(&f.buf, sfnt.GlyphIndex(a), sfnt.GlyphIndex(b), f.upem, font.HintingNone)
-	if err != nil {
-		return 0
-	}
-	return int(k)
-}
+// Layout is the face's OpenType layout data, for the shaper.
+func (f *Font) Layout() *ot.Face { return f.layout }
 
 // close releases the FreeType face and unmaps the file.
 func (f *Font) close() {
