@@ -15,14 +15,16 @@ import (
 	"github.com/nerdwave-nick/logis/internal/daemon"
 )
 
-// The `daemon` command: `logis daemon [--idle-timeout SECONDS] [--detach]`.
+// The `daemon` command: `logis daemon [--idle-timeout SECONDS] [--detach]
+// [--debug-panel]`; --debug-panel shows the window's debug panel instead
+// of serving sessions (debugpanel.go).
 // G3 (the window) replaces resolverFromEnv's default; the config ticket adds
 // --config (and the config's idle-timeout, which the flag outranks).
 
 const (
 	idleRune    = "--idle-timeout"
 	idleWants   = "a number of seconds (0 keeps the daemon resident)"
-	daemonRunes = "--version and daemon [--idle-timeout SECONDS] [--detach]"
+	daemonRunes = "--version and daemon [--idle-timeout SECONDS] [--detach] [--debug-panel]"
 )
 
 // runDaemon is `logis daemon ARGS`.
@@ -30,6 +32,9 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 	o, err := parseDaemon(args)
 	if err != nil {
 		return fail(stderr, err.Error())
+	}
+	if o.debugPanel {
+		return debugPanel(stderr)
 	}
 	// A starter that stopped reading must not kill the daemon (the runtime
 	// would on a broken stdout or stderr); a notified signal also leaves
@@ -41,7 +46,7 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 	o.RuntimeDir = os.Getenv("XDG_RUNTIME_DIR")
 	o.Resolver = resolverFromEnv
 	o.Stdout, o.Stderr = stdout, stderr
-	return daemon.Run(ctx, o)
+	return daemon.Run(ctx, o.Options)
 }
 
 // resolverFromEnv is what answers sessions: with LOGIS_RESOLVER=scripted
@@ -64,15 +69,27 @@ type runeError string
 
 func (e runeError) Error() string { return string(e) }
 
+// daemonArgs are the parsed arguments after `daemon`: the daemon's
+// options, or the debug panel.
+type daemonArgs struct {
+	daemon.Options
+	// debugPanel: `logis daemon --debug-panel`, the window's standalone
+	// debug entry point (G3), not the session daemon.
+	debugPanel bool
+}
+
 // parseDaemon parses the arguments after `daemon`.
-func parseDaemon(args []string) (daemon.Options, error) {
-	var o daemon.Options
+func parseDaemon(args []string) (daemonArgs, error) {
+	var o daemonArgs
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		var value string
 		switch {
 		case arg == "--detach":
 			o.Detach = true
+			continue
+		case arg == "--debug-panel":
+			o.debugPanel = true
 			continue
 		case arg == idleRune && i+1 < len(args):
 			i++

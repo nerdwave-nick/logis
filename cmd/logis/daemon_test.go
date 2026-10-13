@@ -56,7 +56,7 @@ func TestAnUnknownDaemonRuneIsNamed(t *testing.T) {
 		t.Errorf("exit %d, stdout %q", code, stdout.String())
 	}
 	want := "logis: the rune '--debug' is unknown to this cogitator. " +
-		"It knows only --version and daemon [--idle-timeout SECONDS] [--detach].\n"
+		"It knows only --version and daemon [--idle-timeout SECONDS] [--detach] [--debug-panel].\n"
 	if stderr.String() != want {
 		t.Errorf("stderr %q, want %q", stderr.String(), want)
 	}
