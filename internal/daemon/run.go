@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
@@ -25,8 +26,13 @@ type Options struct {
 	// RuntimeDir is $XDG_RUNTIME_DIR; it must be absolute.
 	RuntimeDir string
 	// IdleTimeout ends the daemon after this long without a client;
-	// zero keeps it resident.
-	IdleTimeout time.Duration
+	// zero keeps it resident. Given (IdleTimeoutSet, or not zero), it is
+	// --idle-timeout, which outranks the config's idle-timeout.
+	IdleTimeout    time.Duration
+	IdleTimeoutSet bool
+	// Config is the config file the daemon reads before it takes the
+	// socket, then watches; nil: none, the defaults stand.
+	Config *config.Source
 	// Detach leaves the starter's stdio once ready: stdout to /dev/null,
 	// stderr to <RuntimeDir>/logis.log. It acts on the process's
 	// descriptors 1 and 2.
@@ -51,15 +57,22 @@ func Run(ctx context.Context, o Options) int {
 	if _, err := protocol.SocketPath(o.RuntimeDir); err != nil {
 		return fail("the machine spirit has no dwelling: " + err.Error())
 	}
+	cfg, err := openConfig(o)
+	if err != nil {
+		return fail(err.Error())
+	}
 	socket, err := claim(o.RuntimeDir)
 	if err != nil {
+		cfg.close()
 		return fail("the machine spirit cannot take its socket: " + err.Error())
 	}
 	if socket == nil {
+		cfg.close()
 		announce(o.Stdout, "another machine spirit already listens; this one returns to rest")
 		return 0
 	}
 	l := newLoop()
+	l.live, l.logf = cfg.live, logf
 	defer l.shut()
 	defer socket.release()
 	start := o.Resolver
@@ -68,15 +81,20 @@ func Run(ctx context.Context, o Options) int {
 	}
 	resolver, err := start(loopHost{l})
 	if err != nil {
+		cfg.close()
 		return fail(err.Error())
 	}
 	l.core = newCore(resolver, os.Getpid())
+	configure(resolver, cfg.live.Config())
 	go l.accept(socket.ln)
 	announce(o.Stdout, "the machine spirit wakes and listens at "+socket.path)
 	if o.Detach {
 		detach(o.RuntimeDir)
 	}
-	stopped := l.serve(ctx, o.IdleTimeout)
+	// After detaching, so that what a reload logs reaches logis.log; edits
+	// made meanwhile wait in the watch.
+	defer cfg.watch(l)()
+	stopped := l.serve(ctx)
 	l.core.closeAll()
 	if stopped.message != "" {
 		logf(stopped.message)

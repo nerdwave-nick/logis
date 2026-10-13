@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/unixsock"
 )
@@ -31,6 +32,10 @@ type stop struct {
 type loop struct {
 	core    *core
 	stopped *stop
+	// live is the config in force; it decides the idle timeout.
+	live *config.Live
+	// logf writes one line to the daemon's log.
+	logf func(message string)
 
 	sockets chan event
 	done    chan struct{}
@@ -92,13 +97,13 @@ func (l *loop) shut() {
 }
 
 // serve runs events until the daemon must stop: a Host's Exit, the idle
-// timeout (when positive) with no client connected, or ctx's end. Between
-// events it sleeps; only the idle timeout sets a timer.
-func (l *loop) serve(ctx context.Context, idleTimeout time.Duration) stop {
+// timeout in force (when positive) with no client connected, or ctx's end.
+// Between events it sleeps; only the idle timeout sets a timer.
+func (l *loop) serve(ctx context.Context) stop {
 	idleSince := time.Now()
 	for l.stopped == nil {
 		wasIdle := l.core.idle()
-		if s, done := l.next(ctx, idleTimeout, idleSince); done {
+		if s, done := l.next(ctx, l.live.IdleTimeout(), idleSince); done {
 			return s
 		}
 		// Idleness is measured from the moment the last client left.
