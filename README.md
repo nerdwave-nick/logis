@@ -727,11 +727,18 @@ makepkg -si
 ```
 
 It builds the commit checked out in the repository (`HEAD`; uncommitted changes
-are not built) with the release profile, runs `cargo test` in `check()` (no
-compositor needed: the E2E and latency suites skip, and render tests without a
-GPU adapter skip), and installs what is listed below. The release and test builds
-take about 8 GB in `packaging/arch/src/` (10 minutes on the owner's machine);
-`makepkg -sic` removes it afterwards, `makepkg -si --nocheck` skips the tests.
+are not built). On the branch `go` that is the Go logis (`./cmd/logis`, with cgo,
+as Arch's Go package guidelines ask: makepkg's C flags, a PIE linked by the
+system linker, `-trimpath`); it needs `go`, `pkgconf` and `git` to build, and
+`wayland`, `libglvnd`, `mesa`, `fontconfig` and `freetype2` to run. `prepare()`
+downloads the `golang.org/x` modules `go.sum` names; `check()` runs `go test
+./...` (no compositor needed: the E2E and latency tests skip, and so do the GL
+tests where no EGL display serves); then it installs what is listed below.
+The build takes about 3 minutes with tests on the owner's machine (under 2 with
+a warm Go build cache) and about 170 MB in `packaging/arch/src/`, the module
+cache included; `makepkg -sic` removes that afterwards, `makepkg -si --nocheck`
+skips the tests. Go's own build cache (`~/.cache/go-build`, about 260 MB more
+for logis) stays to speed up the next build; `go clean -cache` empties it.
 
 The package installs:
 
@@ -748,12 +755,15 @@ The package installs:
 
 Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
 instead of the checkout; its header says which two lines to change.
-`tests/packaging.rs` keeps the PKGBUILD, its `.SRCINFO` (`makepkg --printsrcinfo >
-.SRCINFO` after editing), the man page and the changelog on the crate's version.
+`cmd/logis/packaging_test.go` (the Rust reference: `tests/packaging.rs`) keeps
+the PKGBUILD, its `.SRCINFO` (`makepkg --printsrcinfo > .SRCINFO` after editing),
+the man page and the changelog on the version logis reports
+(`internal/version`), and the package's `depends` on the libraries the binary
+links.
 
 The completions in [`contrib/completions/`](contrib/completions/) are written by
-hand; `tests/completions.rs` checks that each offers exactly the runes the parser
-accepts (asking bash, zsh and fish where they are installed). Without the
+hand; `cmd/logis/completions_test.go` (Rust: `tests/completions.rs`) checks that
+each offers exactly the runes the parser accepts (asking bash, zsh and fish where they are installed). Without the
 package, source `logis.bash`, put `_logis` on zsh's `fpath`, or copy `logis.fish`
 to `~/.config/fish/completions/`.
 
