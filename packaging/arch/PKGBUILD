@@ -26,24 +26,39 @@ pkgdesc='A grimdark Wayland launcher and dmenu-compatible picker'
 arch=('x86_64')
 url='https://github.com/nerdwave-nick/logis'
 license=('MIT')
-# libwayland-client, libvulkan (wgpu) and libEGL (the GL fallback) are
-# loaded at run time (dlopen), so they do not show up as linked libraries.
+# The binary links libwayland-client and libwayland-egl (wayland), libEGL and
+# libGLESv2 (libglvnd), libfontconfig, libfreetype and libc. libglvnd
+# dispatches to a vendor's EGL and OpenGL ES driver: mesa's (also llvmpipe,
+# where no GPU serves), or another vendor's beside it.
 depends=(
   'fontconfig'
+  'freetype2'
   'glibc'
-  'libgcc'
-  'libxkbcommon'
-  'vulkan-icd-loader'
+  'libglvnd'
+  'mesa'
   'wayland'
 )
-makedepends=('cargo' 'git')
-optdepends=(
-  'vulkan-driver: render on the GPU through Vulkan (the first choice)'
-  'vulkan-swrast: render in software (lavapipe) where no GPU serves'
-  'libglvnd: the GL backend, tried after Vulkan'
-)
+makedepends=('git' 'go' 'pkgconf')
+# None. Kept (empty) while the Rust reference lives on this branch: its
+# tests/packaging.rs reads the array.
+optdepends=()
 source=()
 sha256sums=()
+
+# The Go environment of every step (Arch's Go package guidelines): cgo
+# compiles and links with makepkg's flags; the binary is a PIE linked by the
+# system linker, without build paths or VCS stamps; modules come only from
+# go.sum into a cache under $srcdir (removed with it), downloaded in
+# prepare(); and the installed Go builds, never a downloaded toolchain.
+_goenv() {
+  export CGO_CPPFLAGS="$CPPFLAGS"
+  export CGO_CFLAGS="$CFLAGS"
+  export CGO_CXXFLAGS="$CXXFLAGS"
+  export CGO_LDFLAGS="$LDFLAGS"
+  export GOFLAGS='-buildmode=pie -trimpath -buildvcs=false -ldflags=-linkmode=external -mod=readonly -modcacherw'
+  export GOPATH="$srcdir/gopath"
+  export GOTOOLCHAIN=local
+}
 
 prepare() {
   if (( ${#source[@]} == 0 )); then
@@ -54,40 +69,37 @@ prepare() {
     git -C "$repo" archive --format=tar --prefix="$pkgname-$pkgver/" HEAD | tar -x
   fi
   cd "$pkgname-$pkgver"
-  if ! grep -qx "version = \"$pkgver\"" Cargo.toml; then
-    echo "logis: Cargo.toml's version is not $pkgver" >&2
+  if ! grep -qx "const Version = \"$pkgver\"" internal/version/version.go; then
+    echo "logis: internal/version/version.go's Version is not $pkgver" >&2
     return 1
   fi
-  export RUSTUP_TOOLCHAIN=stable
-  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+  _goenv
+  go mod download
 }
 
 build() {
   cd "$pkgname-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  export CARGO_TARGET_DIR=target
-  # makepkg strips the binary itself and keeps the symbols for a -debug
-  # package when its `debug` option is on; the release profile's own strip
-  # would leave that package empty.
-  export CARGO_PROFILE_RELEASE_STRIP=false
-  cargo build --frozen --release
+  _goenv
+  export GOPROXY=off
+  go build -o build/logis ./cmd/logis
 }
 
 check() {
   cd "$pkgname-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  export CARGO_TARGET_DIR=target
+  _goenv
+  export GOPROXY=off
   # Unit, golden and process tests; no compositor is needed. The E2E and
-  # latency suites run only under LOGIS_E2E and print SKIPPED here, render
-  # tests without a GPU adapter print SKIPPED, and nothing may reach the
-  # session that runs makepkg.
-  env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u LOGIS_E2E -u LOGIS_TEST_REQUIRE_BACKENDS \
-    cargo test --frozen
+  # latency tests run only under LOGIS_E2E and skip here, the GL tests skip
+  # where no EGL display serves, and nothing may reach the session that runs
+  # makepkg.
+  env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u LOGIS_E2E -u LOGIS_REQUIRE_EGL \
+    -u LOGIS_RUST_LOGIS -u LOGIS_LATENCY_BUDGETS \
+    go test ./...
 }
 
 package() {
   cd "$pkgname-$pkgver"
-  install -Dm755 target/release/logis -t "$pkgdir/usr/bin"
+  install -Dm755 build/logis -t "$pkgdir/usr/bin"
   install -Dm644 docs/man/logis.1 -t "$pkgdir/usr/share/man/man1"
   install -Dm644 contrib/completions/logis.bash "$pkgdir/usr/share/bash-completion/completions/logis"
   install -Dm644 contrib/completions/_logis -t "$pkgdir/usr/share/zsh/site-functions"
