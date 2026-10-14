@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/nerdwave-nick/logis/internal/jsonc"
+	"github.com/nerdwave-nick/logis/internal/oserr"
 	"github.com/nerdwave-nick/logis/themes"
 )
 
@@ -160,7 +160,7 @@ func (th Themes) find(name string) (found, error) {
 			if errors.As(err, &pathErr) {
 				err = pathErr.Err
 			}
-			return found{}, &Error{Source: path, Problem: ioProblem(err)}
+			return found{}, &Error{Source: path, Problem: oserr.Words(err)}
 		}
 	}
 	if f, ok := bundledTheme(name); ok {
@@ -174,20 +174,6 @@ func (th Themes) find(name string) (found, error) {
 		Source:  fmt.Sprintf("theme '%s'", name),
 		Problem: fmt.Sprintf("no such theme is bundled (%s)%s", strings.Join(Bundled(), ", "), place),
 	}
-}
-
-// ioProblem words an I/O error as Rust's io::Error did: strerror's words
-// (capitalised, as glibc has them) with the error number.
-func ioProblem(err error) string {
-	var errno syscall.Errno
-	if !errors.As(err, &errno) {
-		return err.Error()
-	}
-	words := errno.Error()
-	if words != "" {
-		words = strings.ToUpper(words[:1]) + words[1:]
-	}
-	return fmt.Sprintf("%s (os error %d)", words, int(errno))
 }
 
 func bundledTheme(name string) (found, bool) {

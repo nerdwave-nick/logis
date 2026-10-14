@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
@@ -310,5 +311,33 @@ func TestWindowlessListensButRefusesEverySession(t *testing.T) {
 	c.send(protocol.Open(protocol.ModeDmenu, nil))
 	if reply := c.recv(); reply == nil || !strings.Contains(reply.Message, "no window") {
 		t.Errorf("reply %+v", reply)
+	}
+}
+
+// Ported from Rust src/daemon::run's order (caller contract parity): the
+// runtime dir, then the session's preflight, then the config, then the
+// socket. A session that cannot host the window is named before a broken
+// config, and a second daemon in such a session does not defer.
+func TestThePreflightComesAfterTheRuntimeDirAndBeforeTheConfigAndTheSocket(t *testing.T) {
+	silent := func() error { return errors.New("the noosphere is silent") }
+	d := (&rig{t: t}).run(Options{Preflight: func() error { t.Error("preflight without a dwelling"); return nil }})
+	if status := d.exit(t); status != 2 || !strings.Contains(d.stderr.String(), "no dwelling") {
+		t.Errorf("exit %d, stderr %q", status, d.stderr.String())
+	}
+
+	r := newRig(t)
+	missing := config.NewSource(filepath.Join(r.dir, "missing.jsonc"))
+	d = r.run(Options{Preflight: silent, Config: &missing})
+	if status := d.exit(t); status != 2 || d.stderr.String() != "logis: the noosphere is silent\n" {
+		t.Errorf("exit %d, stderr %q", status, d.stderr.String())
+	}
+	if _, err := os.Stat(r.socket()); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the socket was taken: %v", err)
+	}
+
+	r.start(0)
+	second := r.run(Options{Preflight: silent})
+	if status := second.exit(t); status != 2 || second.stdout.String() != "" {
+		t.Errorf("exit %d, stdout %q", status, second.stdout.String())
 	}
 }

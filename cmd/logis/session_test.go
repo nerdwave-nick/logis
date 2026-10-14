@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +17,18 @@ var withoutLayerShell = []wltest.Global{
 	{Interface: "wl_compositor", Version: 6},
 	{Interface: "wl_shm", Version: 1},
 	{Interface: "wl_seat", Version: 9},
+	{Interface: "xdg_wm_base", Version: 6},
+}
+
+// Globals of a compositor offering everything the window needs to pass the
+// preflight (niri/sway-like): layer shell, fractional scale and the
+// viewporter.
+var withLayerShell = []wltest.Global{
+	{Interface: "wl_compositor", Version: 6},
+	{Interface: "wl_shm", Version: 1},
+	{Interface: "zwlr_layer_shell_v1", Version: 4},
+	{Interface: "wp_fractional_scale_manager_v1", Version: 1},
+	{Interface: "wp_viewporter", Version: 1},
 	{Interface: "xdg_wm_base", Version: 6},
 }
 
@@ -47,12 +62,26 @@ func session(t *testing.T, globals []wltest.Global) string {
 	return dir
 }
 
-// fails runs logis with args and checks the caller contract for "cannot
-// serve": exit 2, empty stdout, every wanted fragment on stderr.
+// fails runs the built logis with args in the test's environment (without
+// LOGIS_RESOLVER: the daemon a client starts opens the window) and checks
+// the caller contract for "cannot serve": exit 2, empty stdout, every
+// wanted fragment on stderr.
 func fails(t *testing.T, args []string, want ...string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	if code := run(args, &stdout, &stderr); code != 2 {
+	cmd := exec.Command(buildLogis(t), args...)
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "LOGIS_RESOLVER=") {
+			cmd.Env = append(cmd.Env, kv)
+		}
+	}
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	var exit *exec.ExitError
+	if err != nil && !errors.As(err, &exit) {
+		t.Fatal(err)
+	}
+	if code := cmd.ProcessState.ExitCode(); code != 2 {
 		t.Errorf("%q: exit %d, want 2; stderr %q", args, code, stderr.String())
 	}
 	if stdout.Len() != 0 {
@@ -78,7 +107,7 @@ func TestWithoutWaylandDisplayExits2WithFlavouredMessage(t *testing.T) {
 	for _, tc := range unusable {
 		t.Run(tc.name, func(t *testing.T) {
 			session(t, nil)
-			fails(t, tc.args, "logis: the noosphere is silent", "WAYLAND_DISPLAY is not set")
+			fails(t, tc.args, "noosphere is silent", "WAYLAND_DISPLAY is not set")
 		})
 	}
 }

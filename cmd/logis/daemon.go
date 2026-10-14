@@ -11,10 +11,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nerdwave-nick/logis/internal/cogitator"
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
+	"github.com/nerdwave-nick/logis/internal/window"
 )
 
 // The `daemon` command: `logis daemon [--idle-timeout SECONDS]
@@ -48,6 +50,11 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 		o.Config = &source
 	}
 	o.Resolver = func(host daemon.Host) (daemon.Resolver, error) { return resolverFromEnv(host, stderr) }
+	if _, set := os.LookupEnv("LOGIS_RESOLVER"); !set {
+		// The window's session is checked first, as Rust did: before the
+		// config, and before a second daemon defers to a first.
+		o.Preflight = window.Preflight
+	}
 	o.Stdout, o.Stderr = stdout, stderr
 	return daemon.Run(ctx, o.Options)
 }
@@ -55,9 +62,9 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 // resolverFromEnv is what answers sessions: the cogitator window, or with
 // LOGIS_RESOLVER=scripted the Scripted resolver (tests and measurements
 // without a window). The window is opened here, after the socket is
-// claimed and before readiness, so a deferring second daemon never touches
-// Wayland and a session that cannot host the window ends the daemon (exit
-// 2, its reason relayed to the client that started it).
+// claimed and before readiness; a session that cannot host it ends the
+// daemon (exit 2, its reason relayed to the client that started it), and
+// was already named by the preflight before the config was read.
 func resolverFromEnv(host daemon.Host, log io.Writer) (daemon.Resolver, error) {
 	name, set := os.LookupEnv("LOGIS_RESOLVER")
 	switch {
@@ -84,19 +91,27 @@ type daemonArgs struct {
 	debugPanel bool
 }
 
-// parseDaemon parses the arguments after `daemon`.
+// parseDaemon parses the arguments after `daemon` in order, as Rust did:
+// the first refused one is named, and --idle-timeout takes whatever
+// follows it as its value.
 func parseDaemon(args []string) (daemonArgs, error) {
 	var o daemonArgs
-	path, args, err := takeConfig(args)
-	if err != nil {
-		return o, err
-	}
-	if path != "" {
-		source := config.NewSource(path)
-		o.Config = &source
-	}
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
+	var path string
+	rest := &argQueue{args: args}
+	for {
+		arg, ok := rest.next()
+		if !ok {
+			break
+		}
+		if !utf8.ValidString(arg) {
+			return o, unknownRune(arg)
+		}
+		if took, err := configFlag(arg, rest, &path); took || err != nil {
+			if err != nil {
+				return o, err
+			}
+			continue
+		}
 		var value string
 		switch {
 		case arg == "--detach":
@@ -105,35 +120,37 @@ func parseDaemon(args []string) (daemonArgs, error) {
 		case arg == "--debug-panel":
 			o.debugPanel = true
 			continue
-		case arg == idleRune && i+1 < len(args):
-			i++
-			value = args[i]
 		case arg == idleRune:
-			return o, runeError("the rune " + idleRune + " stands empty: it wants " + idleWants)
+			if value, ok = rest.next(); !ok {
+				return o, emptyValue(idleRune, idleWants)
+			}
 		case strings.HasPrefix(arg, idleRune+"="):
 			value = arg[len(idleRune)+1:]
 		default:
-			return o, runeError(fmt.Sprintf(
-				"the rune '%s' is unknown to this cogitator. It knows only %s.", arg, knownRunes))
+			return o, unknownRune(arg)
 		}
 		idle, ok := seconds(value)
 		if !ok {
-			return o, runeError(fmt.Sprintf("the rune %s cannot bear '%s': it wants %s",
-				idleRune, value, idleWants))
+			return o, badValue(idleRune, value, idleWants)
 		}
 		o.IdleTimeout, o.IdleTimeoutSet = idle, true
+	}
+	if path != "" {
+		source := config.NewSource(path)
+		o.Config = &source
 	}
 	return o, nil
 }
 
-// seconds parses a finite, non-negative decimal number of seconds; one too
-// large for a Duration is the longest there is.
+// seconds parses a non-negative decimal number of seconds that Rust's
+// Duration holds (under 2^64); one too large for a Go Duration is the
+// longest there is.
 func seconds(text string) (time.Duration, bool) {
 	if strings.ContainsAny(text, "xX_") {
 		return 0, false // ParseFloat's hexadecimal and digit separators
 	}
 	s, err := strconv.ParseFloat(text, 64)
-	if err != nil || math.IsNaN(s) || math.IsInf(s, 0) || s < 0 {
+	if err != nil || math.IsNaN(s) || s < 0 || s >= 0x1p64 {
 		return 0, false
 	}
 	if s >= float64(math.MaxInt64)/float64(time.Second) {

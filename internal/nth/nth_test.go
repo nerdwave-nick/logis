@@ -103,6 +103,8 @@ func TestColumnZeroAndBackwardRangesAreRefused(t *testing.T) {
 		{"{0}", "'{0}' is no column: columns are counted from 1, and a range runs forwards"},
 		{"{0..2}", "'{0..2}' is no column: columns are counted from 1, and a range runs forwards"},
 		{"{3..2}", "'{3..2}' is no column: columns are counted from 1, and a range runs forwards"},
+		{"{1..0}", "'{1..0}' is no column: columns are counted from 1, and a range runs forwards"},
+		{"a{2..0}", "'a{2..0}' is no column: columns are counted from 1, and a range runs forwards"},
 		{"-1", "'-1' names no column: it wants a column number or a format with {N}, {N..M} or {N..}"},
 		{"", "'' names no column: it wants a column number or a format with {N}, {N..M} or {N..}"},
 		{"{x}", "'{x}' names no column: it wants a column number or a format with {N}, {N..M} or {N..}"},

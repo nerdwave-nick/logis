@@ -8,6 +8,7 @@ import (
 	"slices"
 	"syscall"
 
+	"github.com/nerdwave-nick/logis/internal/oserr"
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
@@ -81,7 +82,7 @@ func connect() (*connection, error) {
 		}
 		fd, err := dial(path)
 		if err != nil {
-			return nil, &NoSessionError{Reason: fmt.Sprintf("cannot reach %s: %v", path, err)}
+			return nil, &NoSessionError{Reason: fmt.Sprintf("cannot reach %s: %s", path, oserr.Words(err))}
 		}
 		if d, err = wlproto.ConnectFd(fd); err != nil {
 			return nil, &NoSessionError{Reason: err.Error()}

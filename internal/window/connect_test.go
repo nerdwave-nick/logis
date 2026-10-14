@@ -153,6 +153,10 @@ func TestPreflightWithANonexistentSocketNamesTheSocket(t *testing.T) {
 	if !errors.As(err, &none) || !strings.Contains(err.Error(), filepath.Join(dir, "wayland-nowhere")) {
 		t.Errorf("%v", err)
 	}
+	// Worded as Rust's io::Error was (caller contract parity).
+	if want := "cannot reach " + filepath.Join(dir, "wayland-nowhere") + ": No such file or directory (os error 2)"; none == nil || none.Reason != want {
+		t.Errorf("reason %q, want %q", none.Reason, want)
+	}
 }
 
 func TestPreflightWithoutXDGRuntimeDirNamesIt(t *testing.T) {

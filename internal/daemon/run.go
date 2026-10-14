@@ -46,6 +46,10 @@ type Options struct {
 	// frecency and the session bus are, the current desktops, PATH and the
 	// locale. Nil: the process's own.
 	Getenv func(string) string
+	// Preflight checks the session before anything else is read or taken
+	// (Rust: wayland::preflight); its error ends the daemon (exit 2). Nil:
+	// none, for a resolver that needs no compositor.
+	Preflight func() error
 	// Stdout takes the readiness line; Stderr is the daemon's log.
 	Stdout, Stderr io.Writer
 }
@@ -60,6 +64,11 @@ func Run(ctx context.Context, o Options) int {
 	}
 	if _, err := protocol.SocketPath(o.RuntimeDir); err != nil {
 		return fail("the machine spirit has no dwelling: " + err.Error())
+	}
+	if o.Preflight != nil {
+		if err := o.Preflight(); err != nil {
+			return fail(err.Error())
+		}
 	}
 	cfg, err := openConfig(o)
 	if err != nil {

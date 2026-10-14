@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // Command-line parsing of the client role (Rust src/cli/mod.rs): one pass
@@ -69,6 +70,9 @@ func parse(args []string) (command, error) {
 		arg, ok := rest.next()
 		if !ok {
 			break
+		}
+		if !utf8.ValidString(arg) {
+			return c, unknownRune(arg) // Rust knew only runes that are text
 		}
 		if took, err := configFlag(arg, rest, &c.config); took || err != nil {
 			if err != nil {
@@ -143,12 +147,13 @@ func configFlag(arg string, rest *argQueue, config *string) (bool, error) {
 	return true, nil
 }
 
+// unknownRune and badValue name the argument as text (lossy), as Rust did.
 func unknownRune(arg string) error {
-	return runeError(fmt.Sprintf("the rune '%s' is unknown to this cogitator. It knows only %s.", arg, knownRunes))
+	return runeError(fmt.Sprintf("the rune '%s' is unknown to this cogitator. It knows only %s.", lossy(arg), knownRunes))
 }
 
 func badValue(flag, value, wants string) error {
-	return runeError(fmt.Sprintf("the rune %s cannot bear '%s': it wants %s", flag, value, wants))
+	return runeError(fmt.Sprintf("the rune %s cannot bear '%s': it wants %s", flag, lossy(value), wants))
 }
 
 func emptyValue(flag, wants string) error {

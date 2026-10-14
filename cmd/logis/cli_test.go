@@ -139,12 +139,27 @@ func TestBadValuesAreNamedWithTheirFlag(t *testing.T) {
 		{[]string{"--nth-delimiter=ab"}, "the rune --nth-delimiter cannot bear 'ab': it wants one ASCII character"},
 		{[]string{"--nth-delimiter=é"}, "the rune --nth-delimiter cannot bear 'é': it wants one ASCII character"},
 		{[]string{"--prompt"}, "the rune --prompt stands empty: it wants the prompt's text"},
+		{[]string{"-p"}, "the rune --prompt stands empty: it wants the prompt's text"},
+		{[]string{"-l"}, "the rune --lines stands empty: it wants a number of rows (0 or more)"},
+		{[]string{"-w"}, "the rune --width stands empty: it wants a width in characters (1 or more)"},
+		{[]string{"--width", "+0"}, "the rune --width cannot bear '0': it wants a width in characters (1 or more)"},
+		{[]string{"-w", "000"}, "the rune --width cannot bear '0': it wants a width in characters (1 or more)"},
+		{[]string{"--lines", "\xff"}, "the rune --lines cannot bear '\uFFFD': it wants a number of rows (0 or more)"},
+		{[]string{"--nth-delimiter", "\xff"}, "the rune --nth-delimiter cannot bear '\uFFFD': it wants one ASCII character"},
 		{[]string{"--password=ab"}, "the rune --password cannot bear 'ab': it wants one character to show in place of each typed one"},
 	} {
 		_, err := parseRunes(c.args...)
 		if err == nil || !strings.HasPrefix(err.Error(), c.want) {
 			t.Fatalf("%v: %v, want %q", c.args, err, c.want)
 		}
+	}
+}
+
+// Rust took a rune's value as text, invalid UTF-8 replaced (to_string_lossy).
+func TestValuesAreReadAsTextWithInvalidBytesReplaced(t *testing.T) {
+	d := mustRunes(t, "--prompt", "rite\xff ", "--search", "\xe2\x82", "--select", "a\xff\xfeb")
+	if d.view.Prompt != "rite\uFFFD " || d.view.Search != "\uFFFD" || d.view.Select.Text != "a\uFFFD\uFFFDb" {
+		t.Fatalf("%q %q %q", d.view.Prompt, d.view.Search, d.view.Select.Text)
 	}
 }
 
@@ -268,8 +283,24 @@ func TestASecondCommandOrAForeignRuneIsUnknown(t *testing.T) {
 		{[]string{"--dmenu", "--check-config"}, "--check-config"},
 		{[]string{"--debug-panel"}, "--debug-panel"},
 		{[]string{"--dmenu", "--debug-panel"}, "--debug-panel"},
+		{[]string{"--h\xffresy"}, "--h\uFFFDresy"},
+		{[]string{"--dmenu", "\xff\xfe"}, "\uFFFD\uFFFD"},
+		{[]string{"--h\xe2\x82"}, "--h\uFFFD"},
+		// Rust matched only runes that are valid UTF-8.
+		{[]string{"--config=\xff"}, "--config=\uFFFD"},
+		{[]string{"--dmenu", "--prompt=\xff"}, "--prompt=\uFFFD"},
+		{[]string{"daemon", "--config=\xff"}, "--config=\uFFFD"},
+		{[]string{"provide", "servitor", "\xff"}, "\uFFFD"},
 	} {
-		_, err := parse(c.args)
+		var err error
+		switch c.args[0] {
+		case "daemon":
+			_, err = parseDaemon(c.args[1:])
+		case "provide":
+			err = parseProvide(c.args[1:])
+		default:
+			_, err = parse(c.args)
+		}
 		want := "the rune '" + c.unknown + "' is unknown to this cogitator. It knows only " + knownRunes + "."
 		if err == nil || err.Error() != want {
 			t.Fatalf("%v: %v", c.args, err)
@@ -301,5 +332,45 @@ func TestAppsAsksForTheAppLauncher(t *testing.T) {
 	}
 	if !strings.Contains(knownRunes, "--apps, --provider") {
 		t.Errorf("knownRunes %q", knownRunes)
+	}
+}
+
+// Rust's to_string_lossy: each maximal ill-formed subsequence (Unicode's
+// "maximal subpart") becomes one U+FFFD.
+func TestInvalidUTF8IsReplacedAsRustReplacesIt(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"", ""},
+		{"plain é ✓ 🜏", "plain é ✓ 🜏"},
+		{"Hello \xf0\x90\x80World", "Hello \uFFFDWorld"},
+		{"\xff\xfe", "\uFFFD\uFFFD"},
+		{"\xe2\x82", "\uFFFD"},
+		{"\xe2\x82a", "\uFFFDa"},
+		{"\xed\xa0\x80", "\uFFFD\uFFFD\uFFFD"},
+		{"\xf4\x90\x80\x80", "\uFFFD\uFFFD\uFFFD\uFFFD"},
+		{"\xc0\x80", "\uFFFD\uFFFD"},
+		{"\xe0\x80\x80", "\uFFFD\uFFFD\uFFFD"},
+		{"\xe0\xa0", "\uFFFD"},
+		{"\xf0\x90\x80\x80", "\U00010000"},
+		{"\x80", "\uFFFD"},
+	} {
+		if got := lossy(c.in); got != c.want {
+			t.Errorf("lossy(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// A refused value is named as text, invalid bytes replaced.
+func TestRefusedValuesAreNamedAsText(t *testing.T) {
+	for _, c := range []struct {
+		err  error
+		want string
+	}{
+		{func() error { _, err := parse([]string{"--config", "a", "--config", "\xff"}); return err }(),
+			"the rune --config cannot bear '\uFFFD': it wants one path to a config file"},
+		{parseProvide([]string{"\xff"}), "the rune provide cannot bear '\uFFFD': it wants the name of a built-in provider: servitor"},
+	} {
+		if c.err == nil || c.err.Error() != c.want {
+			t.Errorf("%v, want %q", c.err, c.want)
+		}
 	}
 }
