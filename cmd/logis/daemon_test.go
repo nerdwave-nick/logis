@@ -64,10 +64,43 @@ func TestAnUnknownDaemonRuneIsNamed(t *testing.T) {
 	}
 }
 
-// A huge idle timeout is as good as none ending.
+// A huge idle timeout that Rust's Duration holds (under 2^64 seconds) is
+// as good as none ending; a longer one Rust refused.
 func TestAHugeIdleTimeoutIsKeptAsTheLongestThereIs(t *testing.T) {
-	o, err := parseDaemon([]string{"--idle-timeout", "1e300"})
+	o, err := parseDaemon([]string{"--idle-timeout", "1e19"})
 	if err != nil || o.IdleTimeout < 100*365*24*time.Hour {
 		t.Errorf("%v, %v", o.IdleTimeout, err)
+	}
+	for _, bad := range []string{"18446744073709551616", "1e300"} {
+		if _, err := parseDaemon([]string{"--idle-timeout", bad}); err == nil ||
+			!strings.Contains(err.Error(), "cannot bear '"+bad+"'") {
+			t.Errorf("%s: %v", bad, err)
+		}
+	}
+}
+
+// The daemon's runes are read in order, as Rust read them: the first
+// refused one is named, and --idle-timeout takes whatever follows it.
+func TestDaemonRunesAreReadInOrder(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--idle-timeout", "--config", "x"}, "the rune --idle-timeout cannot bear '--config'"},
+		{[]string{"--bogus", "--config"}, "the rune '--bogus' is unknown"},
+		{[]string{"--idle-timeout", "soon", "--config"}, "the rune --idle-timeout cannot bear 'soon'"},
+		{[]string{"--config", "x", "--bogus"}, "the rune '--bogus' is unknown"},
+		{[]string{"--config", "a", "--config", "b"}, "the rune --config cannot bear 'b'"},
+		{[]string{"--idle-timeout", "\xff"}, "the rune --idle-timeout cannot bear '\uFFFD'"},
+		{[]string{"\xff"}, "the rune '\uFFFD' is unknown"},
+	} {
+		_, err := parseDaemon(c.args)
+		if err == nil || !strings.HasPrefix(err.Error(), c.want) {
+			t.Errorf("%q: %v, want %q", c.args, err, c.want)
+		}
+	}
+	o, err := parseDaemon([]string{"--detach", "--config=/c", "--idle-timeout=2"})
+	if err != nil || !o.Detach || o.Config == nil || o.IdleTimeout != 2*time.Second {
+		t.Errorf("%+v, %v", o, err)
 	}
 }

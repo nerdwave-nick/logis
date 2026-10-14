@@ -13,6 +13,7 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/e2e"
 	"github.com/nerdwave-nick/logis/internal/trace"
+	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
 // Motion and blur end to end (spec §4.2, §4.3; Rust tests/motion.rs): a
@@ -281,9 +282,16 @@ func threadSwitches(pid int) map[string]uint64 {
 }
 
 // A LOGIS_MOTION the cogitator cannot read stops the daemon before it
-// serves (exit 2, why), as Rust's window start refuses it.
+// serves (exit 2, why), as Rust's window start refuses it: after the
+// session's preflight, which a fake compositor offering every global
+// passes.
 func TestE2EARefusedMotionStopsTheDaemon(t *testing.T) {
 	r := newRig(t)
+	c, err := wltest.Serve(r.dir, "wayland-test", withLayerShell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(c.Close)
 	cmd := r.logis("daemon")
 	var env []string
 	for _, kv := range cmd.Env {
@@ -291,7 +299,7 @@ func TestE2EARefusedMotionStopsTheDaemon(t *testing.T) {
 			env = append(env, kv)
 		}
 	}
-	cmd.Env = append(env, "LOGIS_MOTION=fast")
+	cmd.Env = append(env, "LOGIS_MOTION=fast", "WAYLAND_DISPLAY=wayland-test")
 	out, err := cmd.CombinedOutput()
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() != 2 ||

@@ -1,0 +1,1552 @@
+{
+  "WAYLAND_DISPLAY=$DIR/nowhere logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=$DIR/nowhere logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (XDG_RUNTIME_DIR is not set or not absolute). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR= logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (XDG_RUNTIME_DIR is not set or not absolute). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere XDG_RUNTIME_DIR=run logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --check-config": {
+    "code": 0,
+    "stdout": "logis: no config at $DIR/config/logis/logis.jsonc; the defaults stand; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis --version": {
+    "code": 0,
+    "stdout": "logis 1.0.0\n",
+    "stderr": ""
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "WAYLAND_DISPLAY=wayland-nowhere logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (cannot reach $DIR/run/wayland-nowhere: No such file or directory (os error 2)). The cogitator manifests only within a Wayland session.\n"
+  },
+  "XDG_CONFIG_HOME= HOME= logis --check-config": {
+    "code": 0,
+    "stdout": "logis: no config to be found (neither XDG_CONFIG_HOME nor HOME is set); the defaults stand; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "XDG_CONFIG_HOME=relative logis --check-config": {
+    "code": 0,
+    "stdout": "logis: no config at $DIR/home/.config/logis/logis.jsonc; the defaults stand; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "XDG_RUNTIME_DIR= logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "XDG_RUNTIME_DIR= logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "XDG_RUNTIME_DIR= logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[config/logis/logis.jsonc=// a comment, then nothing] logis --check-config": {
+    "code": 0,
+    "stdout": "logis: the config at $DIR/config/logis/logis.jsonc is sound; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "[config/logis/logis.jsonc=[]] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:1: the config must be a JSON object: { \"key\": value, … }\n"
+  },
+  "[config/logis/logis.jsonc={\"focus-loss\": \"flee\"}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:21: invalid value: string \"flee\", expected `focus-loss` as \"dismiss\" or \"keep\"\n"
+  },
+  "[config/logis/logis.jsonc={\"heresy\": 1}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:9: unknown field `heresy`, expected one of `$schema`, `theme`, `idle-timeout`, `terminal`, `icon-theme`, `focus-loss`, `blur`, `reduce-motion`\n"
+  },
+  "[config/logis/logis.jsonc={\"heresy\": 1}] logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "[config/logis/logis.jsonc={\"heresy\": 1}] logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "[config/logis/logis.jsonc={\"idle-timeout\": -1}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:19: invalid value: integer `-1`, expected `idle-timeout` as seconds, 0 or more (0 keeps the daemon resident)\n"
+  },
+  "[config/logis/logis.jsonc={\"theme\": \"a\", \"theme\": \"b\"}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:22: duplicate field `theme`\n"
+  },
+  "[config/logis/logis.jsonc={\"theme\": \"cogitator-phosphor\", \"idle-timeout\": 30, \"focus-loss\": \"keep\"}] logis --check-config": {
+    "code": 0,
+    "stdout": "logis: the config at $DIR/config/logis/logis.jsonc is sound; the theme 'cogitator-phosphor' is sound\n",
+    "stderr": ""
+  },
+  "[config/logis/logis.jsonc={\"theme\": \"forge-crimson-brass\" \"terminal\": \"foot\"}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:33: expected `,` or `}`\n"
+  },
+  "[config/logis/logis.jsonc={\"theme\": \"forge-crimson-brass\",}] logis --check-config": {
+    "code": 0,
+    "stdout": "logis: the config at $DIR/config/logis/logis.jsonc is sound; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "[config/logis/logis.jsonc={\"theme\": \"nowhere\"}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the theme is heretical: theme 'nowhere': no such theme is bundled (forge-crimson-brass, cogitator-phosphor) nor in $DIR/config/logis/themes\n"
+  },
+  "[config/logis/logis.jsonc={\"theme\": 3}] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:11: invalid type: integer `3`, expected `theme` as a theme's name (its file name in themes/ without .jsonc: not empty, no '/', not starting with '.')\n"
+  },
+  "[config/logis/logis.jsonc={] logis --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:1: EOF while parsing an object\n"
+  },
+  "[config/logis/logis.jsonc={}] logis --check-config": {
+    "code": 0,
+    "stdout": "logis: the config at $DIR/config/logis/logis.jsonc is sound; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis -": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --accept-nth 1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --accept-nth serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --apps --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--apps' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --apps --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --apps --prompt x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --apps --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--servitor' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --apps daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'daemon' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --apps=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--apps=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --check-config": {
+    "code": 0,
+    "stdout": "logis: no config at $DIR/config/logis/logis.jsonc; the defaults stand; the theme 'forge-crimson-brass' is sound\n",
+    "stderr": ""
+  },
+  "logis --check-config --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--apps' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --check-config --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--check-config' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --check-config --config /nowhere/logis.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: /nowhere/logis.jsonc: no such file\n"
+  },
+  "logis --check-config --config missing.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/missing.jsonc: no such file\n"
+  },
+  "logis --check-config --config=missing.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/missing.jsonc: no such file\n"
+  },
+  "logis --check-config --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --check-config --index": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config stands empty: it wants one path to a config file\n"
+  },
+  "logis --config \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear '': it wants one path to a config file\n"
+  },
+  "logis --config --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --config /c --provider rite --dmenu -x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --config a --config b": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear 'b': it wants one path to a config file\n"
+  },
+  "logis --config missing.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --config missing.jsonc --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --config x --version": {
+    "code": 0,
+    "stdout": "logis 1.0.0\n",
+    "stderr": ""
+  },
+  "logis --config=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear '': it wants one path to a config file\n"
+  },
+  "logis --config=missing.jsonc --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the config is heretical: $DIR/missing.jsonc: no such file\n"
+  },
+  "logis --config=x --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --counter": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --counter serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--debug-panel' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--detach' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --accept-nth": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --accept-nth stands empty: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --accept-nth \"{0..}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --accept-nth is refused: '{0..}' is no column: columns are counted from 1, and a range runs forwards\n"
+  },
+  "logis --dmenu --accept-nth \"{1..0}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --accept-nth is refused: '{1..0}' is no column: columns are counted from 1, and a range runs forwards\n"
+  },
+  "logis --dmenu --accept-nth 4294967296": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--apps' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --check-config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--check-config' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config stands empty: it wants one path to a config file\n"
+  },
+  "logis --dmenu --config x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --counter=x --index=y --only-match=z --no-run-if-empty=w": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "logis --dmenu --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--debug-panel' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --dmenu0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu0' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --lines": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines stands empty: it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines \" 3\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear ' 3': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines +3 --width=+7": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --lines -1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '-1': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines 0x3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '0x3': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines 1.5": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '1.5': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines 4294967296": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '4294967296': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear 'x': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --lines=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear 'x': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu --match-nth": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --match-nth stands empty: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --match-nth \"free text\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --match-nth is refused: 'free text' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --match-nth \"{}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --match-nth is refused: '{}' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --no-run-if-empty": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "logis --dmenu --nth-delimiter": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter stands empty: it wants one ASCII character\n"
+  },
+  "logis --dmenu --nth-delimiter \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter cannot bear '': it wants one ASCII character\n"
+  },
+  "logis --dmenu --nth-delimiter ab": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter cannot bear 'ab': it wants one ASCII character\n"
+  },
+  "logis --dmenu --nth-delimiter hex:ff": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter cannot bear '�': it wants one ASCII character\n"
+  },
+  "logis --dmenu --nth-delimiter é": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter cannot bear 'é': it wants one ASCII character\n"
+  },
+  "logis --dmenu --nth-delimiter=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter cannot bear '': it wants one ASCII character\n"
+  },
+  "logis --dmenu --password": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --password x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --password=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --password cannot bear '': it wants one character to show in place of each typed one\n"
+  },
+  "logis --dmenu --password=ab": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --password cannot bear 'ab': it wants one character to show in place of each typed one\n"
+  },
+  "logis --dmenu --password=é": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --password=éé": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --password cannot bear 'éé': it wants one character to show in place of each typed one\n"
+  },
+  "logis --dmenu --placeholder": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --placeholder stands empty: it wants the placeholder's text\n"
+  },
+  "logis --dmenu --prompt": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt stands empty: it wants the prompt's text\n"
+  },
+  "logis --dmenu --prompt --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --prompt -p": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --prompt-only": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt-only stands empty: it wants the prompt's text\n"
+  },
+  "logis --dmenu --prompt-only \"pin: \"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --prompt-only x -R": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --prompt=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --provider x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--provider' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --search": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --search stands empty: it wants the opening query\n"
+  },
+  "logis --dmenu --select": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select stands empty: it wants an item's text\n"
+  },
+  "logis --dmenu --select a --select b": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --select a --select-index 1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the runes --select and --select-index cannot be borne together\n"
+  },
+  "logis --dmenu --select-index": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select-index stands empty: it wants an item's index (0 or more)\n"
+  },
+  "logis --dmenu --select-index -1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select-index cannot bear '-1': it wants an item's index (0 or more)\n"
+  },
+  "logis --dmenu --select-index 1 --select a": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the runes --select and --select-index cannot be borne together\n"
+  },
+  "logis --dmenu --select-index 1 --select-index 2": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --select-index 1.0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select-index cannot bear '1.0': it wants an item's index (0 or more)\n"
+  },
+  "logis --dmenu --select-index x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select-index cannot bear 'x': it wants an item's index (0 or more)\n"
+  },
+  "logis --dmenu --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--servitor' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --version": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--version' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu --width": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width stands empty: it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width +0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear '0': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width -3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear '-3': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width 0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear '0': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width 4294967296": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear '4294967296': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear 'x': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --width=0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width cannot bear '0': it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu --with-nth": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth stands empty: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --with-nth \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: '' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --with-nth \"a{1}b{x}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --with-nth \"{0}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: '{0}' is no column: columns are counted from 1, and a range runs forwards\n"
+  },
+  "logis --dmenu --with-nth \"{1\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: '{1' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --with-nth \"{2..1}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: '{2..1}' is no column: columns are counted from 1, and a range runs forwards\n"
+  },
+  "logis --dmenu --with-nth \"{2} {1..}\" --accept-nth 2 --match-nth 0 --nth-delimiter ,": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --with-nth \"{4294967296}\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu --with-nth -1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: '-1' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --with-nth 0 --accept-nth x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --accept-nth is refused: 'x' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu --with-nth x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth is refused: 'x' names no column: it wants a column number or a format with {N}, {N..M} or {N..}\n"
+  },
+  "logis --dmenu -R": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "logis --dmenu -R \u003c \"\\n\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu -R \u003c \"a\\n\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu -R=1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-R=1' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu -l": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines stands empty: it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu -l hex:ff": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear '�': it wants a number of rows (0 or more)\n"
+  },
+  "logis --dmenu -l=3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-l=3' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu -p": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt stands empty: it wants the prompt's text\n"
+  },
+  "logis --dmenu -p=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-p=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu -w": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width stands empty: it wants a width in characters (1 or more)\n"
+  },
+  "logis --dmenu \u003c \"a\\nb\\n\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'daemon' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu provide": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'provide' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --dmenu0 --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu0 -R": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "logis --dmenu0=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu0=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --dmenu=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --help": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--help' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --heresy": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--heresy' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --idle-timeout 5": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--idle-timeout' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --index": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --index --counter": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --index --dmenu -i --lines 3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --index --version": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --lines 3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --lines x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --lines cannot bear 'x': it wants a number of rows (0 or more)\n"
+  },
+  "logis --match-nth 1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --match-nth serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --no-run-if-empty": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --no-run-if-empty serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --nth-delimiter ,": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --nth-delimiter serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --only-match": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --only-match serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --password": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --password serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --placeholder x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --placeholder serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --prompt": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt stands empty: it wants the prompt's text\n"
+  },
+  "logis --prompt --config x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --prompt p --provider x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --prompt x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --prompt x --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --prompt-only x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt-only serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --provider": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --provider stands empty: it wants a program to run, then its arguments\n"
+  },
+  "logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --provider x --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --search x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --search serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --select x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --select-index 1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --select-index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis --servitor --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--apps' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --servitor --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --servitor --prompt x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --servitor --provider x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--provider' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --servitor --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--servitor' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --version": {
+    "code": 0,
+    "stdout": "logis 1.0.0\n",
+    "stderr": ""
+  },
+  "logis --version --config x": {
+    "code": 0,
+    "stdout": "logis 1.0.0\n",
+    "stderr": ""
+  },
+  "logis --version --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --version --index": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --index serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --version extra": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'extra' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --version=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--version=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis --width 3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --width serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis --with-nth 1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --with-nth serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis -R": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune -R serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis -V": {
+    "code": 0,
+    "stdout": "logis 1.0.0\n",
+    "stderr": ""
+  },
+  "logis -V --version": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--version' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis -V=x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-V=x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis -d": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis -d -d": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-d' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis -d -i": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis -h": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-h' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis -i": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis -i --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis -i -i": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis -l 3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune -l serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis -p x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune -p serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis -w 3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune -w serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis -x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --bogus": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--bogus' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --bogus --config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--bogus' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config stands empty: it wants one path to a config file\n"
+  },
+  "logis daemon --config \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear '': it wants one path to a config file\n"
+  },
+  "logis daemon --config a --config b": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear 'b': it wants one path to a config file\n"
+  },
+  "logis daemon --config missing.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --config x --bogus": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--bogus' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --config x --idle-timeout soon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'soon': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --config=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear '': it wants one path to a config file\n"
+  },
+  "logis daemon --config=a --config=b": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --config cannot bear 'b': it wants one path to a config file\n"
+  },
+  "logis daemon --debug": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--debug' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --debug-panel --config missing.jsonc": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: $DIR/missing.jsonc: no such file\n"
+  },
+  "logis daemon --debug-panel=1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--debug-panel=1' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --detach --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --detach=1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--detach=1' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--dmenu' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon --idle-timeout": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout stands empty: it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout \" 5\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear ' 5': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout \"5 \"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '5 ': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout +5": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout --config x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '--config': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout -0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout -1": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '-1': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout -inf": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '-inf': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout .5": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 0.0000000001": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 0.25": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 0x10": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '0x10': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout 18446744073709551616": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '18446744073709551616': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout 1E3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 1_0": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '1_0': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout 1e19": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 1e3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout 1e400": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '1e400': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout 5 --idle-timeout soon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'soon': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout 5.": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --idle-timeout NaN": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'NaN': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout inf": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'inf': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout infinity": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'infinity': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout nan": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'nan': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout soon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'soon': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout soon --config": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear 'soon': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout １": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '１': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout=": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --idle-timeout cannot bear '': it wants a number of seconds (0 keeps the daemon resident)\n"
+  },
+  "logis daemon --idle-timeout=600": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the noosphere is silent: no Wayland session answers (WAYLAND_DISPLAY is not set). The cogitator manifests only within a Wayland session.\n"
+  },
+  "logis daemon --version": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--version' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon -V": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '-V' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'daemon' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis daemon hex:ff": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '�' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis help": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'help' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis hex:2d2d68c3": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--h�' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis hex:2d2d68ff72657379": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--h�resy' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis hex:2d2d70726f6d7074 hex:ff": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune --prompt serves only --dmenu; this cogitator has no other list yet\n"
+  },
+  "logis provide": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune provide stands empty: it wants the name of a built-in provider: servitor\n"
+  },
+  "logis provide \"\"": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune provide cannot bear '': it wants the name of a built-in provider: servitor\n"
+  },
+  "logis provide --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune provide cannot bear '--servitor': it wants the name of a built-in provider: servitor\n"
+  },
+  "logis provide apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune provide cannot bear 'apps': it wants the name of a built-in provider: servitor\n"
+  },
+  "logis provide hex:ff": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune provide cannot bear '�': it wants the name of a built-in provider: servitor\n"
+  },
+  "logis provide servitor --config x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune '--config' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  },
+  "logis provide servitor x": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the rune 'x' is unknown to this cogitator. It knows only --version, --dmenu or --dmenu0 (with fuzzel's list runes), --apps, --provider PROGRAM [ARG]..., --servitor, --check-config, --config PATH and daemon [--idle-timeout SECONDS] [--config PATH] [--detach] [--debug-panel].\n"
+  }
+}

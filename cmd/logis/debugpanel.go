@@ -30,7 +30,7 @@ func debugPanel(src *config.Source, stdout, stderr io.Writer) int {
 	}
 	cfg, err := src.Load()
 	if err != nil {
-		return fail(stderr, config.Heresy(err))
+		return fail(stderr, err.Error()) // Rust's words: the error alone
 	}
 	// Fonts are resolved at start on a goroutine of their own (Rust
 	// Windows::connect): fontconfig's start-up overlaps the compositor's

@@ -102,7 +102,8 @@ func TestThePanelsKeyboardFollowsTheFocusLossPolicy(t *testing.T) {
 }
 
 // The config is read before any window: a heretical one ends the panel
-// with exit 2 and says why, as Rust's debug panel does.
+// with exit 2 and says why, in the words Rust's debug panel used (the
+// config's own error, without the daemon's "the config is heretical").
 func TestAHereticalConfigEndsThePanelBeforeAnyWindow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
 	if err := os.WriteFile(path, []byte(`{"focus-loss": "linger"}`), 0o600); err != nil {
@@ -114,7 +115,7 @@ func TestAHereticalConfigEndsThePanelBeforeAnyWindow(t *testing.T) {
 	if code := debugPanel(&src, &stdout, &stderr); code != 2 {
 		t.Errorf("exit %d", code)
 	}
-	if !strings.HasPrefix(stderr.String(), "logis: the config is heretical: "+path) || stdout.Len() != 0 {
+	if !strings.HasPrefix(stderr.String(), "logis: "+path+":1:") || stdout.Len() != 0 {
 		t.Errorf("stderr %q, stdout %q", stderr.String(), stdout.String())
 	}
 }

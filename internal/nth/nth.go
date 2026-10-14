@@ -134,6 +134,9 @@ func reference(inner, text string) (p piece, isRef bool, err error) {
 		if !ok {
 			return piece{}, false, nil
 		}
+		if m == 0 { // an explicit end of 0 runs backwards (to 0 is open-ended)
+			m = -1
+		}
 		p, err = columns(n, m, text)
 	}
 	return p, err == nil, err

@@ -63,14 +63,16 @@ func (r *dmenuRunes) take(arg string, rest *argQueue) (bool, error) {
 	if before, after, ok := strings.Cut(arg, "="); ok && strings.HasPrefix(before, "--") {
 		name, inline, hasInline = before, after, true
 	}
-	value := func(wants string) (string, error) {
+	// value is the rune's value, as text (Rust's to_string_lossy); flag
+	// names the rune in an error by its long name.
+	value := func(flag, wants string) (string, error) {
 		if hasInline {
 			return inline, nil
 		}
 		if v, ok := rest.next(); ok {
-			return v, nil
+			return lossy(v), nil
 		}
-		return "", emptyValue(name, wants)
+		return "", emptyValue(flag, wants)
 	}
 	if err := r.apply(name, inline, hasInline, value); err != nil {
 		if err == errNotARune {
@@ -87,21 +89,24 @@ func (r *dmenuRunes) take(arg string, rest *argQueue) (bool, error) {
 // errNotARune: apply knows no such rune.
 var errNotARune = runeError("")
 
-func (r *dmenuRunes) apply(name, inline string, hasInline bool, value func(string) (string, error)) error {
+// valueOf reads a rune's value: its long name and what it wants.
+type valueOf func(flag, wants string) (string, error)
+
+func (r *dmenuRunes) apply(name, inline string, hasInline bool, value valueOf) error {
 	d := &r.d
 	var err error
-	text := func(wants string, into *string) {
-		*into, err = value(wants)
+	text := func(flag, wants string, into *string) {
+		*into, err = value(flag, wants)
 	}
 	switch name {
 	case "--prompt", "-p":
-		text("the prompt's text", &d.view.Prompt)
+		text("--prompt", "the prompt's text", &d.view.Prompt)
 	case "--prompt-only":
-		text("the prompt's text", &d.view.Prompt)
+		text("--prompt-only", "the prompt's text", &d.view.Prompt)
 		zero := uint32(0)
 		d.view.Lines, d.readStdin = &zero, false
 	case "--placeholder":
-		text("the placeholder's text", &d.view.Placeholder)
+		text("--placeholder", "the placeholder's text", &d.view.Placeholder)
 	case "--password":
 		d.view.Password, err = password(inline, hasInline)
 	case "--lines", "-l":
@@ -111,14 +116,14 @@ func (r *dmenuRunes) apply(name, inline string, hasInline bool, value func(strin
 	case "--counter":
 		d.view.Counter = true
 	case "--search":
-		text("the opening query", &d.view.Search)
+		text("--search", "the opening query", &d.view.Search)
 	case "--select":
 		p := &list.Preselect{}
-		text("an item's text", &p.Text)
+		text("--select", "an item's text", &p.Text)
 		d.view.Select, r.selectText = p, true
 	case "--select-index":
 		var v string
-		if v, err = value(indexWant); err == nil {
+		if v, err = value("--select-index", indexWant); err == nil {
 			i, ok := rustUint(v, 64)
 			if !ok {
 				return badValue("--select-index", v, indexWant)
@@ -139,7 +144,7 @@ func (r *dmenuRunes) apply(name, inline string, hasInline bool, value func(strin
 		d.columns.Match, err = nthRune("--match-nth", value)
 	case "--nth-delimiter":
 		var v string
-		if v, err = value(delimiterWant); err == nil {
+		if v, err = value("--nth-delimiter", delimiterWant); err == nil {
 			delimiter, ok := nth.Delimiter(v)
 			if !ok {
 				return badValue("--nth-delimiter", v, delimiterWant)
@@ -171,14 +176,17 @@ func (r *dmenuRunes) noneGiven() error {
 	return runeError("the rune " + r.first + " serves only --dmenu; this cogitator has no other list yet")
 }
 
-func numberRune(flag, wants string, value func(string) (string, error), positive bool) (*uint32, error) {
-	v, err := value(wants)
+func numberRune(flag, wants string, value valueOf, positive bool) (*uint32, error) {
+	v, err := value(flag, wants)
 	if err != nil {
 		return nil, err
 	}
 	n, ok := rustUint(v, 32)
-	if !ok || (positive && n == 0) {
+	if !ok {
 		return nil, badValue(flag, v, wants)
+	}
+	if positive && n == 0 {
+		return nil, badValue(flag, "0", wants) // Rust named the number read
 	}
 	u := uint32(n)
 	return &u, nil
@@ -195,8 +203,8 @@ func rustUint(s string, bits int) (uint64, bool) {
 	return n, err == nil
 }
 
-func nthRune(flag string, value func(string) (string, error)) (*nth.Nth, error) {
-	v, err := value(nthWant)
+func nthRune(flag string, value valueOf) (*nth.Nth, error) {
+	v, err := value(flag, nthWant)
 	if err != nil {
 		return nil, err
 	}
