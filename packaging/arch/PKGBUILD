@@ -47,15 +47,17 @@ sha256sums=()
 
 # The Go environment of every step (Arch's Go package guidelines): cgo
 # compiles and links with makepkg's flags; the binary is a PIE linked by the
-# system linker, without build paths or VCS stamps; modules come only from
-# go.sum into a cache under $srcdir (removed with it), downloaded in
-# prepare(); and the installed Go builds, never a downloaded toolchain.
+# system linker, without VCS stamps; modules come only from go.sum into a
+# cache under $srcdir (removed with it), downloaded in prepare(); and the
+# installed Go builds, never a downloaded toolchain. -trimpath (no build
+# paths) is build()'s alone: tests find their fixtures through their own
+# source path, which -trimpath would rewrite.
 _goenv() {
   export CGO_CPPFLAGS="$CPPFLAGS"
   export CGO_CFLAGS="$CFLAGS"
   export CGO_CXXFLAGS="$CXXFLAGS"
   export CGO_LDFLAGS="$LDFLAGS"
-  export GOFLAGS='-buildmode=pie -trimpath -buildvcs=false -ldflags=-linkmode=external -mod=readonly -modcacherw'
+  export GOFLAGS='-buildmode=pie -buildvcs=false -ldflags=-linkmode=external -mod=readonly -modcacherw'
   export GOPATH="$srcdir/gopath"
   export GOTOOLCHAIN=local
 }
@@ -81,7 +83,7 @@ build() {
   cd "$pkgname-$pkgver"
   _goenv
   export GOPROXY=off
-  go build -o build/logis ./cmd/logis
+  go build -trimpath -o build/logis ./cmd/logis
 }
 
 check() {
