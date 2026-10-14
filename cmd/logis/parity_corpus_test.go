@@ -222,6 +222,34 @@ func parityCorpus() []parityCase {
 			with(env, args...)
 		}
 	}
+	// A compositor the window cannot use: every command, and without a
+	// runtime dir (the display then given as an absolute path).
+	for _, name := range []string{"no-layer-shell", "no-fractional-scale"} {
+		for _, env := range [][]string{nil, {"WAYLAND_DISPLAY=$DIR/run/wayland-test", "XDG_RUNTIME_DIR="}} {
+			for _, args := range commands {
+				cases = append(cases, parityCase{args: args, env: env, compositor: name})
+			}
+		}
+	}
+	// Sessions served end to end by the scripted resolver (it picks the
+	// first item whose shown text starts with '>', or dismisses) in a daemon
+	// the client starts and that idles out a second after.
+	scripted := func(stdin string, args ...string) {
+		cases = append(cases, parityCase{args: args, stdin: stdin, compositor: "everything",
+			env: []string{"LOGIS_RESOLVER=scripted"}, files: map[string]string{"config/logis/logis.jsonc": `{"idle-timeout": 1}`}})
+	}
+	scripted("a\n>b\nc\n", "--dmenu")
+	scripted("a\nb\n", "--dmenu")
+	scripted(">a\n>b", "--dmenu")
+	scripted("a\n>b\n", "--dmenu", "--index")
+	scripted("a\x00>b\nc\x00d", "--dmenu0")
+	scripted("x\t>y\tz\n", "--dmenu", "--with-nth", "2")
+	scripted("x\t>y\tz\n", "--dmenu", "--with-nth", "2", "--accept-nth", "{3} {1}")
+	scripted("x,>y,z\n", "--dmenu", "--nth-delimiter", ",", "--with-nth", "{2..}", "--accept-nth", "1")
+	scripted(">a\tb\n", "--dmenu", "--match-nth", "2", "--index")
+	scripted(">a\n", "--dmenu", "--prompt-only", "pin: ")
+	scripted(">a\n", "-i", "--dmenu", "--counter", "--lines=3", "-p", "rite> ", "--only-match")
+
 	with([]string{"WAYLAND_DISPLAY=wayland-nowhere"}, "--version")
 	with([]string{"WAYLAND_DISPLAY=wayland-nowhere"}, "--check-config")
 	with([]string{"XDG_CONFIG_HOME=", "HOME="}, "--check-config")

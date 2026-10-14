@@ -10,10 +10,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
 // The caller-facing surface of Rust logis v1, held against the Go binary
@@ -38,12 +41,24 @@ const parityRecord = "testdata/parity.json"
 
 // parityCase is one invocation: its arguments ("hex:" marks an argument
 // given as hexadecimal bytes, for ones that are not UTF-8), stdin, extra
-// environment ("NAME=" unsets NAME) and files written below $DIR first.
+// environment ("NAME=" unsets NAME), files written below $DIR first, and
+// the fake compositor (a key of parityCompositors) served at
+// $DIR/run/wayland-test as WAYLAND_DISPLAY=wayland-test, if any.
 type parityCase struct {
-	args  []string
-	stdin string
-	env   []string
-	files map[string]string
+	args       []string
+	stdin      string
+	env        []string
+	files      map[string]string
+	compositor string
+}
+
+// parityCompositors are the fake compositors a case may name: ones the
+// window cannot use, or (for scripted cases only) one that passes the
+// preflight, so no case ever opens a window.
+var parityCompositors = map[string][]wltest.Global{
+	"no-layer-shell":      withoutLayerShell,
+	"no-fractional-scale": withoutFractionalScale,
+	"everything":          withLayerShell,
 }
 
 // answer is how one invocation ended.
@@ -56,6 +71,9 @@ type answer struct {
 // key names the case in the record: its environment, files and arguments.
 func (c parityCase) key() string {
 	var parts []string
+	if c.compositor != "" {
+		parts = append(parts, "[compositor="+c.compositor+"]")
+	}
 	parts = append(parts, c.env...)
 	var names []string
 	for name := range c.files {
@@ -123,6 +141,21 @@ func runParity(t *testing.T, bin string, c parityCase) answer {
 		"XDG_CONFIG_HOME": filepath.Join(dir, "config"),
 		"LANG":            "C.UTF-8",
 	}
+	if c.compositor != "" {
+		globals, ok := parityCompositors[c.compositor]
+		if !ok {
+			t.Fatalf("%s: no such compositor", c.key())
+		}
+		if c.compositor == "everything" && !slices.Contains(c.env, "LOGIS_RESOLVER=scripted") {
+			t.Fatalf("%s: a window would open: everything is for scripted cases", c.key())
+		}
+		fake, err := wltest.Serve(filepath.Join(dir, "run"), "wayland-test", globals)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer fake.Close()
+		env["WAYLAND_DISPLAY"] = "wayland-test"
+	}
 	for _, kv := range c.env {
 		name, value, _ := strings.Cut(kv, "=")
 		if value == "" {
@@ -149,7 +182,14 @@ func runParity(t *testing.T, bin string, c parityCase) answer {
 	if err != nil && !errors.As(err, &exit) {
 		t.Fatalf("%s: %v", c.key(), err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "run", "logis.sock")); err == nil {
+	// A daemon a case started (only the scripted ones may) idles out.
+	socket := filepath.Join(dir, "run", "logis.sock")
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(socket); err != nil {
+			break
+		}
+	}
+	if _, err := os.Stat(socket); err == nil {
 		t.Errorf("%s: %s left a daemon's socket behind", c.key(), bin)
 	}
 	unDir := func(b []byte) string { return strings.ReplaceAll(string(b), dir, "$DIR") }

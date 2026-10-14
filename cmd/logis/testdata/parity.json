@@ -219,6 +219,221 @@
     "stdout": "",
     "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
   },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --index \u003c \"a\\n\\u003eb\\n\"": {
+    "code": 0,
+    "stdout": "1\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --match-nth 2 --index \u003c \"\\u003ea\\tb\\n\"": {
+    "code": 0,
+    "stdout": "0\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --nth-delimiter , --with-nth \"{2..}\" --accept-nth 1 \u003c \"x,\\u003ey,z\\n\"": {
+    "code": 0,
+    "stdout": "x\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --prompt-only \"pin: \" \u003c \"\\u003ea\\n\"": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --with-nth 2 --accept-nth \"{3} {1}\" \u003c \"x\\t\\u003ey\\tz\\n\"": {
+    "code": 0,
+    "stdout": "z x\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu --with-nth 2 \u003c \"x\\t\\u003ey\\tz\\n\"": {
+    "code": 0,
+    "stdout": "x\t\u003ey\tz\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu \u003c \"\\u003ea\\n\\u003eb\"": {
+    "code": 0,
+    "stdout": "\u003ea\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu \u003c \"a\\n\\u003eb\\nc\\n\"": {
+    "code": 0,
+    "stdout": "\u003eb\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu \u003c \"a\\nb\\n\"": {
+    "code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis --dmenu0 \u003c \"a\\u0000\\u003eb\\nc\\u0000d\"": {
+    "code": 0,
+    "stdout": "\u003eb\nc\n",
+    "stderr": ""
+  },
+  "[compositor=everything] LOGIS_RESOLVER=scripted [config/logis/logis.jsonc={\"idle-timeout\": 1}] logis -i --dmenu --counter --lines=3 -p \"rite\\u003e \" --only-match \u003c \"\\u003ea\\n\"": {
+    "code": 0,
+    "stdout": "\u003ea\n",
+    "stderr": ""
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-fractional-scale] logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-fractional-scale] logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor withholds a sacred rite: it does not offer wp_fractional_scale_manager_v1\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] WAYLAND_DISPLAY=$DIR/run/wayland-test XDG_RUNTIME_DIR= logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute\n"
+  },
+  "[compositor=no-layer-shell] logis": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis --apps": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis --dmenu": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis --provider true": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis --servitor": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: the machine spirit could not be roused: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis daemon": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis daemon --debug-panel": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
+  "[compositor=no-layer-shell] logis daemon --detach": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "logis: this compositor offers no altar: it does not support wlr-layer-shell (zwlr_layer_shell_v1). The cogitator rises only on compositors that do, such as niri or sway; GNOME/Mutter is not one of them.\n"
+  },
   "[config/logis/logis.jsonc=// a comment, then nothing] logis --check-config": {
     "code": 0,
     "stdout": "logis: the config at $DIR/config/logis/logis.jsonc is sound; the theme 'forge-crimson-brass' is sound\n",
