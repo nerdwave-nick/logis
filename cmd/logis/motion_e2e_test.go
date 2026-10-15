@@ -41,6 +41,17 @@ func commitsBetween(events []trace.Event, from, to uint64) int {
 	return n
 }
 
+// msAfter lists when the events what came, in milliseconds after from.
+func msAfter(events []trace.Event, from uint64, what string) string {
+	var at []string
+	for _, e := range events {
+		if e.What == what {
+			at = append(at, fmt.Sprintf("%.1f", (float64(e.NS)-float64(from))/1e6))
+		}
+	}
+	return strings.Join(at, " ")
+}
+
 // quietFor waits span and returns the trace events that arrived meanwhile.
 func quietFor(c *e2e.Cogitator, span time.Duration) []trace.Event {
 	since := trace.MonotonicNS()
@@ -127,8 +138,12 @@ func TestE2ETheAnswerIsSentAtAcceptWhileTheWindowStillFades(t *testing.T) {
 		t.Fatalf("the caller had its answer %.1f ms after accept, the window faded at %.1f ms",
 			float64(answered-accept.NS)/1e6, float64(faded.NS-accept.NS)/1e6)
 	}
+	// The panel goes once its next frame would be seen at or after the
+	// close's end, and a frame drawn now is seen within an interval of the
+	// next refresh: `faded` comes at most two intervals early.
 	if faded.NS-accept.NS < (slowCloseMS-40)*uint64(time.Millisecond) {
-		t.Fatalf("the close ended %.1f ms after accept", float64(faded.NS-accept.NS)/1e6)
+		t.Fatalf("the close ended %.1f ms after accept; its frames were drawn at %s ms",
+			float64(faded.NS-accept.NS)/1e6, msAfter(c.Daemon.Events(), accept.NS, "commit closing"))
 	}
 	if after := quietFor(c, 300*time.Millisecond); drewIn(after) {
 		t.Fatalf("%v", after)
