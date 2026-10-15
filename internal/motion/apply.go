@@ -4,7 +4,7 @@ import "github.com/nerdwave-nick/logis/internal/render"
 
 // Apply moves and fades sc into this pose (Rust src/motion/apply.rs): every
 // position moved by the offset and every colour's alpha multiplied by the
-// opacity, images, the effects' area and the caret included, so any scene
+// opacity, images, the effects' areas (body and plates) and the caret included, so any scene
 // opens and closes the same way. The rest pose changes nothing.
 func (p Pose) Apply(sc *render.Scene) {
 	if p.IsRest() {
@@ -23,6 +23,13 @@ func (p Pose) Apply(sc *render.Scene) {
 		s.Glow.Color = fade(s.Glow.Color)
 	}
 	sc.Post.Rect = p.Place(sc.Post.Rect)
+	if len(sc.Post.Regions) > 0 {
+		regions := make([]render.Region, len(sc.Post.Regions))
+		for i, r := range sc.Post.Regions {
+			regions[i] = render.Region{Rect: p.Place(r.Rect), Radius: r.Radius}
+		}
+		sc.Post.Regions = regions
+	}
 	for i := range sc.Images {
 		sc.Images[i].Origin = shift(sc.Images[i].Origin)
 		sc.Images[i].Opacity *= opacity

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/icons"
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/list"
@@ -171,17 +172,27 @@ func windowRows() []list.Entry {
 //     "off", "on" semibold in forge; the colour stays per letter). logis
 //     sets only the matched letters apart, as Rust's rows.rs describes
 //     (internal/text divergences).
+//
+// Since the CRT pass (cd816303) the bundled themes wear other effects than
+// Rust's goldens show: the comparison draws forge with its v1 strengths,
+// which the CRT pass draws byte for byte as v1 did. Phosphor's v1 look
+// bent its picture behind a straight border, which the pass no longer
+// does, so its Rust golden is out of reach.
 func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T) {
 	h := rendertest.Headless(t)
 	g := rendertest.CheckedIn(t)
 	g.Alpha = rendertest.Straight
 	o := list.DefaultOptions()
 	o.Counter = true
-	for _, themeName := range theme.Bundled() {
+	for _, themeName := range []string{theme.DefaultName} {
 		th, err := theme.Themes{}.Load(themeName)
 		if err != nil {
 			t.Fatal(err)
 		}
+		// v1's forge: scanlines 0.16, grain 0.08, flicker 0.015, vignette 0.42.
+		th.Effects = effects.Defaults()
+		th.Effects.Scanlines.Strength, th.Effects.Grain.Strength = 0.16, 0.08
+		th.Effects.Flicker.Strength, th.Effects.Roundness.Vignette = 0.015, 0.42
 		logical, rows := scene.Fit(o, &th)
 		v := list.NewView(o)
 		v.SetLines(rows)

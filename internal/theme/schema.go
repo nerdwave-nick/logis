@@ -24,6 +24,9 @@ const (
 	kToggle               // false, or a section's settings (or a pair)
 	kPalette              // named colours
 	kRoles                // font roles: name → FontDoc
+	kEffects              // the effects: groups, and v1's keys moved into them
+	kGroup                // an effect's group, or a bare number: its strength
+	kMask                 // dots, grille or slot
 )
 
 // key is one key of a section.
@@ -109,8 +112,7 @@ var docSection = sec("Doc",
 	part("badge", sec("BadgeDoc", txt("font"), key{name: "style", kind: kBadge}, col("ink"), col("edge"),
 		col("fill"), flag("uppercase"))),
 	part("pending", sec("PendingDoc", col("color"), flt("opacity"), flt("shimmer"), ms("period-ms"), txt("mark"))),
-	part("effects", sec("EffectsDoc", flt("scanlines"), flt("grain"), flt("flicker"), flt("vignette"),
-		flt("bloom"), flt("curvature"), flt("aberration"))),
+	key{name: "effects", kind: kEffects, sub: effectsDoc},
 	part("motion", sec("MotionDoc", ms("open-ms"), ms("close-ms"), ms("select-ms"))),
 )
 

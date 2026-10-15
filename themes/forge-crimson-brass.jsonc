@@ -93,14 +93,17 @@
     "uppercase": true
   },
   "pending": { "color": "ash", "opacity": 0.72, "shimmer": 0.3, "period-ms": 1600, "mark": "divining…" },
+  // The owner's look from the effects lab (2026-10-15): fine rolling
+  // scanlines, a faint dot mask, a soft glow, a hint of twitching
+  // aberration and a barely bent tube.
   "effects": {
-    "scanlines": 0.16,
-    "grain": 0.08,
-    "flicker": 0.015,
-    "vignette": 0.42,
-    "bloom": 0,
-    "curvature": 0,
-    "aberration": 0
+    "scanlines": { "strength": 0.38, "period": 2, "sharpness": 0.79, "roll": 0.5 },
+    "glow": { "strength": 0.26, "threshold": 0.25, "reach": 1.5, "bleed": 0.65, "dim-bright": 0.55 },
+    "aberration": { "amount": 0.06, "edges-only": 0.13, "wobble": 0.33, "wobble-rate": 1.65, "twitch": 0.29 },
+    "mask": { "strength": 0.04, "size": 2, "kind": "dots" },
+    "roundness": { "curvature": 0.02, "corners": 0, "vignette": 0.14 },
+    "grain": { "strength": 0.12, "rate": 24 },
+    "flicker": { "strength": 0.01, "frequency": 7.48 }
   },
   "motion": { "open-ms": 150, "close-ms": 110, "select-ms": 90 }
 }

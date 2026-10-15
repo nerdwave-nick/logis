@@ -26,8 +26,7 @@ func TestTheEffectsCoverTheBody(t *testing.T) {
 	logical := sized(th)
 	rect, radius := Body(logical, th)
 	post := Draw(look(3, 0), logical, still(th)).Post
-	if post.Rect != rect || post.Radius != radius || post.Scanlines != th.Effects.Scanlines ||
-		post.Vignette != th.Effects.Vignette || post.Inset != th.Border.Width {
+	if post.Rect != rect || post.Radius != radius || post.CRT != th.Effects || post.Inset != th.Border.Width {
 		t.Fatalf("%+v", post)
 	}
 	plain := *th

@@ -70,7 +70,7 @@ func TestTheDefaultIsForgeWithTheDecidedGeometryAndMotifs(t *testing.T) {
 		t.Error("corner rivets and the gear")
 	case !forge.Border.HasHighlight || forge.Glow.Pulse <= 0:
 		t.Error("a travelling highlight and a pulsing glow")
-	case forge.Effects.Flicker <= 0 || forge.Effects.Flicker >= 0.05:
+	case forge.Effects.Flicker.Strength <= 0 || forge.Effects.Flicker.Strength >= 0.05:
 		t.Error("subtle flicker")
 	case len(forge.Border.Paint) != 3:
 		t.Error("brass, ember, crimson")
@@ -85,7 +85,7 @@ func TestTheDefaultIsForgeWithTheDecidedGeometryAndMotifs(t *testing.T) {
 
 func TestPhosphorIsAGreenCRTWithCurvatureBloomAndInverseSelection(t *testing.T) {
 	p := phosphor(t)
-	if p.Effects.Curvature <= 0 || p.Effects.Bloom <= 0 || p.HasRivets || p.Prompt.HasSigil {
+	if p.Effects.Roundness.Curvature <= 0 || p.Effects.Glow.Strength <= 0 || p.HasRivets || p.Prompt.HasSigil {
 		t.Errorf("%+v rivets %v sigil %v", p.Effects, p.HasRivets, p.Prompt.HasSigil)
 	}
 	if f := p.Faces[p.Row.Font.Face].Families; !reflect.DeepEqual(f, []string{"VT323", "Terminus", "monospace"}) {
@@ -137,7 +137,7 @@ func TestAThemeExtendingItsOwnNameAmendsTheBundledOne(t *testing.T) {
 		"cogitator-phosphor": `{"extends": "cogitator-phosphor", "effects": {"curvature": 0}}`,
 	})
 	theme := load(t, th, "cogitator-phosphor")
-	if theme.Effects.Curvature != 0 || theme.Effects.Bloom <= 0 {
+	if theme.Effects.Roundness.Curvature != 0 || theme.Effects.Glow.Strength <= 0 {
 		t.Errorf("%+v", theme.Effects)
 	}
 }
@@ -249,7 +249,7 @@ func TestReduceMotionStillsEveryContinuousEffect(t *testing.T) {
 	if still.IsContinuous() || still.Shimmers() || still.Border.Highlight.Period != 0 {
 		t.Errorf("%+v", still)
 	}
-	if still.Effects.Scanlines != forge.Effects.Scanlines {
+	if still.Effects.Scanlines.Strength != forge.Effects.Scanlines.Strength || still.Effects.Mask != forge.Effects.Mask {
 		t.Error("static effects stay")
 	}
 }

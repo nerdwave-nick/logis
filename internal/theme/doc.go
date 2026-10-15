@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
@@ -176,6 +177,13 @@ func (r reader) value(v *jsonc.Value, k key) (any, error) {
 		return r.palette(v)
 	case kRoles:
 		return r.roles(v, k.sub)
+	case kEffects:
+		return r.effects(v, k.sub)
+	case kGroup:
+		return r.group(v, k)
+	case kMask:
+		i, err := r.word(v, effects.MaskWords)
+		return effects.MaskKind(i), err
 	}
 	panic(fmt.Sprintf("theme: key %s of no kind", k.name))
 }

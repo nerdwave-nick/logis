@@ -17,6 +17,7 @@ package theme
 import (
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
 )
@@ -264,21 +265,9 @@ type Pending struct {
 	Mark string
 }
 
-// Effects are the post-processing pass over the body: each a strength,
-// 0 is off.
-type Effects struct {
-	Scanlines, Grain, Flicker, Vignette, Bloom, Curvature, Aberration float32
-}
-
-// Any reports whether any effect is on (the pass runs at all).
-func (e Effects) Any() bool {
-	for _, s := range []float32{e.Scanlines, e.Grain, e.Flicker, e.Vignette, e.Bloom, e.Curvature, e.Aberration} {
-		if s > 0 {
-			return true
-		}
-	}
-	return false
-}
+// Effects are the CRT pass's controls over the body (and the tab
+// strip's plates): a group per effect, each with its strength (0 is off).
+type Effects = effects.CRT
 
 // Motion are the transition timings.
 type Motion struct {
@@ -286,12 +275,14 @@ type Motion struct {
 }
 
 // IsContinuous reports whether the theme moves on its own (glow pulse,
-// travelling highlight, flicker), so a visible window keeps drawing. A
-// pending row's shimmer counts only while one is shown (Shimmers).
+// travelling highlight, and effects that move: rolling scanlines, a
+// wobbling aberration, flicker, changing grain), so a visible window keeps
+// drawing. A pending row's shimmer counts only while one is shown
+// (Shimmers).
 func (t Theme) IsContinuous() bool {
 	return t.Glow.Pulse > 0 && t.Glow.Period > 0 ||
 		t.Border.HasHighlight && t.Border.Highlight.Period > 0 ||
-		t.Effects.Flicker > 0
+		t.Effects.Moves()
 }
 
 // Shimmers reports whether a shown pending row shimmers, so the window
@@ -300,11 +291,12 @@ func (t Theme) Shimmers() bool { return t.Pending.Shimmer > 0 && t.Pending.Perio
 
 // Stilled is the theme with every continuous effect stilled (the config's
 // reduce-motion): no pulse, no travelling highlight (it rests at the top),
-// no flicker, no shimmer.
+// no flicker, no shimmer; the scanlines stop rolling, the aberration
+// steady, the grain frozen (effects.CRT.Stilled).
 func (t Theme) Stilled() Theme {
 	t.Glow.Pulse = 0
 	t.Border.Highlight.Period = 0
-	t.Effects.Flicker = 0
+	t.Effects = t.Effects.Stilled()
 	t.Pending.Shimmer = 0
 	return t
 }

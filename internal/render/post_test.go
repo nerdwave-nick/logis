@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 	"github.com/nerdwave-nick/logis/internal/scale"
@@ -42,7 +43,7 @@ func postScene(post render.Post, extra ...render.RoundedRect) *render.Scene {
 	}
 }
 
-func bodyPost() render.Post { return render.Post{Rect: postBody} }
+func bodyPost() render.Post { return render.Post{Rect: postBody, CRT: effects.Defaults()} }
 
 func luma(px [4]byte) int { return int(px[0]) + int(px[1]) + int(px[2]) }
 
@@ -75,7 +76,7 @@ func TestPostStrengthsOfZeroChangeNothing(t *testing.T) {
 
 func TestPostScanlinesDarkenRowsInsideTheBodyOnly(t *testing.T) {
 	p := bodyPost()
-	p.Scanlines = 0.5
+	p.CRT.Scanlines.Strength = 0.5
 	img := postRender(t, rendertest.Headless(t), postScene(p), scale.One)
 	var column []int
 	for y := 12; y < 78; y++ {
@@ -101,7 +102,7 @@ func TestPostScanlinesDarkenRowsInsideTheBodyOnly(t *testing.T) {
 
 func TestPostAVignetteDarkensTheEdgesMoreThanTheCentre(t *testing.T) {
 	p := bodyPost()
-	p.Vignette = 0.8
+	p.CRT.Roundness.Vignette = 0.8
 	img := postRender(t, rendertest.Headless(t), postScene(p), scale.One)
 	centre, corner := luma(img.Pixel(60, 45)), luma(img.Pixel(12, 12))
 	if centre <= corner+100 || centre < 3*0x80-6 {
@@ -112,7 +113,7 @@ func TestPostAVignetteDarkensTheEdgesMoreThanTheCentre(t *testing.T) {
 func TestPostGrainIsTheSameAtAFrozenTimeAndMovesWithTime(t *testing.T) {
 	h := rendertest.Headless(t)
 	p := bodyPost()
-	p.Grain = 0.6
+	p.CRT.Grain.Strength = 0.6
 	a := postRender(t, h, postScene(p), scale.One)
 	b := postRender(t, h, postScene(p), scale.One)
 	if !bytes.Equal(a.Pixels, b.Pixels) {
@@ -136,7 +137,7 @@ func TestPostFlickerTremblesTheBrightnessOverTime(t *testing.T) {
 	var lumas []int
 	for _, at := range []float32{0, 0.01, 0.02, 0.033, 0.05} {
 		p := bodyPost()
-		p.Flicker, p.Time = 0.5, at
+		p.CRT.Flicker.Strength, p.Time = 0.5, at
 		lumas = append(lumas, luma(postRender(t, h, postScene(p), scale.One).Pixel(60, 45)))
 	}
 	if spread(lumas) <= 15 {
@@ -152,7 +153,7 @@ func TestPostBloomSpreadsLightFromBrightParts(t *testing.T) {
 	}
 	plain := postRender(t, h, dark(bodyPost()), scale.One)
 	p := bodyPost()
-	p.Bloom = 0.8
+	p.CRT.Glow.Strength = 0.8
 	bloomed := postRender(t, h, dark(p), scale.One)
 	if near, was := luma(bloomed.Pixel(66, 45)), luma(plain.Pixel(66, 45)); near <= was+15 {
 		t.Errorf("%d vs %d", near, was)
@@ -165,7 +166,7 @@ func TestPostBloomSpreadsLightFromBrightParts(t *testing.T) {
 func TestPostCurvatureBendsStraightLinesTowardsTheEdges(t *testing.T) {
 	line := solidRect([4]float32{10, 20, 100, 2}, render.Hex(0xffffff))
 	p := bodyPost()
-	p.Curvature = 1
+	p.CRT.Roundness.Curvature = 1
 	bent := postRender(t, rendertest.Headless(t), postScene(p, line), scale.One)
 	brightRows := func(x int) []int {
 		var rows []int
@@ -185,7 +186,7 @@ func TestPostCurvatureBendsStraightLinesTowardsTheEdges(t *testing.T) {
 func TestPostAberrationPartsRedFromBlueAtAnEdge(t *testing.T) {
 	bar := solidRect([4]float32{40, 10, 40, 70}, render.Hex(0xffffff))
 	p := bodyPost()
-	p.Aberration = 1
+	p.CRT.Aberration.Amount = 1
 	img := postRender(t, rendertest.Headless(t), postScene(p, solidRect(postBody, render.Hex(0)), bar), scale.One)
 	for x := 34; x < 46; x++ {
 		if px := img.Pixel(x, 45); int(px[0])-int(px[2]) > 60 || int(px[2])-int(px[0]) > 60 {
@@ -198,7 +199,7 @@ func TestPostAberrationPartsRedFromBlueAtAnEdge(t *testing.T) {
 func TestPostThePassScalesWithTheOutput(t *testing.T) {
 	h := rendertest.Headless(t)
 	p := bodyPost()
-	p.Scanlines, p.Vignette, p.Grain = 0.5, 0.4, 0.3
+	p.CRT.Scanlines.Strength, p.CRT.Roundness.Vignette, p.CRT.Grain.Strength = 0.5, 0.4, 0.3
 	for _, s := range []scale.Scale{scale.From120ths(156), scale.FromInteger(2)} {
 		img := postRender(t, h, postScene(p), s)
 		size := s.Physical(postLogical)
@@ -211,26 +212,89 @@ func TestPostThePassScalesWithTheOutput(t *testing.T) {
 	}
 }
 
-// Curved glass bows the screen inside the panel's edge, never through it:
-// what the curve uncovers is the dark glass, as opaque as the body, so a
-// compositor's blur behind the body never shows through, and the edge (the
-// border) stays straight.
-func TestPostCurvatureNeverUncoversWhatLiesBehindTheBody(t *testing.T) {
-	body := solidRect(postBody, render.Hex(0x808080))
+// Curvature bends the whole panel as one tube face (cd816303; Rust v1 bent
+// only what lay inside a straight border): the middles of its edges stay,
+// its corners draw in, so the outline turns convex and what the bend
+// uncovers beyond it is the frame there (here transparent); and nothing of
+// the unbent picture is left behind (v1 left the unbent text's alpha in
+// the dark it uncovered, a ghost over a light desktop).
+func TestPostCurvatureBendsTheWholePanel(t *testing.T) {
+	body := solidRect(postBody, render.Hex(0x808080).WithAlpha(0.9))
 	body.Border = render.Border{Width: 2, Paint: render.Solid(render.Hex(0x2fd36a))}
+	bar := solidRect([4]float32{14, 14, 40, 5}, render.Hex(0xffffff))
 	p := bodyPost()
-	p.Curvature, p.Inset = 1, 2
-	sc := &render.Scene{Clear: render.Transparent, Shapes: []render.RoundedRect{body}, Post: p}
+	p.CRT.Roundness.Curvature, p.Inset = 1, 2
+	sc := &render.Scene{Clear: render.Transparent, Shapes: []render.RoundedRect{body, bar}, Post: p}
 	img := postRender(t, rendertest.Headless(t), sc, scale.One)
-	for y := 10; y < 80; y++ {
-		for x := 10; x < 110; x++ {
-			if px := img.Pixel(x, y); px[3] != 255 {
-				t.Fatalf("(%d, %d) is see-through: %v", x, y, px)
+	if top := img.Pixel(60, 10); top[1] <= 150 || top[0] >= 100 || top[3] != 255 {
+		t.Errorf("the top edge's middle moved: %v", top)
+	}
+	if corner := img.Pixel(11, 11); corner[3] > 40 {
+		t.Errorf("the body's corner did not draw in: %v", corner)
+	}
+	for y := 12; y < 78; y++ {
+		for x := 12; x < 108; x++ {
+			if px := img.Pixel(x, y); px[3] == 255 && luma(px) < 3*40 {
+				t.Fatalf("(%d, %d) is dark yet opaque, a ghost of the unbent picture: %v", x, y, px)
 			}
 		}
 	}
-	if top := img.Pixel(60, 10); top[1] <= 150 || top[0] >= 100 {
-		t.Errorf("the border moved: %v", top)
+}
+
+// The pass covers the whole surface: bent, the glow around the panel
+// follows its outline.
+func TestPostTheGlowBendsWithThePanel(t *testing.T) {
+	h := rendertest.Headless(t)
+	body := solidRect(postBody, render.Hex(0x101010))
+	body.Glow = render.Glow{Radius: 9, Color: render.Hex(0xb30f0d)}
+	p := bodyPost()
+	p.CRT.Roundness.Vignette = 0.1
+	flat := postRender(t, h, &render.Scene{Clear: render.Transparent, Shapes: []render.RoundedRect{body}, Post: p}, scale.One)
+	p.CRT.Roundness.Curvature = 0.5
+	bent := postRender(t, h, &render.Scene{Clear: render.Transparent, Shapes: []render.RoundedRect{body}, Post: p}, scale.One)
+	if a, b := flat.Pixel(7, 7), bent.Pixel(7, 7); a == b {
+		t.Errorf("the glow beyond the body's corner stayed: %v", a)
+	}
+	if a, b := flat.Pixel(60, 5), bent.Pixel(60, 5); luma(a) == 0 || a != b && luma(b) < luma(a)/2 {
+		t.Errorf("the glow beside an edge's middle: %v, bent %v", a, b)
+	}
+}
+
+// Regions are further screens of glass (the tab strip's plates): the
+// effects cover them as they cover the body, the frame between them stays
+// as drawn, and only the first MaxRegions count.
+func TestPostRegionsAreGlassToo(t *testing.T) {
+	h := rendertest.Headless(t)
+	body := [4]float32{10, 40, 100, 45}
+	plate := [4]float32{10, 6, 45, 28}
+	sc := func(regions []render.Region) *render.Scene {
+		p := render.Post{Rect: body, Regions: regions, CRT: effects.Defaults()}
+		p.CRT.Scanlines.Strength = 0.6
+		return &render.Scene{Clear: render.Hex(0), Post: p, Shapes: []render.RoundedRect{
+			solidRect(body, render.Hex(0x808080)), solidRect(plate, render.Hex(0x808080))}}
+	}
+	column := func(img *render.Image) []int {
+		var ls []int
+		for y := 9; y < 31; y++ {
+			ls = append(ls, luma(img.Pixel(30, y)))
+		}
+		return ls
+	}
+	plain := postRender(t, h, sc(nil), scale.One)
+	if spread(column(plain)) != 0 {
+		t.Fatalf("without regions the plate has scanlines: %v", column(plain))
+	}
+	glass := postRender(t, h, sc([]render.Region{{Rect: plate, Radius: 4}}), scale.One)
+	if spread(column(glass)) <= 60 {
+		t.Errorf("the plate has no scanlines: %v", column(glass))
+	}
+	if a, b := plain.Pixel(80, 20), glass.Pixel(80, 20); a != b {
+		t.Errorf("beside the plate: %v, with the region %v", a, b)
+	}
+	far := render.Region{Rect: [4]float32{-50, -50, 10, 10}}
+	fifth := postRender(t, h, sc([]render.Region{far, far, far, far, {Rect: plate, Radius: 4}}), scale.One)
+	if spread(column(fifth)) != 0 {
+		t.Errorf("a fifth region counted: %v", column(fifth))
 	}
 }
 
@@ -240,7 +304,7 @@ func TestPostCurvatureNeverUncoversWhatLiesBehindTheBody(t *testing.T) {
 func TestPostTheIntermediateFrameFollowsTheTargetsSize(t *testing.T) {
 	h := rendertest.Headless(t)
 	p := bodyPost()
-	p.Vignette = 0.5
+	p.CRT.Roundness.Vignette = 0.5
 	small := postRender(t, h, postScene(p), scale.One)
 	big := postRender(t, h, postScene(p), scale.FromInteger(2))
 	again := postRender(t, h, postScene(p), scale.One)

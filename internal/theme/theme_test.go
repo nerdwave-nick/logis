@@ -171,8 +171,10 @@ func TestTheDefaultIsTheBundledForgeTheme(t *testing.T) {
 		"rule.ornament.size": d.Rule.Ornament.Size, "row.height": d.Row.Height, "row.gap": d.Row.Gap,
 		"row.padding": d.Row.Padding, "row.column-gap": d.Row.ColumnGap, "row.column-max": d.Row.ColumnMax,
 		"selection.inset": d.Selection.Inset, "pending.opacity": d.Pending.Opacity, "pending.shimmer": d.Pending.Shimmer,
-		"effects.scanlines": d.Effects.Scanlines, "effects.grain": d.Effects.Grain,
-		"effects.flicker": d.Effects.Flicker, "effects.vignette": d.Effects.Vignette,
+		"effects.scanlines.strength": d.Effects.Scanlines.Strength, "effects.grain.strength": d.Effects.Grain.Strength,
+		"effects.flicker.strength": d.Effects.Flicker.Strength, "effects.roundness.vignette": d.Effects.Roundness.Vignette,
+		"effects.scanlines.period": d.Effects.Scanlines.Period, "effects.glow.dim-bright": d.Effects.Glow.DimBright,
+		"effects.aberration.wobble-rate": d.Effects.Aberration.WobbleRate, "effects.mask.size": d.Effects.Mask.Size,
 		"fonts.body.size": d.Row.Font.Size, "fonts.query.size": d.Query.Font.Size,
 		"fonts.label.size": d.Prompt.Font.Size, "fonts.label.tracking": d.Prompt.Font.Tracking,
 		"fonts.small.size": d.Counter.Font.Size, "fonts.small.tracking": d.Counter.Font.Tracking,
@@ -234,7 +236,7 @@ func TestTheForgeMovesUntilStilled(t *testing.T) {
 		t.Fatal("the forge stands still")
 	}
 	s := d.Stilled()
-	if s.IsContinuous() || s.Shimmers() || s.Glow.Pulse != 0 || s.Border.Highlight.Period != 0 || s.Effects.Flicker != 0 {
+	if s.IsContinuous() || s.Shimmers() || s.Glow.Pulse != 0 || s.Border.Highlight.Period != 0 || s.Effects.Flicker.Strength != 0 {
 		t.Fatalf("%+v", s)
 	}
 	if !s.Border.HasHighlight || !s.Effects.Any() {
