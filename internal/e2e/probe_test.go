@@ -127,6 +127,11 @@ func (p *probe) surface(dir string, w, h int32) {
 		p.pointer = append(p.pointer, "axis "+fmt.Sprint(v.Float()))
 	}
 	p.until("the probe's configure", func() bool { return p.configured })
+	// The configure handler's attach and commit are only queued: send them
+	// and wait until the compositor has mapped the surface, so a pointer
+	// moved next lands on it. A compositor need not refocus a pointer that
+	// stands still when a surface maps under it (sway 1.12 does not).
+	p.roundtrip()
 }
 
 // selections listens to the selections through data control.
