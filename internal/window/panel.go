@@ -38,6 +38,7 @@ type panel struct {
 func (w *Window) newPanel(size scale.Size, paint FramePainter, transition motion.Transition) *panel {
 	p := &panel{state: newSurfaceState(size), paint: paint, gpu: w.gpu, transition: transition, wasMoving: true}
 	p.surface = w.compositor.CreateSurface()
+	p.surface.OnEnter = func(o *wlproto.WlOutput) { w.entered(p, o) }
 	p.fractional = w.fractional.GetFractionalScale(p.surface)
 	p.fractional.OnPreferredScale = func(n uint32) { p.state.setScale(scale.From120ths(n)) }
 	p.viewport = w.viewporter.GetViewport(p.surface)

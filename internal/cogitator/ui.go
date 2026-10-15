@@ -116,6 +116,10 @@ type ui struct {
 	// timings; blur is the config's (wear.go).
 	envMotion *motion.Motion
 	blur      bool
+	// room is the logical height of the output panels show on (0: not
+	// known): the window's word at each show, and the compositor's when it
+	// puts a panel on an output (wear.go).
+	room uint32
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
@@ -140,7 +144,10 @@ func accepts(m protocol.Mode) error {
 func (u *ui) show(s daemon.Session) {
 	o := s.Options
 	asked := [2]*uint32{o.Lines, o.Width}
-	size, rows := scene.Fit(o, u.theme)
+	if r, ok := u.surf.(roomer); ok && r.Room() > 0 {
+		u.room = r.Room()
+	}
+	size, rows := u.fitIn(o)
 	o.Lines = &rows
 	sh := &shown{id: s.ID, view: list.NewView(o), rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu,
 		glide: motion.NewGlide(u.motion().Selection)}

@@ -62,8 +62,9 @@ type connection struct {
 	display  *wlproto.Display
 	registry *wlproto.WlRegistry
 	globals  []Global
-	// removed is told of each global the compositor withdraws.
-	removed func(Global)
+	// added is told of each global the compositor advertises after the
+	// greeting; removed of each one it withdraws.
+	added, removed func(Global)
 }
 
 // connect reaches the session's compositor (a socket it handed over in
@@ -92,6 +93,9 @@ func connect() (*connection, error) {
 	c.registry = d.Registry()
 	c.registry.OnGlobal = func(name uint32, iface string, version uint32) {
 		c.globals = append(c.globals, Global{name, iface, version})
+		if c.added != nil {
+			c.added(Global{name, iface, version})
+		}
 	}
 	c.registry.OnGlobalRemove = func(name uint32) {
 		i := slices.IndexFunc(c.globals, func(g Global) bool { return g.Name == name })
