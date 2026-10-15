@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -239,14 +240,20 @@ func TestE2EAConfigEditTurnsBlurOnForTheVisibleWindow(t *testing.T) {
 // garbage collector: a cycle the open started may otherwise end within
 // the span with the runtime's own housekeeping (sweeping, then returning
 // freed memory to the OS), which wakes threads once and is not ours.
+//
+// The span starts once the compositor has answered every frame and the
+// daemon has come to rest (Rust: a 200 ms sleep). A nested compositor
+// shows the last frame when the parent session lets it: under load, or
+// with its window out of sight, seconds later. The daemon then wakes to
+// read the answers, which is not idling wrongly.
 func TestE2EAnIdleWindowWakesNoThreadOfTheDaemon(t *testing.T) {
 	c := e2e.StartCogitator(t, []string{"GOGC=off"}, "")
 	client := c.DmenuAll(motionItems)
 	c.Shown(3)
 	c.Daemon.WaitSeen("the open settles", e2e.Is("settled"))
-	// Let the last frame's callback and presentation feedback come back.
-	time.Sleep(200 * time.Millisecond)
+	c.Daemon.WaitUntil("the compositor's answer to every frame", everyFrameAnswered)
 	pid := c.Daemon.PID()
+	atRest(t, pid)
 	before := threadSwitches(pid)
 	time.Sleep(2500 * time.Millisecond) // the span watched
 	after := threadSwitches(pid)
@@ -261,6 +268,46 @@ func TestE2EAnIdleWindowWakesNoThreadOfTheDaemon(t *testing.T) {
 		t.Fatalf("context switches while idle: %v", moved)
 	}
 	_ = client.Kill()
+}
+
+// everyFrameAnswered: the compositor answered each frame of the visible
+// window, both its frame callback and its presentation feedback (the
+// test compositors offer wp_presentation), so it owes the daemon nothing.
+func everyFrameAnswered(events []trace.Event) bool {
+	commits, done, reported := 0, 0, 0
+	for _, e := range events {
+		switch e.What {
+		case "commit":
+			commits++
+		case "frame-done":
+			done++
+		case "presented", "discarded":
+			reported++
+		}
+	}
+	return done == commits && reported == commits
+}
+
+// restSpan is how long no thread of an idle daemon switches before it
+// counts as at rest: after its last work the Go runtime's monitor thread
+// (sysmon) backs off in sleeps of at most 10 ms before it parks.
+const restSpan = 50 * time.Millisecond
+
+// atRest waits until no thread of pid has switched for restSpan, within
+// e2e.Patience.
+func atRest(t *testing.T, pid int) {
+	t.Helper()
+	deadline := time.Now().Add(e2e.Patience)
+	last, quiet := threadSwitches(pid), time.Now()
+	for time.Since(quiet) < restSpan {
+		if time.Now().After(deadline) {
+			t.Fatalf("the daemon never rested for %v in %v", restSpan, e2e.Patience)
+		}
+		time.Sleep(5 * time.Millisecond) // the poll interval
+		if now := threadSwitches(pid); !maps.Equal(now, last) {
+			last, quiet = now, time.Now()
+		}
+	}
 }
 
 // threadSwitches is the context switches of each thread of pid.

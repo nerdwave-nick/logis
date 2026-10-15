@@ -87,7 +87,7 @@ var e2ePorts = map[string]e2ePort{
 	"tests/motion.rs::blur_off_in_the_config_sets_no_region":                     {tests: []string{"cmd/logis/motion_e2e_test.go::TestE2EBlurOffInTheConfigSetsNoRegion"}},
 	"tests/motion.rs::a_config_edit_turns_blur_on_for_the_visible_window":        {tests: []string{"cmd/logis/motion_e2e_test.go::TestE2EAConfigEditTurnsBlurOnForTheVisibleWindow"}},
 	"tests/motion.rs::an_idle_window_wakes_no_thread_of_the_daemon": {tests: []string{"cmd/logis/motion_e2e_test.go::TestE2EAnIdleWindowWakesNoThreadOfTheDaemon"},
-		note: "watched 2.5 s instead of 1 s (past the last reply's 2 s write deadline), with the daemon's garbage collector off so the Go runtime's own housekeeping after the open is not counted"},
+		note: "watched 2.5 s instead of 1 s (past the last reply's 2 s write deadline), with the daemon's garbage collector off so the Go runtime's own housekeeping after the open is not counted, and from when the compositor has answered every frame instead of 200 ms after the open settles"},
 
 	// tests/pointer.rs
 	"tests/pointer.rs::the_pointer_and_the_selection_owner_refuse_a_socket_served_by_any_other_process": {tests: []string{
