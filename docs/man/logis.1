@@ -165,9 +165,17 @@ Shows each typed character as
 .BR * ).
 .TP
 .BR \-l ", " \-\-lines =\fIN\fP
-Rows shown at most, and so the window's height.
-Default: the theme's window (820x520 logical pixels, nine rows for the
-bundled themes).
+Rows shown, and so the window's height: the window is exactly as tall
+as its prompt line and
+.I N
+rows (on an output too short for them, as many as fit, spread over the
+output's height).
+Default: the theme's
+.B window.rows
+(eleven for the bundled themes, 820 logical pixels wide).
+Unlike logis v1 (Rust), a theme's
+.B window.height
+is ignored.
 .TP
 .BR \-w ", " \-\-width =\fIN\fP
 The window's width in characters of the theme's row font (1 or more; an

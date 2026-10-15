@@ -50,6 +50,10 @@ package wlproto
 //go:generate wayland-scanner private-code protocols/xdg-activation-v1.xml xdg-activation-v1-protocol.c
 //go:generate go run ../wlgen/cmd/wlgen protocols/xdg-activation-v1.xml xdg_activation_v1_gen.go
 
+//go:generate wayland-scanner client-header protocols/xdg-output-unstable-v1.xml xdg-output-unstable-v1-client-protocol.h
+//go:generate wayland-scanner private-code protocols/xdg-output-unstable-v1.xml xdg-output-unstable-v1-protocol.c
+//go:generate go run ../wlgen/cmd/wlgen protocols/xdg-output-unstable-v1.xml xdg_output_unstable_v1_gen.go
+
 //go:generate wayland-scanner client-header protocols/xdg-shell.xml xdg-shell-client-protocol.h
 //go:generate wayland-scanner private-code protocols/xdg-shell.xml xdg-shell-protocol.c
 //go:generate go run ../wlgen/cmd/wlgen protocols/xdg-shell.xml xdg_shell_gen.go

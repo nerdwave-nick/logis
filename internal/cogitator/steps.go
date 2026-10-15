@@ -27,7 +27,7 @@ func (u *ui) step(id daemon.SessionID, step provider.Step) {
 		o := step.Options
 		// The window keeps its size: the list scrolls within it.
 		o.Lines, o.Width = sh.asked[0], sh.asked[1]
-		_, rows := scene.Fit(o, u.theme)
+		_, rows := u.fitIn(o)
 		o.Lines = &rows
 		sh.view, sh.columns, sh.rows, sh.count, sh.waiting = list.NewView(o), scene.Columns{}, rows, 0, false
 		sh.glide.Reset() // a new list: the band takes its row at once

@@ -26,7 +26,7 @@ import (
 // afresh, as does a change of the row's font.
 //
 // Cost. Only rows in view are measured, each once (remembered by its
-// text), so 100 000 items cost no more than the nine rows shown: shaping
+// text), so 100 000 items cost no more than the rows shown: shaping
 // stays off the paths that see every item (arrival, filtering).
 
 // remembered is how many measured rows are remembered before the memory

@@ -35,17 +35,48 @@ func (u *ui) retheme(th *theme.Theme) {
 	u.theme = th
 	u.wearMotion()
 	u.wearBlur()
-	if sh := u.shown; sh != nil {
-		asked := list.DefaultOptions()
-		asked.Lines, asked.Width = sh.asked[0], sh.asked[1]
-		size, rows := scene.Fit(asked, th)
-		sh.view.SetLines(rows)
-		sh.rows = rows
-		if r, ok := u.surf.(resizer); ok {
-			r.Resize(size)
-		}
-	}
+	u.refit()
 	u.surf.RequestRedraw()
+}
+
+// roomer is a surface that knows how tall (in logical pixels) the output
+// its next panel shows on is: the one the last panel showed on; 0 when it
+// does not know.
+type roomer interface{ Room() uint32 }
+
+// fitIn is the surface and rows for options o in the theme worn now, on
+// the output the panel shows on as far as it is known.
+func (u *ui) fitIn(o list.Options) (scale.Size, uint32) {
+	return scene.FitIn(o, u.theme, u.room)
+}
+
+// reroom: the compositor put the panel on an output room logical pixels
+// tall. A visible panel is re-fitted to it (the rows that fit, spread over
+// its height, or all of them again); the next panel opens fitted to it.
+func (u *ui) reroom(room uint32) {
+	if room == 0 || room == u.room {
+		return
+	}
+	u.room = room
+	u.refit()
+	u.surf.RequestRedraw()
+}
+
+// refit sizes the visible panel anew, in the terms its session asked for,
+// in the theme and on the output known now.
+func (u *ui) refit() {
+	sh := u.shown
+	if sh == nil {
+		return
+	}
+	asked := list.DefaultOptions()
+	asked.Lines, asked.Width = sh.asked[0], sh.asked[1]
+	size, rows := u.fitIn(asked)
+	sh.view.SetLines(rows)
+	sh.rows = rows
+	if r, ok := u.surf.(resizer); ok {
+		r.Resize(size)
+	}
 }
 
 func sameFaces(a, b []text.Face) bool {

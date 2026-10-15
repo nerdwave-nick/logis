@@ -29,7 +29,7 @@ func manyLines(columns bool) []string {
 var keystrokes = []string{"r", "ri", "rit", "rite", "rit", "ri", "r", ""}
 
 // keystroke is what a keystroke costs the list: the new query matched
-// against every item, and the positions of the nine rows in view.
+// against every item, and the positions of the rows in view.
 func keystroke(f *Filter, query string) {
 	f.SetQuery(query)
 	for _, m := range f.Matches()[:min(DefaultRows, len(f.Matches()))] {

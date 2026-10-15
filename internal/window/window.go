@@ -67,6 +67,9 @@ type Window struct {
 	effects      *wlproto.ExtBackgroundEffectManagerV1
 	presentation *wlproto.WpPresentation
 	monotonic    bool
+	// outputs are the outputs' logical heights (xdg-output, optional) and
+	// the one the last panel showed on (outputs.go).
+	outputs outputs
 }
 
 // Open connects to the session's compositor, binds the globals the window
@@ -101,19 +104,24 @@ func openWith(open openGPU) (w *Window, err error) {
 	w.activation.manager, _ = w.Bind(wlproto.XdgActivationV1Interface, 1).(*wlproto.XdgActivationV1)
 	w.seat.pressed, w.seat.pointer.pressed = w.activation.press, w.activation.press
 	w.bindOptional()
+	w.bindOutputs()
+	c.added = w.outputAdded
 	c.removed = func(g Global) {
 		if w.seat.removed(g) {
 			w.clipboard.releaseDevices()
 		}
+		w.outputRemoved(g)
 	}
 	if w.repeat, err = newRepeatTimer(); err != nil {
 		w.releaseInput()
+		w.releaseOutputs()
 		c.display.Close()
 		return nil, err
 	}
 	c.display.Watch(w.repeat.fd, w.repeatDue)
 	if w.gpu, err = open(c.display.Ptr()); err != nil {
 		w.releaseInput()
+		w.releaseOutputs()
 		c.display.Close()
 		w.repeat.close()
 		return nil, err
@@ -251,6 +259,7 @@ func (w *Window) Close() {
 	w.dropAll()
 	w.releaseInput()
 	w.releaseOptional()
+	w.releaseOutputs()
 	w.gpu.close()
 	w.conn.display.Close()
 	w.repeat.close()

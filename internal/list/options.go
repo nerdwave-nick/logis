@@ -31,7 +31,7 @@ type Options struct {
 
 // DefaultRows is how many rows a list without a theme to ask shows when
 // no Lines were given: the bundled default theme's.
-const DefaultRows = 9
+const DefaultRows = 11
 
 // DefaultOptions are the options a client that names none gets.
 func DefaultOptions() Options { return Options{Prompt: "> "} }

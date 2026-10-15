@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"net"
 	"path/filepath"
+	"slices"
 	"sync"
 	"syscall"
 )
@@ -102,6 +103,25 @@ func (c *Compositor) RemoveGlobal(name uint32) {
 			_ = cl.Send(r, registryRemove, name)
 		}
 	}
+}
+
+// AddGlobal announces g to every client's registries (as a hotplugged
+// output is) and returns its name: the next 1-based one.
+func (c *Compositor) AddGlobal(g Global) uint32 {
+	c.mu.Lock()
+	c.globals = append(slices.Clone(c.globals), g) // never the caller's array
+	name := uint32(len(c.globals))
+	clients := append([]*Client(nil), c.clients...)
+	c.mu.Unlock()
+	for _, cl := range clients {
+		cl.mu.Lock()
+		registries := append([]uint32(nil), cl.registries...)
+		cl.mu.Unlock()
+		for _, r := range registries {
+			_ = cl.Send(r, registryGlobal, name, g.Interface, g.Version)
+		}
+	}
+	return name
 }
 
 // Clients are the clients connected so far.
@@ -233,7 +253,10 @@ func (cl *Client) handle(r Request) error {
 		cl.mu.Lock()
 		cl.registries = append(cl.registries, id)
 		cl.mu.Unlock()
-		for i, g := range cl.compositor.globals {
+		cl.compositor.mu.Lock()
+		globals := append([]Global(nil), cl.compositor.globals...)
+		cl.compositor.mu.Unlock()
+		for i, g := range globals {
 			if err := cl.Send(id, registryGlobal, uint32(i+1), g.Interface, g.Version); err != nil {
 				return err
 			}
