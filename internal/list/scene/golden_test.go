@@ -30,6 +30,14 @@ import (
 
 var goldenScales = []scale.Scale{scale.One, scale.From120ths(156), scale.FromInteger(2)}
 
+// bentGrain is the offscreen tolerance with a few outliers: both bundled
+// themes bend their panel (cd816303), and the CRT pass takes each pixel's
+// grain from the cell under its bent position, floor(q). Where q lies on a
+// cell's edge, a driver that rounds the bend's last bit otherwise takes
+// the neighbouring cell's noise: llvmpipe against Intel Arc, 1 to 38
+// pixels per golden (at most 0.002 %), none with the grain off.
+var bentGrain = rendertest.Tolerance{Channel: rendertest.Offscreen.Channel, Outliers: 0.0001}
+
 // makeScene builds a case's scene for a renderer at a scale (icons, if
 // any, go into its atlas).
 type makeScene func(h *render.Headless, s scale.Scale, l *list.Look, logical scale.Size, st scene.Style) *render.Scene
@@ -65,7 +73,7 @@ func checkThemes(t *testing.T, name string, view *list.View, o list.Options, toa
 			if err != nil {
 				t.Fatal(err)
 			}
-			g.Assert(t, "themes/"+th.Name, name+"@"+rendertest.ScaleSuffix(s), img, rendertest.Offscreen)
+			g.Assert(t, "themes/"+th.Name, name+"@"+rendertest.ScaleSuffix(s), img, bentGrain)
 		}
 	}
 }
