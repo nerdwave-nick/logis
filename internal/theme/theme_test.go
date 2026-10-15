@@ -161,7 +161,7 @@ func TestTheDefaultIsTheBundledForgeTheme(t *testing.T) {
 		}
 	}
 	lengths := map[string]float32{
-		"window.width": d.Window.Width, "window.height": d.Window.Height, "window.rows": float32(d.Window.Rows),
+		"window.width": d.Window.Width, "window.rows": float32(d.Window.Rows),
 		"window.margin": d.Window.Margin, "glow.radius": d.Glow.Radius, "glow.pulse": d.Glow.Pulse,
 		"border.width": d.Border.Width, "border.highlight.length": d.Border.Highlight.Length,
 		"panel.radius": d.Panel.Radius, "panel.padding": d.Panel.Padding,

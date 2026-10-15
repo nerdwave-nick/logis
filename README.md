@@ -96,7 +96,7 @@ exits 1. Errors exit 2 with the message on stderr.
 | `--prompt-only=TEXT` | a prompt and nothing else: stdin is not read, no rows |
 | `--placeholder=TEXT` | shown while the query is empty |
 | `--password[=C]` | shows each typed character as `C` (default `*`) |
-| `--lines=N`, `-l` | rows shown at most, and so the window's height (default: the theme's window, nine rows) |
+| `--lines=N`, `-l` | rows shown, and so the window's height (default: the theme's `window.rows`, eleven for the bundled themes) |
 | `--width=N`, `-w` | the window's width in characters of the row font (an estimate; default: the theme's window, 820 px) |
 | `--counter` | shows matching/total items |
 | `--search=TEXT` | the query the window opens with |
@@ -554,7 +554,7 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
 
 - a **palette** of named colours with alpha (`"brass": "#d4a017"`, or several:
   `"soot": ["#170e0b", "#0b0807"]`, named `soot.0`, `soot.1`);
-- the **elements** that refer to it: `window` (default size and rows), `glow`,
+- the **elements** that refer to it: `window` (default width and rows), `glow`,
   `border` (gradient of up to four stops, travelling highlight), `panel`,
   `decorations` (corner rivets), `prompt` (label, sigil), `query` (caret),
   `counter`, `rule`, `row` (font, height, colour per tab-separated column,
@@ -615,9 +615,22 @@ overrides it.
   (or absolute). Original motifs only in the bundled themes; your personal
   themes may load whatever images you like.
 - **Size:** a session that names no size (the app launcher, servitor mode, a
-  plain `logis --dmenu`) opens in the theme's `window`: 820×520 logical pixels,
-  centred, nine rows for both bundled themes. `--lines` and `--width` (in
+  plain `logis --dmenu`) opens in the theme's `window`: 820 logical pixels wide,
+  centred, eleven rows for both bundled themes. `--lines` and `--width` (in
   average characters of the row font) size it instead.
+- **Height follows the rows:** the panel is exactly as tall as its prompt line,
+  rule, row gaps and rows × `row.height` (the bundled themes: 561 logical
+  pixels with the glow margins), so no empty band stays below the last row. On
+  an output too short for that many rows (its logical height less the glow
+  margins), the panel takes the output's height, shows the rows that fit and
+  spreads the leftover height evenly between them; the pointer finds rows at
+  that pitch. The output's height comes from xdg-output, the output the panel
+  lands on from the compositor (a panel that lands on another output is fitted
+  anew); without xdg-output the panel asks for all its rows. While a panel is
+  open its size stays, however few items the query leaves. **Divergence from
+  Rust v1**, whose theme also had a `window.height` (820×520, nine rows, about
+  three rows of empty glass below the ninth): Go reads and checks
+  `window.height` so v1 themes still load, and ignores it.
 - **Live:** the daemon watches `themes/*.jsonc` and the config and applies an
   edited theme at once, a visible window included (its colours, fonts, effects,
   motion timings and, when the session named no size, its size). An invalid

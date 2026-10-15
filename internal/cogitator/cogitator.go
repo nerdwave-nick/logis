@@ -88,6 +88,8 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		w.SetKeyboard(kb)
 		w.SetSink(sink)
 		u := newUI(host, w, &th, kb)
+		// The output a panel lands on re-fits it (wear.go).
+		w.SetRoomSink(u.reroom)
 		if envSet {
 			u.envMotion = &envMotion
 		}

@@ -38,7 +38,7 @@ func TestDecorMakesAnEntryPendingOrEmblemed(t *testing.T) {
 
 func TestOptionsDefaultToFuzzelsPromptAndTheThemesRows(t *testing.T) {
 	o := DefaultOptions()
-	if o.Prompt != "> " || o.Rows() != DefaultRows || DefaultRows != 9 {
+	if o.Prompt != "> " || o.Rows() != DefaultRows || DefaultRows != 11 {
 		t.Errorf("%+v rows %d", o, o.Rows())
 	}
 	lines := uint32(0)

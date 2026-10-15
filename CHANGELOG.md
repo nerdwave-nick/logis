@@ -8,6 +8,16 @@ contract" and logis(1)) is the public interface.
 
 ## [Unreleased]
 
+### Changed
+
+- **The panel's height follows its rows** (the Go build; a divergence from
+  Rust v1): the theme's `window.rows` (now eleven in the bundled themes) or
+  `--lines` rows at `row.height`, the prompt line, rule and row gaps, exactly,
+  so no empty band stays below the last row. On an output too short for them
+  the panel shows the rows that fit, spread over the output's height (via
+  xdg-output and the output the panel lands on). `window.height` is
+  deprecated: still accepted and checked, so v1 themes load, but ignored.
+
 ## [1.0.0] - unreleased
 
 The first release: everything of the v1 specification. Not yet tagged; the tag

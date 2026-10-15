@@ -116,7 +116,7 @@
       }
     },
     "window": {
-      "description": "The window when the session asks for no size of its own.",
+      "description": "The window when the session asks for no size of its own. Its height follows its rows: the prompt line, the rule, the row gaps and rows × row.height (on an output too short for them, as many rows as fit, spread over its height).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -125,11 +125,12 @@
           "$ref": "#/$defs/positive"
         },
         "height": {
-          "description": "The panel's height when no --lines is given.",
+          "description": "Deprecated and ignored: the panel's height follows its rows. Still accepted (and checked) so Rust v1 themes load.",
+          "deprecated": true,
           "$ref": "#/$defs/positive"
         },
         "rows": {
-          "description": "The most rows shown at once when no --lines is given.",
+          "description": "How many rows the panel shows, and so its height, when no --lines is given.",
           "type": "integer",
           "minimum": 1
         },
@@ -140,8 +141,7 @@
       },
       "default": {
         "width": 820,
-        "height": 520,
-        "rows": 9,
+        "rows": 11,
         "margin": 32
       }
     },
@@ -1215,7 +1215,6 @@
       },
       "window": {
         "width": 640,
-        "height": 400,
         "rows": 7
       }
     }

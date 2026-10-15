@@ -32,7 +32,7 @@
     "small": { "family": ["IBM Plex Mono", "monospace"], "size": 13, "weight": 400, "tracking": 0.06 },
     "badge": { "family": ["IBM Plex Mono", "monospace"], "size": 11, "weight": 400, "tracking": 0.12 }
   },
-  "window": { "width": 820, "height": 520, "rows": 9, "margin": 32 },
+  "window": { "width": 820, "rows": 11, "margin": 32 },
   "glow": { "color": "crimson/0.55", "radius": 26, "pulse": 0.15, "period-ms": 3000 },
   "border": {
     "width": 2,

@@ -380,7 +380,16 @@ row with a non-ASCII character ties with others, as in the theme window golden);
 for line layout, cosmic-text dropping the leading run of a right-to-left line that
 starts with digits, and cosmic-text setting the whole word in the match face when a
 match starts an ASCII word, where logis sets only the matched letters apart
-(`divergences` in `internal/text/layout_test.go`).
+(`divergences` in `internal/text/layout_test.go`); for the window, the row fit.
+
+**Row fit**:
+The Go build's window height (a divergence from Rust v1, whose theme also had a
+`window.height`): the prompt line, the rule, the row gaps and the theme's
+`window.rows` (or `--lines`) rows, exactly (`scene.FitIn`). The **room** is the
+logical height of the output the panel shows on (xdg-output and the output the
+compositor puts it on); where the rows do not fit in it, the panel takes the room
+and shows the rows that fit, the leftover **spread** evenly between them. An open
+panel keeps its size while the query narrows the list.
 
 ## Grimdark UI vocabulary
 

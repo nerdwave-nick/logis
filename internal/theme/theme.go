@@ -62,12 +62,13 @@ type Theme struct {
 	Error render.Color
 }
 
-// Window is the window's default size and how much list it shows.
+// Window is the window's default width and how much list it shows; its
+// height follows the rows (scene.FitIn).
 type Window struct {
-	// Width and Height are the panel's (its border box) when no --width
-	// or --lines is given; Rows the most rows shown then.
-	Width, Height float32
-	Rows          uint32
+	// Width is the panel's (its border box) when no --width is given;
+	// Rows how many rows it shows when no --lines is given.
+	Width float32
+	Rows  uint32
 	// Margin is room around the panel for its glow.
 	Margin float32
 }

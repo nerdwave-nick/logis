@@ -43,11 +43,12 @@ func Still(config string) string {
 }
 
 // StartCogitator starts the compositor LOGIS_E2E asks for (skipping
-// without one) and `logis daemon` in it with env added and config as its
-// logis.jsonc ("" for {}; Still applies), and waits until it greets.
-func StartCogitator(t testing.TB, env []string, config string) *Cogitator {
+// without one) with opts and `logis daemon` in it with env added and
+// config as its logis.jsonc ("" for {}; Still applies), and waits until it
+// greets.
+func StartCogitator(t testing.TB, env []string, config string, opts ...Option) *Cogitator {
 	t.Helper()
-	c := Start(t, Requested(t))
+	c := Start(t, Requested(t), opts...)
 	if config == "" {
 		config = "{}"
 	}
