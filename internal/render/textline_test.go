@@ -219,7 +219,7 @@ func TestAnUnderlineRunsUnderTheMatchedCharactersOnly(t *testing.T) {
 }
 
 func TestALineMeasuresItsGlyphsAdvancesInLogicalPixels(t *testing.T) {
-	h := withFonts(t)
+	h := measuringFonts(t)
 	width := func(s string, sc scale.Scale) float32 {
 		w, ok := h.MeasureText(render.NewText(s, [2]float32{}, 16, white), sc)
 		if !ok {
@@ -240,14 +240,14 @@ func TestALineMeasuresItsGlyphsAdvancesInLogicalPixels(t *testing.T) {
 }
 
 func TestAColumnDoesNotNarrowTheMeasureAndNothingMeasuresWithoutFonts(t *testing.T) {
-	h := withFonts(t)
+	h := measuringFonts(t)
 	line := render.NewText("the long litany", [2]float32{}, 16, white)
 	free, _ := h.MeasureText(line, at(120))
 	narrow, _ := h.MeasureText(line.InColumn(10, render.Ellipsis), at(120))
 	if free != narrow || free == 0 {
 		t.Fatalf("free %g, in a column %g", free, narrow)
 	}
-	if _, ok := rendertest.Headless(t).MeasureText(line, at(120)); ok {
+	if _, ok := rendertest.HeadlessForStructure(t).MeasureText(line, at(120)); ok {
 		t.Fatal("nothing measures without fonts")
 	}
 }

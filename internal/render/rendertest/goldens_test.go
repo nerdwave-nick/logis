@@ -81,6 +81,39 @@ func TestAMismatchFailsAndLeavesTheRenderAndADifferenceImage(t *testing.T) {
 	}
 }
 
+// A passing check clears what an earlier failure of the same golden left,
+// so an old difference image is never taken for this run's; other
+// goldens' artefacts stay.
+func TestAPassingCheckRemovesTheArtefactsOfAnEarlierFailure(t *testing.T) {
+	dir := t.TempDir()
+	right := solid(4, 4, [4]byte{0, 0, 0, 255})
+	if _, err := goldens(dir, true).Check("set", "s", right, Offscreen); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := goldens(dir, true).Check("set", "other", right, Offscreen); err != nil {
+		t.Fatal(err)
+	}
+	wrong := withPixel(right, 1, 1, [4]byte{255, 255, 255, 255})
+	for _, name := range []string{"s", "other"} {
+		if _, err := goldens(dir, false).Check("set", name, wrong, Offscreen); err == nil {
+			t.Fatalf("%s: the mismatch passed", name)
+		}
+	}
+	if _, err := goldens(dir, false).Check("set", "s", right, Offscreen); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"s.actual.png", "s.diff.png"} {
+		if _, err := os.Stat(filepath.Join(dir, "failures/set", f)); !os.IsNotExist(err) {
+			t.Errorf("%s stayed after the golden passed: %v", f, err)
+		}
+	}
+	for _, f := range []string{"other.actual.png", "other.diff.png"} {
+		if _, err := os.Stat(filepath.Join(dir, "failures/set", f)); err != nil {
+			t.Errorf("another golden's %s went: %v", f, err)
+		}
+	}
+}
+
 func TestStraightAlphaGoldensArePremultipliedWhenReadAndDemultipliedWhenWritten(t *testing.T) {
 	dir := t.TempDir()
 	straight := solid(1, 1, [4]byte{255, 64, 0, 128})

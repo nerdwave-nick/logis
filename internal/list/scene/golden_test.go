@@ -287,7 +287,7 @@ func TestGoldenAnAppListDrawsItsIcons(t *testing.T) {
 // row's columns start at the same place (Rust
 // columns_are_measured_with_the_row_font).
 func TestGoldenColumnsAreMeasuredWithTheRowFont(t *testing.T) {
-	h := rendertest.Headless(t)
+	h := rendertest.HeadlessForStructure(t)
 	for _, themeName := range theme.Bundled() {
 		th, err := theme.Themes{}.Load(themeName)
 		if err != nil {

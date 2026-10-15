@@ -211,9 +211,9 @@ func pkgbuildFunction(t *testing.T, name string) string {
 	return body
 }
 
-// Wall-clock timing tests are for CI and benchmark rounds: they never
-// decide whether makepkg installs logis, so check() runs go test -short,
-// which they skip.
+// Wall-clock timing tests and GPU pixel tests are for CI and development:
+// they never decide whether makepkg installs logis, so check() runs go test
+// -short, which they skip.
 func TestThePackageCheckLeavesTheTimingTestsOut(t *testing.T) {
 	if check := pkgbuildFunction(t, "check"); !strings.Contains(check, "go test -short ./...") {
 		t.Errorf("check() does not run go test -short ./...:\n%s", check)
