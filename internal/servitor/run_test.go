@@ -39,23 +39,27 @@ func TestLogisLinesAreReadAndUnknownOnesPassedOver(t *testing.T) {
 }
 
 // provide runs Run in-process on pipes, servitor being program; what it
-// says is read as it comes, as an OS pipe's buffer would take it.
+// says is read as it comes, as an OS pipe's buffer would take it. When the
+// test ends, Run ends and so does the census it started, before the test's
+// directories go: the fake census writes its records there.
 type provide struct {
-	t     *testing.T
-	in    *io.PipeWriter
-	lines chan string
-	exit  chan int
+	t        *testing.T
+	in       *io.PipeWriter
+	lines    chan string
+	exit     chan int
+	returned chan *Vigil
 }
 
 func startProvide(t *testing.T, program string) *provide {
 	t.Helper()
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
-	p := &provide{t: t, in: inW, lines: make(chan string, 64), exit: make(chan int, 1)}
+	p := &provide{t: t, in: inW, lines: make(chan string, 64), exit: make(chan int, 1), returned: make(chan *Vigil, 1)}
 	go func() {
-		code := Run(program, inR, outW, io.Discard)
+		code, vigil := run(program, inR, outW, io.Discard)
 		_ = outW.Close()
 		p.exit <- code
+		p.returned <- vigil
 	}()
 	go func() {
 		out := bufio.NewReader(outR)
@@ -68,7 +72,22 @@ func startProvide(t *testing.T, program string) *provide {
 			p.lines <- line
 		}
 	}()
-	t.Cleanup(func() { _ = inW.Close(); _ = outR.Close() })
+	t.Cleanup(func() {
+		_ = inW.Close()
+		_ = outR.Close()
+		select {
+		case vigil := <-p.returned:
+			if vigil != nil {
+				select {
+				case <-vigil.Ended():
+				case <-time.After(5 * time.Second):
+					t.Error("the census outlived its provider")
+				}
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("the provider never ended")
+		}
+	})
 	return p
 }
 
@@ -174,6 +193,36 @@ func TestAForeignProtocolEndsTheProviderWithExit2(t *testing.T) {
 	p.say(`{"type":"hello","protocol":2}`)
 	if code := p.ended(); code != 2 {
 		t.Fatalf("exit %d", code)
+	}
+}
+
+// Run's return is the provider's exit, which ends the census (its stdout
+// closes, S4): the census must not outlive Run in a caller's process, still
+// running and writing its records after the caller cleaned up (on CI
+// TestAForeignProtocolEndsTheProviderWithExit2 failed with "TempDir
+// RemoveAll cleanup: … directory not empty"). Once its rite is told, a
+// lingering census only sends heartbeats, which tell nothing, so only
+// Run's own return can close its stdout.
+func TestACensusDoesNotOutliveItsProvider(t *testing.T) {
+	dir := t.TempDir()
+	p := startProvide(t, fake(t, dir, fixture(t, "lingering.jsonl")))
+	p.say(`{"type":"hello","protocol":1}`)
+	for _, want := range []string{"hello", "stage", "items"} {
+		if m := p.next(); m["type"] != want {
+			t.Fatalf("%v, want %s", m, want)
+		}
+	}
+	p.say(`{"type":"cancel"}`)
+	if code := p.ended(); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	pid := censusPid(t, dir)
+	deadline := time.Now().Add(5 * time.Second)
+	for alive(pid) {
+		if time.Now().After(deadline) {
+			t.Fatal("the census outlived its provider")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

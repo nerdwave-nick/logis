@@ -82,7 +82,7 @@ func TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken(t *testing.T) {
 	// The app launcher opens in the theme's own window.
 	th := theme.Default()
 	size, _ := scene.Fit(list.DefaultOptions(), &th)
-	checkWindow(t, c.Harness, "apps", int(size.W), int(size.H))
+	checkWindow(t, c, "apps", int(size.W), int(size.H))
 	c.Type(focused, "unguent")
 	next(t, c, "select", "0") // matched by its keywords
 	c.Tap(focused, e2e.KeyEnter)

@@ -172,10 +172,18 @@ func TestE2EComposeLocksAndTheKeypadTypeWhatTheLayoutSays(t *testing.T) {
 		p.wait(step)
 	}
 	p.wantQuery("ö", "Shift inside the sequence did not cancel it")
-	// The compositor sent the injector's keymap once it typed: the panel
-	// replaced its keymap mid-session and typed on.
-	if n := count(p.panel.Events(), "keymap"); n < 2 {
-		t.Errorf("%d keymaps compiled, want the compositor's and then the injector's", n)
+	// Nested niri has a keyboard of its own: it sent that keymap first and
+	// the injector's once it typed, so the panel replaced its keymap
+	// mid-session and typed on. Headless sway has no keyboard but the
+	// injector's (no input devices), so it sends that keymap alone; the
+	// replacement itself is internal/input's
+	// TestALaterKeymapReplacesTheFirstMidSession.
+	want, which := 1, "the injector's"
+	if c.Kind() == e2e.NestedNiri {
+		want, which = 2, "the compositor's and then the injector's"
+	}
+	if n := count(p.panel.Events(), "keymap"); n < want {
+		t.Errorf("%d keymaps compiled, want %s", n, which)
 	}
 
 	// A sequence only the harness's XCOMPOSEFILE knows.

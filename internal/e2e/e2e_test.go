@@ -66,6 +66,38 @@ func TestE2EThePanelTakesFocusReceivesKeysAndShowsThem(t *testing.T) {
 	}
 }
 
+// The backdrop is what every capture's translucency is composited over,
+// so it must be opaque black on every pixel at every output scale, not
+// only where a compositor happens to sample a stretched buffer exactly.
+// Every pixel but the last column and row: at a fractional scale the
+// output's whole logical pixels may stop short of its physical edge
+// (sway: 984×553 logical at 1.3 cover 1279×719 of 1280×720), and no
+// surface can draw there.
+func TestE2ETheBackdropIsOpaqueBlackAtEachOutputScale(t *testing.T) {
+	kind := Requested(t)
+	for _, scale := range []string{"1.0", "1.3", "2.0"} {
+		t.Run(scale, func(t *testing.T) {
+			h := Connect(t, Start(t, kind, Scale(scale)))
+			img := h.SettledCapture()
+			off, first := 0, [2]int{-1, -1}
+			for y := range img.Height - 1 {
+				for x := range img.Width - 1 {
+					if !black(img.Pixel(x, y)) {
+						if off == 0 {
+							first = [2]int{x, y}
+						}
+						off++
+					}
+				}
+			}
+			if off > 0 {
+				t.Errorf("%d of %d pixels are not opaque black, the first at %v: %v",
+					off, (img.Width-1)*(img.Height-1), first, img.Pixel(first[0], first[1]))
+			}
+		})
+	}
+}
+
 func TestE2ETypingWithoutFocusFailsTheTest(t *testing.T) {
 	c := Start(t, Requested(t))
 	kb := Connect(t, c).VirtualKeyboard()

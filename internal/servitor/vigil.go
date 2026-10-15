@@ -20,13 +20,26 @@ type Told struct {
 	Status string
 }
 
+// Vigil is a census being kept.
+type Vigil struct {
+	stdout io.Closer
+	ended  chan struct{}
+}
+
+// Stop closes the census's stdout, as the provider's exit does: the census
+// ends at its next line or heartbeat (S4). It does not wait for that.
+func (v *Vigil) Stop() { _ = v.stdout.Close() }
+
+// Ended is closed once the census has ended and been reaped.
+func (v *Vigil) Ended() <-chan struct{} { return v.ended }
+
 // KeepVigil starts `program census --vigil` with stdin on /dev/null and
 // stderr on stderr (the daemon's log); told hears each line on a goroutine
 // of its own while it returns true, then how the census ended. Lines that
-// cannot be read are logged and passed over. Once told returns false the
-// census's stdout is closed, which ends the census and its auspexes (S4),
-// as the provider's own exit does.
-func KeepVigil(program string, stderr io.Writer, told func(Told) bool) error {
+// cannot be read are logged and passed over. Once told returns false, or
+// the vigil is stopped, the census's stdout is closed, which ends the
+// census and its auspexes (S4), as the provider's own exit does.
+func KeepVigil(program string, stderr io.Writer, told func(Told) bool) (*Vigil, error) {
 	cmd := exec.Command(program, "census", "--vigil")
 	cmd.Stderr = stderr
 	stdout, err := cmd.StdoutPipe()
@@ -34,12 +47,14 @@ func KeepVigil(program string, stderr io.Writer, told func(Told) bool) error {
 		err = cmd.Start()
 	}
 	if err != nil {
-		return startError(err)
+		return nil, startError(err)
 	}
+	v := &Vigil{stdout: stdout, ended: make(chan struct{})}
 	go func() {
+		defer close(v.ended)
 		if !hearVigil(stdout, stderr, told) {
-			_ = stdout.Close()
-			go func() { _ = cmd.Wait() }()
+			v.Stop()
+			_ = cmd.Wait()
 			return
 		}
 		err := cmd.Wait()
@@ -49,7 +64,7 @@ func KeepVigil(program string, stderr io.Writer, told func(Told) bool) error {
 		}
 		told(Told{Ended: true, Status: status})
 	}()
-	return nil
+	return v, nil
 }
 
 // hearVigil tells each line until the census's stdout ends (true) or told

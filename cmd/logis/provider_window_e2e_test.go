@@ -37,7 +37,7 @@ func TestE2EATwoStageFlowWithAPendingRowEndsInAToast(t *testing.T) {
 	o.Lines, o.Width = &lines, &width
 	th := theme.Default()
 	size, _ := scene.Fit(o, &th)
-	checkWindow(t, c.Harness, "provider-pending", int(size.W), int(size.H))
+	checkWindow(t, c, "provider-pending", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEnter)
 	c.Tap(focused, e2e.KeyDown)
 	if got := c.Next("select"); got != "1" {
@@ -78,7 +78,7 @@ func TestE2EATwoStageFlowWithAPendingRowEndsInAToast(t *testing.T) {
 		t.Fatalf("toast %s", got)
 	}
 	c.Next("linger")
-	checkWindow(t, c.Harness, "provider-toast", int(size.W), int(size.H))
+	checkWindow(t, c, "provider-toast", int(size.W), int(size.H))
 	if ended := client.Ended(); ended.Code != 0 || len(ended.Stdout) != 0 {
 		t.Fatalf("%+v", ended)
 	}
@@ -140,7 +140,7 @@ func TestE2EARowsIconIsDrawnInPlaceOfItsGlyph(t *testing.T) {
 	o.Lines, o.Width = &lines, &width
 	th := theme.Default()
 	size, _ := scene.Fit(o, &th)
-	checkWindow(t, c.Harness, "provider-icons", int(size.W), int(size.H))
+	checkWindow(t, c, "provider-icons", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEsc)
 	if ended := client.Ended(); ended.Code != 1 {
 		t.Fatalf("%+v", ended)

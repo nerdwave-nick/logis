@@ -34,10 +34,25 @@ type event struct {
 
 // Run runs the provider on stdin and stdout until its flow is over and
 // returns its exit status; program is servitor's CLI, logs go to stderr.
+// Its return ends the census it started, as the provider's exit would.
 func Run(program string, stdin io.Reader, stdout, stderr io.Writer) int {
+	code, _ := run(program, stdin, stdout, stderr)
+	return code
+}
+
+// run is Run, also giving the vigil it kept (nil if the census never
+// started), already stopped: a caller in the same process can wait until
+// the census has ended.
+func run(program string, stdin io.Reader, stdout, stderr io.Writer) (int, *Vigil) {
 	events := make(chan event)
 	done := make(chan struct{})
 	defer close(done)
+	var vigil *Vigil
+	defer func() {
+		if vigil != nil {
+			vigil.Stop()
+		}
+	}()
 	send := func(e event) bool {
 		select {
 		case events <- e:
@@ -57,19 +72,20 @@ func Run(program string, stdin io.Reader, stdout, stderr io.Writer) int {
 			switch a := act.(type) {
 			case Say:
 				if _, err := stdout.Write(provider.Say(a.Message)); err != nil {
-					return 0 // logis is gone: nobody is left to answer
+					return 0, vigil // logis is gone: nobody is left to answer
 				}
 			case Invoke:
 				acts = append(acts, flow.Launched(Detached(program, a.Args))...)
 			case Exit:
-				return a.Code
+				return a.Code, vigil
 			}
 		}
 		// The census starts once the first stage is out, so the window
 		// shows at once however the census fares.
 		if !censusStarted {
 			censusStarted = true
-			err := KeepVigil(program, stderr, func(t Told) bool { return send(event{told: &t}) })
+			var err error
+			vigil, err = KeepVigil(program, stderr, func(t Told) bool { return send(event{told: &t}) })
 			if err != nil {
 				acts = flow.Unheard(err)
 			}
@@ -78,7 +94,7 @@ func Run(program string, stdin io.Reader, stdout, stderr io.Writer) int {
 		e := <-events
 		switch {
 		case e.logisEnded:
-			return 0
+			return 0, vigil
 		case e.told != nil:
 			acts = flow.Told(*e.told)
 		default:
