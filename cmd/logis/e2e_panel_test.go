@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/render/rendertest"
@@ -13,7 +14,8 @@ import (
 
 // The panel a compositor shows must be the image the renderer draws: the
 // debug scene rendered offscreen at the geometry logis reported,
-// composited over the output's backdrop, then compared with the capture.
+// composited over the harness's black backdrop, then compared with the
+// capture.
 //
 // The compositor maps the buffer through the viewport onto the output
 // itself, and resamples it by under a pixel where that mapping is not 1:1:
@@ -53,23 +55,22 @@ func reference(f frame, s float64) (*render.Image, error) {
 	return img, nil
 }
 
-// bounds is, per pixel of the reference composited over a backdrop, the
-// lowest and highest value of each channel in its 3×3 neighbourhood.
+// bounds is, per pixel of the reference composited over the black
+// backdrop, the lowest and highest value of each channel in its 3×3
+// neighbourhood.
 type bounds struct {
 	w, h   int
 	lo, hi [][3]float64
 }
 
-func neighbourhoods(want *render.Image, backdrop [3]float64) *bounds {
+func neighbourhoods(want *render.Image) *bounds {
 	w, h := want.Width, want.Height
+	// Premultiplied over opaque black is the colour channels as they are.
 	flat := make([][3]float64, w*h)
 	for y := range h {
 		for x := range w {
 			px := want.Pixel(x, y)
-			alpha := 1 - float64(px[3])/255
-			for k := range 3 {
-				flat[y*w+x][k] = float64(px[k]) + backdrop[k]*alpha
-			}
+			flat[y*w+x] = [3]float64{float64(px[0]), float64(px[1]), float64(px[2])}
 		}
 	}
 	b := &bounds{w: w, h: h, lo: make([][3]float64, w*h), hi: make([][3]float64, w*h)}
@@ -95,8 +96,10 @@ func neighbourhoods(want *render.Image, backdrop [3]float64) *bounds {
 // clip it) and lists what is wrong, with how the best match compared.
 func panelProblems(capture image.Image, want *render.Image) (string, []string) {
 	b := capture.Bounds()
-	r, g, bl, _ := capture.At(b.Min.X, b.Min.Y).RGBA()
-	n := neighbourhoods(want, [3]float64{float64(r >> 8), float64(g >> 8), float64(bl >> 8)})
+	// Over the harness's backdrop, opaque black at every scale (internal/e2e
+	// tests it), never a pixel of the capture: a panel can cover them all
+	// (the debug panel at 2.0 fills sway's 640×360 logical output).
+	n := neighbourhoods(want)
 	cx, cy := (b.Dx()-want.Width)/2, (b.Dy()-want.Height)/2
 	best, bestAt := rendertest.Comparison{Outliers: -1}, image.Point{}
 	for dy := -3; dy <= 3; dy++ {
@@ -145,4 +148,55 @@ func (n *bounds) compareAt(capture image.Image, at image.Point) rendertest.Compa
 		}
 	}
 	return c
+}
+
+// translucentFramed is a w×h premultiplied panel: an opaque interior
+// inside a one-pixel ring of half-transparent glow.
+func translucentFramed(w, h int) *render.Image {
+	img := &render.Image{Width: w, Height: h, Pixels: make([]byte, w*h*4)}
+	for y := range h {
+		for x := range w {
+			px := []byte{200, 180, 40, 255}
+			if x == 0 || y == 0 || x == w-1 || y == h-1 {
+				px = []byte{64, 0, 0, 128}
+			}
+			copy(img.Pixels[(y*w+x)*4:], px)
+		}
+	}
+	return img
+}
+
+// overBlack is img composited over opaque black, cropped to w×h around its
+// centre: the capture of a panel larger than its output.
+func overBlack(img *render.Image, w, h int) image.Image {
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	ox, oy := (img.Width-w)/2, (img.Height-h)/2
+	for y := range h {
+		for x := range w {
+			px := img.Pixel(x+ox, y+oy)
+			copy(out.Pix[out.PixOffset(x, y):], []byte{px[0], px[1], px[2], 255})
+		}
+	}
+	return out
+}
+
+func TestAPanelCoveringTheWholeOutputIsComparedOverTheBlackBackdrop(t *testing.T) {
+	want := translucentFramed(12, 10)
+	// The panel fills the output (as the debug panel at 2.0 fills sway's
+	// 640×360 logical output): its top-left pixel is the panel's glow, not
+	// the backdrop.
+	capture := overBlack(want, 12, 10)
+	if summary, problems := panelProblems(capture, want); len(problems) > 0 {
+		t.Errorf("the renderer's own image was refused: %v (%s)", problems, summary)
+	}
+	wrong := image.NewRGBA(capture.Bounds())
+	copy(wrong.Pix, capture.(*image.RGBA).Pix)
+	for y := 3; y < 7; y++ {
+		for x := 3; x < 9; x++ {
+			copy(wrong.Pix[wrong.PixOffset(x, y):], []byte{0, 0, 255, 255})
+		}
+	}
+	if _, problems := panelProblems(wrong, want); len(problems) == 0 {
+		t.Error("a wrong colour inside the panel passed")
+	}
 }
