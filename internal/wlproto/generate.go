@@ -3,7 +3,10 @@ package wlproto
 // Per protocol: the client header and the interface tables from
 // wayland-scanner, then the Go wrappers from wlgen. The core protocol
 // (wayland.xml) has only the Go wrappers: libwayland-client carries its
-// header and tables.
+// header and tables. protocols/wayland.xml is therefore the one of the
+// oldest libwayland logis supports, 1.22.0 (protocol/wayland.xml at that
+// tag), not the build machine's: a newer one wraps interface tables and
+// versions the older libwayland lacks (floor_test.go).
 
 //go:generate go run ../wlgen/cmd/wlgen protocols/wayland.xml wayland_gen.go
 

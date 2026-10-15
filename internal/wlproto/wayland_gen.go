@@ -73,8 +73,8 @@ func (o *WlCallback) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlCompositorInterface is wl_compositor, version 7.
-var WlCompositorInterface = &Interface{Name: "wl_compositor", Version: 7, c: &C.wl_compositor_interface, new: func() Object { return new(WlCompositor) }}
+// WlCompositorInterface is wl_compositor, version 6.
+var WlCompositorInterface = &Interface{Name: "wl_compositor", Version: 6, c: &C.wl_compositor_interface, new: func() Object { return new(WlCompositor) }}
 
 // WlCompositor is a wl_compositor proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -96,31 +96,20 @@ func (o *WlCompositor) CreateRegion() *WlRegion {
 	return created
 }
 
-// Release sends wl_compositor.release and forgets the proxy (since version 7).
-func (o *WlCompositor) Release() {
-	o.destructor(2, nil)
-}
-
 // Destroy forgets the proxy without telling the compositor (wl_compositor has
 // no destroy request).
 func (o *WlCompositor) Destroy() { o.forget() }
 
 func (o *WlCompositor) dispatch(uint32, []argument) {}
 
-// WlShmPoolInterface is wl_shm_pool, version 3.
-var WlShmPoolInterface = &Interface{Name: "wl_shm_pool", Version: 3, c: &C.wl_shm_pool_interface, new: func() Object { return new(WlShmPool) }}
+// WlShmPoolInterface is wl_shm_pool, version 1.
+var WlShmPoolInterface = &Interface{Name: "wl_shm_pool", Version: 1, c: &C.wl_shm_pool_interface, new: func() Object { return new(WlShmPool) }}
 
 // WlShmPool is a wl_shm_pool proxy. Its On fields handle the events; set them
 // before the events can arrive.
 type WlShmPool struct {
 	Proxy
 }
-
-// Values of wl_shm_pool.error.
-const (
-	WlShmPoolErrorInvalidFormat = 0
-	WlShmPoolErrorInvalidStride = 1
-)
 
 // CreateBuffer sends wl_shm_pool.create_buffer.
 func (o *WlShmPool) CreateBuffer(offset int32, width int32, height int32, stride int32, format uint32) *WlBuffer {
@@ -148,8 +137,8 @@ func (o *WlShmPool) Resize(size int32) {
 
 func (o *WlShmPool) dispatch(uint32, []argument) {}
 
-// WlShmInterface is wl_shm, version 3.
-var WlShmInterface = &Interface{Name: "wl_shm", Version: 3, c: &C.wl_shm_interface, new: func() Object { return new(WlShm) }}
+// WlShmInterface is wl_shm, version 1.
+var WlShmInterface = &Interface{Name: "wl_shm", Version: 1, c: &C.wl_shm_interface, new: func() Object { return new(WlShm) }}
 
 // WlShm is a wl_shm proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -276,46 +265,6 @@ const (
 	WlShmFormatXbgr16161616         = 0x38344258
 	WlShmFormatArgb16161616         = 0x38345241
 	WlShmFormatAbgr16161616         = 0x38344241
-	WlShmFormatC1                   = 0x20203143
-	WlShmFormatC2                   = 0x20203243
-	WlShmFormatC4                   = 0x20203443
-	WlShmFormatD1                   = 0x20203144
-	WlShmFormatD2                   = 0x20203244
-	WlShmFormatD4                   = 0x20203444
-	WlShmFormatD8                   = 0x20203844
-	WlShmFormatR1                   = 0x20203152
-	WlShmFormatR2                   = 0x20203252
-	WlShmFormatR4                   = 0x20203452
-	WlShmFormatR10                  = 0x20303152
-	WlShmFormatR12                  = 0x20323152
-	WlShmFormatAvuy8888             = 0x59555641
-	WlShmFormatXvuy8888             = 0x59555658
-	WlShmFormatP030                 = 0x30333050
-	WlShmFormatRgb161616            = 0x38344752
-	WlShmFormatBgr161616            = 0x38344742
-	WlShmFormatR16f                 = 0x48202052
-	WlShmFormatGr1616f              = 0x48205247
-	WlShmFormatBgr161616f           = 0x48524742
-	WlShmFormatR32f                 = 0x46202052
-	WlShmFormatGr3232f              = 0x46205247
-	WlShmFormatBgr323232f           = 0x46524742
-	WlShmFormatAbgr32323232f        = 0x46384241
-	WlShmFormatNv20                 = 0x3032564e
-	WlShmFormatNv30                 = 0x3033564e
-	WlShmFormatS010                 = 0x30313053
-	WlShmFormatS210                 = 0x30313253
-	WlShmFormatS410                 = 0x30313453
-	WlShmFormatS012                 = 0x32313053
-	WlShmFormatS212                 = 0x32313253
-	WlShmFormatS412                 = 0x32313453
-	WlShmFormatS016                 = 0x36313053
-	WlShmFormatS216                 = 0x36313253
-	WlShmFormatS416                 = 0x36313453
-	WlShmFormatXvuy2101010          = 0x30335958
-	WlShmFormatP230                 = 0x30333250
-	WlShmFormatT430                 = 0x30333454
-	WlShmFormatY8                   = 0x59455247
-	WlShmFormatXyyy2101010          = 0x34415059
 )
 
 // CreatePool sends wl_shm.create_pool.
@@ -325,11 +274,6 @@ func (o *WlShm) CreatePool(fd int, size int32) *WlShmPool {
 	a[2].setInt(size)
 	created, _ := o.create(0, a[:], WlShmPoolInterface, 0).(*WlShmPool)
 	return created
-}
-
-// Release sends wl_shm.release and forgets the proxy (since version 2).
-func (o *WlShm) Release() {
-	o.destructor(1, nil)
 }
 
 // Destroy forgets the proxy without telling the compositor (wl_shm has
@@ -370,8 +314,8 @@ func (o *WlBuffer) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlDataOfferInterface is wl_data_offer, version 4.
-var WlDataOfferInterface = &Interface{Name: "wl_data_offer", Version: 4, c: &C.wl_data_offer_interface, new: func() Object { return new(WlDataOffer) }}
+// WlDataOfferInterface is wl_data_offer, version 3.
+var WlDataOfferInterface = &Interface{Name: "wl_data_offer", Version: 3, c: &C.wl_data_offer_interface, new: func() Object { return new(WlDataOffer) }}
 
 // WlDataOffer is a wl_data_offer proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -448,8 +392,8 @@ func (o *WlDataOffer) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlDataSourceInterface is wl_data_source, version 4.
-var WlDataSourceInterface = &Interface{Name: "wl_data_source", Version: 4, c: &C.wl_data_source_interface, new: func() Object { return new(WlDataSource) }}
+// WlDataSourceInterface is wl_data_source, version 3.
+var WlDataSourceInterface = &Interface{Name: "wl_data_source", Version: 3, c: &C.wl_data_source_interface, new: func() Object { return new(WlDataSource) }}
 
 // WlDataSource is a wl_data_source proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -528,8 +472,8 @@ func (o *WlDataSource) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlDataDeviceInterface is wl_data_device, version 4.
-var WlDataDeviceInterface = &Interface{Name: "wl_data_device", Version: 4, c: &C.wl_data_device_interface, new: func() Object { return new(WlDataDevice) }}
+// WlDataDeviceInterface is wl_data_device, version 3.
+var WlDataDeviceInterface = &Interface{Name: "wl_data_device", Version: 3, c: &C.wl_data_device_interface, new: func() Object { return new(WlDataDevice) }}
 
 // WlDataDevice is a wl_data_device proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -551,8 +495,7 @@ type WlDataDevice struct {
 
 // Values of wl_data_device.error.
 const (
-	WlDataDeviceErrorRole       = 0
-	WlDataDeviceErrorUsedSource = 1
+	WlDataDeviceErrorRole = 0
 )
 
 // StartDrag sends wl_data_device.start_drag.
@@ -624,8 +567,8 @@ func (o *WlDataDevice) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlDataDeviceManagerInterface is wl_data_device_manager, version 4.
-var WlDataDeviceManagerInterface = &Interface{Name: "wl_data_device_manager", Version: 4, c: &C.wl_data_device_manager_interface, new: func() Object { return new(WlDataDeviceManager) }}
+// WlDataDeviceManagerInterface is wl_data_device_manager, version 3.
+var WlDataDeviceManagerInterface = &Interface{Name: "wl_data_device_manager", Version: 3, c: &C.wl_data_device_manager_interface, new: func() Object { return new(WlDataDeviceManager) }}
 
 // WlDataDeviceManager is a wl_data_device_manager proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -656,11 +599,6 @@ func (o *WlDataDeviceManager) GetDataDevice(seat *WlSeat) *WlDataDevice {
 	}
 	created, _ := o.create(1, a[:], WlDataDeviceInterface, 0).(*WlDataDevice)
 	return created
-}
-
-// Release sends wl_data_device_manager.release and forgets the proxy (since version 4).
-func (o *WlDataDeviceManager) Release() {
-	o.destructor(2, nil)
 }
 
 // Destroy forgets the proxy without telling the compositor (wl_data_device_manager has
@@ -860,8 +798,8 @@ func (o *WlShellSurface) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlSurfaceInterface is wl_surface, version 7.
-var WlSurfaceInterface = &Interface{Name: "wl_surface", Version: 7, c: &C.wl_surface_interface, new: func() Object { return new(WlSurface) }}
+// WlSurfaceInterface is wl_surface, version 6.
+var WlSurfaceInterface = &Interface{Name: "wl_surface", Version: 6, c: &C.wl_surface_interface, new: func() Object { return new(WlSurface) }}
 
 // WlSurface is a wl_surface proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -884,7 +822,6 @@ const (
 	WlSurfaceErrorInvalidSize       = 2
 	WlSurfaceErrorInvalidOffset     = 3
 	WlSurfaceErrorDefunctRoleObject = 4
-	WlSurfaceErrorNoBuffer          = 5
 )
 
 // Destroy sends wl_surface.destroy and forgets the proxy.
@@ -975,13 +912,6 @@ func (o *WlSurface) Offset(x int32, y int32) {
 	o.request(10, a[:])
 }
 
-// GetRelease sends wl_surface.get_release (since version 7).
-func (o *WlSurface) GetRelease() *WlCallback {
-	var a [1]argument
-	created, _ := o.create(11, a[:], WlCallbackInterface, 0).(*WlCallback)
-	return created
-}
-
 func (o *WlSurface) dispatch(opcode uint32, a []argument) {
 	switch opcode {
 	case 0:
@@ -1003,8 +933,8 @@ func (o *WlSurface) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlSeatInterface is wl_seat, version 11.
-var WlSeatInterface = &Interface{Name: "wl_seat", Version: 11, c: &C.wl_seat_interface, new: func() Object { return new(WlSeat) }}
+// WlSeatInterface is wl_seat, version 9.
+var WlSeatInterface = &Interface{Name: "wl_seat", Version: 9, c: &C.wl_seat_interface, new: func() Object { return new(WlSeat) }}
 
 // WlSeat is a wl_seat proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -1071,8 +1001,8 @@ func (o *WlSeat) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlPointerInterface is wl_pointer, version 11.
-var WlPointerInterface = &Interface{Name: "wl_pointer", Version: 11, c: &C.wl_pointer_interface, new: func() Object { return new(WlPointer) }}
+// WlPointerInterface is wl_pointer, version 9.
+var WlPointerInterface = &Interface{Name: "wl_pointer", Version: 9, c: &C.wl_pointer_interface, new: func() Object { return new(WlPointer) }}
 
 // WlPointer is a wl_pointer proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -1100,8 +1030,6 @@ type WlPointer struct {
 	OnAxisValue120 func(axis uint32, value120 int32)
 	// OnAxisRelativeDirection handles wl_pointer.axis_relative_direction.
 	OnAxisRelativeDirection func(axis uint32, direction uint32)
-	// OnWarp handles wl_pointer.warp.
-	OnWarp func(surfaceX Fixed, surfaceY Fixed)
 }
 
 // Values of wl_pointer.error.
@@ -1202,15 +1130,11 @@ func (o *WlPointer) dispatch(opcode uint32, a []argument) {
 		if o.OnAxisRelativeDirection != nil {
 			o.OnAxisRelativeDirection(a[0].uint(), a[1].uint())
 		}
-	case 11:
-		if o.OnWarp != nil {
-			o.OnWarp(a[0].fixed(), a[1].fixed())
-		}
 	}
 }
 
-// WlKeyboardInterface is wl_keyboard, version 11.
-var WlKeyboardInterface = &Interface{Name: "wl_keyboard", Version: 11, c: &C.wl_keyboard_interface, new: func() Object { return new(WlKeyboard) }}
+// WlKeyboardInterface is wl_keyboard, version 9.
+var WlKeyboardInterface = &Interface{Name: "wl_keyboard", Version: 9, c: &C.wl_keyboard_interface, new: func() Object { return new(WlKeyboard) }}
 
 // WlKeyboard is a wl_keyboard proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -1240,7 +1164,6 @@ const (
 const (
 	WlKeyboardKeyStateReleased = 0
 	WlKeyboardKeyStatePressed  = 1
-	WlKeyboardKeyStateRepeated = 2
 )
 
 // Release sends wl_keyboard.release and forgets the proxy (since version 3).
@@ -1284,8 +1207,8 @@ func (o *WlKeyboard) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlTouchInterface is wl_touch, version 11.
-var WlTouchInterface = &Interface{Name: "wl_touch", Version: 11, c: &C.wl_touch_interface, new: func() Object { return new(WlTouch) }}
+// WlTouchInterface is wl_touch, version 9.
+var WlTouchInterface = &Interface{Name: "wl_touch", Version: 9, c: &C.wl_touch_interface, new: func() Object { return new(WlTouch) }}
 
 // WlTouch is a wl_touch proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -1436,8 +1359,8 @@ func (o *WlOutput) dispatch(opcode uint32, a []argument) {
 	}
 }
 
-// WlRegionInterface is wl_region, version 7.
-var WlRegionInterface = &Interface{Name: "wl_region", Version: 7, c: &C.wl_region_interface, new: func() Object { return new(WlRegion) }}
+// WlRegionInterface is wl_region, version 1.
+var WlRegionInterface = &Interface{Name: "wl_region", Version: 1, c: &C.wl_region_interface, new: func() Object { return new(WlRegion) }}
 
 // WlRegion is a wl_region proxy. Its On fields handle the events; set them
 // before the events can arrive.
@@ -1563,43 +1486,3 @@ func (o *WlSubsurface) SetDesync() {
 }
 
 func (o *WlSubsurface) dispatch(uint32, []argument) {}
-
-// WlFixesInterface is wl_fixes, version 2.
-var WlFixesInterface = &Interface{Name: "wl_fixes", Version: 2, c: &C.wl_fixes_interface, new: func() Object { return new(WlFixes) }}
-
-// WlFixes is a wl_fixes proxy. Its On fields handle the events; set them
-// before the events can arrive.
-type WlFixes struct {
-	Proxy
-}
-
-// Values of wl_fixes.error.
-const (
-	WlFixesErrorInvalidAckRemove = 0
-)
-
-// Destroy sends wl_fixes.destroy and forgets the proxy.
-func (o *WlFixes) Destroy() {
-	o.destructor(0, nil)
-}
-
-// DestroyRegistry sends wl_fixes.destroy_registry.
-func (o *WlFixes) DestroyRegistry(registry *WlRegistry) {
-	var a [1]argument
-	if registry != nil {
-		a[0].setProxy(registry.proxy())
-	}
-	o.request(1, a[:])
-}
-
-// AckGlobalRemove sends wl_fixes.ack_global_remove (since version 2).
-func (o *WlFixes) AckGlobalRemove(registry *WlRegistry, name uint32) {
-	var a [2]argument
-	if registry != nil {
-		a[0].setProxy(registry.proxy())
-	}
-	a[1].setUint(name)
-	o.request(2, a[:])
-}
-
-func (o *WlFixes) dispatch(uint32, []argument) {}
