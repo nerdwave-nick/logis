@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/e2e"
+	"github.com/nerdwave-nick/logis/internal/render"
+	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
@@ -108,6 +110,57 @@ func count(events []trace.Event, what string) int {
 	return n
 }
 
+// checkDebugPanel captures until two consecutive captures agree, checks
+// the harness's opaque black backdrop around the panel, and compares the
+// panel cropped from the output with golden e2e/<name> (Rust e2e.rs
+// check_panel).
+func checkDebugPanel(t *testing.T, h *e2e.Harness, name string) {
+	t.Helper()
+	capture := h.SettledCapture()
+	for _, at := range [][2]int{{0, 0}, {capture.Width - 1, capture.Height - 1}} {
+		if px := capture.Pixel(at[0], at[1]); px != [4]byte{0, 0, 0, 255} {
+			t.Errorf("the backdrop at %v is %v, not opaque black around the panel", at, px)
+		}
+	}
+	g := rendertest.CheckedIn(t)
+	var reference *render.Image
+	if !g.Update {
+		reference, _ = g.Load("e2e", name)
+	}
+	panel := e2e.CropCentred(capture, int(debugSize.W), int(debugSize.H), reference)
+	g.Assert(t, "e2e", name, panel, rendertest.Capture)
+}
+
+// The debug panel takes the keyboard, receives injected keys with real
+// modifier presses and masks, and shows what they did on screen (Rust
+// e2e.rs the_debug_panel_takes_focus_receives_keys_and_shows_them; the
+// harness's own self-test of the same flow is in internal/e2e).
+func TestE2ETheDebugPanelTakesFocusReceivesKeysAndShowsThem(t *testing.T) {
+	c := e2e.Start(t, e2e.Requested(t))
+	p := startTyping(t, c, nil)
+	checkDebugPanel(t, p.harness, "debug-panel")
+
+	// A real Shift press plus its mask around the letter, as a user types.
+	p.typeText("A")
+	for _, step := range []string{"key 42 pressed", "modifiers 1 0 0 0", "key 30 pressed",
+		"key 30 released", "key 42 released", "modifiers 0 0 0 0"} {
+		p.wait(step)
+	}
+	p.kb.Hold(p.focused, e2e.Control)
+	p.wait("modifiers 4 0 0 0")
+	p.kb.Release(p.focused, e2e.Control)
+
+	for _, row := range []string{"select 1", "select 2"} {
+		p.tap(e2e.KeyDown)
+		at := p.panel.WaitFor(row, e2e.Is(row))
+		p.panel.WaitForCommitAfter(at.NS)
+	}
+	checkDebugPanel(t, p.harness, "debug-panel-row-2")
+
+	p.tap(e2e.KeyEsc)
+	p.endsWith("dismiss")
+}
+
 func TestE2EComposeLocksAndTheKeypadTypeWhatTheLayoutSays(t *testing.T) {
 	c := e2e.Start(t, e2e.Requested(t))
 	p := startTyping(t, c, nil)
@@ -129,6 +182,7 @@ func TestE2EComposeLocksAndTheKeypadTypeWhatTheLayoutSays(t *testing.T) {
 	p.tap(e2e.KeyCompose)
 	p.typeText("lg")
 	p.wantQuery("öλ", "the harness's Compose table")
+	checkDebugPanel(t, p.harness, "debug-panel-query")
 
 	// One grapheme of two code points; Backspace deletes it whole.
 	p.tap(e2e.KeyCompose)
