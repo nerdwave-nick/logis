@@ -19,7 +19,11 @@ func TestInvokeRunsInASessionOfItsOwnWithStdioOnDevNullAndUnawaited(t *testing.T
 	if err := Detached(program, args); err != nil {
 		t.Fatal(err)
 	}
-	if took := time.Since(since); took > 1500*time.Millisecond {
+	// Under -short the invocation still must not be done when logis is
+	// (below); only the wall-clock limit is left out.
+	if took := time.Since(since); testing.Short() {
+		t.Logf("returned after %v; timing: the 1.5 s limit is a wall-clock check, not under -short", took)
+	} else if took > 1500*time.Millisecond {
 		t.Fatalf("logis waited for the invocation (%v)", took)
 	}
 	if !waitFor(filepath.Join(dir, "invoke", "recorded"), 5*time.Second) {
