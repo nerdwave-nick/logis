@@ -34,29 +34,49 @@ on:
 permissions:
   contents: read
 
+# The jobs that render (check, headless) run in Arch Linux, the owner's
+# platform where the goldens are recorded, not on Ubuntu 24.04's own
+# libraries (owner decision, ticket 0cca1961). Ubuntu 24.04 ships FreeType
+# 2.13.2, whose TrueType interpreter scales CVT values with a rounding bug
+# (upstream 37580053, fixed by 1452355de in 2.13.3, FreeType issue #1005):
+# hinted Latin glyphs at 1.3 and 2.0 differ by up to 23-47 levels, and
+# the scene and text goldens fail. That is FreeType, not logis; no
+# tolerance can admit it honestly. Upstream 2.13.3 and later match the
+# goldens on the same Mesa.
+#
+# Pinned twice, so a rolling update can never shift the goldens unseen:
+# the image to a dated tag and its digest, and pacman to the Arch Linux
+# Archive snapshot of that date (what the image was built from). Bumping
+# them is a deliberate commit: change both dates together, rerun, and
+# review any golden that moves.
+env:
+  ARCH_SNAPSHOT: "2026/10/11"
+
 jobs:
   check:
     name: gofmt, vet, test -race
     runs-on: ubuntu-24.04
+    container: archlinux:base-20261011.0.609700@sha256:3c64b538588416593f69a1aebd2f2ec0f2541b29159f32556fa7def2167147a0
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
-
       # cgo links exactly the libraries of spec §4 through pkg-config:
-      # wayland-client and wayland-egl (libwayland-dev), egl (libegl-dev),
-      # glesv2 (libgles-dev), fontconfig and freetype2. The wayland-scanner
-      # glue is committed, so the build needs no scanner; its freshness test
-      # skips unless the runner's scanner wrote the committed files.
-      - name: Install system libraries
+      # wayland-client and wayland-egl (wayland), egl and glesv2
+      # (libglvnd), fontconfig and freetype2; the race detector and cgo
+      # need gcc, checkout needs git. Mesa brings EGL and llvmpipe: the GL
+      # tests draw on a surfaceless OpenGL ES 3 context, which a runner
+      # without a GPU gets from llvmpipe (spec: logis works on Mesa
+      # llvmpipe). One system font for the fontconfig tests that resolve
+      # the system configuration (the goldens use the pinned tests/fonts).
+      # The wayland-scanner glue is committed; with the snapshot's scanner
+      # (1.26.0) its freshness test runs here too.
+      - name: Install the toolchain and system libraries (Arch Linux Archive)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc pkg-config \
-            libwayland-dev libegl-dev libgles-dev libfontconfig-dev libfreetype-dev
+          echo "Server = https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syu --noconfirm --needed git gcc pkgconf wayland libglvnd mesa \
+            fontconfig freetype2 ttf-dejavu
+          pacman -Q freetype2 mesa fontconfig wayland
 
-      # Mesa's EGL and its software rasteriser: the GL tests draw on a
-      # surfaceless OpenGL ES 3 context, which a runner without a GPU gets
-      # from llvmpipe (spec: logis works on Mesa llvmpipe).
-      - name: Install Mesa EGL and llvmpipe
-        run: sudo apt-get install -y --no-install-recommends libegl-mesa0 libgl1-mesa-dri
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
@@ -124,33 +144,37 @@ jobs:
       - name: go test -tags xkbref ./internal/xkb/...
         run: go test -count=1 -tags xkbref -v ./internal/xkb/...
 
-  # End to end and latency in sway on wlroots' headless backend (spec §6):
-  # installed on this runner only. internal/e2e starts sway itself
-  # (WLR_BACKENDS=headless, pixman renderer, no input devices, one
-  # 1280x720 output) in a scratch XDG_RUNTIME_DIR; logis draws on Mesa
-  # llvmpipe through the EGL Wayland platform. Locally the same tests run
-  # in a nested niri (LOGIS_E2E=niri).
+  # End to end and latency in sway on wlroots' headless backend (spec §6),
+  # in the same pinned Arch image as the check job (see the top). internal/e2e
+  # starts sway itself (WLR_BACKENDS=headless, pixman renderer, no input
+  # devices, one 1280x720 output) in a scratch XDG_RUNTIME_DIR; logis draws
+  # on Mesa llvmpipe through the EGL Wayland platform. Locally the same
+  # tests run in a nested niri (LOGIS_E2E=niri).
   headless:
     name: headless E2E and latency (sway)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    container: archlinux:base-20261011.0.609700@sha256:3c64b538588416593f69a1aebd2f2ec0f2541b29159f32556fa7def2167147a0
+    timeout-minutes: 30
     env:
       LOGIS_E2E: sway
       LIBGL_ALWAYS_SOFTWARE: "1"
       LOGIS_GOLDEN_FAILURES: ${{ github.workspace }}/golden-failures
     steps:
-      - uses: actions/checkout@v5
-
-      # sway brings wlroots and xkb-data (the injector's keymap includes
-      # resolve there). No swaybg: sway shows its default dark grey, which
-      # the harness covers with its own black backdrop surface.
-      - name: Install sway, Mesa and the system libraries
+      # The check job's packages plus sway (with wlroots, libxkbcommon and
+      # xkeyboard-config, where the injector's keymap includes resolve). No
+      # swaybg: the harness covers the output with its own black backdrop.
+      # Arch's sway carries the file capability cap_sys_nice (realtime
+      # scheduling); a container's capability bounding set lacks it, so
+      # exec fails with EPERM until the capability is dropped.
+      - name: Install sway, Mesa and the system libraries (Arch Linux Archive)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends sway gcc pkg-config \
-            libwayland-dev libegl-dev libgles-dev libfontconfig-dev libfreetype-dev \
-            libegl-mesa0 libgl1-mesa-dri
+          echo "Server = https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syu --noconfirm --needed git gcc pkgconf wayland libglvnd mesa \
+            fontconfig freetype2 ttf-dejavu sway
+          setcap -r /usr/bin/sway
           sway --version
+
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v6
         with:
