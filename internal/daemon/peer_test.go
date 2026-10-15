@@ -42,6 +42,9 @@ func TestRepliesReachAReadingClientWhole(t *testing.T) {
 // reply (Rust's write timeout): once its socket is full, a reply waits that
 // long and gives up.
 func TestAClientThatStopsReadingStallsASendAtMostTheWriteTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("timing: the write timeout is measured on the wall clock, not under -short")
+	}
 	p, _ := peerPair(t)
 	big := protocol.Error(strings.Repeat("heresy ", 8_000))
 	for range 1000 {

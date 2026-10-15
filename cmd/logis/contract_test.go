@@ -103,7 +103,9 @@ func TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers(t *testing.T) {
 	if got.code != 0 || !strings.Contains(got.stdout, "already listens") {
 		t.Fatalf("%+v", got)
 	}
-	if took := time.Since(since); took >= patience {
+	if took := time.Since(since); testing.Short() {
+		t.Logf("took %v; timing: \"at once\" (under %v) is a wall-clock check, not under -short", took, patience)
+	} else if took >= patience {
 		t.Fatalf("took %v", took)
 	}
 }

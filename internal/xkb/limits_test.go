@@ -26,7 +26,9 @@ func refused(t *testing.T, name, src, reason string) {
 	if !strings.Contains(e.Error(), reason) {
 		t.Errorf("%s: %q does not say %q", name, e.Error(), reason)
 	}
-	if d := time.Since(start); d > time.Second {
+	if d := time.Since(start); testing.Short() {
+		t.Logf("%s: refused in %v; timing: the 1 s limit is a wall-clock check, not under -short", name, d)
+	} else if d > time.Second {
 		t.Errorf("%s: refused only after %v", name, d)
 	}
 }
@@ -139,7 +141,9 @@ func TestTheWorstKeymapAtTheSizeLimitIsDecidedQuickly(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "too complex") {
 		t.Errorf("got %v, want too complex", err)
 	}
-	if d > time.Second && !raceEnabled {
+	if testing.Short() || raceEnabled {
+		t.Log("timing: the 1 s limit is a wall-clock check, not under -short or -race")
+	} else if d > time.Second {
 		t.Errorf("compiling took %v", d)
 	}
 }
