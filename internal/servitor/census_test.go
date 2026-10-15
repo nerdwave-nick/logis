@@ -121,7 +121,7 @@ func TestTheVigilIsHeardLineByLineThenItsEnd(t *testing.T) {
 	dir := t.TempDir()
 	told := make(chan Told, 64)
 	program := fake(t, dir, fixture(t, "vigil.jsonl"))
-	if err := KeepVigil(program, io.Discard, func(tl Told) bool { told <- tl; return true }); err != nil {
+	if _, err := KeepVigil(program, io.Discard, func(tl Told) bool { told <- tl; return true }); err != nil {
 		t.Fatal(err)
 	}
 	var heralds []Herald
@@ -146,7 +146,7 @@ func TestTheVigilIsHeardLineByLineThenItsEnd(t *testing.T) {
 }
 
 func TestACensusThatCannotStartIsAnError(t *testing.T) {
-	err := KeepVigil("/nonexistent/servitor", io.Discard, func(Told) bool { return true })
+	_, err := KeepVigil("/nonexistent/servitor", io.Discard, func(Told) bool { return true })
 	if err == nil || !strings.Contains(err.Error(), "no such file") {
 		t.Fatalf("%v", err)
 	}
@@ -158,7 +158,7 @@ func TestAReaderThatDepartsEndsTheCensus(t *testing.T) {
 	dir := t.TempDir()
 	program := fake(t, dir, fixture(t, "lingering.jsonl"))
 	heard := make(chan struct{}, 1)
-	if err := KeepVigil(program, io.Discard, func(Told) bool { heard <- struct{}{}; return false }); err != nil {
+	if _, err := KeepVigil(program, io.Discard, func(Told) bool { heard <- struct{}{}; return false }); err != nil {
 		t.Fatal(err)
 	}
 	select {
