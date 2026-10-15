@@ -237,7 +237,7 @@ func TestAStillPanelSettlesWithItsFirstFrameOnly(t *testing.T) {
 	m.frameDone()
 	w.RequestRedraw()
 	until(t, w, m.fakeShell, "commit")
-	if events := tr.take(); !slices.Equal(events, []string{"commit", "settled", "commit"}) {
+	if events := tr.take(); !slices.Equal(events, []string{"commit", "settled", "frame-done", "commit"}) {
 		t.Errorf("%q", events)
 	}
 }
@@ -462,3 +462,44 @@ func TestPresentationFeedbackPutsFramesOnTheRefreshGrid(t *testing.T) {
 }
 
 func nearly(a, b, tolerance float32) bool { return a-b < tolerance && b-a < tolerance }
+
+// The compositor's answers to the visible window's frames (its frame
+// callback, its presentation feedback) are reported, so that a test can
+// tell when the compositor owes the window nothing more; a closing
+// window's are not, as its frames are `commit closing`.
+func TestTheCompositorsAnswersToTheVisibleWindowsFramesAreReported(t *testing.T) {
+	m := newMoved(t, withPresentation)
+	tr := traceOf(t)
+	w, c := openMoving(t, m, motion.Off)
+	p := &framed{}
+	shown(t, m, w, p)
+	tr.take()
+	m.to(func(m *moved) uint32 { return m.feedbacks[0] }, 1,
+		uint32(0), uint32(1), uint32(0), uint32(8_000_000), uint32(0), uint32(1), uint32(0))
+	m.frameDone()
+	settle(t, w)
+	if events := tr.take(); !slices.Equal(events, []string{"presented", "frame-done"}) {
+		t.Fatalf("the first frame's answers: %q", events)
+	}
+	w.RequestRedraw()
+	until(t, w, m.fakeShell, "feedback", "commit")
+	m.to(func(m *moved) uint32 { return m.feedbacks[1] }, 2)
+	settle(t, w)
+	if events := tr.take(); !slices.Equal(events, []string{"commit", "discarded"}) {
+		t.Fatalf("a discarded frame: %q", events)
+	}
+	w.SetMotion(steady)
+	w.Hide()
+	m.frameDone() // the last open frame's
+	until(t, w, m.fakeShell, "frame", "commit")
+	tr.take()
+	c.advance(25)
+	m.to(func(m *moved) uint32 { return m.feedbacks[len(m.feedbacks)-1] }, 2)
+	m.frameDone()
+	settle(t, w)
+	for _, e := range tr.take() {
+		if e == "frame-done" || e == "presented" || e == "discarded" {
+			t.Errorf("a closing window's answer reported: %q", e)
+		}
+	}
+}

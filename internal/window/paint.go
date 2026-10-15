@@ -100,7 +100,8 @@ func (w *Window) drawPanel(p *panel) error {
 //
 // With the test trace on it reports `commit` (the visible panel) or
 // `commit closing`, and `settled` after the first frame of the visible
-// panel that leaves nothing moving.
+// panel that leaves nothing moving; a visible frame's callback, when it
+// comes, `frame-done`.
 func (w *Window) present(p *panel) error {
 	g, _ := p.state.geometry()
 	if p.presenter == nil {
@@ -127,12 +128,15 @@ func (w *Window) present(p *panel) error {
 	p.frame = p.surface.Frame()
 	frame := p.frame
 	frame.OnDone = func(uint32) {
+		if !closing {
+			emit("frame-done")
+		}
 		if p.frame == frame {
 			p.frame = nil
 			p.state.frameDone()
 		}
 	}
-	w.feedback(p.surface)
+	w.feedback(p.surface, !closing)
 	if err := p.presenter.swap(); err != nil {
 		return err
 	}
@@ -156,16 +160,25 @@ func (w *Window) present(p *panel) error {
 
 // feedback asks when the frame about to be committed on s reaches the
 // screen, when the compositor offers wp_presentation: its report times the
-// frames after it.
-func (w *Window) feedback(s *wlproto.WlSurface) {
+// frames after it. With the test trace on, a visible frame's report is
+// `presented` or `discarded`.
+func (w *Window) feedback(s *wlproto.WlSurface, visible bool) {
 	if w.presentation == nil {
 		return
 	}
 	fb := w.presentation.Feedback(s)
 	fb.OnPresented = func(secHi, secLo, nsec, refresh, _, _, _ uint32) {
+		if visible {
+			emit("presented")
+		}
 		if w.monotonic {
 			secs := uint64(secHi)<<32 | uint64(secLo)
 			w.clock.presented(secs*1_000_000_000+uint64(nsec), uint64(refresh))
+		}
+	}
+	fb.OnDiscarded = func() {
+		if visible {
+			emit("discarded")
 		}
 	}
 }

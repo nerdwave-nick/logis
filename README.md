@@ -987,7 +987,9 @@ pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>`,
 default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pixels
 <px>|stop`, `paste <selection> <MIME type>|none|unavailable`, `pasted <selection>
 <bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
-one fading out), `settled` (the first frame after which nothing moves), `faded` (a
+one fading out), `settled` (the first frame after which nothing moves), `frame-done`,
+`presented` and `discarded` (the Go build: the compositor's frame callback and
+presentation feedback for a frame of the visible window), `faded` (a
 closed window is gone, at once without motion), `blur <rectangles>` (a blur region was set) and
 `blur-capable true|false` (the compositor's word), `acquire outdated` and `acquire
 failed <reason>` (no swapchain image came; the frame is tried again 4 ms later
