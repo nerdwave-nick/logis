@@ -32,7 +32,8 @@ import (
 //   - Failures name the golden and leave <name>.actual.png and
 //     <name>.diff.png (outliers magenta over the dimmed golden) under
 //     $LOGIS_GOLDEN_FAILURES/<set>/ (default: the temp dir's
-//     logis-golden-failures).
+//     logis-golden-failures). A passing check removes them, so a leftover
+//     is never taken for a later run's.
 
 // UpdateEnv is the variable that switches to update mode.
 const UpdateEnv = "LOGIS_UPDATE_GOLDENS"
@@ -197,12 +198,18 @@ func (g *Goldens) Check(set, name string, img *render.Image, tol Tolerance) (Ver
 	if err != nil {
 		return Verdict{}, fmt.Errorf("%v (%s)", err, path)
 	}
-	if c.Passes(tol) {
-		return Verdict{Path: path, Comparison: c}, nil
-	}
 	dir := filepath.Join(g.Failures, set)
 	actual := filepath.Join(dir, name+".actual.png")
 	marked := filepath.Join(dir, name+".diff.png")
+	if c.Passes(tol) {
+		// An earlier failure's artefacts would pass for this run's.
+		for _, stale := range []string{actual, marked} {
+			if err := os.Remove(stale); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return Verdict{}, fmt.Errorf("cannot remove the stale failure artefact %s: %v", stale, err)
+			}
+		}
+		return Verdict{Path: path, Comparison: c}, nil
+	}
 	if err := writeAll(dir, map[string]*render.Image{actual: img, marked: DiffImage(img, golden, tol.Channel)}); err != nil {
 		return Verdict{}, fmt.Errorf("cannot write failure artefacts in %s: %v", dir, err)
 	}
