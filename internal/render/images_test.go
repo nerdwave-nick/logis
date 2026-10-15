@@ -122,7 +122,7 @@ func TestImagesOfTransparentOrUnknownHandlesAreSkipped(t *testing.T) {
 }
 
 func TestTheAtlasGrowsAndKeepsItsImages(t *testing.T) {
-	h := rendertest.Headless(t)
+	h := rendertest.HeadlessForStructure(t)
 	colours := [][4]byte{{255, 0, 0, 255}, {0, 255, 0, 255}, {0, 0, 255, 255}}
 	var ids []render.ImageID
 	for _, c := range colours {
@@ -138,6 +138,9 @@ func TestTheAtlasGrowsAndKeepsItsImages(t *testing.T) {
 		if w, hh, ok := h.Atlas().SizeOf(id); !ok || w != 300 || hh != 300 {
 			t.Errorf("image %d is %dx%d (%v)", i, w, hh, ok)
 		}
+	}
+	rendertest.SkipPixels(t)
+	for i, id := range ids {
 		sc := &render.Scene{Images: []render.ImageQuad{{Image: id, Opacity: 1}}}
 		out := draw(t, h, sc, scale.Size{W: 300, H: 300}, scale.One)
 		for _, p := range [][2]int{{0, 0}, {299, 0}, {150, 150}, {0, 299}, {299, 299}} {
@@ -149,7 +152,7 @@ func TestTheAtlasGrowsAndKeepsItsImages(t *testing.T) {
 }
 
 func TestTheAtlasRefusesMalformedAndOversizedImages(t *testing.T) {
-	h := rendertest.Headless(t)
+	h := rendertest.HeadlessForStructure(t)
 	atlas := h.Atlas()
 	_, err := atlas.Insert(image(0, 3, func(int, int) [4]byte { return [4]byte{} }))
 	var malformed *render.MalformedImageError

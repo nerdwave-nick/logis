@@ -1,8 +1,9 @@
 // Package rendertest helps tests check what internal/render draws: a
 // headless renderer that skips without EGL (unless LOGIS_REQUIRE_EGL is
-// set), image comparison with a tolerance in the terms of Rust's golden
-// harness (tests/support/golden.rs: a per-channel difference and a
-// fraction of outlier pixels), and PNG files holding premultiplied bytes
+// set) and, for a test of the pixels it draws, under go test -short
+// (SkipPixels); image comparison with a tolerance in the terms of Rust's
+// golden harness (tests/support/golden.rs: a per-channel difference and a
+// fraction of outlier pixels); and PNG files holding premultiplied bytes
 // as the checked-in goldens do.
 //
 // The golden harness proper (Goldens: update mode, Go goldens beside the
@@ -20,11 +21,38 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Headless is a headless renderer for the test, owned by the test's
-// goroutine and closed when the test ends. Without a surfaceless EGL the
-// test is skipped, unless LOGIS_REQUIRE_EGL is set (CI with llvmpipe), so
-// GL tests cannot skip unseen.
+// PixelsReason is why go test -short skips a pixel check.
+const PixelsReason = "gpu pixels: the verdict rests on how this machine's GPU and driver " +
+	"round what they draw; -short (the PKGBUILD's check()) leaves it to CI and a plain go test"
+
+// SkipPixels skips t under go test -short. A test whose verdict rests on
+// pixels a GPU drew (a golden comparison, or pixels read back and held to
+// values) depends on the builder's GPU and driver, which round and
+// anti-alias differently: like a wall-clock limit, it is for CI and
+// development, never for the install check.
+func SkipPixels(t testing.TB) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip(PixelsReason)
+	}
+}
+
+// Headless is a headless renderer for a test that checks the pixels it
+// draws, owned by the test's goroutine and closed when the test ends.
+// Under go test -short the test is skipped first (SkipPixels). Without a
+// surfaceless EGL it is skipped too, unless LOGIS_REQUIRE_EGL is set (CI
+// with llvmpipe), so GL tests cannot skip unseen.
 func Headless(t testing.TB) *render.Headless {
+	t.Helper()
+	SkipPixels(t)
+	return HeadlessForStructure(t)
+}
+
+// HeadlessForStructure is Headless for a test that holds no pixel the GPU
+// drew to a value: sizes, errors, atlas and glyph bookkeeping, text
+// measures. It runs under go test -short too; a test that also checks
+// pixels calls SkipPixels before it reads them.
+func HeadlessForStructure(t testing.TB) *render.Headless {
 	t.Helper()
 	h, err := render.OpenHeadless()
 	if err != nil {

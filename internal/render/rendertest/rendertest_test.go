@@ -140,3 +140,16 @@ func TestCheckFailsAMismatchAndDumpsTheRender(t *testing.T) {
 		t.Errorf("a match failed: %q", f.errors)
 	}
 }
+
+// Pixel checks follow the timing rule: go test -short (the PKGBUILD's
+// check()) leaves them out, a plain go test (CI, development) runs them.
+func TestPixelChecksAreLeftOutUnderShortOnly(t *testing.T) {
+	ran := false
+	pixels := t.Run("pixels", func(t *testing.T) {
+		SkipPixels(t)
+		ran = true
+	})
+	if !pixels || ran == testing.Short() {
+		t.Errorf("under -short %v the pixel check ran: %v", testing.Short(), ran)
+	}
+}
