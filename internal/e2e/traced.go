@@ -203,3 +203,25 @@ func (p *Traced) WaitExit() int {
 		return -1
 	}
 }
+
+// WaitUntil waits until done holds for every trace event seen so far,
+// within Patience: for a state that events build up together (every
+// frame answered), where WaitFor and WaitSeen match one event.
+func (p *Traced) WaitUntil(what string, done func([]trace.Event) bool) {
+	p.t.Helper()
+	deadline := time.After(Patience)
+	for {
+		ended := p.take()
+		if done(p.events) {
+			return
+		}
+		if ended {
+			p.t.Fatalf("logis ended (%v) before %s; stderr:\n%s", p.cmd.ProcessState, what, p.Stderr())
+		}
+		select {
+		case <-p.more:
+		case <-deadline:
+			p.t.Fatalf("no %s in %v; stderr:\n%s", what, Patience, p.Stderr())
+		}
+	}
+}

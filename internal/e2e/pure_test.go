@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/render"
+	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
 // Ports of Rust tests/e2e.rs's tests of the harness's pure parts and its
@@ -159,5 +160,25 @@ func TestAPanelMapsSurfacePointsThroughAMirroredAxis(t *testing.T) {
 	}
 	if x, y := p.At(30, 20); x != 120 || y != 130 {
 		t.Errorf("surface (30, 20) at output (%v, %v), want (120, 130)", x, y)
+	}
+}
+
+// WaitUntil returns once a condition over all events so far holds, which
+// no single event satisfies; the process need not be a compositor's.
+func TestWaitUntilWaitsForAStateTheEventsBuildUp(t *testing.T) {
+	p := Spawn(t, exec.Command("sh", "-c",
+		`for i in 1 2 3; do echo "logis-trace: $i tick" >&2; sleep 0.05; done; exec sleep 10`))
+	ticks := func(events []trace.Event) int {
+		n := 0
+		for _, e := range events {
+			if e.What == "tick" {
+				n++
+			}
+		}
+		return n
+	}
+	p.WaitUntil("three ticks", func(events []trace.Event) bool { return ticks(events) == 3 })
+	if n := ticks(p.Events()); n != 3 {
+		t.Fatalf("%d ticks", n)
 	}
 }
