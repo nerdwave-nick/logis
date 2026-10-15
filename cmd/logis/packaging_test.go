@@ -196,6 +196,30 @@ func TestThePackageBuildsTheGoBinaryWithCgo(t *testing.T) {
 	}
 }
 
+// pkgbuildFunction is the body of the PKGBUILD's function name, without
+// its comment lines.
+func pkgbuildFunction(t *testing.T, name string) string {
+	t.Helper()
+	_, body, ok := strings.Cut(pkgbuildCode(t), "\n"+name+"() {\n")
+	if !ok {
+		t.Fatalf("the PKGBUILD has no %s()", name)
+	}
+	body, _, ok = strings.Cut(body, "\n}\n")
+	if !ok {
+		t.Fatalf("the PKGBUILD's %s() is not closed", name)
+	}
+	return body
+}
+
+// Wall-clock timing tests are for CI and benchmark rounds: they never
+// decide whether makepkg installs logis, so check() runs go test -short,
+// which they skip.
+func TestThePackageCheckLeavesTheTimingTestsOut(t *testing.T) {
+	if check := pkgbuildFunction(t, "check"); !strings.Contains(check, "go test -short ./...") {
+		t.Errorf("check() does not run go test -short ./...:\n%s", check)
+	}
+}
+
 // archLibraryPackages names the Arch package that ships each C library the
 // binary links (spec §4): libglvnd ships the libEGL and libGLESv2 the binary
 // links, which dispatch to Mesa's (or another vendor's) driver.

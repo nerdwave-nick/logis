@@ -93,10 +93,12 @@ check() {
   # Unit, golden and process tests; no compositor is needed. The E2E and
   # latency tests run only under LOGIS_E2E and skip here, the GL tests skip
   # where no EGL display serves, and nothing may reach the session that runs
-  # makepkg.
+  # makepkg. -short skips the wall-clock timing tests (time limits and
+  # budgets): they are for CI and benchmark rounds, and a busy machine must
+  # not fail the install on them. CI and a plain `go test ./...` run them.
   env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u LOGIS_E2E -u LOGIS_REQUIRE_EGL \
     -u LOGIS_RUST_LOGIS -u LOGIS_LATENCY_BUDGETS \
-    go test ./...
+    go test -short ./...
 }
 
 package() {
