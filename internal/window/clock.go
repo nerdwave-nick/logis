@@ -41,12 +41,20 @@ func (c *frameClock) drew(at uint64) { c.drawn = at }
 // frame is the moment of a frame drawn at now: the first refresh at or
 // after it while frames are flowing, or now itself without timing or after
 // a pause (with a variable refresh rate, the first frame after idle is
-// shown when it is ready, off the old grid); in any case no sooner than an
-// interval after the frame drawn before it.
+// shown when it is ready, off the old grid); no sooner than an interval
+// after the frame drawn before it, but no later than an interval after
+// the timing alone gives.
+//
+// That last bound departs from Rust: a frame is drawn when the compositor
+// asks for one, so it queues behind one frame at most. Without it, every
+// callback that came sooner than an interval (60 Hz is a guess when the
+// output reports no refresh, as nested niri does; or a burst after a
+// stall) pushed each later moment further ahead of the screen, so motion
+// ran ahead and a close faded out tens of milliseconds early.
 func (c *frameClock) frame(now uint64) FrameTime {
 	t := c.timed(now)
 	if c.drawn != 0 {
-		t.At = max(t.At, c.drawn+t.Interval)
+		t.At = max(t.At, min(c.drawn, t.At)+t.Interval)
 	}
 	return t
 }

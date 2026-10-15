@@ -72,3 +72,38 @@ func TestAnUnknownRefreshForgetsTheTiming(t *testing.T) {
 		t.Errorf("%+v", got)
 	}
 }
+
+func TestFramesFasterThanTheAssumedIntervalDoNotRunAhead(t *testing.T) {
+	// Without the output's refresh (nested niri reports 0), 60 Hz is a
+	// guess: when the compositor asks for frames faster than that, each
+	// frame is still seen within an interval of being drawn, not an
+	// interval after the last guess, which would run ever further ahead.
+	var c frameClock
+	c.presented(90*msNS, 0)
+	for i := range uint64(30) {
+		now := 100*msNS + i*10*msNS
+		f := c.frame(now)
+		if f.At > now+fallbackInterval {
+			t.Fatalf("frame %d drawn at %d ms is seen %.1f ms later", i, now/msNS, float64(f.At-now)/float64(msNS))
+		}
+		c.drew(f.At)
+	}
+}
+
+func TestABurstOfCallbacksGetsNoFrameMoreThanARefreshAheadOfTheGrid(t *testing.T) {
+	// Callbacks that come faster than the refresh (a burst after a stall)
+	// are drawn for the refresh after the next one at the latest: frames
+	// queue behind one another, not behind guesses.
+	var c frameClock
+	c.presented(100*msNS, 8*msNS)
+	var last uint64
+	for i := range uint64(5) {
+		now := 101*msNS + i*msNS
+		f := c.frame(now)
+		if f.At > 116*msNS || f.At < last {
+			t.Fatalf("callback %d at %d ms: frame at %d ns (the one before at %d)", i, now/msNS, f.At, last)
+		}
+		last = f.At
+		c.drew(f.At)
+	}
+}
