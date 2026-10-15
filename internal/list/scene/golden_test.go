@@ -156,7 +156,9 @@ func windowRows() []list.Entry {
 }
 
 // The window case differs from Rust's golden by two pinned divergences
-// only (feat/logis-go G20), not by its measured columns: drawn with
+// only (feat/logis-go G20), not by its measured columns, when drawn in
+// Rust v1's window (820×520, nine rows; Go's own window is as tall as its
+// eleven rows, a third, deliberate divergence): drawn with
 // Rust's row order and cosmic-text's word-wide emphasis face imitated, it
 // equals Rust's golden but for anti-aliasing.
 //   - Tie order: nucleo scores "power-profile\t·\t…" 16 for "o" where its
@@ -182,7 +184,9 @@ func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		logical, rows := scene.Fit(o, &th)
+		// Rust v1's window: 820×520 and nine rows (Go's height follows
+		// its rows: fit_test.go), so Rust's golden is the oracle.
+		logical, rows := scale.Size{W: 884, H: 584}, uint32(9)
 		v := list.NewView(o)
 		v.SetLines(rows)
 		v.Push(windowRows())

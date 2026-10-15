@@ -64,7 +64,7 @@ func TestTheDefaultIsForgeWithTheDecidedGeometryAndMotifs(t *testing.T) {
 	switch {
 	case forge.Name != "forge-crimson-brass":
 		t.Errorf("%q", forge.Name)
-	case forge.Window.Width != 820 || forge.Window.Height != 520 || forge.Window.Rows != 9:
+	case forge.Window.Width != 820 || forge.Window.Rows != 11 || forge.Window.Margin != 32:
 		t.Errorf("%+v", forge.Window)
 	case !forge.HasRivets || !forge.Prompt.HasSigil || forge.Prompt.Sigil.Image != "gear":
 		t.Error("corner rivets and the gear")
@@ -107,6 +107,20 @@ func TestAUserFileOverridesABundledThemeOfItsName(t *testing.T) {
 	theme := load(t, th, "forge-crimson-brass")
 	if theme.Window.Rows != 4 || theme.Prompt.Color != render.Hex(0) || theme.Dir != dir || theme.Window.Width != 820 {
 		t.Errorf("rows %d prompt %v dir %q width %v", theme.Window.Rows, theme.Prompt.Color, theme.Dir, theme.Window.Width)
+	}
+}
+
+// Rust v1's window.height is still read and checked, so a v1 theme keeps
+// loading with the same verdict, but the panel's height follows its rows:
+// the height changes nothing.
+func TestARustV1WindowHeightIsReadButChangesNothing(t *testing.T) {
+	th, _ := themesDir(t, map[string]string{
+		"tall": `{"window": {"width": 640, "height": 400, "rows": 7}}`,
+		"bare": `{"window": {"width": 640, "rows": 7}}`,
+	})
+	tall, bare := load(t, th, "tall"), load(t, th, "bare")
+	if tall.Window != bare.Window || tall.Window.Rows != 7 || tall.Window.Width != 640 {
+		t.Errorf("%+v, without the height %+v", tall.Window, bare.Window)
 	}
 }
 
@@ -206,6 +220,7 @@ func TestABadReferenceOrValueNamesItsKey(t *testing.T) {
 		`{"glow": {"radius": 1e39}}`:                                          "glow.radius: inf is no length (0 or more)",
 		`{"glow": {"color": "nope"}}`:                                         "glow.color: no colour named 'nope' in the palette",
 		`{"window": {"width": 0}}`:                                            "window.width: must be more than 0",
+		`{"window": {"height": 0}}`:                                           "window.height: must be more than 0",
 		`{"fonts": {"body": {"weight": 50}}}`:                                 "fonts.body.weight: 50 is no weight (100 to 900)",
 		`{"fonts": {"body": {"tracking": 2}}}`:                                "fonts.body.tracking: 2 is out of range (-0.5 to 1)",
 		`{"match": {"weight": 1000}}`:                                         "match.weight: 1000 is no weight (100 to 900)",

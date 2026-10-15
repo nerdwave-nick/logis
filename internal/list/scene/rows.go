@@ -15,12 +15,11 @@ import (
 // emblem column when some item has one; badges and the pending mark at the
 // end. The selected row lies on the band.
 
-// selectionBand draws the band on the row whose top is top, with its edge
-// bar.
-func selectionBand(sc *render.Scene, body [4]float32, top float32, t *theme.Theme) {
+// selectionBand draws the band on the row whose top is top, pitch tall,
+// with its edge bar.
+func selectionBand(sc *render.Scene, body [4]float32, top, pitch float32, t *theme.Theme) {
 	s := t.Selection
 	x, w := body[0], body[2]
-	pitch := t.Row.Height
 	left, width := x+s.Inset, max(w-2*s.Inset, 0)
 	band := render.RoundedRect{
 		Rect: [4]float32{left, top + 1, width, pitch - 2}, Radius: 2,

@@ -9,12 +9,13 @@ func (r *resolver) window(w node) Window {
 	if _, given := w["rows"]; given && rows == 0 {
 		r.fail("window.rows: show at least one row")
 	}
-	return Window{
-		Width:  r.positive(w, "width", "window.width"),
-		Height: r.positive(w, "height", "window.height"),
-		Rows:   rows,
-		Margin: r.length(w, "margin", "window.margin"),
+	width := r.positive(w, "width", "window.width")
+	// Rust v1's height: still checked, so a v1 theme keeps its verdict,
+	// but the panel's height follows its rows.
+	if h, given := w["height"].(float32); given {
+		r.checkPositive(h, "window.height")
 	}
+	return Window{Width: width, Rows: rows, Margin: r.length(w, "margin", "window.margin")}
 }
 
 func (r *resolver) glow(g node) Glow {

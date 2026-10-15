@@ -67,18 +67,20 @@ func texts(s *render.Scene) []string {
 	return out
 }
 
+// Rust v1: 820×520 and nine rows. Go: the height follows the theme's
+// eleven rows (fit_test.go): 55 + 2·12 + 11·38 = 497.
 func TestWithoutASizeTheWindowIsTheThemes(t *testing.T) {
 	th := forge()
 	size, rows := Fit(list.DefaultOptions(), th)
 	m := 2 * th.Window.Margin
-	if size != (scale.Size{W: uint32(820 + m), H: uint32(520 + m)}) || rows != 9 {
+	if size != (scale.Size{W: uint32(820 + m), H: uint32(497 + m)}) || rows != 11 {
 		t.Fatalf("%v %d", size, rows)
 	}
 	body, radius := Body(size, th)
-	if body[2] != 820 || body[3] != 520 || radius != 14 {
+	if body[2] != 820 || body[3] != 497 || radius != 14 {
 		t.Fatalf("%v %v", body, radius)
 	}
-	if g := GridOf(size, rows, th); g.Rows != 9 {
+	if g := GridOf(size, rows, th); g.Rows != 11 {
 		t.Fatalf("%d rows fit", g.Rows)
 	}
 }
