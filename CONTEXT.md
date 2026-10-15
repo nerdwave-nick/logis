@@ -255,12 +255,15 @@ The theme's three layers: the **palette** of named colours with alpha; the
 rule, row, selection, match, badge, pending), which name palette colours and font
 **roles**; and the **effects** of the post-processing pass over the body
 (scanlines, grain, flicker, vignette, bloom, curvature, chromatic aberration),
-each a strength where 0 is off, with the motion timings.
+each a strength where 0 is off, with the motion timings. In the Go build the
+effects are the **CRT pass**'s groups of settings (scanlines, glow,
+aberration, mask, roundness, grain, flicker), each with its strength.
 
 **Continuous effect**:
 What moves on its own while a window is visible: the glow's **pulse**, the
 **travelling highlight** round the border, the **flicker**, and a pending row's
-**shimmer**. They keep the window drawing; **reduce motion** (the config's
+**shimmer** (in the Go build also rolling scanlines, a wobbling aberration and
+changing grain). They keep the window drawing; **reduce motion** (the config's
 `reduce-motion`) stills them all.
 
 **Sigil**:

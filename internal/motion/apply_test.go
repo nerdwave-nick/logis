@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
@@ -33,12 +34,17 @@ func applyScene() *render.Scene {
 
 func TestTheEffectsMoveWithThePanel(t *testing.T) {
 	s := applyScene()
-	s.Post = render.Post{Rect: [4]float32{10, 20, 100, 40}, Scanlines: 0.5}
+	regions := []render.Region{{Rect: [4]float32{10, 2, 50, 10}, Radius: 4}}
+	s.Post = render.Post{Rect: [4]float32{10, 20, 100, 40}, Regions: regions, CRT: effects.Defaults()}
+	s.Post.CRT.Scanlines.Strength = 0.5
 	Pose{Opacity: 0.5, Offset: [2]float32{0, 8}}.Apply(s)
 	if s.Post.Rect != [4]float32{10, 28, 100, 40} {
 		t.Errorf("%v", s.Post.Rect)
 	}
-	if s.Post.Scanlines != 0.5 {
+	if s.Post.Regions[0] != (render.Region{Rect: [4]float32{10, 10, 50, 10}, Radius: 4}) || regions[0].Rect[1] != 2 {
+		t.Errorf("the plates: %v (the scene's were %v)", s.Post.Regions, regions)
+	}
+	if s.Post.CRT.Scanlines.Strength != 0.5 {
 		t.Error("the strengths changed")
 	}
 }

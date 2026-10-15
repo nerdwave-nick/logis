@@ -71,7 +71,7 @@ func TestTheThemeTheConfigNamesIsWornFromTheStart(t *testing.T) {
 	_, th := r.startThemed(r.named())
 	worn := th.worn()
 	if len(worn) != 1 || worn[0].Name != "mine" || worn[0].Dir != filepath.Dir(r.themeFile("mine")) ||
-		worn[0].Effects.Curvature == 0 {
+		worn[0].Effects.Roundness.Curvature == 0 {
 		t.Fatalf("%+v", worn)
 	}
 }

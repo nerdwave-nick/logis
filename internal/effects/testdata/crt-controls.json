@@ -1,0 +1,271 @@
+[
+  {
+    "group": "scanlines",
+    "name": "strength",
+    "uniform": "u_scan_strength",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "How dark the lines get (today's scanlines value; the theme's post.Scanlines). 0 is off."
+  },
+  {
+    "group": "scanlines",
+    "name": "period",
+    "uniform": "u_scan_period",
+    "min": 1,
+    "max": 16,
+    "step": 0.5,
+    "default": 3,
+    "unit": "px",
+    "description": "Logical pixels from one dark line to the next, counted from the body's top. Today: 3."
+  },
+  {
+    "group": "scanlines",
+    "name": "sharpness",
+    "uniform": "u_scan_sharpness",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0.25,
+    "unit": "",
+    "description": "How thin and hard each dark line is: 0 a soft wave, 0.25 today's squared-cosine profile, 1 a hard line one buffer pixel thick."
+  },
+  {
+    "group": "scanlines",
+    "name": "roll",
+    "uniform": "u_scan_roll",
+    "min": -60,
+    "max": 60,
+    "step": 0.5,
+    "default": 0,
+    "unit": "px/s",
+    "description": "Vertical drift of the lines in logical pixels per second; positive rolls downward. 0 holds them still (today)."
+  },
+  {
+    "group": "glow",
+    "name": "strength",
+    "uniform": "u_glow_strength",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "How much light bright parts spread to their surroundings (today's bloom value; post.Bloom). 0 is off."
+  },
+  {
+    "group": "glow",
+    "name": "threshold",
+    "uniform": "u_glow_threshold",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0.35,
+    "unit": "",
+    "description": "Brightness per channel (of the straight, un-premultiplied colour) below which a pixel gives no glow; only the excess above it glows. Today: 0.35."
+  },
+  {
+    "group": "glow",
+    "name": "reach",
+    "uniform": "u_glow_reach",
+    "min": 1,
+    "max": 32,
+    "step": 0.5,
+    "default": 7,
+    "unit": "px",
+    "description": "Radius of the outer sampling ring in logical pixels; the inner ring sits at 3/7 of it. Above 9 px more rings are added between them so the wider halo stays soft. Today: 7."
+  },
+  {
+    "group": "glow",
+    "name": "bleed",
+    "uniform": "u_glow_bleed",
+    "min": 0,
+    "max": 3,
+    "step": 0.05,
+    "default": 1,
+    "unit": "",
+    "description": "How much of the source colour the glow keeps: 0 a neutral, colourless halo; 1 the bright pixels' own colours (today); above 1 more saturated, colour bleeding into dark surroundings."
+  },
+  {
+    "group": "glow",
+    "name": "dim/bright",
+    "uniform": "u_glow_adapt",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "0: every pixel takes the same glow (today). Towards 1: dim pixels take up to 1.7x the glow while bright pixels, and pixels inside filled bright bands, take only 0.15x, so text gets a halo without washing out highlighted rows."
+  },
+  {
+    "group": "aberration",
+    "name": "amount",
+    "uniform": "u_ab_amount",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Red and blue sampled this far either side of green: 2 logical pixels at 1 (today's aberration value; post.Aberration). 0 is off."
+  },
+  {
+    "group": "aberration",
+    "name": "edges-only",
+    "uniform": "u_ab_edges",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "0: the same horizontal offset everywhere (today). 1: no offset at the centre, growing with the square of the distance towards the panel's edges and pointing outward (radial), as with lens or CRT convergence error."
+  },
+  {
+    "group": "aberration",
+    "name": "wobble",
+    "uniform": "u_ab_wobble",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "How much the offset varies over time. 0 keeps it constant (today). At 1 the smooth breathing swings it between 0 and 2x, and twitch spikes jump to about 2 to 6x."
+  },
+  {
+    "group": "aberration",
+    "name": "wobble rate",
+    "uniform": "u_ab_rate",
+    "min": 0.05,
+    "max": 20,
+    "step": 0.05,
+    "default": 1,
+    "unit": "Hz",
+    "description": "How fast the wobble runs: the breathing's main frequency, and for twitch the rate of chances for a spike (about half of them fire, at random moments)."
+  },
+  {
+    "group": "aberration",
+    "name": "twitch",
+    "uniform": "u_ab_twitch",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Character of the wobble: 0 a smooth, gentle breathing; 1 nervous and spiky (mostly calm with a faint shiver, then sudden 35-95 ms spikes where the split jumps wide and snaps back, at irregular moments). Values in between blend the two."
+  },
+  {
+    "group": "mask",
+    "name": "strength",
+    "uniform": "u_mask_strength",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "How strongly the phosphor structure darkens the picture. 0 is off (today)."
+  },
+  {
+    "group": "mask",
+    "name": "size",
+    "uniform": "u_mask_size",
+    "min": 1,
+    "max": 16,
+    "step": 0.5,
+    "default": 3,
+    "unit": "px",
+    "description": "Pitch of the structure in logical pixels: one dot cell, or one red-green-blue triad of stripes."
+  },
+  {
+    "group": "mask",
+    "name": "kind",
+    "uniform": "u_mask_kind",
+    "min": 0,
+    "max": 2,
+    "step": 1,
+    "default": 0,
+    "unit": "",
+    "description": "Which structure: dots (a soft round dot grid, the same for all channels), grille (vertical red, green and blue stripes, an aperture grille) or slot (those stripes broken into short slots, every other triad column shifted half a slot like brickwork). On grille and slot each stripe passes its own channel and dims the other two by strength. The uniform is an int, the index into options.",
+    "options": [
+      "dots",
+      "grille",
+      "slot"
+    ]
+  },
+  {
+    "group": "roundness",
+    "name": "curvature",
+    "uniform": "u_round_curvature",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "How far the whole panel bows out as one curved tube face: glass, border, rivets, everything drawn on it, and the glow around it, which follows the bent outline. The centre stays put, the middles of the body's edges stay put, straight lines bend more the further they are from the centre, and the corners draw inward so the outline turns convex (at 1 the corners move in by about 11% of the half-width and the centre is magnified 1.25x). All other effects lie on the bent glass. Surface the bend uncovers at the frame's edge is transparent. 0 is flat (today's shader, byte for byte); 0.02 is a subtle bend. Same uniform as before, new meaning above 0 (post.Curvature)."
+  },
+  {
+    "group": "roundness",
+    "name": "corners",
+    "uniform": "u_round_corners",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Extra rounding of the visible glass's corners, independent of the panel's own radius (with slightly bowed sides), applied on the bent glass. At 1 the glass reads as an old rounded tube; beyond it the screen is opaque black. 0: today."
+  },
+  {
+    "group": "roundness",
+    "name": "vignette",
+    "uniform": "u_round_vignette",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Darkening towards the body's corners (today's vignette value; post.Vignette)."
+  },
+  {
+    "group": "grain",
+    "name": "strength",
+    "uniform": "u_grain_strength",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Film grain: per-pixel noise from an integer hash (today's grain value; post.Grain). 0 is off."
+  },
+  {
+    "group": "grain",
+    "name": "rate",
+    "uniform": "u_grain_rate",
+    "min": 0,
+    "max": 60,
+    "step": 1,
+    "default": 24,
+    "unit": "Hz",
+    "description": "How many times per second the grain changes. 0 freezes it. Today: 24."
+  },
+  {
+    "group": "flicker",
+    "name": "strength",
+    "uniform": "u_flicker_strength",
+    "min": 0,
+    "max": 1,
+    "step": 0.01,
+    "default": 0,
+    "unit": "",
+    "description": "Depth of the brightness trembling (today's flicker value; post.Flicker). 0 is off."
+  },
+  {
+    "group": "flicker",
+    "name": "frequency",
+    "uniform": "u_flicker_freq",
+    "min": 0.5,
+    "max": 30,
+    "step": 0.01,
+    "default": 7.4802823,
+    "unit": "Hz",
+    "description": "Main rate of the trembling; a slower irregular modulation at 13/47 of it rides on it as phase wobble. The default 7.4802823 Hz (47 rad/s) reproduces today's."
+  }
+]

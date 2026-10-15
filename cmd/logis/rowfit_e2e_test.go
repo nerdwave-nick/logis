@@ -66,7 +66,10 @@ func checkRowFit(t *testing.T, scaleText string) {
 	// The body in the capture, centred on the output.
 	bodyW := (float64(size.W) - 2*float64(th.Window.Margin)) * sc
 	left := (float64(capture.Width) - bodyW) / 2
-	textFrom, textTo := int(left+float64(th.Row.Padding)*sc), int(left+bodyW*0.4)
+	// The text strip starts a little inside the rows' text: the selected
+	// row's edge bar ends just before it, and the CRT pass's glow (forge's
+	// look, cd816303) lights a few pixels beyond the bar.
+	textFrom, textTo := int(left+float64(th.Row.Padding+8)*sc), int(left+bodyW*0.4)
 	probe := int(left + bodyW*0.85)
 	bands := textBands(capture, textFrom, textTo)
 	if len(bands) < int(rows) {

@@ -29,7 +29,10 @@ type Renderer struct {
 	packed            []float32 // this frame's instances, reused
 	images            *imagePass
 	glyphs            *glyphPass
-	post              *postPass
+	// passes are the post-processing passes in order (the CRT pass);
+	// frames the intermediate frames they read.
+	passes []pass
+	frames frames
 }
 
 // New compiles the shaders and makes the buffers and the atlas, on the
@@ -60,10 +63,12 @@ func New() (*Renderer, error) {
 		r.Close()
 		return nil, fmt.Errorf("glyphs: %w", err)
 	}
-	if r.post, err = newPostPass(); err != nil {
+	crt, err := newCRTPass()
+	if err != nil {
 		r.Close()
 		return nil, err
 	}
+	r.passes = append(r.passes, crt)
 	if err := gles.Err(); err != nil {
 		r.Close()
 		return nil, err
@@ -76,17 +81,15 @@ func (r *Renderer) Atlas() *Atlas { return r.images.atlas }
 
 // Draw draws sc into t: it clears t to sc.Clear, then paints every shape,
 // then every image, then every text, back to front in premultiplied alpha,
-// then the scene's post-processing effects, if any is on (into a frame of
-// t's size first, which the pass then draws into t). Buffers are streamed
-// and the GPU is never waited for.
+// then the post-processing passes the scene's Post wants, if any (into a
+// frame of t's size first, which the passes then draw into t). Buffers are
+// streamed and the GPU is never waited for.
 func (r *Renderer) Draw(t Target, sc *Scene) {
-	if !sc.Post.Any() {
-		r.drawScene(t, sc)
+	if n := r.wanted(sc.Post); n > 0 {
+		r.drawPassed(t, sc, n)
 		return
 	}
-	frame := Target{FBO: r.post.source(t.Size), Size: t.Size, Scale: t.Scale}
-	r.drawScene(frame, sc)
-	r.post.draw(t, sc.Post)
+	r.drawScene(t, sc)
 }
 
 func (r *Renderer) drawScene(t Target, sc *Scene) {
@@ -135,9 +138,11 @@ func (r *Renderer) Close() {
 	if r.glyphs != nil {
 		r.glyphs.close()
 	}
-	if r.post != nil {
-		r.post.close()
+	for _, p := range r.passes {
+		p.close()
 	}
+	r.passes = nil
+	r.frames.close()
 	r.sdf.Delete()
 	r.shapes.Delete()
 	r.shapeBuf.Delete()

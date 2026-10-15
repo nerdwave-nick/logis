@@ -763,47 +763,288 @@
       }
     },
     "effects": {
-      "description": "The post-processing pass over the body; each a strength, 0 is off. Flicker is a continuous effect; reduce-motion stills it.",
+      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "scanlines": {
-          "description": "Dark lines every few pixels.",
-          "$ref": "#/$defs/strength"
+          "description": "Dark lines across the glass; a bare number is their strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How dark the lines get; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "period": {
+                  "description": "Logical pixels from one line to the next, counted from the body's top (v1: 3).",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16
+                },
+                "sharpness": {
+                  "description": "How thin and hard each line is: 0 a soft wave, 0.25 v1's profile, 1 a hard line one pixel thick.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "roll": {
+                  "description": "Drift in logical pixels per second, downwards when positive; 0 holds them still (v1). A continuous effect.",
+                  "type": "number",
+                  "minimum": -60,
+                  "maximum": 60
+                }
+              }
+            }
+          ]
+        },
+        "glow": {
+          "description": "Light from bright parts spreading to their surroundings (v1's bloom); a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How much light spreads; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "threshold": {
+                  "description": "Brightness per channel below which nothing glows (v1: 0.35).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "reach": {
+                  "description": "Radius of the outer sampling ring in logical pixels, the inner ring at 3/7 of it; beyond 9 more rings keep a wide halo soft (v1: 7).",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 32
+                },
+                "bleed": {
+                  "description": "How much of the source colour the light keeps: 0 a neutral halo, 1 the bright pixels' own colours (v1), above 1 more saturated.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "dim-bright": {
+                  "description": "0: every pixel takes the same glow (v1). Towards 1 dim pixels take up to 1.7 times as much and bright ones, or those inside filled bright bands, only 0.15 times: text gets a halo without washing out a highlighted row.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        },
+        "aberration": {
+          "description": "Red and blue sampled either side of green (chromatic aberration); a bare number is its amount.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "description": "The offset: 2 logical pixels at 1; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "edges-only": {
+                  "description": "0: the same horizontal offset everywhere (v1); 1: none at the centre, growing outwards and pointing away from it.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "wobble": {
+                  "description": "How much the offset varies over time; 0 keeps it steady (v1). A continuous effect.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "wobble-rate": {
+                  "description": "How fast the wobble runs, in Hz.",
+                  "type": "number",
+                  "minimum": 0.05,
+                  "maximum": 20
+                },
+                "twitch": {
+                  "description": "The wobble's character: 0 a smooth breathing, 1 calm with sudden short spikes at irregular moments.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        },
+        "mask": {
+          "description": "A CRT's phosphor structure over the picture; a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How much the structure darkens; 0 is off (v1).",
+                  "$ref": "#/$defs/strength"
+                },
+                "size": {
+                  "description": "Its pitch in logical pixels: one dot cell, or one red-green-blue triad.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16
+                },
+                "kind": {
+                  "description": "dots: a soft round dot grid; grille: vertical red, green and blue stripes; slot: those stripes broken into slots, every other column shifted like brickwork.",
+                  "enum": [
+                    "dots",
+                    "grille",
+                    "slot"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "roundness": {
+          "description": "The curved tube face.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "curvature": {
+              "description": "How far the whole panel bows out as one tube face: border, glass and the glow around it bend together, the outline turns convex and every effect lies on the bent glass. 0 is flat. v1 bent only the picture behind a straight border.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "corners": {
+              "description": "Extra rounding of the visible glass's corners on the bent glass; beyond them the screen is black. 0 is off (v1).",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "vignette": {
+              "description": "Darkening towards the glass's corners; 0 is off.",
+              "$ref": "#/$defs/strength"
+            }
+          }
         },
         "grain": {
-          "description": "Film grain.",
-          "$ref": "#/$defs/strength"
+          "description": "Film grain; a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How strong the noise is; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "rate": {
+                  "description": "How many times a second it changes (v1: 24); 0 freezes it. Changing grain is a continuous effect.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 60
+                }
+              }
+            }
+          ]
         },
         "flicker": {
-          "description": "The brightness trembling (keep it subtle).",
-          "$ref": "#/$defs/strength"
+          "description": "The brightness trembling (keep it subtle); a bare number is its strength. A continuous effect.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How deep the trembling is; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "frequency": {
+                  "description": "Its main rate in Hz, with a slower irregular modulation riding on it (v1: 7.4802823, 47 radians a second).",
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 30
+                }
+              }
+            }
+          ]
         },
         "vignette": {
-          "description": "Darkened edges.",
+          "description": "logis v1's name of roundness.vignette; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "bloom": {
-          "description": "Bright parts bleeding light.",
+          "description": "logis v1's name of glow.strength; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "curvature": {
-          "description": "Curved glass.",
-          "$ref": "#/$defs/strength"
-        },
-        "aberration": {
-          "description": "Red and blue fringes apart (chromatic aberration).",
+          "description": "logis v1's name of roundness.curvature; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         }
       },
       "default": {
-        "scanlines": 0.16,
-        "grain": 0.08,
-        "flicker": 0.015,
-        "vignette": 0.42,
-        "bloom": 0,
-        "curvature": 0,
-        "aberration": 0
+        "scanlines": {
+          "strength": 0.38,
+          "period": 2,
+          "sharpness": 0.79,
+          "roll": 0.5
+        },
+        "glow": {
+          "strength": 0.26,
+          "threshold": 0.25,
+          "reach": 1.5,
+          "bleed": 0.65,
+          "dim-bright": 0.55
+        },
+        "aberration": {
+          "amount": 0.06,
+          "edges-only": 0.13,
+          "wobble": 0.33,
+          "wobble-rate": 1.65,
+          "twitch": 0.29
+        },
+        "mask": {
+          "strength": 0.04,
+          "size": 2,
+          "kind": "dots"
+        },
+        "roundness": {
+          "curvature": 0.02,
+          "corners": 0,
+          "vignette": 0.14
+        },
+        "grain": {
+          "strength": 0.12,
+          "rate": 24
+        },
+        "flicker": {
+          "strength": 0.01,
+          "frequency": 7.48
+        }
       }
     },
     "motion": {

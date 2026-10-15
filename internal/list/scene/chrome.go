@@ -116,12 +116,7 @@ func dot(cx, cy, radius float32, c render.Color) render.RoundedRect {
 // at 0 otherwise (motion reduced: the grain stands still).
 func post(body [4]float32, s Style) render.Post {
 	t := s.Theme
-	e := t.Effects
-	p := render.Post{
-		Rect: body, Radius: t.Panel.Radius, Inset: t.Border.Width,
-		Scanlines: e.Scanlines, Grain: e.Grain, Flicker: e.Flicker, Vignette: e.Vignette,
-		Bloom: e.Bloom, Curvature: e.Curvature, Aberration: e.Aberration,
-	}
+	p := render.Post{Rect: body, Radius: t.Panel.Radius, Inset: t.Border.Width, CRT: t.Effects}
 	if t.IsContinuous() {
 		p.Time = float32(s.At%3_600_000_000_000) / 1e9
 	}

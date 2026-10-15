@@ -62,13 +62,16 @@
     "uppercase": true
   },
   "pending": { "color": "dim", "opacity": 1, "shimmer": 0.5, "period-ms": 1200, "mark": "▒▒▒ AUGURING" },
+  // The owner's look from the effects lab (2026-10-16): heavy scanlines
+  // rolling up, a strong phosphor glow, a breathing colour split, grain
+  // and a slightly bent tube.
   "effects": {
-    "scanlines": 0.34,
-    "grain": 0.1,
-    "flicker": 0.03,
-    "vignette": 0.5,
-    "bloom": 0.45,
-    "curvature": 0.12,
-    "aberration": 0.5
+    "scanlines": { "strength": 0.8, "period": 3, "sharpness": 0.47, "roll": -2 },
+    "glow": { "strength": 0.63, "threshold": 0.54, "reach": 1.5, "bleed": 0.9, "dim-bright": 0.15 },
+    "aberration": { "amount": 0.62, "edges-only": 0, "wobble": 0.08, "wobble-rate": 1.9, "twitch": 0 },
+    "mask": { "strength": 0.04, "size": 2, "kind": "dots" },
+    "roundness": { "curvature": 0.06, "corners": 0, "vignette": 0.21 },
+    "grain": { "strength": 0.55, "rate": 24 },
+    "flicker": { "strength": 0.06, "frequency": 3.49 }
   }
 }

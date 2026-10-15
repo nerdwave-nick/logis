@@ -175,18 +175,6 @@ func (r *resolver) pending(p node) Pending {
 	}
 }
 
-func (r *resolver) effects(e node) Effects {
-	return Effects{
-		Scanlines:  r.unit(e, "scanlines", "effects.scanlines"),
-		Grain:      r.unit(e, "grain", "effects.grain"),
-		Flicker:    r.unit(e, "flicker", "effects.flicker"),
-		Vignette:   r.unit(e, "vignette", "effects.vignette"),
-		Bloom:      r.unit(e, "bloom", "effects.bloom"),
-		Curvature:  r.unit(e, "curvature", "effects.curvature"),
-		Aberration: r.unit(e, "aberration", "effects.aberration"),
-	}
-}
-
 func (r *resolver) motion(m node) Motion {
 	return Motion{
 		Open:   r.millis(m, "open-ms", "motion.open-ms"),
