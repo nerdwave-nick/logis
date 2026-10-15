@@ -9,7 +9,9 @@
 // pressed|released`, `modifiers <depressed> <latched> <locked> <group>`,
 // `repeat-info <rate> <delay>`, `commit` (a frame of the visible panel
 // was presented and its surface committed), `settled` (the first frame
-// that leaves nothing moving), `commit closing` (a frame of a panel
+// that leaves nothing moving), `frame-done` (the compositor's frame
+// callback for a visible frame), `presented` and `discarded` (its
+// presentation feedback), `commit closing` (a frame of a panel
 // fading out), `faded` (a hidden panel is gone), `cut` (a closing panel
 // cut short by the next one is gone), `blur <rectangles>` and
 // `blur-capable true|false` from the window; `keymap` (one
