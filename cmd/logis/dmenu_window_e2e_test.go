@@ -159,18 +159,21 @@ func TestE2ETheListIsDrawnWithItsMatchesHighlighted(t *testing.T) {
 	o.Lines, o.Width = &lines, &width
 	th := theme.Default()
 	size, _ := scene.Fit(o, &th)
-	checkWindow(t, c.Harness, "dmenu-filtered", int(size.W), int(size.H))
+	checkWindow(t, c, "dmenu-filtered", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEsc)
 	if got := client.Ended(); got.Code != 1 {
 		t.Fatalf("%+v", got)
 	}
 }
 
-// checkWindow captures until two consecutive captures agree, then compares
-// the window cropped from the output with golden e2e/<name>.
-func checkWindow(t *testing.T, h *e2e.Harness, name string, w, ht int) {
+// checkWindow waits until the shown window has opened, captures until two
+// consecutive captures agree, then compares the window cropped from the
+// output with golden e2e/<name>. Motions after the open (a selection's
+// glide) are the caller's to wait for.
+func checkWindow(t *testing.T, c *e2e.Cogitator, name string, w, ht int) {
 	t.Helper()
-	capture := h.SettledCapture()
+	c.OpenSettled()
+	capture := c.Harness.SettledCapture()
 	g := rendertest.CheckedIn(t)
 	reference, _ := g.Load("e2e", name)
 	window := e2e.CropCentred(capture, w, ht, reference)

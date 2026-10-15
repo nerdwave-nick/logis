@@ -30,7 +30,7 @@ func TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation(t *testing.T)
 	// servitor mode opens in the theme's own window.
 	th := theme.Default()
 	size, _ := scene.Fit(list.DefaultOptions(), &th)
-	checkWindow(t, c.Harness, "servitor-pending", int(size.W), int(size.H))
+	checkWindow(t, c, "servitor-pending", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEnter)
 	c.Tap(focused, e2e.KeyDown)
 	if got := c.Next("select"); got != "1" {
@@ -62,7 +62,7 @@ func TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation(t *testing.T)
 	if got := c.Next("items"); got != "2" {
 		t.Fatalf("items %s", got)
 	}
-	checkWindow(t, c.Harness, "servitor-aspect", int(size.W), int(size.H))
+	checkWindow(t, c, "servitor-aspect", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyDown)
 	if got := c.Next("select"); got != "1" {
 		t.Fatalf("select %s", got)
@@ -81,7 +81,7 @@ func TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation(t *testing.T)
 		t.Fatalf("typed %s", got)
 	}
 	c.Next("stage")
-	checkWindow(t, c.Harness, "servitor-inscription", int(size.W), int(size.H))
+	checkWindow(t, c, "servitor-inscription", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEnter)
 	if got := c.Next("typed"); got != `"the cogitator"` {
 		t.Fatalf("typed %s", got)

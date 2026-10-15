@@ -28,6 +28,7 @@ type Cogitator struct {
 	Harness    *Harness
 	Keyboard   *VirtualKeyboard
 	Daemon     *Traced
+	shownAt    uint64 // the trace time of the last `show` Shown waited for
 }
 
 // Still turns `"reduce-motion": true` on in config (a JSONC object),
@@ -220,7 +221,19 @@ func (c *Cogitator) Shown(items int) Focused {
 	want := "items " + strconv.Itoa(items)
 	c.Daemon.WaitSeen(want, func(e trace.Event) bool { return e.NS >= since && e.What == want })
 	c.Daemon.WaitSeen("a first frame", func(e trace.Event) bool { return e.NS >= since && e.What == "commit" })
+	c.shownAt = since
 	return focused
+}
+
+// OpenSettled waits until the window Shown last waited for has finished
+// opening (`settled` after its `show`; the open moves even with
+// reduce-motion), without moving the sequence cursor. Two equal captures
+// are no proof of rest: on a slow machine the compositor can repaint twice
+// between two frames of the open.
+func (c *Cogitator) OpenSettled() {
+	c.t.Helper()
+	since := c.shownAt
+	c.Daemon.WaitSeen("the open settles", func(e trace.Event) bool { return e.NS >= since && e.What == "settled" })
 }
 
 // Next is the next report of word (in sequence), without the word.
