@@ -40,7 +40,7 @@ func TestTheReferenceSceneMatchesTheRustGoldensAtEveryScale(t *testing.T) {
 }
 
 func TestOffscreenReturnsTheScaledImage(t *testing.T) {
-	img, err := rendertest.Headless(t).Offscreen(referenceScene(), scale.Size{W: 120, H: 80}, scale.From120ths(156))
+	img, err := rendertest.HeadlessForStructure(t).Offscreen(referenceScene(), scale.Size{W: 120, H: 80}, scale.From120ths(156))
 	if err != nil {
 		t.Fatal(err)
 	}

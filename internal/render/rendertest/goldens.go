@@ -277,8 +277,10 @@ func ScaleSuffix(s scale.Scale) string {
 
 // CheckScene renders scene at logical size at each of scales through h and
 // checks each against golden set/name@<scale> with the offscreen tolerance.
+// Under go test -short it skips t (SkipPixels).
 func CheckScene(t testing.TB, h *render.Headless, set, name string, scene *render.Scene, logical scale.Size, scales ...scale.Scale) {
 	t.Helper()
+	SkipPixels(t)
 	g := CheckedIn(t)
 	for _, s := range scales {
 		img, err := h.Offscreen(scene, logical, s)

@@ -53,9 +53,18 @@ func pinnedFonts(t testing.TB) *text.Fonts {
 	return f
 }
 
-// withFonts is a headless renderer drawing text with the pinned fonts.
+// withFonts is a headless renderer drawing text with the pinned fonts, for
+// a test that checks the pixels (rendertest.Headless).
 func withFonts(t testing.TB) *render.Headless {
 	h := rendertest.Headless(t)
+	h.SetFonts(pinnedFonts(t))
+	return h
+}
+
+// measuringFonts is withFonts for a test that reads no pixel back
+// (rendertest.HeadlessForStructure).
+func measuringFonts(t testing.TB) *render.Headless {
+	h := rendertest.HeadlessForStructure(t)
 	h.SetFonts(pinnedFonts(t))
 	return h
 }
@@ -209,12 +218,16 @@ func TestChangingTheFacesReshapesTheText(t *testing.T) {
 }
 
 func TestDrawingAgainUsesTheGlyphsAlreadyInTheAtlas(t *testing.T) {
-	h := withFonts(t)
+	h := measuringFonts(t)
 	sc := texts(render.NewText("The machine spirit wakes", [2]float32{4, 4}, 16, white))
 	first := offscreen(t, h, sc, 240, 30, at(156))
 	glyphs := h.GlyphCount()
 	again := offscreen(t, h, sc, 240, 30, at(156))
-	if h.GlyphCount() != glyphs || string(first.Pixels) != string(again.Pixels) {
-		t.Errorf("%d glyphs, then %d; same image: %v", glyphs, h.GlyphCount(), string(first.Pixels) == string(again.Pixels))
+	if h.GlyphCount() != glyphs {
+		t.Errorf("%d glyphs, then %d", glyphs, h.GlyphCount())
+	}
+	rendertest.SkipPixels(t)
+	if string(first.Pixels) != string(again.Pixels) {
+		t.Error("drawing again changed the image")
 	}
 }

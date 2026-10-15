@@ -32,7 +32,7 @@ func fixtureCache(t *testing.T) *icons.Cache {
 }
 
 func TestTheCacheFillsTheAtlasOncePerFileAndPixelSize(t *testing.T) {
-	h := rendertest.Headless(t)
+	h := rendertest.HeadlessForStructure(t)
 	c, atlas := fixtureCache(t), h.Atlas()
 	cog, err := c.Image(atlas, "forge-cog", 32, scale.One)
 	if err != nil {
