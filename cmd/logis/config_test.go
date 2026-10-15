@@ -97,6 +97,18 @@ func TestCheckConfigJudgesTheThemesContents(t *testing.T) {
 	if want := "logis: the theme is heretical: " + mine + ": effects.bloom: 2 is out of range (0 to 1)\n"; code != 2 || stderr != want {
 		t.Errorf("exit %d stderr %q", code, stderr)
 	}
+	// The CRT pass's settings (cd816303): each held to its range, a word
+	// to its words.
+	writeFile(t, mine, `{"effects": {"scanlines": {"period": 40}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ": effects.scanlines.period: 40 is out of range (1 to 16)\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+	writeFile(t, mine, `{"effects": {"mask": {"kind": "hex"}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ":1:35: unknown variant `hex`, expected one of `dots`, `grille`, `slot`\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
 }
 
 func TestCheckConfigFindsTheThemeItNames(t *testing.T) {

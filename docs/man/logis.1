@@ -537,6 +537,22 @@ How often and how lately each application was launched.
 The configuration (JSON with comments), unless
 .B \-\-config
 names another.
+.TP
+.I $XDG_CONFIG_HOME/logis/themes/NAME.jsonc
+A theme the configuration's
+.B theme
+names, described by
+.IR schema/theme.schema.json .
+Its
+.B effects
+are groups of settings for the CRT pass over the panel (scanlines, glow,
+aberration, mask, roundness, grain, flicker); a bare number is a group's
+strength, as logis v1's seven strengths were, and v1's
+.BR bloom ,
+.B curvature
+and
+.B vignette
+still set their groups' values.
 .SH SEE ALSO
 .BR fuzzel (1),
 .BR dmenu (1)

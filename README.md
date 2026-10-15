@@ -544,8 +544,9 @@ launcher `terminal`.
 `reduce-motion` is off by default, as decided for the bundled themes (their glow
 pulses and a highlight travels round the border; the flicker is very subtle).
 Turned on, it stills every continuous effect of the theme (glow pulse, travelling
-highlight, flicker, a pending row's shimmer, and the grain stops changing); the
-open, close and selection transitions stay (`LOGIS_MOTION=off` stills those).
+highlight, flicker, a pending row's shimmer; the grain stops changing, the
+scanlines stop rolling and the colour split stops wobbling); the open, close and
+selection transitions stay (`LOGIS_MOTION=off` stills those).
 
 ## Themes
 
@@ -561,9 +562,10 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
   column but the last may take),
   `selection`, `match` (colour, weight, underline), `badge`, `pending` — and
   `fonts`, the font roles they name;
-- **effects and motion**: one post-processing pass over the body (`scanlines`,
-  `grain`, `flicker`, `vignette`, `bloom`, `curvature`, `aberration`, each a
-  strength where 0 is off) and the transition timings.
+- **effects and motion**: the CRT pass over the body (`scanlines`, `glow`,
+  `aberration`, `mask`, `roundness`, `grain`, `flicker`, each a group of settings
+  with a strength where 0 is off; see **Effects** below) and the transition
+  timings.
 
 Colours are `#rrggbb`, `#rrggbbaa`, `transparent` or a palette name, each
 optionally with `/alpha` (`"crimson/0.55"`). Lengths are logical pixels: a theme
@@ -624,11 +626,44 @@ overrides it.
   goes to the log and a notice over a shown list. A theme that cannot be worn at
   start leaves the bundled default in force. `logis --check-config` checks the
   theme the config names.
-- **Curved glass** (`curvature`) bows only what lies inside the border; the
-  border stays straight, and what the curve uncovers in the corners is dark
-  glass as opaque as the body, so blur behind the panel never shows through.
-- **Continuous effects** (glow pulse, travelling highlight, flicker, a pending
-  row's shimmer) keep a visible window drawing at the output's refresh rate:
+- **Effects** (the Go build; a deliberate divergence from Rust v1, whose
+  effects were seven strengths): the CRT pass is logis's own clean-room shader
+  (`internal/render/crt.frag`), and each effect is a group of settings. A bare
+  number is still the group's strength (the aberration's amount), and v1's
+  `bloom`, `curvature` and `vignette` set `glow.strength`,
+  `roundness.curvature` and `roundness.vignette`, so a v1 theme stays valid
+  and, with the other settings at their defaults, looks as it did (the groups'
+  other settings come from the theme's base, like any key). The settings,
+  lengths in logical pixels, rates in Hz:
+  - `scanlines`: `strength`, `period` (1–16, v1 3), `sharpness` (0 a soft
+    wave, 0.25 v1's profile, 1 a hard one-pixel line), `roll` (px/s, −60–60,
+    down when positive);
+  - `glow`: `strength` (v1's bloom), `threshold` (v1 0.35), `reach` (1–32, v1
+    7), `bleed` (0 a grey halo, 1 v1's colours, up to 3 saturated),
+    `dim-bright` (dim pixels take more glow than bright ones);
+  - `aberration`: `amount` (2 px at 1), `edges-only` (none at the centre,
+    growing outwards), `wobble`, `wobble-rate` (0.05–20), `twitch` (0 smooth
+    breathing, 1 calm with sudden spikes);
+  - `mask`: `strength`, `size` (1–16), `kind` (`dots`, `grille` or `slot`);
+  - `roundness`: `curvature`, `corners` (extra rounding of the glass, black
+    beyond), `vignette`;
+  - `grain`: `strength`, `rate` (0–60, v1 24, 0 frozen);
+  - `flicker`: `strength`, `frequency` (0.5–30, v1 7.48).
+
+  A value outside its range is refused with its key
+  (`effects.scanlines.period: 40 is out of range (1 to 16)`), as
+  `logis --check-config` reports it. The bundled themes wear the looks chosen
+  in the effects lab.
+- **Curved glass** (`roundness.curvature`) bends the whole panel as one tube
+  face: border, rivets, glass and the glow around it bend together, the
+  outline turns convex, and every other effect lies on the bent glass; what the
+  bend uncovers at the surface's edge is transparent. Rust v1 bowed only what
+  lay inside a straight border and left the unbent picture's alpha in the dark
+  it uncovered (a ghost of the text over a light desktop); the Go build does
+  neither.
+- **Continuous effects** (glow pulse, travelling highlight, flicker, rolling
+  scanlines, a wobbling colour split, changing grain, a pending row's shimmer)
+  keep a visible window drawing at the output's refresh rate:
   measured on the owner's machine (Intel Arc, nested niri at 60 Hz, release
   build) a visible forge window draws 60 frames/s with about 70 daemon
   wake-ups/s and 6 % of one CPU core; with `reduce-motion` it draws nothing and

@@ -763,7 +763,7 @@
       }
     },
     "effects": {
-      "description": "The CRT pass over the body (and the tab strip's plates): a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths.",
+      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

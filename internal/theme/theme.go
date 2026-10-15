@@ -265,8 +265,8 @@ type Pending struct {
 	Mark string
 }
 
-// Effects are the CRT pass's controls over the body (and the tab
-// strip's plates): a group per effect, each with its strength (0 is off).
+// Effects are the CRT pass's controls over the body: a group per effect,
+// each with its strength (0 is off).
 type Effects = effects.CRT
 
 // Motion are the transition timings.
