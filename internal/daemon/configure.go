@@ -11,7 +11,7 @@ import (
 // invalid one keeps the daemon from starting), watched from before that
 // read, and reloaded on every settled edit. A sound edit is applied at once;
 // an invalid one leaves the last sound config in force and is reported in
-// the log and as a toast (Rust src/daemon/lifecycle.rs reconfigure).
+// the log and as a toast.
 
 // ToastKind is what a toast reports.
 type ToastKind int

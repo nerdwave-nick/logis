@@ -13,10 +13,9 @@ type pendingGlyph struct {
 	img  *text.GlyphImage
 }
 
-// flush uploads the pending glyph images, one upload per shelf they lie
-// on (as wgpu stages glyphon's writes and copies them once a frame): each
-// upload is a driver call of tens of microseconds, and a first frame of a
-// panel full of text rasterises a hundred glyphs or more. The shelf
+// flush uploads the pending glyph images, one upload per shelf they lie on:
+// each upload is a driver call of tens of microseconds, and a first frame
+// of a panel full of text rasterises a hundred glyphs or more. The shelf
 // packer fills a shelf left to right and never frees, so a frame's new
 // glyphs on one shelf form a strip holding only them and free padding,
 // written as zeros.

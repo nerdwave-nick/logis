@@ -9,9 +9,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/servitor"
 )
 
-// servitor mode (feat/logis §4.8; Rust src/main.rs): `logis --servitor`
-// is a provider session whose provider is logis itself, `logis provide
-// servitor`, run by the daemon as this client would have run it.
+// servitor mode (feat/logis §4.8): `logis --servitor` is a provider session
+// whose provider is logis itself, `logis provide servitor`, run by the
+// daemon as this client would have run it.
 
 // runServitor opens servitor mode; configPath goes to a daemon this client
 // has to start.

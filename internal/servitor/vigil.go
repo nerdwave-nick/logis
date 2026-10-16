@@ -13,7 +13,7 @@ import (
 )
 
 // Told is what the vigil tells: a Herald, or, once its stdout closed, that
-// the census Ended and how (Status, as Rust's ExitStatus says it).
+// the census Ended and how (Status, as provider.StatusOf says it).
 type Told struct {
 	Herald Herald
 	Ended  bool

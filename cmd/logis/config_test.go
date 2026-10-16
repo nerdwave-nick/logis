@@ -8,9 +8,8 @@ import (
 	"testing"
 )
 
-// --check-config and --config at the command line (ported from Rust
-// tests/config.rs check_config_* and src/cli config runes). Every test uses
-// a scratch XDG_CONFIG_HOME, never the real one.
+// --check-config and --config at the command line. Every test uses a
+// scratch XDG_CONFIG_HOME, never the real one.
 
 func scratchConfigHome(t *testing.T) string {
 	t.Helper()
@@ -81,7 +80,7 @@ func TestCheckConfigNamesTheKeyOfAWrongValue(t *testing.T) {
 }
 
 // The theme is looked up beside the config or among the bundled ones, and
-// read with what it extends: its contents are judged too (Rust check).
+// read with what it extends: its contents are judged too.
 func TestCheckConfigJudgesTheThemesContents(t *testing.T) {
 	home := scratchConfigHome(t)
 	writeFile(t, filepath.Join(home, "logis", "logis.jsonc"), `{"theme": "mine"}`)
@@ -171,7 +170,6 @@ func TestCheckConfigUnwritableIsAnError(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/cli config_needs_one_nonempty_path.
 func TestConfigNeedsOneNonEmptyPath(t *testing.T) {
 	for _, tc := range []struct {
 		args []string
@@ -191,8 +189,8 @@ func TestConfigNeedsOneNonEmptyPath(t *testing.T) {
 	}
 }
 
-// Ported from check_config_asks_to_validate_the_config and the conflict
-// cases: --check-config is a command of its own.
+// --check-config is a command of its own: a second command beside it, or
+// a value given to it, is an unknown rune.
 func TestCheckConfigIsACommandOfItsOwn(t *testing.T) {
 	for _, tc := range []struct {
 		args    []string
@@ -210,7 +208,7 @@ func TestCheckConfigIsACommandOfItsOwn(t *testing.T) {
 	}
 }
 
-// A --config beside --version changes nothing (Rust: the version wins).
+// A --config beside --version changes nothing: the version wins.
 func TestAConfigBesideVersionIsIgnored(t *testing.T) {
 	code, stdout, _ := runLogis("--config", "/nowhere.jsonc", "--version")
 	if code != 0 || !strings.HasPrefix(stdout, "logis ") {

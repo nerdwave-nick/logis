@@ -7,9 +7,8 @@ import (
 )
 
 // The key-file format of desktop entries (Desktop Entry Specification,
-// "Basic format of the file" and "Possible value types"; Rust
-// src/apps/keyfile.rs): [Group] headers, Key=Value and Key[locale]=Value
-// lines, # comments.
+// "Basic format of the file" and "Possible value types"): [Group] headers,
+// Key=Value and Key[locale]=Value lines, # comments.
 //
 //   - Space around = is ignored; a value keeps its other spaces.
 //   - Strings unescape \s, \n, \t, \r and \\; other backslashes stay (the
@@ -85,8 +84,8 @@ func ParseKeyFile(text string) (*KeyFile, error) {
 	return f, nil
 }
 
-// lines are text's lines as Rust's str::lines has them: split at \n, a
-// trailing \r dropped, no empty line after a final \n.
+// lines are text's lines: split at \n, a trailing \r dropped, no empty
+// line after a final \n.
 func lines(text string) []string {
 	all := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 	for i, l := range all {

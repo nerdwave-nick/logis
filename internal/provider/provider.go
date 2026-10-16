@@ -1,8 +1,8 @@
-// Package provider is what feeds a session (feat/logis §4.8; Rust
-// src/provider): the built-in dmenu provider streams a client's stdin;
-// external providers are processes speaking JSON lines over their stdin and
-// stdout (wire.go, docs/provider-protocol.md). Both drive a session through
-// the same Steps and get the user's Answers back.
+// Package provider is what feeds a session (feat/logis §4.8): the built-in
+// dmenu provider streams a client's stdin; external providers are processes
+// speaking JSON lines over their stdin and stdout (wire.go,
+// docs/provider-protocol.md). Both drive a session through the same Steps
+// and get the user's Answers back.
 package provider
 
 import (
@@ -52,9 +52,8 @@ type Step struct {
 }
 
 // Tab names a tab of plain logis's tabbed launcher (feat/logis-go
-// 8cba2fc9, new beside Rust v1): which of its session's two feeds, the
-// app launcher or servitor mode's provider, a step is for and an answer
-// comes from.
+// 8cba2fc9): which of its session's two feeds, the app launcher or
+// servitor mode's provider, a step is for and an answer comes from.
 type Tab uint8
 
 const (

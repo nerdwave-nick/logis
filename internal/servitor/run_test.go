@@ -14,7 +14,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Ported from Rust src/servitor/mod.rs tests.
+// servitor mode as a provider process, from greeting to its end.
+
 func TestLogisLinesAreReadAndUnknownOnesPassedOver(t *testing.T) {
 	m, err := heard([]byte(`{"type":"activate","stage":"rite","id":"dnd","later":1}`))
 	if err != nil || m != (provider.Activate{Stage: "rite", ID: "dnd"}) {

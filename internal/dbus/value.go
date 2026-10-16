@@ -1,6 +1,5 @@
-// Package dbus is logis's own D-Bus client (spec §5, a port of the Rust
-// reference's src/launch/wire and src/launch/bus): the wire format as much
-// as launching needs (method calls out, replies and errors in, signals
+// Package dbus is logis's own D-Bus client (spec §5): the wire format as
+// much as launching needs (method calls out, replies and errors in, signals
 // recognised and skipped) and a connection to the session bus's Unix socket
 // with EXTERNAL authentication and blocking calls with a timeout.
 //

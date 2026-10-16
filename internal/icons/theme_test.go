@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/icons/theme.rs.
+// Parsing index.theme and choosing among a theme's directories.
 
 const index = `# A comment
 [Icon Theme]

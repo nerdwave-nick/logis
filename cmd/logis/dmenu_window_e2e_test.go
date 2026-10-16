@@ -13,13 +13,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// `logis --dmenu` end to end (Rust tests/dmenu.rs): a real daemon in the
-// test compositor, real `logis --dmenu` clients with piped stdin and
-// stdout, and keys from the harness's virtual keyboard. Runs only with
-// LOGIS_E2E=niri|sway. The daemon runs with the test trace on, so the tests
-// wait for what the window did (show, items, query, select, accept, typed,
-// dismiss, and the window's focus, commits and settled) instead of
-// sleeping.
+// `logis --dmenu` end to end: a real daemon in the test compositor, real
+// `logis --dmenu` clients with piped stdin and stdout, and keys from the
+// harness's virtual keyboard. Runs only with LOGIS_E2E=niri|sway. The
+// daemon runs with the test trace on, so the tests wait for what the window
+// did (show, items, query, select, accept, typed, dismiss, and the window's
+// focus, commits and settled) instead of sleeping.
 
 var dmenuItems = []byte("alpha\nbeta\ngamma\n")
 

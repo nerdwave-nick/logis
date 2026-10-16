@@ -2,7 +2,7 @@ package window
 
 import "testing"
 
-// Ported from Rust src/window/clock.rs.
+// Tests of the frame clock: when a frame being drawn will be seen.
 
 const msNS uint64 = 1_000_000
 

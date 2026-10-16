@@ -236,7 +236,7 @@ func (r *rig) open(mode protocol.Mode) (*raw, string) {
 }
 
 // probe opens a dmenu session only to see whether it would be shown at once
-// or wait, then cancels it and waits for the cancellation (see the Rust rig).
+// or wait, then cancels it and waits for the cancellation.
 func (r *rig) probe() string {
 	r.t.Helper()
 	c, state := r.open(protocol.ModeDmenu)

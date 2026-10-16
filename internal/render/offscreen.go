@@ -34,9 +34,8 @@ func (e *ReadbackError) Error() string {
 }
 
 // Offscreen renders sc at logical size and scale s into an RGBA8 texture
-// and reads it back (Rust render_offscreen): the image is s.Physical(logical)
-// pixels. Unlike Draw it waits for the GPU — for goldens and checks only,
-// never the frame loop.
+// and reads it back: the image is s.Physical(logical) pixels. Unlike Draw
+// it waits for the GPU — for goldens and checks only, never the frame loop.
 func (r *Renderer) Offscreen(sc *Scene, logical scale.Size, s scale.Scale) (*Image, error) {
 	size := s.Physical(logical)
 	w, h := int(size.W), int(size.H)

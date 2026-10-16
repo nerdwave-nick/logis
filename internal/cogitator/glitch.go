@@ -2,14 +2,13 @@ package cogitator
 
 import "github.com/nerdwave-nick/logis/internal/effects"
 
-// The glitch as the window wears it (feat/logis-go 33cfcf44, new beside
-// Rust v1): each shown panel keeps a glitch clock (internal/glitch),
-// opened by its first frame, which fires the open burst; a switch of tab
-// and a key press fire theirs (glitchBurst, keyPressed). Each frame
-// stands at its moment, and the panel draws on while the glitch moves; in
-// between, the window sleeps until the next ambient episode or random
-// burst (deadline, wake). A stilled theme (reduce-motion) has the glitch
-// off.
+// The glitch as the window wears it (feat/logis-go 33cfcf44): each shown
+// panel keeps a glitch clock (internal/glitch), opened by its first frame,
+// which fires the open burst; a switch of tab and a key press fire theirs
+// (glitchBurst, keyPressed). Each frame stands at its moment, and the panel
+// draws on while the glitch moves; in between, the window sleeps until the
+// next ambient episode or random burst (deadline, wake). A stilled theme
+// (reduce-motion) has the glitch off.
 
 // glitchAt is sh's glitch at frame time at, and whether it moves (the
 // first frame opens its clock).

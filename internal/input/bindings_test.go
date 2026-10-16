@@ -6,7 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/xkb"
 )
 
-// Tests ported from Rust src/input/bindings.rs.
+// Tests of the key bindings: what a keysym and its modifiers do.
 
 var alt = Mods{Alt: true}
 

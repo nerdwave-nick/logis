@@ -7,10 +7,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Icons by name, ready to draw (Rust src/icons/cache.rs): looked up once
-// per (name, size, scale), rasterised and uploaded once per (file, pixel
-// size), misses remembered — a missing or broken icon costs one lookup,
-// not one per frame.
+// Icons by name, ready to draw: looked up once per (name, size, scale),
+// rasterised and uploaded once per (file, pixel size), misses remembered —
+// a missing or broken icon costs one lookup, not one per frame.
 
 // Inserter takes images into the renderer's atlas; *render.Atlas is one.
 type Inserter interface {

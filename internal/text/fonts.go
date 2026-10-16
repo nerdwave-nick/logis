@@ -1,10 +1,10 @@
-// Package text holds the fonts logis draws text with (spec §5, D2/D4;
-// Rust src/text): faces resolved by libfontconfig in-process, honouring
-// the user's aliases, with per-character fallback in fontconfig's own
-// order; only resolved files are ever loaded. It shapes simple runs
-// (cmap, advances, kerning, one direction; the OpenType shaper of the
-// text-shaping slice replaces Shape) and renders hinted glyph images
-// through FreeType, colour emoji scaled with swash's filter.
+// Package text holds the fonts logis draws text with (spec §5, D2/D4):
+// faces resolved by libfontconfig in-process, honouring the user's aliases,
+// with per-character fallback in fontconfig's own order; only resolved
+// files are ever loaded. It shapes simple runs (cmap, advances, kerning,
+// one direction; the OpenType shaper of the text-shaping slice replaces
+// Shape) and renders hinted glyph images through FreeType, colour emoji
+// scaled with swash's filter.
 //
 // A Fonts and its C objects (fontconfig configuration and fallback set,
 // FreeType library and faces) have exactly one owner at a time: the

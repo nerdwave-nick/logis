@@ -11,10 +11,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust tests/icons.rs's cache and golden tests on the GPU: the
-// icon cache over the fixture themes filling the renderer's real atlas,
-// and golden renders of fixture icons at scales 1.0 and 1.3. (The atlas
-// and image pass tests are internal/render's.)
+// The icon cache and golden renders on the GPU: the icon cache over the
+// fixture themes filling the renderer's real atlas, and golden renders of
+// fixture icons at scales 1.0 and 1.3. (The atlas and image pass tests are
+// internal/render's.)
 
 var scale13 = scale.From120ths(156)
 

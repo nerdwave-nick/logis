@@ -17,14 +17,13 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// Motion and blur end to end (spec §4.2, §4.3; Rust tests/motion.rs): a
-// daemon in the test compositor opens, moves and closes its window paced
-// by frame callbacks, draws nothing once settled, answers a dmenu caller
-// before its close transition ends, shows a waiting session without
-// waiting for it, and blurs behind the body where the compositor offers
-// ext-background-effect. LOGIS_MOTION=4 slows every transition fourfold
-// where a test must see one in progress, so that machine load cannot hide
-// it.
+// Motion and blur end to end (spec §4.2, §4.3): a daemon in the test
+// compositor opens, moves and closes its window paced by frame callbacks,
+// draws nothing once settled, answers a dmenu caller before its close
+// transition ends, shows a waiting session without waiting for it, and
+// blurs behind the body where the compositor offers ext-background-effect.
+// LOGIS_MOTION=4 slows every transition fourfold where a test must see one
+// in progress, so that machine load cannot hide it.
 
 var motionItems = []byte("alpha\nbeta\ngamma\n")
 
@@ -250,17 +249,17 @@ func TestE2EAConfigEditTurnsBlurOnForTheVisibleWindow(t *testing.T) {
 	_ = client.Kill()
 }
 
-// Watched for 2.5 s (Rust: 1 s), past the 2 s write deadline of the last
-// reply: no timer may outlive what armed it. The daemon runs without the
-// garbage collector: a cycle the open started may otherwise end within
-// the span with the runtime's own housekeeping (sweeping, then returning
-// freed memory to the OS), which wakes threads once and is not ours.
+// Watched for 2.5 s, past the 2 s write deadline of the last reply: no
+// timer may outlive what armed it. The daemon runs without the garbage
+// collector: a cycle the open started may otherwise end within the span
+// with the runtime's own housekeeping (sweeping, then returning freed
+// memory to the OS), which wakes threads once and is not ours.
 //
 // The span starts once the compositor has answered every frame and the
-// daemon has come to rest (Rust: a 200 ms sleep). A nested compositor
-// shows the last frame when the parent session lets it: under load, or
-// with its window out of sight, seconds later. The daemon then wakes to
-// read the answers, which is not idling wrongly.
+// daemon has come to rest. A nested compositor shows the last frame when
+// the parent session lets it: under load, or with its window out of sight,
+// seconds later. The daemon then wakes to read the answers, which is not
+// idling wrongly.
 func TestE2EAnIdleWindowWakesNoThreadOfTheDaemon(t *testing.T) {
 	c := e2e.StartCogitator(t, []string{"GOGC=off"}, "")
 	client := c.DmenuAll(motionItems)
@@ -344,9 +343,8 @@ func threadSwitches(pid int) map[string]uint64 {
 }
 
 // A LOGIS_MOTION the cogitator cannot read stops the daemon before it
-// serves (exit 2, why), as Rust's window start refuses it: after the
-// session's preflight, which a fake compositor offering every global
-// passes.
+// serves (exit 2, why), when its window starts: after the session's
+// preflight, which a fake compositor offering every global passes.
 func TestE2EARefusedMotionStopsTheDaemon(t *testing.T) {
 	r := newRig(t)
 	c, err := wltest.Serve(r.dir, "wayland-test", withLayerShell)

@@ -8,10 +8,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// The Icon Theme Specification's lookup (Rust src/icons/lookup.rs): the
-// configured theme and its parents (depth first, each once), then hicolor,
-// then the pixmaps directories. Only PNG and SVG are looked for, because
-// only those are rasterised; XPM files are never returned.
+// The Icon Theme Specification's lookup: the configured theme and its
+// parents (depth first, each once), then hicolor, then the pixmaps
+// directories. Only PNG and SVG are looked for, because only those are
+// rasterised; XPM files are never returned.
 
 // Hicolor is the fallback theme every chain ends with.
 const Hicolor = "hicolor"

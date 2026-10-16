@@ -129,7 +129,7 @@ func TestAClientStartsTheDaemonWhenNoneAnswersAndLaterClientsReuseIt(t *testing.
 	}
 }
 
-// Ported from Rust tests/daemon.rs a_client_whose_daemon_cannot_start_exits_2_with_the_reason.
+// A client whose daemon cannot start is told the reason.
 func TestADaemonThatCannotStartIsReportedWithItsReason(t *testing.T) {
 	dir := scratch(t)
 	exe := script(t, dir, `echo "logis: the noosphere is silent: no WAYLAND_DISPLAY" >&2; exit 2`)

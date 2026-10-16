@@ -6,7 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust src/render/images.rs's tests.
+// An image quad's corner snapped to the pixel grid, its size kept.
 
 func TestPackSnapsTheCornerAndKeepsThePixelSize(t *testing.T) {
 	got := packQuad([2]float32{10, 7}, [4]uint32{64, 32, 42, 40}, scale.From120ths(156), 0.5)

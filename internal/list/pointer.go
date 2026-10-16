@@ -6,11 +6,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/input"
 )
 
-// The pointer over a session's list (spec feat/logis §3 story 16; Rust
-// src/list/view/pointer.rs): the row under the pointer is selected (hover
-// highlights it), the primary button pressed and released on the same
-// item accepts it, and scrolling moves the rows in view, the selection
-// staying on the row under the pointer.
+// The pointer over a session's list (spec feat/logis §3 story 16): the row
+// under the pointer is selected (hover highlights it), the primary button
+// pressed and released on the same item accepts it, and scrolling moves the
+// rows in view, the selection staying on the row under the pointer.
 //
 // Scrolling: a wheel notch moves RowsPerNotch rows, a high-resolution
 // wheel's fractions add up to that; a finger or a continuous device moves
@@ -124,5 +123,5 @@ func (p *pointing) rows(s input.Scroll, pitch float32) int32 {
 	return 0
 }
 
-// sat32 clamps v to int32, as Rust's saturating arithmetic.
+// sat32 clamps v to int32: saturating arithmetic.
 func sat32(v int64) int32 { return int32(max(min(v, math.MaxInt32), math.MinInt32)) }

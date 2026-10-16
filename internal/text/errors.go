@@ -6,8 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/fc"
 )
 
-// ConfigError: fontconfig could not load a configuration (Rust
-// FontError::Config).
+// ConfigError: fontconfig could not load a configuration.
 type ConfigError struct{ Why string }
 
 func (e *ConfigError) Error() string { return "the font litanies are corrupt: " + e.Why }

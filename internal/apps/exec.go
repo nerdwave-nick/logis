@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// The Exec key (Desktop Entry Specification, "The Exec key"; Rust
-// src/apps/exec.rs): its arguments and their field codes.
+// The Exec key (Desktop Entry Specification, "The Exec key"): its
+// arguments and their field codes.
 //
 // The key-file escapes are undone first (keyfile.go); then the value is
 // split into arguments the way a shell splits words, which is what the

@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/config"
 )
 
-// Ported from the theme half of Rust src/config/live.rs tests.
+// The theme in force while the daemon runs: worn, reloaded, kept, stilled.
 
 func named(theme string) config.Config {
 	c := config.Default()

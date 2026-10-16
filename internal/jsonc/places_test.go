@@ -3,9 +3,9 @@ package jsonc
 import "testing"
 
 // serde_json names a number by how it parsed it: integers that fit u64 or
-// i64 stay integers; any other number is an f64, shown as Rust shows an f64
-// (no exponent) with a decimal point (feat/logis-go G18, measured against
-// Rust logis v1's theme errors: `1e3` is "floating point `1000.0`").
+// i64 stay integers; any other number is an f64, shown without an exponent
+// and with a decimal point (feat/logis-go G18: `1e3` is "floating point
+// `1000.0`").
 func TestUnexpectedNamesNumbersAsSerdeJSONParsedThem(t *testing.T) {
 	for _, c := range []struct{ text, want string }{
 		{"7", "integer `7`"},

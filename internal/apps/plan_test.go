@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/plan.rs.
+// What launching an application or one of its actions runs.
 
 func systemIndex(t *testing.T) *Index {
 	t.Helper()

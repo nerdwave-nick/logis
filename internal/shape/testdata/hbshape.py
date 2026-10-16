@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The HarfBuzz oracle: shapes every run of cases.json with the system
-libharfbuzz (ctypes, no Python packages) the way cosmic-text's harfrust
+libharfbuzz (ctypes, no Python packages) the way cosmic-text's shaping
 call does — one run, a direction, script guessed from the text, no
 language, no flags — and writes glyph ids, clusters, advances and offsets
 in font units to hb.json. Development time only; the result is committed
@@ -15,7 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 
 # No locale: HarfBuzz would otherwise pick a language from it, and
-# harfrust shapes without one.
+# cosmic-text shapes without one.
 locale.setlocale(locale.LC_ALL, "C")
 
 hb = ctypes.CDLL("libharfbuzz.so.0")

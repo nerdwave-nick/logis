@@ -1,7 +1,7 @@
-# Research: text, fonts and keyboard for a Go logis (stdlib + golang.org/x)
+# Research: text, fonts and keyboard in Go (stdlib + golang.org/x)
 
 Date: 2026-10-12. Ticket: lit `feat/logis-go` d7ee66f7 "Research: Go text, fonts and keyboard under stdlib + golang.org/x" (spec §8 D2, D3, D4).
-Branch `research/go-text-input` from Rust `main` 2ffdd02. Machine: Arch Linux, kernel 7.2.3, niri 26.04, 22 logical CPUs, Go 1.27.2, libxkbcommon 1.13.2, fontconfig 2.18.3, eDP-1 at scale 1.3.
+Branch `research/go-text-input` from `main` 2ffdd02. Machine: Arch Linux, kernel 7.2.3, niri 26.04, 22 logical CPUs, Go 1.27.2, libxkbcommon 1.13.2, fontconfig 2.18.3, eDP-1 at scale 1.3.
 Prototypes (disposable, each its own Go module): `research/go/text/` (D2), `research/go/xkb/` (D3), `research/go/fonts/` (D4).
 
 Source tags: **[src]** source read at the stated version, **[local]** observed or measured here, **[test]** asserted by a test in the prototype. Statements marked *Inference* are estimates, not measurements.
@@ -10,7 +10,7 @@ Measurements ran as single commands under the shared lock `/home/nerdwave/.claud
 
 ## Verdict
 
-**D2 text: hand-roll an OpenType shaping subset on golang.org/x/image/font/sfnt; ship v1 unhinted.** x/image gives outlines (TrueType and CFF), cmap, advances, a narrow kerning helper and an anti-aliasing rasteriser. Everything else is hand-rolled, and x/text offers no segmentation at all. A prototype shapes the whole corpus glyph-for-glyph like HarfBuzz and places ink where Rust v1 does, to the pixel. The one remaining visible difference is **hinting**: Rust v1 runs TrueType bytecode and CFF hinting through swash/skrifa. Parity there would cost 30–40+ days, so it is deferred. Colour emoji need only CBDT, because the owner's emoji font has no COLR/sbix/SVG.
+**D2 text: hand-roll an OpenType shaping subset on golang.org/x/image/font/sfnt; ship unhinted at first.** x/image gives outlines (TrueType and CFF), cmap, advances, a narrow kerning helper and an anti-aliasing rasteriser. Everything else is hand-rolled, and x/text offers no segmentation at all. A prototype shapes the whole corpus glyph-for-glyph like HarfBuzz and places ink where the hinted reference renders of the corpus do, to the pixel. The one remaining visible difference is **hinting**: the references are hinted (TrueType bytecode and CFF hinting through swash/skrifa). Own hinting would cost 30–40+ days, so it is deferred. (The owner then chose hinting through the system FreeType instead: [ADR 0002](../adr/0002-go-and-a-small-cgo-set.md), D2.) Colour emoji need only CBDT, because the owner's emoji font has no COLR/sbix/SVG.
 
 **D3 keyboard: hand-roll it in pure Go.** A client-side XKB of about 2 400 lines (plus generated keysym tables) matches libxkbcommon 1.13.2 exactly on everything a Wayland client needs. That covers 76 keymaps, about 7.6 M key states, every sequence of 9 locale Compose tables, and the feat/logis E2E keyboard scenarios replayed from a nested niri. cgo libxkbcommon stays the test oracle only. The prior-art xkb-go is not a usable basis: it is a third-party module, and it has the defects listed in §D3.3.
 
@@ -41,7 +41,7 @@ The D2 sub-study (prototype `research/go/text/`, module `logis.research/go/text`
 
 **Fonts in play.** The pinned `NotoColorEmoji.ttf` and the owner's system `/usr/share/fonts/noto/NotoColorEmoji.ttf` (10.4 MB) are both **CBDT/CBLC**: one PNG strike at 109 ppem, with no COLR, sbix or SVG. The system font's GSUB uses ligature, context and chained-context lookups. Noto Sans, Hebrew and Arabic carry TrueType hinting programs [local].
 
-**What Rust v1 does** [src]: cosmic-text 0.19 shapes with harfrust 0.5.2 (a full HarfBuzz port). swash 0.2.10 **hints every outline** through skrifa in Smooth mode with preserved metrics: the TrueType bytecode interpreter for Noto Sans/Hebrew/Arabic and the CFF hinter for CJK, with the autohinter only for unhinted fonts. Advances are rounded to whole pixels, and glyphon blends in sRGB space on an `Rgba8Unorm` target. Emoji are scaled with swash's Mitchell filter (negative lobes folded positive).
+**How the hinted reference renders were made** [src]: cosmic-text 0.19 shapes with harfrust 0.5.2 (a full HarfBuzz port). swash 0.2.10 **hints every outline** through skrifa in Smooth mode with preserved metrics: the TrueType bytecode interpreter for Noto Sans/Hebrew/Arabic and the CFF hinter for CJK, with the autohinter only for unhinted fonts. Advances are rounded to whole pixels, and glyphon blends in sRGB space on an `Rgba8Unorm` target. Emoji are scaled with swash's Mitchell filter (negative lobes folded positive).
 
 ### D2.2 What the corpus needs from the fonts
 
@@ -53,24 +53,24 @@ The D2 sub-study (prototype `research/go/text/`, module `logis.research/go/text`
 | Noto Sans CJK JP (CFF) | nothing: cmap + advances |
 | Noto Color Emoji | GSUB 4 ligatures for 👍🏽 and 🧑‍💻 (2); VS16 maps to no glyph and is hidden |
 
-The full system fonts use more: GSUB 1–6; GPOS 2, 4, 5 and 6; GPOS 8 inside Noto Sans `kern`; chained-context `rlig` in Arabic; context lookups in the emoji font. So the v1 shaper must be the generic OpenType engine, not a corpus-specific subset.
+The full system fonts use more: GSUB 1–6; GPOS 2, 4, 5 and 6; GPOS 8 inside Noto Sans `kern`; chained-context `rlig` in Arabic; context lookups in the emoji font. So the shaper must be the generic OpenType engine, not a corpus-specific subset.
 
 ### D2.3 Proof of concept and quality
 
-`research/go/text` (`cmd/corpus`) renders the Rust golden scene (330×184 logical, 16 px, lines at y = 6 + 24 i, plus the ellipsis and clip rows) at 1.0, 1.3 and 2.0. It uses the pinned fonts, sRGB-space blending as glyphon does, and advances rounded to pixels.
+`research/go/text` (`cmd/corpus`) renders the corpus golden scene (330×184 logical, 16 px, lines at y = 6 + 24 i, plus the ellipsis and clip rows) at 1.0, 1.3 and 2.0. It uses the pinned fonts, sRGB-space blending as glyphon does, and advances rounded to pixels.
 
 - **Shaping:** all 25 corpus runs plus 3 extra runs give **identical glyph ids and positions to HarfBuzz 14.6.0** [test: `internal/shape`, oracle data produced at development time by the system libharfbuzz through Python ctypes, `testdata/hbref.py`; not a Go dependency].
-- **Against the Rust goldens** (`docs/evidence/go/text-corpus-compare@{1.0,1.3,2.0}.png`: golden on top, Go below, ×4 difference heatmap at the bottom): horizontal ink extents match **to the pixel on all 7 lines at all 3 scales**, except 1 px on line 2 at 2.0.
+- **Against the hinted reference renders** ([`text-corpus-compare@1.0.png`](../evidence/text-corpus-compare@1.0.png), [`@1.3`](../evidence/text-corpus-compare@1.3.png), [`@2.0`](../evidence/text-corpus-compare@2.0.png) in `docs/evidence/`: reference on top, the prototype below, ×4 difference heatmap at the bottom): horizontal ink extents match **to the pixel on all 7 lines at all 3 scales**, except 1 px on line 2 at 2.0.
   - Mean absolute difference per line (/255): Latin 4.6/4.5/4.9; accents 4.2/4.1/4.9; CJK 6.0/2.5/3.2; bidi 2.9/2.4/2.2; emoji line 2.2/2.1/2.5; ellipsis row 1.4/1.3/1.6; clip row 1.5/1.3/1.8 (at 1.0/1.3/2.0).
   - Whole image: 2.96/2.37/2.74.
-  - Pixels outside the Rust golden tolerance (2 levels): 10.4 %/8.3 %/6.2 %. **Go output cannot pass Rust's golden test without hinting**, so a Go port needs its own goldens.
-- **Emoji scaling:** a port of swash's filter is within max 2–3 levels of Rust. x/image `CatmullRom` is off by up to 42 levels and `ApproxBiLinear` by up to 141 (`results/emoji-filter.txt`).
-- **Hinting is the remaining difference.** Rust's horizontal stems and edges are sharp; Go's are soft, most visibly in Latin and CJK at 1.0–1.3. A 68-line stand-in that snaps baseline, x-height and cap-height made Latin about 20 % closer at 1.0/1.3 but 14 % worse at 2.0, so it was rejected (`results/corpus-compare-ysnap.txt`).
+  - Pixels outside the golden tolerance (2 levels): 10.4 %/8.3 %/6.2 %. **Unhinted output cannot pass a golden test against hinted references**, so unhinted text needs its own goldens.
+- **Emoji scaling:** a port of swash's filter is within max 2–3 levels of the reference. x/image `CatmullRom` is off by up to 42 levels and `ApproxBiLinear` by up to 141 (`results/emoji-filter.txt`).
+- **Hinting is the remaining difference.** The reference's horizontal stems and edges are sharp; the prototype's are soft, most visibly in Latin and CJK at 1.0–1.3. A 68-line stand-in that snaps baseline, x-height and cap-height made Latin about 20 % closer at 1.0/1.3 but 14 % worse at 2.0, so it was rejected (`results/corpus-compare-ysnap.txt`).
 - **Grapheme editing:** the hand-rolled UAX #29 breaker (GB3–GB13 incl. GB9c, tables generated from Unicode 17.0.0 data) passes all 766 `GraphemeBreakTest.txt` cases. Backspace removes e + U+0301, 👍🏽, 🧑‍💻, 🇩🇪, ⚙️ and pointed Hebrew in one press [test].
 
 ### D2.4 Measurements
 
-`cmd/bench` at scale 1.3. One frame is the 7 corpus lines: 215 glyphs, 87 distinct glyph images. Cold = empty glyph cache; warm = reshape every line, glyph images cached (pessimistic, since Rust reshapes only changed lines). N = 100 per round, each round one locked command, median/p95 in µs (`results/bench-*.txt`, commands in `results/commands.txt`):
+`cmd/bench` at scale 1.3. One frame is the 7 corpus lines: 215 glyphs, 87 distinct glyph images. Cold = empty glyph cache; warm = reshape every line, glyph images cached (pessimistic: reshaping only changed lines does less). N = 100 per round, each round one locked command, median/p95 in µs (`results/bench-*.txt`, commands in `results/commands.txt`):
 
 | Round | loadavg before → after | cold frame | warm frame | shaping only | drawing only |
 |---|---|---|---|---|---|
@@ -98,7 +98,7 @@ The first cold frame in a process took 3.6–3.7 ms, dominated by decoding and s
 | CBDT emoji with swash-identical scaling | yes (239) | max diff 2–3 | 400 | 2 | low |
 | COLRv0 / COLRv1 / sbix | no | not needed for the owner's emoji font | 300 / 2 000 / 150 | 2 / 12 / 1 | low / high / low |
 | Rasteriser, glyph cache/atlas, sRGB blending | yes (320) | positions pixel-exact | 600 | 3 | low |
-| **TrueType hinting** (bytecode, Smooth) | no | Latin lines stay 4.2–4.9 off | ~3 500 (skrifa: 9.4 k Rust) | 20–30 | high |
+| **TrueType hinting** (bytecode, Smooth) | no | Latin lines stay 4.2–4.9 off | ~3 500 (skrifa: 9.4 k) | 20–30 | high |
 | **CFF hinting** (needs own CFF private-dict parser; sfnt hides it) | no | CJK stays 2.5–6.0 off | ~1 500 | 8–12 | high |
 | Autohinter | 68-line experiment, rejected | worse at 2.0 | 5 000+ (skrifa: 8.4 k) | 25–35 | high |
 | Grapheme clusters (UAX #29) | yes (119) | 766/766 conformance | 200 | 1 | low |
@@ -107,7 +107,7 @@ The first cold frame in a process took 3.6–3.7 ms, dominated by decoding and s
 | Indic/USE/Khmer/Myanmar/jamo shapers | no | — | 5 000+ | 25+ | high |
 | Variable fonts | no | — | 2 000 | 10–15 | high |
 
-### D2.6 Recommended v1 scope
+### D2.6 Recommended first scope
 
 **Build:**
 - the generic OpenType engine (GSUB 1–8, GPOS 1–9) with HarfBuzz-style normalisation and mark ordering;
@@ -117,13 +117,13 @@ The first cold frame in a process took 3.6–3.7 ms, dominated by decoding and s
 - CBDT emoji with the swash-port scaling;
 - the grapheme breaker for editing;
 - unhinted outlines with whole-pixel advances and sRGB-space blending;
-- the `text.rs` line features.
+- the line features (ellipsis, clip, colour spans, tracking, caret, measuring).
 
 *Inference:* about 6 000 lines of own code + the 1 400-line bidi fork + ~2 300 generated lines, **6–8 weeks** including the HarfBuzz-oracle and bidi conformance test infrastructure.
 
 **Defer:** TrueType/CFF hinting, COLR v0/v1, sbix, complex-script shapers, vertical text, variable fonts.
 
-**Expected quality vs Rust v1:** identical shaping and placement for these scripts. Text will be visibly softer at scales 1.0–1.3 (the owner's output is 1.3). The owner should look at `docs/evidence/go/text-corpus-compare@1.3.png` before accepting that, because it is a decision about look, not correctness.
+**Expected quality against the hinted references:** identical shaping and placement for these scripts. Text will be visibly softer at scales 1.0–1.3 (the owner's output is 1.3). The owner should look at [`docs/evidence/text-corpus-compare@1.3.png`](../evidence/text-corpus-compare@1.3.png) before accepting that, because it is a decision about look, not correctness.
 
 ## D3 Keyboard
 
@@ -139,17 +139,17 @@ The compositor sends a fully resolved keymap (`wl_keyboard.keymap`, format `xkb_
 
 ### D3.2 The prototype and its correctness
 
-`research/go/xkb` (stdlib only; `xkb/` about 2 380 hand-written lines + 5 933 generated table lines; `kbd/` 318 lines porting Rust `src/input`). Every claim below is a test.
+`research/go/xkb` (stdlib only; `xkb/` about 2 380 hand-written lines + 5 933 generated table lines; `kbd/` 318 lines: the keyboard layer with layout, state and repeat). Every claim below is a test.
 
 | Check | Method | Result |
 |---|---|---|
 | Keysym conversions | every legacy keysym, special/function ranges, U+0000–U+2FFFF as keysyms, XF86 ranges: `to_utf32`, `to_upper`, `to_lower`; `utf32_to_keysym` for U+0000–U+2FFFF; all names round-trip | **0 mismatches** [test: `xkb/diff_keysym_test.go`] |
 | Keymaps | 76 keymaps: the **live** keymap from the owner's niri (captured read-only by `cmd/keymapdump`), the two keymaps a nested niri sent, 59 RMLVO sets compiled and serialised by libxkbcommon (47 layouts and variants, among them de(neo), fr(bepo), ca(multix), ara, il, th, jp, kr; three multi-layout sets with group switching; caps/ctrl/numpad/lv3/lv5/compose/eurosign options), and 14 name-serialised by `xkbcli --format 1`. Each is compared over every keycode (8–709) × ~133 states: every real-modifier depressed mask in a bounded set × Caps/Num locked × each group, plus the masks libxkbcommon itself serialises after pressing each modifier key alone, tapped and in pairs. Compared: layout, level, keysyms, `one_sym`, UTF-8, consumed mods (XKB and GTK), active mods, repeat, modifier names and indices | **0 mismatches** in 7 645 807 key states; with `XKBDIFF_FULL=1` (all 256 depressed masks × 4 lock states × groups) **0 mismatches in 58 861 568** key states [test: `xkb/diff_keymap_test.go`] |
 | Compose | system tables for en_US, C, de_DE, fr_FR, el_GR (1 903 seqs), pt_BR (5 150), ja_JP, fi_FI (5 154), km_KH: every sequence fed step by step, with a Shift keysym between steps, plus a cancelling key after the first step; parser edge cases (`include "%L"`, overriding prefixes and duplicates, escapes `\"` `\\` octal hex, invalid escapes, modifiers `!`/`~`/`None`, keysym-only results, `Uxxxx`/`0x` names, 11-key sequences, error lines) | **0 mismatches** [test: `xkb/diff_compose_test.go`] |
-| Rust v1 unit tests | `src/input/{layout,keyboard,repeat}.rs` tests ported 1:1 (Shift consumed by letters and Tab, Ctrl+G = BEL, Caps never a binding modifier, AltGr consumed so Ctrl+[ works on `de`, Num Lock keypad, second-layout base keysym for Ctrl+G on `us,ru`, Compose with a real Shift, repeat timeline, rate 0, keymap change/focus loss reset) | **all pass with `CGO_ENABLED=0`** [test: `kbd/kbd_test.go`] |
-| feat/logis E2E scenarios in a nested niri | `cmd/e2eprobe` starts `niri -c <own config>` (the E2E harness's `NIRI_CONFIG`: us, `compose:menu`, repeat 300/30) as a window, refuses to type unless the socket's `SO_PEERCRED` pid is that child, maps an exclusive-keyboard overlay layer surface and types `tests/e2e.rs compose_locks_and_the_keypad_type_what_the_layout_says` through `zwp_virtual_keyboard_v1`, exactly as `tests/support/e2e/keyboard.rs`: Menu o Shift+' ; Menu l g (harness XCOMPOSEFILE) ; Menu e e, BackSpace ; Caps a Caps a ; NumLock KP1 KP2 NumLock KP3 KP1 b ; then **holds x for 500 ms**. Run twice: harness config and harness config + `numlock` (the owner's setting) | replay through `kbd` gives `öλAa12b` at the expected checkpoints and `xxxxxxxx` (1 + **7 repeats** at 30/s after 300 ms) [test: `kbd/e2e_test.go`]; all 23 key presses of each trace give the same keysym, text, consumed mods and Compose state as libxkbcommon [test: `xkb/diff_e2e_test.go`] |
+| Keyboard behaviour tests | layout, keyboard and repeat cases (Shift consumed by letters and Tab, Ctrl+G = BEL, Caps never a binding modifier, AltGr consumed so Ctrl+[ works on `de`, Num Lock keypad, second-layout base keysym for Ctrl+G on `us,ru`, Compose with a real Shift, repeat timeline, rate 0, keymap change/focus loss reset) | **all pass with `CGO_ENABLED=0`** [test: `kbd/kbd_test.go`] |
+| feat/logis E2E scenarios in a nested niri | `cmd/e2eprobe` starts `niri -c <own config>` (the E2E harness's `NIRI_CONFIG`: us, `compose:menu`, repeat 300/30) as a window, refuses to type unless the socket's `SO_PEERCRED` pid is that child, maps an exclusive-keyboard overlay layer surface and types the feat/logis E2E scenario "compose, locks and the keypad type what the layout says" through `zwp_virtual_keyboard_v1`, as the E2E harness does: Menu o Shift+' ; Menu l g (harness XCOMPOSEFILE) ; Menu e e, BackSpace ; Caps a Caps a ; NumLock KP1 KP2 NumLock KP3 KP1 b ; then **holds x for 500 ms**. Run twice: harness config and harness config + `numlock` (the owner's setting) | replay through `kbd` gives `öλAa12b` at the expected checkpoints and `xxxxxxxx` (1 + **7 repeats** at 30/s after 300 ms) [test: `kbd/e2e_test.go`]; all 23 key presses of each trace give the same keysym, text, consumed mods and Compose state as libxkbcommon [test: `xkb/diff_e2e_test.go`] |
 
-Observed in the nested niri [local]: the client first receives niri's own keymap. That keymap is byte-identical to the live one, since both are us + `compose:menu`. As soon as the virtual keyboard types, niri sends a **second keymap** (the injector's, recompiled; 35 601 bytes). A client must replace its keymap mid-session and reset Compose and repeat, as Rust v1 does. With `numlock` in the config, the first `modifiers` event already carries `locked=0x10`.
+Observed in the nested niri [local]: the client first receives niri's own keymap. That keymap is byte-identical to the live one, since both are us + `compose:menu`. As soon as the virtual keyboard types, niri sends a **second keymap** (the injector's, recompiled; 35 601 bytes). A client must replace its keymap mid-session and reset Compose and repeat. With `numlock` in the config, the first `modifiers` event already carries `locked=0x10`.
 
 ### D3.3 Prior art: xkb-go (servitor-native-picker research)
 
@@ -165,13 +165,13 @@ The servitor research (lit `research/servitor-native-picker`, ticket ae7bb112) u
 
 ### D3.4 Consumed modifiers, Caps Lock and key repeat
 
-- **Consumed modifiers.** `XKB_CONSUMED_MODE_XKB` consumes every modifier in the key type's mask, minus the matching entry's `preserve`. `XKB_CONSUMED_MODE_GTK` consumes only modifiers whose type entries change the key's symbols, and of those only single-modifier entries or the active one [src: `state.c:1840 key_get_consumed`]. Both are implemented and match libxkbcommon on every keymap/state above [test]. On the owner's keymap the modes differ on 22 keys for each of Shift, Control and Alt held: BackSpace (TWO_LEVEL with identical levels), F1–F12 and keypad operators (the CTRL+ALT type) [test: `kbd/consumed_test.go`]. Rust v1 uses XKB mode (`mod_index_is_consumed`) and writes its bindings to accept both outcomes (`BackSpace if plain || SHIFT`, ISO_Left_Tab with or without Shift). **Recommendation:** keep XKB mode for parity, with the Rust binding table unchanged. Lock and Num Lock never take part in a binding.
+- **Consumed modifiers.** `XKB_CONSUMED_MODE_XKB` consumes every modifier in the key type's mask, minus the matching entry's `preserve`. `XKB_CONSUMED_MODE_GTK` consumes only modifiers whose type entries change the key's symbols, and of those only single-modifier entries or the active one [src: `state.c:1840 key_get_consumed`]. Both are implemented and match libxkbcommon on every keymap/state above [test]. On the owner's keymap the modes differ on 22 keys for each of Shift, Control and Alt held: BackSpace (TWO_LEVEL with identical levels), F1–F12 and keypad operators (the CTRL+ALT type) [test: `kbd/consumed_test.go`]. logis's shortcuts use XKB mode (`mod_index_is_consumed`), and its binding table accepts both outcomes (`BackSpace if plain || SHIFT`, ISO_Left_Tab with or without Shift). **Recommendation:** keep XKB mode and that binding table unchanged. Lock and Num Lock never take part in a binding.
 - **Caps Lock** is applied as libxkbcommon does: the Caps transformation `keysym_to_upper` (Unicode simple upper case, ß → ẞ, legacy keysyms included) when Lock is active and not consumed. It affects keysyms and text, never shortcut matching (Ctrl+N with Caps still selects next) [test].
-- **Key repeat** stays client-side: niri 26.04 offers `wl_seat` v9, sends `repeat_info` (live: 25/s after 600 ms; nested test config: 30/300) [local], and a v10 `wl_keyboard` "repeated" key state is not offered. The Rust `Repeat` (a deadline, at most 4 repeats per wake, skip ahead when late; X defaults 25/600 for `wl_keyboard` < v4; rate 0 disables) is ported as a pure value type [test]. How it is armed depends on the event loop:
+- **Key repeat** stays client-side: niri 26.04 offers `wl_seat` v9, sends `repeat_info` (live: 25/s after 600 ms; nested test config: 30/300) [local], and a v10 `wl_keyboard` "repeated" key state is not offered. Repeat (a deadline, at most 4 repeats per wake, skip ahead when late; X defaults 25/600 for `wl_keyboard` < v4; rate 0 disables) is a pure value type [test]. How it is armed depends on the event loop:
   - pure-Go transport (a reader goroutine + `select`): a `time.Timer` reset to the deadline, stopped when no key is held. There are no wake-ups while idle;
   - a single `poll()` loop (needed with libwayland's `prepare_read`): a `timerfd` (`unix.TimerfdCreate`/`TimerfdSettime` from golang.org/x/sys/unix; the stdlib `syscall` package has no timerfd wrapper), disarmed when idle.
   
-  Key repeat must use the compositor's `key` timestamps only for ordering; deadlines use the local monotonic clock, as in Rust.
+  Key repeat must use the compositor's `key` timestamps only for ordering; deadlines use the local monotonic clock.
 
 ### D3.5 Compose
 
@@ -211,7 +211,7 @@ The D4 sub-study (prototype `research/go/fonts/`, module `logis.research/go/font
 
 ### D4.1 What logis needs from fontconfig
 
-Rust v1 (`src/text/fc.rs`, `fonts.rs`) does three things [src]:
+logis does three things with fontconfig:
 1. `FcInitLoadConfigAndFonts()`: the user's full configuration and caches.
 2. For each theme face, a pattern with the family list in order and `FcWeightFromOpenType(weight)`, then `FcConfigSubstitute` + `FcDefaultSubstitute` + `FcFontMatch` → file and index.
 3. For fallbacks, `FcFontSort(trim)` of the default family `sans-serif`, then, per character not yet seen, the first face in that order whose charset covers it.
@@ -239,7 +239,7 @@ A pure-Go resolver must reproduce exactly these subtleties.
   - **(a2)** read fontconfig's own binary caches (`/var/cache/fontconfig`, `~/.cache/fontconfig`; format v12 since 2.18.2);
   - **(a1)** an own sfnt scanner (`scan/`, about 1 000 lines + fontconfig's orthography and generic-family data) with its own cache.
 - **(b) Subprocess** (`fcsub/`, about 200 lines): the faces as parallel `fc-match --format=…` processes (one per theme face). The fallback order comes from one `fc-match -s sans-serif` with charsets, parsed once (a 78 KB listing).
-- **(c) cgo** (`cgofc/`, about 140 lines): a 1:1 mirror of `fc.rs`, and the reference.
+- **(c) cgo** (`cgofc/`, about 140 lines): the three steps of D4.1 through libfontconfig, and the reference.
 
 ### D4.3 Correctness on the owner's real configuration
 
@@ -272,7 +272,7 @@ Other rounds:
 - **Contended rounds:** at load 19 → 17 (N = 40), pure 184 / 238, cgo 129 / 197, parallel (b) 99 / 127 ms. In the final round at **load 13.9 → 29.4** (N = 30), pure 77 / 815, cgo 52 / 527, parallel (b) 32 / 550, sequential (b) 141 / 1 794 ms.
 - **(a1) cold scan:** 2 399 files and 2 483 faces, page cache warm, took 1 300 / 1 486 ms (N = 5, load 9.38 → 8.70). Writing the own cache took 1.7–2.0 s and produced 3.2 MB.
 
-Rust v1 resolves fonts on a thread that overlaps the Wayland and GPU start-up, inside the 150 ms first-open budget. Any of (a2), (b)-parallel or (c) fits the same way: once per daemon start, off the warm-open path. Sequential (b) and (a1) without a cache do not fit comfortably under load.
+Resolving fonts on a thread that overlaps the Wayland and GPU start-up keeps this inside the 150 ms first-open budget. Any of (a2), (b)-parallel or (c) fits that way: once per daemon start, off the warm-open path. Sequential (b) and (a1) without a cache do not fit comfortably under load.
 
 **Memory** (N = 5, load 6.09): (c) RSS 15.4 MB after init (4.1 MB anon + 7.9 MB mmapped cache). (a2) RSS 44.4 MB, of which the Go heap is 28.3 MB including garbage; decoding only what matching needs gives 12.8 MB live after GC, and a compact layout would reach *~5 MB (inference)*. (a1) cache 35.6 MB. Parallel (b) 7.6 MB, and the processes exit. The 64 MB RSS budget favours (b) and (c).
 
@@ -285,17 +285,17 @@ Rust v1 resolves fonts on a thread that overlaps the Wayland and GPU start-up, i
 | (a2) pure Go on fontconfig's caches | 4–5 k LOC, 8–10 days | **Cache format churn:** v9 (2.15–2.17.1) → v11 (2.18.0/2.18.1, May–Jun 2026) → v12 (2.18.2, Jul 2026). **Matching semantics changed in 2.18:** a generic-family object and priority, scan rules generated from aliases, `xsi:nil`. A port tracks fontconfig forever. Arch's build validates the cache mtime to seconds only, which must be copied. A directory without a valid cache means rescanning. The header's `fc_version` allows detecting drift and falling back |
 | (a1) own scanner | +2–3 k LOC, +1–2 weeks | 1.3–2 s first scan and its own invalidation; the same semantic drift as (a2) |
 | (b) `fc-match` subprocess | ~400 LOC, 1–2 days | needs fontconfig's CLI (Arch's `fontconfig` package ships it; Debian splits it into `fontconfig` vs `libfontconfig1`, so the PKGBUILD/packaging must depend on it); timeouts, exit codes and parse errors; **pattern escaping** (an unescaped `fc-match sans-serif` actually asks for family "sans", which works only because fonts.conf maps sans → sans-serif); 10–50 ms of CPU per process on small machines; never use per-character queries. It never drifts: it *is* the system's fontconfig |
-| (c) cgo libfontconfig | ~250 LOC, ~1 day | cgo toolchain, cross-builds, a dynamic link to 6+ libraries; behaves like Rust v1 and every desktop app by construction; fastest and smallest |
+| (c) cgo libfontconfig | ~250 LOC, ~1 day | cgo toolchain, cross-builds, a dynamic link to 6+ libraries; behaves like every desktop app by construction; fastest and smallest |
 
 ## Risks (all areas)
 
 | Risk | Area | Likelihood | Mitigation |
 |---|---|---|---|
-| Unhinted text looks softer than Rust v1 at scale 1.0–1.3 | D2 | certain (measured) | Owner decides from `docs/evidence/go/text-corpus-compare@*.png`. Hinting is a 30–40+ day follow-up; the snapping stand-in was measured and rejected |
+| Unhinted text looks softer than hinted text at scale 1.0–1.3 | D2 | certain (measured) | Owner decides from `docs/evidence/text-corpus-compare@*.png`. Hinting is a 30–40+ day follow-up; the snapping stand-in was measured and rejected |
 | Shaping long tail (other scripts, real fonts with context/chained lookups) diverges from HarfBuzz | D2 | likely over time | Keep a HarfBuzz-oracle corpus in the test suite (dev-time oracle, not a dependency); generic GSUB/GPOS engine, not corpus-specific |
 | x/text/unicode/bidi bracket pairing bug and missing levels | D2 | certain (found) | Ship the fork; report upstream; drop the fork when fixed |
 | sfnt gaps: no variable fonts, no cmap 14, no EBDT bitmap fonts (a Terminus `.otb` would not render), CFF private dict hidden | D2 | possible | Defer; fall back to the next fontconfig face when a face is unusable |
-| Go golden images cannot pass Rust's goldens | D2 | certain | New goldens for the Go port, reviewed once against the Rust ones |
+| Unhinted renders cannot pass goldens recorded from hinted text | D2 | certain | New goldens, reviewed once against the hinted references |
 | Client XKB drifts from libxkbcommon (new keysyms, text v2 keymaps, wl_keyboard v10 repeated keys) | D3 | possible | Regenerate keysym tables; the cgo differential suite in CI; bind wl_keyboard ≤ v9 or handle the repeated state |
 | Hostile or malformed keymaps from a buggy compositor | D3 | low | Fuzz the parser; size and depth limits; on failure keep the last good keymap |
 | libxkbcommon/fontconfig through cgo are not thread-safe for shared objects | D3/D4 | real (crash observed) | Confine to one goroutine, explicit unref, no finalizers |
@@ -305,9 +305,9 @@ Rust v1 resolves fonts on a thread that overlaps the Wayland and GPU start-up, i
 
 ## Recommendations per decision
 
-- **D2 text:** build the generic OpenType shaping subset on x/image/font/sfnt + x/image/vector, the forked x/text bidi, Arabic joining, CBDT emoji with the swash-port filter, the UAX #29 grapheme breaker and the `text.rs` line features. Ship **unhinted**, with whole-pixel advances and sRGB blending: *about 6 000 own lines + 1 400 fork + ~2 300 generated; 6–8 weeks*. Defer hinting (TrueType + CFF: 30–40+ days), COLR/sbix, complex-script shapers and variable fonts. **Owner decision needed:** whether softer unhinted text is acceptable for v1, judged from the evidence images.
+- **D2 text:** build the generic OpenType shaping subset on x/image/font/sfnt + x/image/vector, the forked x/text bidi, Arabic joining, CBDT emoji with the swash-port filter, the UAX #29 grapheme breaker and the line features. Ship **unhinted**, with whole-pixel advances and sRGB blending: *about 6 000 own lines + 1 400 fork + ~2 300 generated; 6–8 weeks*. Defer hinting (TrueType + CFF: 30–40+ days), COLR/sbix, complex-script shapers and variable fonts. **Owner decision needed:** whether softer unhinted text is acceptable, judged from the evidence images.
 - **D3 keyboard:** **pure-Go client-side XKB** (keymap text v1, state from masks, consumed modifiers in XKB mode, Compose with libxkbcommon's lookup, client-side repeat on a stopped `time.Timer`, or on a timerfd if the event loop is `poll()`-based). About 2 400 lines + generated tables, *4–6 days* to harden. cgo libxkbcommon only as the test oracle in CI. Do not fork xkb-go.
-- **D4 fonts:** **`fc-match` subprocesses from the daemon** (faces in parallel, one parsed `fc-match -s` for the fallback order, never per character) while the binary is `CGO_ENABLED=0`, at *~400 LOC, 1–2 days*. If D1 chooses cgo for rendering, use **cgo libfontconfig** instead (*~250 LOC, 1 day*, identical to Rust v1). Do not port fontconfig, although it was shown to be feasible and exact.
+- **D4 fonts:** **`fc-match` subprocesses from the daemon** (faces in parallel, one parsed `fc-match -s` for the fallback order, never per character) while the binary is `CGO_ENABLED=0`, at *~400 LOC, 1–2 days*. If D1 chooses cgo for rendering, use **cgo libfontconfig** instead (*~250 LOC, 1 day*). Do not port fontconfig, although it was shown to be feasible and exact.
 - **Interplay with D1/D5:** nothing in text, fonts or keyboard *requires* cgo. If D1 requires cgo anyway, the D4 answer switches to cgo libfontconfig, and D3 could switch to libxkbcommon too at no correctness gain.
 
 ## Reproduce
@@ -316,12 +316,12 @@ Each prototype is its own module; run from its directory.
 
 ```sh
 # D3 (research/go/xkb)
-CGO_ENABLED=0 go test ./kbd/                       # ported Rust tests + nested-niri trace replay
+CGO_ENABLED=0 go test ./kbd/                       # keyboard behaviour tests + nested-niri trace replay
 go test ./xkb/                                     # cgo differential vs libxkbcommon (XKBDIFF_FULL=1 for all masks)
 WAYLAND_DISPLAY=wayland-1 go run ./cmd/keymapdump  # read-only keymap capture
 WAYLAND_DISPLAY=wayland-1 go run ./cmd/e2eprobe    # nested niri only; refuses any other compositor
 # D2 (research/go/text)
-CGO_ENABLED=0 go test ./... && go run ./cmd/corpus # renders out/ and docs/evidence/go/
+CGO_ENABLED=0 go test ./... && go run ./cmd/corpus # renders out/ and docs/evidence/
 # D4 (research/go/fonts)
 CGO_ENABLED=0 go test -short ./... && go test ./cgofc
 go run ./cmd/fontbench -table                      # correctness table vs fc-match and cgo

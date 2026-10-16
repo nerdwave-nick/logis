@@ -1,10 +1,9 @@
 package theme
 
-// A theme file as written (Rust src/theme/doc.rs): every key optional,
-// each value checked for its kind while it is read, unknown keys refused.
-// The sections and their keys are listed here in Rust's declaration order,
-// which is the order serde's "expected one of …" names them in; a parsed
-// file is a node of the values given.
+// A theme file as written: every key optional, each value checked for its
+// kind while it is read, unknown keys refused. The sections and their keys
+// are listed here in the order serde's "expected one of …" names them in;
+// a parsed file is a node of the values given.
 
 // kind is what a key's value is.
 type kind int
@@ -24,7 +23,7 @@ const (
 	kToggle               // false, or a section's settings (or a pair)
 	kPalette              // named colours
 	kRoles                // font roles: name → FontDoc
-	kEffects              // the effects: groups, and v1's keys moved into them
+	kEffects              // the effects: groups, and older keys moved into them
 	kGroup                // an effect's group, or a bare number: its strength
 	kMask                 // dots, grille or slot
 	kEvents               // an array of events: open, tab
@@ -39,7 +38,7 @@ type key struct {
 	sub *section
 }
 
-// section is a struct of optional keys; name is Rust's struct name, which
+// section is a struct of optional keys; name is the struct name that
 // serde's "expected struct …" says.
 type section struct {
 	name string

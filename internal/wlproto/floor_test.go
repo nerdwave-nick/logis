@@ -11,7 +11,7 @@ import (
 )
 
 // floor is the oldest libwayland logis builds and runs against (README,
-// "The Go build"): Ubuntu 24.04's, which CI builds on. floorInterfaces
+// "Building"): Ubuntu 24.04's, which CI builds on. floorInterfaces
 // are the core interface tables (wl_NAME_interface) libwayland-client
 // 1.22.0 exports, at the versions they describe: the interfaces of its
 // protocol/wayland.xml.

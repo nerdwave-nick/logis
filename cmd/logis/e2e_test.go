@@ -20,9 +20,9 @@ import (
 
 // End to end in a test compositor started by internal/e2e (a nested niri
 // with a generated config and a scratch runtime dir locally; headless sway
-// on CI), as Rust's tests/support/e2e does. Runs only with LOGIS_E2E set;
-// otherwise the tests skip. No input is injected: these tests only look,
-// through the harness's verified connection (screencopy).
+// on CI). Runs only with LOGIS_E2E set; otherwise the tests skip. No input
+// is injected: these tests only look, through the harness's verified
+// connection (screencopy).
 
 // nestedPatience bounds every wait on the panel.
 const nestedPatience = e2e.Patience

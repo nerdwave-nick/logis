@@ -9,11 +9,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Plain logis's tabbed launcher in the core (feat/logis-go 8cba2fc9, new
-// beside Rust v1): an app session that names its rites (servitor mode's
-// provider) shows the applications and the rites as two tabs of one
-// window, opening on the tab last used; the rites' steps go to their tab,
-// and each tab's answers go to its own feed.
+// Plain logis's tabbed launcher in the core (feat/logis-go 8cba2fc9): an
+// app session that names its rites (servitor mode's provider) shows the
+// applications and the rites as two tabs of one window, opening on the tab
+// last used; the rites' steps go to their tab, and each tab's answers go
+// to its own feed.
 
 // openTabbed opens plain logis's session id, its rites run by program.
 func (r *providerRig) openTabbed(t *testing.T, id SessionID, program string) *wire {

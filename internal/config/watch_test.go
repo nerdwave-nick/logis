@@ -7,8 +7,7 @@ import (
 	"time"
 )
 
-// Watching the config file, or every theme in a directory (ported from Rust
-// src/config/watch.rs).
+// Watching the config file, or every theme in a directory.
 
 const (
 	// patience is how long a change may take to be reported.

@@ -73,8 +73,8 @@ func (r reader) word(v *jsonc.Value, words []string) (int, error) {
 }
 
 // toggle reads a part that may be off: false, or its settings (a section's,
-// or a pair of lengths when s is nil). Rust read it as an untagged enum,
-// which loses the place and words of what is wrong within.
+// or a pair of lengths when s is nil). A refusal of it is the untagged
+// enum's, which loses the place and words of what is wrong within.
 func (r reader) toggle(v *jsonc.Value, s *section) (toggle, error) {
 	switch {
 	case v.Kind == jsonc.Bool && !v.Bool:

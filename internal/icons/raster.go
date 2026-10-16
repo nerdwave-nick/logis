@@ -12,10 +12,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/svg"
 )
 
-// Icon files to pixels (Rust src/icons/raster.rs): SVG through logis's
-// own SVG subset, PNG through image/png, both into a square, premultiplied
-// RGBA8 image of the requested pixel size, the content fitted with its
-// aspect ratio kept and centred.
+// Icon files to pixels: SVG through logis's own SVG subset, PNG through
+// image/png, both into a square, premultiplied RGBA8 image of the requested
+// pixel size, the content fitted with its aspect ratio kept and centred.
 
 // MaxIconPixels is the largest icon side logis rasterises, in pixels.
 const MaxIconPixels = 1024

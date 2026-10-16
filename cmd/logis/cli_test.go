@@ -8,9 +8,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// Ported from Rust src/cli/dmenu.rs and the dmenu cases of src/cli/mod.rs.
+// The dmenu runes and the client role's command line.
 
-// parseRunes parses dmenu runes only, as Rust's tests' parse does.
+// parseRunes parses dmenu runes only.
 func parseRunes(args ...string) (dmenuOptions, error) {
 	r := newDmenuRunes()
 	rest := &argQueue{args: args}
@@ -155,7 +155,7 @@ func TestBadValuesAreNamedWithTheirFlag(t *testing.T) {
 	}
 }
 
-// Rust took a rune's value as text, invalid UTF-8 replaced (to_string_lossy).
+// A rune's value is taken as text, invalid UTF-8 replaced.
 func TestValuesAreReadAsTextWithInvalidBytesReplaced(t *testing.T) {
 	d := mustRunes(t, "--prompt", "rite\xff ", "--search", "\xe2\x82", "--select", "a\xff\xfeb")
 	if d.view.Prompt != "rite\uFFFD " || d.view.Search != "\uFFFD" || d.view.Select.Text != "a\uFFFD\uFFFDb" {
@@ -163,7 +163,7 @@ func TestValuesAreReadAsTextWithInvalidBytesReplaced(t *testing.T) {
 	}
 }
 
-func TestNumbersParseAsRustDoes(t *testing.T) {
+func TestNumbersParseAsUnsignedDecimalsOnly(t *testing.T) {
 	if d := mustRunes(t, "--lines=+3"); *d.view.Lines != 3 {
 		t.Fatalf("%d", *d.view.Lines)
 	}
@@ -232,7 +232,6 @@ func TestListRunesWithoutDmenuAreRefused(t *testing.T) {
 	}
 }
 
-// Ported from Rust provider_takes_every_argument_after_it_as_the_program_and_its_arguments.
 func TestProviderTakesEveryArgumentAfterItAsTheProgramAndItsArguments(t *testing.T) {
 	c := mustParse(t, "--config", "/c", "--provider", "rite", "--dmenu", "-x")
 	if c.kind != providerCommand || c.config != "/c" || !reflect.DeepEqual(c.argv, []string{"rite", "--dmenu", "-x"}) {
@@ -259,7 +258,7 @@ func TestConfigNamesTheConfigFileBeforeOrAfterTheCommand(t *testing.T) {
 	if c := mustParse(t, "--config", "/x/logis.jsonc"); c.kind != appsCommand || c.config != "/x/logis.jsonc" {
 		t.Fatalf("%+v", c)
 	}
-	// As in Rust, a rune's value is taken before --config is looked for.
+	// A rune's value is taken before --config is looked for.
 	if c := mustParse(t, "--dmenu", "--prompt", "--config"); c.dmenu.view.Prompt != "--config" || c.config != "" {
 		t.Fatalf("%+v", c)
 	}
@@ -286,7 +285,7 @@ func TestASecondCommandOrAForeignRuneIsUnknown(t *testing.T) {
 		{[]string{"--h\xffresy"}, "--h\uFFFDresy"},
 		{[]string{"--dmenu", "\xff\xfe"}, "\uFFFD\uFFFD"},
 		{[]string{"--h\xe2\x82"}, "--h\uFFFD"},
-		// Rust matched only runes that are valid UTF-8.
+		// Only runes that are valid UTF-8 are matched.
 		{[]string{"--config=\xff"}, "--config=\uFFFD"},
 		{[]string{"--dmenu", "--prompt=\xff"}, "--prompt=\uFFFD"},
 		{[]string{"daemon", "--config=\xff"}, "--config=\uFFFD"},
@@ -317,7 +316,6 @@ func TestNoArgumentsOpenTheAppLauncher(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/cli/mod.rs apps_asks_for_the_app_launcher.
 func TestAppsAsksForTheAppLauncher(t *testing.T) {
 	if c := mustParse(t, "--apps"); c.kind != appsCommand || c.config != "" {
 		t.Fatalf("%+v", c)
@@ -335,9 +333,9 @@ func TestAppsAsksForTheAppLauncher(t *testing.T) {
 	}
 }
 
-// Rust's to_string_lossy: each maximal ill-formed subsequence (Unicode's
-// "maximal subpart") becomes one U+FFFD.
-func TestInvalidUTF8IsReplacedAsRustReplacesIt(t *testing.T) {
+// Each maximal ill-formed subsequence (Unicode's "maximal subpart")
+// becomes one U+FFFD.
+func TestInvalidUTF8IsReplacedPerMaximalSubpart(t *testing.T) {
 	for _, c := range []struct{ in, want string }{
 		{"", ""},
 		{"plain é ✓ 🜏", "plain é ✓ 🜏"},

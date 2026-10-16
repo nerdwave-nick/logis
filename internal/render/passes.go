@@ -5,12 +5,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// pass is one post-processing pass (Rust src/render/post.rs had one): it
-// draws a finished frame, a texture of the target's size with GL's
-// bottom-up rows, into a target with its effects. The renderer runs the
-// passes a scene's Post wants in their order, each reading what the one
-// before drew, the last drawing into the target; a pass placed before the
-// CRT pass works on the picture before it is bent.
+// pass is one post-processing pass: it draws a finished frame, a texture of
+// the target's size with GL's bottom-up rows, into a target with its
+// effects. The renderer runs the passes a scene's Post wants in their
+// order, each reading what the one before drew, the last drawing into the
+// target; a pass placed before the CRT pass works on the picture before it
+// is bent.
 type pass interface {
 	wanted(post Post) bool
 	draw(frame gles.Texture, t Target, post Post)

@@ -94,7 +94,7 @@ func TestTheRepeatTimerIsDisarmedWhileNoKeyRepeats(t *testing.T) {
 }
 
 // A shown or hidden panel starts the keyboard over: no repeat or Compose
-// sequence carries over (Rust's seat reset).
+// sequence carries over (the window resets the keyboard).
 func TestShowAndHideResetTheKeyboard(t *testing.T) {
 	f := newFakeShell(t, niri)
 	w, _ := openFake(t, f)
@@ -111,7 +111,7 @@ func TestShowAndHideResetTheKeyboard(t *testing.T) {
 }
 
 // A keyboard the seat no longer has starts over: a key it held stops
-// repeating (Rust resets the input model when the capability goes).
+// repeating (its consumer is reset when the capability goes).
 func TestALostKeyboardCapabilityEndsTheRepeat(t *testing.T) {
 	f := newFakeShell(t, niri)
 	w, _ := openFake(t, f)

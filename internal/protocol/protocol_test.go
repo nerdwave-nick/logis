@@ -49,7 +49,7 @@ func wantWire(t *testing.T, message any, want string) {
 	}
 }
 
-// Ported from Rust src/protocol requests_have_a_stable_wire_shape.
+// Requests have a stable wire shape.
 func TestRequestsHaveAStableWireShape(t *testing.T) {
 	wantWire(t, Hello(), `{"type":"hello","version":5}`)
 	wantWire(t, Open(ModeDmenu, nil), `{"type":"open","mode":"dmenu"}`)
@@ -167,8 +167,8 @@ func decodeRequest(t *testing.T, text string) Request {
 	return r
 }
 
-// A message the daemon cannot understand is refused with a reason, as serde
-// refuses an unknown variant or a missing field.
+// A message the daemon cannot understand is refused with a reason: an
+// unknown type or mode, or a missing field.
 func TestUnknownOrIncompleteRequestsAreRefused(t *testing.T) {
 	for _, tc := range []struct{ text, needle string }{
 		{`{"type":"heresy"}`, "heresy"},

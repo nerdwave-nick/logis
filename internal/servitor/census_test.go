@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Ported from Rust src/servitor/census.rs tests.
+// Reading servitor's census, herald by herald.
 
 func TestARecordedVigilReadsRiteByRiteThenItsConclusion(t *testing.T) {
 	heralds := recorded(t, "vigil.jsonl")
@@ -152,8 +152,8 @@ func TestACensusThatCannotStartIsAnError(t *testing.T) {
 	}
 }
 
-// Not in Rust: a reader that wants no more closes the census's stdout,
-// and the census, which keeps writing, ends.
+// A reader that wants no more closes the census's stdout, and the census,
+// which keeps writing, ends.
 func TestAReaderThatDepartsEndsTheCensus(t *testing.T) {
 	dir := t.TempDir()
 	program := fake(t, dir, fixture(t, "lingering.jsonl"))

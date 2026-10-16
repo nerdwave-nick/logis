@@ -18,10 +18,10 @@ import (
 
 // Cogitator is a logis daemon in a test compositor, traced, with a virtual
 // keyboard to work its window, and `logis --dmenu` / `--provider` /
-// `--servitor` / `--apps` clients with piped stdout (Rust tests/support/e2e/cogitator.rs).
-// The waits follow the daemon's session trace (`show <session>`, `items
-// <n>`, `query <JSON string>` …), which the daemon emits once it shows
-// sessions in its window (G11).
+// `--servitor` / `--apps` clients with piped stdout. The waits follow the
+// daemon's session trace (`show <session>`, `items <n>`, `query <JSON
+// string>` …), which the daemon emits once it shows sessions in its window
+// (G11).
 type Cogitator struct {
 	t          testing.TB
 	Compositor *Compositor

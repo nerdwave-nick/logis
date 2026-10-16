@@ -3,10 +3,9 @@ package motion
 import "math"
 
 // Easing is a progress curve from (0, 0) to (1, 1): how a transition's
-// progress in time (0 → 1) maps to how far it has moved (0 → 1). Linear,
-// or CSS's cubic-bezier(x1, y1, x2, y2), so a theme can name the curves
-// designers already know (Rust src/motion/easing.rs). The zero Easing is
-// Linear.
+// progress in time (0 → 1) maps to how far it has moved (0 → 1). Linear, or
+// CSS's cubic-bezier(x1, y1, x2, y2), so a theme can name the curves
+// designers already know. The zero Easing is Linear.
 type Easing struct {
 	bezier bool
 	// x1, y1, x2, y2: the control points of a cubic Bézier from (0, 0) to

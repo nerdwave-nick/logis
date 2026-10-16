@@ -9,9 +9,8 @@ import (
 	"time"
 )
 
-// Test helpers (Rust src/servitor/testing.rs): the fake servitor
-// (tests/fixtures/servitor/servitor) and scratch directories for its
-// records.
+// Test helpers: the fake servitor (tests/fixtures/servitor/servitor) and
+// scratch directories for its records.
 
 // fixture is a file of tests/fixtures/servitor.
 func fixture(t testing.TB, name string) string {

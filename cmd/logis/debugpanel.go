@@ -30,11 +30,11 @@ func debugPanel(src *config.Source, stdout, stderr io.Writer) int {
 	}
 	cfg, err := src.Load()
 	if err != nil {
-		return fail(stderr, err.Error()) // Rust's words: the error alone
+		return fail(stderr, err.Error()) // the error alone
 	}
-	// Fonts are resolved at start on a goroutine of their own (Rust
-	// Windows::connect): fontconfig's start-up overlaps the compositor's
-	// and the GPU's, off the first frame's critical path.
+	// Fonts are resolved at start on a goroutine of their own:
+	// fontconfig's start-up overlaps the compositor's and the GPU's, off
+	// the first frame's critical path.
 	fonts := text.ResolveSystem()
 	w, err := window.Open()
 	if err != nil {

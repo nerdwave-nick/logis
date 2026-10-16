@@ -10,11 +10,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust tests/render.rs and tests/primitives.rs: the offscreen
-// path read back pixel by pixel — SDF coverage, borders, gradients, ramps,
-// highlights, glows, premultiplied alpha, scales 1.0/1.3/2.0. Rust's
-// per-backend cases (Vulkan, GL, software) become one GL path, run on
-// i915 and on llvmpipe (LIBGL_ALWAYS_SOFTWARE=1).
+// The offscreen path read back pixel by pixel — SDF coverage, borders,
+// gradients, ramps, highlights, glows, premultiplied alpha, scales
+// 1.0/1.3/2.0. One GL path, run on i915 and on llvmpipe
+// (LIBGL_ALWAYS_SOFTWARE=1).
 
 var logical = scale.Size{W: 100, H: 80}
 
@@ -160,7 +159,7 @@ func TestLaterShapesPaintOverEarlierOnesAndTheClearColourShowsThrough(t *testing
 	near(t, "clear colour", img.Pixel(80, 60), [4]byte{16, 16, 16, 255}, 1)
 }
 
-// tests/primitives.rs: ramps and highlights on a 80×60 box at (10, 10).
+// Ramps and highlights on a 80×60 box at (10, 10).
 
 var (
 	red   = render.Hex(0xff0000)

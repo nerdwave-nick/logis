@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/motion/easing.rs.
+// Linear and cubic-bezier easings, against CSS's named curves.
 
 var cssEase = CubicBezier(0.25, 0.1, 0.25, 1.0)
 

@@ -8,9 +8,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// Say is one line a provider says to logis, newline included, in the shape
-// Rust's serde gives FromProvider: the "type" first, every field present,
-// null for what is absent, strings as they are (no HTML escapes). logis's
+// Say is one line a provider says to logis, newline included: the "type"
+// first, every field present, null for what is absent, strings as they
+// are (no HTML escapes). logis's
 // own built-in providers (servitor mode) speak through it.
 func Say(m Message) []byte {
 	var w any

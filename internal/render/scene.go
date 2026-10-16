@@ -1,8 +1,7 @@
-// Package render is logis's own GPU renderer (spec §5, D1; Rust
-// src/render): SDF rounded rectangles with borders, glows and gradients
-// of up to four stops, and image quads from an atlas, drawn with OpenGL
-// ES 3 in premultiplied alpha. Shaders are GLSL ES 3.00 ports of Rust's
-// sdf.wgsl and image.wgsl, compiled by the driver when the renderer is
+// Package render is logis's own GPU renderer (spec §5, D1): SDF rounded
+// rectangles with borders, glows and gradients of up to four stops, and
+// image quads from an atlas, drawn with OpenGL ES 3 in premultiplied alpha.
+// Shaders are GLSL ES 3.00, compiled by the driver when the renderer is
 // made (at start, never lazily on the first frame).
 //
 // A Renderer belongs to the goroutine its GL context is current on (the
@@ -49,7 +48,7 @@ const MaxStops = 4
 // Paint is how an area is painted: one colour, or a linear gradient through
 // two to MaxStops evenly spaced stops from Start to End (logical pixels,
 // surface coordinates), interpolated premultiplied and clamped beyond its
-// ends. Rust's Paint::Solid, Paint::Linear and Paint::Ramp in one type.
+// ends.
 type Paint struct {
 	// Start and End are where the first and the last stop are reached
 	// (unused by a solid paint).

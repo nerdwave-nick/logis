@@ -11,12 +11,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// The dmenu runes at the process boundary (Rust tests/dmenu_runes.rs): real
-// `logis --dmenu` clients and a real daemon over its socket, with the
-// scripted resolver standing in for the window (it picks the first item
-// whose shown text starts with '>', or dismisses). No compositor is
-// needed, so these run everywhere; dmenu_window_e2e_test.go covers the
-// window itself.
+// The dmenu runes at the process boundary: real `logis --dmenu` clients and
+// a real daemon over its socket, with the scripted resolver standing in for
+// the window (it picks the first item whose shown text starts with '>', or
+// dismisses). No compositor is needed, so these run everywhere;
+// dmenu_window_e2e_test.go covers the window itself.
 
 // ran is how a client ended.
 type ran struct {
@@ -170,8 +169,7 @@ func TestE2EADaemonThatCannotStartIsReportedWithExit2(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/cli.rs a_dmenu_caller_without_a_usable_session_exits_2_naming_why
-// (the caller contract): a `logis --dmenu` caller learns that logis cannot
+// The caller contract: a `logis --dmenu` caller learns that logis cannot
 // serve it from exit 2 and an empty stdout, with the plain reason on
 // stderr, whatever stands in the way. The daemon it starts opens the
 // window, and relays why it could not.

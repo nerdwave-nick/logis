@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// Frecency (feat/logis story 7; Rust src/apps/frecency.rs): how often and
-// how recently each application was launched, persisted in
+// Frecency (feat/logis story 7): how often and how recently each
+// application was launched, persisted in
 // $XDG_STATE_HOME/logis/frecency.json (default ~/.local/state) and turned
 // into a boost for its match score.
 //
@@ -25,7 +25,7 @@ import (
 //
 // The file is replaced atomically (written beside it, synced, renamed), so
 // a crash leaves the old or the new one, never half of either. Its format
-// is Rust v1's.
+// is {"version":1,"apps":{ID:{"rank":…,"last":…}}}.
 
 const (
 	// MaxBoost is the largest boost frecency adds to a match score.

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/window/blur.rs.
+// Tests of the blur region: a rounded rectangle in whole pixels.
 
 func covers(rects [][4]int32, x, y int32) bool {
 	return slices.ContainsFunc(rects, func(r [4]int32) bool {

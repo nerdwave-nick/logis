@@ -2,7 +2,7 @@ package render
 
 import "testing"
 
-// Ports of Rust src/render/packer.rs's tests.
+// The atlas's shelf packer: placing, refusing and growing.
 
 type at struct {
 	x, y uint32

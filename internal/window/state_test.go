@@ -6,7 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ported from Rust src/window/state.rs.
+// Tests of the surface state: configures, scale changes and frame callbacks.
 
 const s13 = 156
 

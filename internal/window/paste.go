@@ -9,9 +9,9 @@ import (
 )
 
 // clipboard is paste from the clipboard (wl_data_device) and the primary
-// selection (zwp_primary_selection_device_v1), both used when offered
-// (Rust src/window/paste.rs). The devices track the selection offers and
-// their MIME types as the compositor announces them to the focused window.
+// selection (zwp_primary_selection_device_v1), both used when offered. The
+// devices track the selection offers and their MIME types as the compositor
+// announces them to the focused window.
 //
 // A paste picks the best text type on offer (input.ChooseMIME), asks the
 // owner to write it into a pipe, and reads that pipe without blocking: the

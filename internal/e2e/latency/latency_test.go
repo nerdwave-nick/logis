@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Ports of Rust tests/latency.rs's statistics tests.
+// Tests of the latency statistics and reports.
 
 func TestStatisticsUseTheNearestRank(t *testing.T) {
 	s := NewSeries("x", 10, []float64{4, 1, 3, 2, 5})

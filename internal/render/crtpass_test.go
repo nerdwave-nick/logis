@@ -10,9 +10,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/egl"
 )
 
-// The CRT pass takes one named uniform per control of effects.Controls,
-// and the regions' (v1's packed u_a and u_b are gone): each is active in
-// the compiled program, so none is silently dropped.
+// The CRT pass takes one named uniform per control of effects.Controls, and
+// the regions' (no packed u_a and u_b): each is active in the compiled
+// program, so none is silently dropped.
 func TestEveryControlIsANamedUniformOfTheCRTPass(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -40,7 +40,7 @@ func TestEveryControlIsANamedUniformOfTheCRTPass(t *testing.T) {
 		}
 	}
 	if p.count < 0 || strings.Contains(crtFragment, "u_a;") || strings.Contains(crtFragment, "u_b;") {
-		t.Error("the region count, or v1's packed strengths")
+		t.Error("the region count, or packed strengths")
 	}
 	if !strings.HasPrefix(crtFragment, "#version 300 es\n// Original implementation for logis from a behavioural specification (clean\n// room), extending logis's post shader. MIT, the logis project.") {
 		t.Error("the clean room's header")

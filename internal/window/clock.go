@@ -1,13 +1,13 @@
 package window
 
-// When the frame being drawn will be seen (Rust src/window/clock.rs): the
-// time motion evaluates its transitions at. With wp_presentation (spec
-// §4.2: used when offered) the compositor reports when each frame reached
-// the screen and the output's refresh interval, so while frames flow the
-// next frame's moment is the next refresh after now. Without it, or after
-// a pause, "now" stands in (with a 60 Hz interval if none is known). Only
-// CLOCK_MONOTONIC reports are used: the clock the trace and motion count
-// in, and what wp_presentation's clock_id normally names.
+// When the frame being drawn will be seen: the time motion evaluates its
+// transitions at. With wp_presentation (spec §4.2: used when offered) the
+// compositor reports when each frame reached the screen and the output's
+// refresh interval, so while frames flow the next frame's moment is the
+// next refresh after now. Without it, or after a pause, "now" stands in
+// (with a 60 Hz interval if none is known). Only CLOCK_MONOTONIC reports
+// are used: the clock the trace and motion count in, and what
+// wp_presentation's clock_id normally names.
 
 // FrameTime is a frame's moment and the interval between frames, in
 // CLOCK_MONOTONIC nanoseconds.
@@ -45,12 +45,12 @@ func (c *frameClock) drew(at uint64) { c.drawn = at }
 // after the frame drawn before it, but no later than an interval after
 // the timing alone gives.
 //
-// That last bound departs from Rust: a frame is drawn when the compositor
-// asks for one, so it queues behind one frame at most. Without it, every
-// callback that came sooner than an interval (60 Hz is a guess when the
-// output reports no refresh, as nested niri does; or a burst after a
-// stall) pushed each later moment further ahead of the screen, so motion
-// ran ahead and a close faded out tens of milliseconds early.
+// That last bound: a frame is drawn when the compositor asks for one, so it
+// queues behind one frame at most. Without it, every callback that came
+// sooner than an interval (60 Hz is a guess when the output reports no
+// refresh, as nested niri does; or a burst after a stall) pushed each later
+// moment further ahead of the screen, so motion ran ahead and a close faded
+// out tens of milliseconds early.
 func (c *frameClock) frame(now uint64) FrameTime {
 	t := c.timed(now)
 	if c.drawn != 0 {

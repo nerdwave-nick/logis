@@ -8,8 +8,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ported from Rust src/motion/apply.rs; the caret fading with its line is
-// Go's own (Rust leaves it opaque while the panel fades).
+// A pose applied to a scene: every position moved and every colour faded,
+// the caret fading with its line.
 
 func applyScene() *render.Scene {
 	shape := render.RoundedRect{

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/exec.rs.
+// Splitting the Exec key into arguments and its field codes.
 
 func execArgs(t *testing.T, value string) []string {
 	t.Helper()

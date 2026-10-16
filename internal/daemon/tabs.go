@@ -10,9 +10,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Plain logis's tabbed launcher in the daemon (feat/logis-go 8cba2fc9, new
-// beside Rust v1): plain logis with servitor on its PATH opens an app
-// session that names its rites, servitor mode's provider. The session is
+// Plain logis's tabbed launcher in the daemon (feat/logis-go 8cba2fc9):
+// plain logis with servitor on its PATH opens an app session that names
+// its rites, servitor mode's provider. The session is
 // shown as two tabs of one window, the applications and the rites,
 // opening on the tab last used; the provider starts with the session, and
 // its first stage fills the rites' tab instead of showing the window.

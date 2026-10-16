@@ -11,10 +11,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// The app launcher as a built-in provider (feat/logis stories 5–7, §4.7;
-// Rust src/provider/apps.rs): the applications of the daemon's index as
-// the first stage, most frecent first, matched by name, generic name,
-// keywords and program; an app's desktop actions as its second stage.
+// The app launcher as a built-in provider (feat/logis stories 5–7, §4.7):
+// the applications of the daemon's index as the first stage, most frecent
+// first, matched by name, generic name, keywords and program; an app's
+// desktop actions as its second stage.
 //
 //   - Return on an app launches it; Shift+Return on an app with actions
 //     opens them (the app itself first, then each action), and Return
@@ -138,7 +138,7 @@ func program(x *apps.Exec) string {
 	}
 	p := strings.TrimRight(x.Program(), "/")
 	if p == "" || p == "." || p == ".." || strings.HasSuffix(p, "/.") || strings.HasSuffix(p, "/..") {
-		return "" // Rust's Path::file_name has none
+		return "" // a path ending in . or .. names no file
 	}
 	return filepath.Base(p)
 }

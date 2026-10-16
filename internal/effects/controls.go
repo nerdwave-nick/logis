@@ -58,7 +58,7 @@ var Controls = []Control{
 	{"grain", "strength", "u_grain_strength", 0, 1, 0, nil, func(c *CRT) *float32 { return &c.Grain.Strength }},
 	{"grain", "rate", "u_grain_rate", 0, 60, 24, nil, func(c *CRT) *float32 { return &c.Grain.Rate }},
 	{"flicker", "strength", "u_flicker_strength", 0, 1, 0, nil, func(c *CRT) *float32 { return &c.Flicker.Strength }},
-	// 47 rad/s, v1's tremble, exactly in float32.
+	// 47 rad/s, the default tremble, exactly in float32.
 	{"flicker", "frequency", "u_flicker_freq", 0.5, 30, 47 / (2 * math.Pi), nil, func(c *CRT) *float32 { return &c.Flicker.Frequency }},
 }
 

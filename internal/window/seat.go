@@ -20,8 +20,8 @@ type Keyboard interface {
 	RepeatInfo(rate, delay int32)
 }
 
-// seat is the first seat the compositor offers and its keyboard and
-// pointer while it has them (Rust src/window/seat.rs).
+// seat is the first seat the compositor offers and its keyboard and pointer
+// while it has them.
 type seat struct {
 	name     uint32
 	seat     *wlproto.WlSeat

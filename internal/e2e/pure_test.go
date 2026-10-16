@@ -14,8 +14,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// Ports of Rust tests/e2e.rs's tests of the harness's pure parts and its
-// isolation guard: these always run.
+// Tests of the harness's pure parts and its isolation guard: these
+// always run.
 
 func TestTheInjectorRefusesASocketServedByAnyOtherProcess(t *testing.T) {
 	// A socket this process serves: its peer is us, not a compositor the

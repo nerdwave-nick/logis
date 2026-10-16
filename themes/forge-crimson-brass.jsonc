@@ -1,7 +1,6 @@
-// Forge crimson & brass: the default look of logis (spec §4.9), after the
-// research spike (research/evidence/spike.png): a soot-dark translucent
-// panel, a brass-to-crimson border with a travelling highlight, a pulsing
-// crimson glow, scanlines, grain and a subtle flicker.
+// Forge crimson & brass: the default look of logis (spec §4.9): a soot-dark
+// translucent panel, a brass-to-crimson border with a travelling highlight,
+// a pulsing crimson glow, scanlines, grain and a subtle flicker.
 //
 // This theme gives every key: any other theme falls back to it for what it
 // leaves out. Lengths are logical pixels, durations milliseconds, strengths

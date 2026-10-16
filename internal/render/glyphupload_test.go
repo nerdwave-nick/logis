@@ -7,9 +7,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// A frame's new glyphs reach the atlas texture in one upload per shelf
-// they fill, not one per glyph (as wgpu stages glyphon's writes into one
-// copy per frame): each upload is a driver call that costs tens of
+// A frame's new glyphs reach the atlas texture in one upload per shelf they
+// fill, not one per glyph: each upload is a driver call that costs tens of
 // microseconds, and a first frame of a panel full of text has a hundred
 // glyphs or more.
 func TestAFramesNewGlyphsAreUploadedOncePerShelf(t *testing.T) {

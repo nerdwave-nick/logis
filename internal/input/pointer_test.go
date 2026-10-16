@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/input/pointer.rs.
+// Tests of the pointer model: frames, positions, buttons and scrolling.
 
 func over(x, y float64) *Pointer {
 	p := NewPointer()

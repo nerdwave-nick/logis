@@ -13,8 +13,7 @@ import (
 // Latency (spec §3 budgets, §6) in the test compositor, the research/bench
 // T0_NS way, against `logis daemon --debug-panel` (the only window logis
 // shows until the daemon renders sessions; then latency.WarmOpen measures
-// `logis --dmenu` from exec to the daemon's first commit, as Rust's
-// tests/latency.rs does):
+// `logis --dmenu` from exec to the daemon's first commit):
 //
 //   - debug panel warm open: the panel's `show` → its first `commit`: the
 //     surface made, configured, drawn and presented on a GPU already woken

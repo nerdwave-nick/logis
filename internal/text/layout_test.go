@@ -15,9 +15,9 @@ import (
 
 // cosmicCase is one line cosmic-text laid out: testdata/cosmic.json,
 // recorded once from cosmic-text 0.19.0 setting each line with the pinned
-// fonts (unwrapped, its rich text spans for colours and emphasis faces,
-// an ellipsis or clip in a column). It is the reference the Go line layout
-// is held to.
+// fonts (unwrapped, its rich text spans for colours and emphasis faces, an
+// ellipsis or clip in a column). It is the reference logis's line layout is
+// held to.
 type cosmicCase struct {
 	Set          string   `json:"set"`
 	Scale        float32  `json:"scale"`
@@ -68,7 +68,7 @@ var divergences = map[string]string{
 	"off":                    "cosmic-text sets a word-start match's whole word in its face",
 }
 
-// The Go line layout equals cosmic-text 0.19's on every recorded case:
+// logis's line layout equals cosmic-text 0.19's on every recorded case:
 // fonts, glyphs, pen positions and whole-pixel advances, byte ranges,
 // direction, layout width and baseline.
 func TestLinesAreLaidOutLikeCosmicText(t *testing.T) {

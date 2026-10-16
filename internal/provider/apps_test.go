@@ -11,7 +11,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// Ported from Rust src/provider/apps.rs.
+// The app launcher as a provider: its stages, answers and launches.
 
 const appsNow = 1_760_000_000
 

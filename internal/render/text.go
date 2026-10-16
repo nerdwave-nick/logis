@@ -29,9 +29,9 @@ type Span struct {
 // Range is a byte range of a line.
 type Range struct{ Start, End int }
 
-// Text is one line of text in a scene, painted after the shapes and
-// images (Rust render::Text). Lengths are logical pixels. Line breaks are
-// drawn as spaces: it stays one line.
+// Text is one line of text in a scene, painted after the shapes and images.
+// Lengths are logical pixels. Line breaks are drawn as spaces: it stays one
+// line.
 type Text struct {
 	Text string
 	// Origin is the left and top of the line box.
@@ -135,8 +135,7 @@ func (r *Renderer) Fonts() *text.Fonts { return r.glyphs.fonts }
 func (r *Renderer) GlyphCount() int { return len(r.glyphs.cache) }
 
 // MeasureText is the width t takes on one line at s in logical pixels,
-// ignoring its column, colours and emphasis (Rust TextMeasure); false
-// without fonts.
+// ignoring its column, colours and emphasis; false without fonts.
 func (r *Renderer) MeasureText(t Text, s scale.Scale) (float32, bool) {
 	if r.glyphs.fonts == nil {
 		return 0, false
@@ -146,8 +145,8 @@ func (r *Renderer) MeasureText(t Text, s scale.Scale) (float32, bool) {
 	return l.LayoutWidth / f, true
 }
 
-// shape is texts shaped at s, reusing unchanged lines (Rust TextPass
-// prepare): in buffer pixels, so advances round to the real pixel grid.
+// shape is texts shaped at s, reusing unchanged lines: in buffer pixels, so
+// advances round to the real pixel grid.
 func (p *glyphPass) shape(texts []Text, s scale.Scale) {
 	p.shaped = p.shaped[:min(len(p.shaped), len(texts))]
 	f := s.Factor()
@@ -221,7 +220,7 @@ func subpixelBin(pos float32) (int, uint8) {
 	return trunc + 1, 0
 }
 
-// Caret is a caret drawn at a character of a line (Rust render::Caret).
+// Caret is a caret drawn at a character of a line.
 type Caret struct {
 	// At is the byte offset in the line's text it stands before.
 	At    int

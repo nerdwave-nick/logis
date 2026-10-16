@@ -7,10 +7,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The panel itself (Rust src/list/scene/chrome.rs): its body with the glow
-// (pulsing) and the border (its gradient and travelling highlight), the
-// corner rivets, the rule under the prompt line, the gear sigil, and the
-// post-processing effects over the body.
+// The panel itself: its body with the glow (pulsing) and the border (its
+// gradient and travelling highlight), the corner rivets, the rule under the
+// prompt line, the gear sigil, and the post-processing effects over the
+// body.
 
 // panel draws the body, its glow and border, then the rivets.
 func panel(sc *render.Scene, body [4]float32, s Style) {

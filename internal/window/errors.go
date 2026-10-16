@@ -1,7 +1,7 @@
 package window
 
-// Why the cogitator cannot be shown, in Rust v1's words (src/wayland.rs,
-// src/window/mod.rs). Every one of them ends logis with exit status 2.
+// Why the cogitator cannot be shown, in its own words. Every one of them
+// ends logis with exit status 2.
 
 // NoSessionError: no compositor could be reached or greeted.
 type NoSessionError struct{ Reason string }

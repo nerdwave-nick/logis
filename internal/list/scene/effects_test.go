@@ -9,9 +9,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// Ported from Rust src/list/scene/tests.rs: the post-processing effects
-// over the body, the phosphor theme's look, and a personal theme's sigil
-// image (feat/logis-go G18).
+// The post-processing effects over the body, the phosphor theme's look, and
+// a personal theme's sigil image (feat/logis-go G18).
 
 func phosphorTheme(t *testing.T) *theme.Theme {
 	t.Helper()

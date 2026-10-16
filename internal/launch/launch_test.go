@@ -1,10 +1,9 @@
 package launch_test
 
-// Launching applications for real (a port of the Rust reference's
-// tests/launch.rs): the fixture application tests/fixtures/apps/bin/anoint
-// records how it was started; a fake session bus (dbustest) stands in for
-// systemd's user manager and for D-Bus activation. Nothing here reaches the
-// real session bus.
+// Launching applications for real: the fixture application
+// tests/fixtures/apps/bin/anoint records how it was started; a fake session
+// bus (dbustest) stands in for systemd's user manager and for D-Bus
+// activation. Nothing here reaches the real session bus.
 
 import (
 	"errors"

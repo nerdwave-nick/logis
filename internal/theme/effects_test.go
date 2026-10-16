@@ -10,10 +10,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// The theme's effects (cd816303, a divergence from Rust v1): each effect a
-// group of the CRT pass's controls; a bare number is the group's strength,
-// and v1's keys (bloom, curvature, vignette) set their new places, so a v1
-// theme stays valid.
+// The theme's effects (cd816303): each effect a group of the CRT pass's
+// controls; a bare number is the group's strength, and the older keys
+// (bloom, curvature, vignette) set their new places, so an older theme
+// stays valid.
 
 // ownerLook is a look as the owner chose it in the effects lab (99fe9bbb).
 func ownerLook(scan effects.Scanlines, glow effects.Glow, ab effects.Aberration, mask effects.Mask,
@@ -43,12 +43,12 @@ func TestTheBundledThemesWearTheOwnersLooks(t *testing.T) {
 	}
 }
 
-// A v1 theme's strengths land on their groups' strengths; the group's
+// An older theme's strengths land on their groups' strengths; the group's
 // other controls come from the base, as any section's keys do.
-func TestAV1ThemesStrengthsStayValid(t *testing.T) {
-	th, _ := themesDir(t, map[string]string{"v1": `{"effects": {"scanlines": 0.2, "grain": 0.1, "flicker": 0.02,
+func TestAnOlderThemesStrengthsStayValid(t *testing.T) {
+	th, _ := themesDir(t, map[string]string{"older": `{"effects": {"scanlines": 0.2, "grain": 0.1, "flicker": 0.02,
 		"vignette": 0.3, "bloom": 0.4, "curvature": 0.1, "aberration": 0.5}}`})
-	got := load(t, th, "v1").Effects
+	got := load(t, th, "older").Effects
 	want := Default().Effects
 	want.Scanlines.Strength, want.Grain.Strength, want.Flicker.Strength = 0.2, 0.1, 0.02
 	want.Roundness.Vignette, want.Glow.Strength, want.Roundness.Curvature, want.Aberration.Amount = 0.3, 0.4, 0.1, 0.5
@@ -106,10 +106,10 @@ func TestEffectsAreRefusedWithTheirPlace(t *testing.T) {
 		`{"effects": {"roundness": 0.5}}`:                              "1:29: invalid type: floating point `0.5`, expected struct RoundnessDoc",
 		`{"effects": {"glow": "x"}}`:                                   "1:24: invalid type: string \"x\", expected " + groupWants,
 		`{"effects": {"grain": {"rte": 3}}}`:                           "1:28: unknown field `rte`, expected `strength` or `rate`",
-		`{"effects": {"vignette": 0.3, "roundness": {"vignette": 0}}}`: "1:41: `vignette` is v1's name of `roundness.vignette`: give it once",
-		`{"effects": {"roundness": {"curvature": 0}, "curvature": 0}}`: "1:55: `curvature` is v1's name of `roundness.curvature`: give it once",
-		`{"effects": {"glow": {"strength": 0}, "bloom": 0.2}}`:         "1:45: `bloom` is v1's name of `glow.strength`: give it once",
-		`{"effects": {"bloom": 0.2, "glow": 0.2}}`:                     "1:33: `bloom` is v1's name of `glow.strength`: give it once",
+		`{"effects": {"vignette": 0.3, "roundness": {"vignette": 0}}}`: "1:41: `vignette` is the older name of `roundness.vignette`: give it once",
+		`{"effects": {"roundness": {"curvature": 0}, "curvature": 0}}`: "1:55: `curvature` is the older name of `roundness.curvature`: give it once",
+		`{"effects": {"glow": {"strength": 0}, "bloom": 0.2}}`:         "1:45: `bloom` is the older name of `glow.strength`: give it once",
+		`{"effects": {"bloom": 0.2, "glow": 0.2}}`:                     "1:33: `bloom` is the older name of `glow.strength`: give it once",
 		`{"effects": {"glitter": 1}}`: "1:22: unknown field `glitter`, expected one of `scanlines`, `glow`, `aberration`, " +
 			"`mask`, `roundness`, `grain`, `flicker`, `glitch`, `custom-shader`, `vignette`, `bloom`, `curvature`",
 	} {

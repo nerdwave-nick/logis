@@ -3,8 +3,8 @@ package apps
 import "strings"
 
 // Locale is which localised value a key file offers for the user's locale
-// (Desktop Entry Specification, "Localized values for keys"; Rust
-// src/apps/locale.rs): for LC_MESSAGES of the form
+// (Desktop Entry Specification, "Localized values for keys"): for
+// LC_MESSAGES of the form
 // lang_COUNTRY.ENCODING@MODIFIER, the keys Key[lang_COUNTRY@MODIFIER],
 // Key[lang_COUNTRY], Key[lang@MODIFIER] and Key[lang] are tried in that
 // order, then the plain Key. The encoding is ignored.

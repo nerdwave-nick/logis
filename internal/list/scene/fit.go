@@ -9,15 +9,14 @@ import (
 )
 
 // How a list fits its window, top to bottom: the glow margin, the body —
-// the prompt line, the rule, a gap, the rows, a gap — and the margin
-// again. The panel's height follows its rows (a divergence from Rust v1,
-// whose theme also gave the window a height, so an empty band could stay
-// below the last row): the theme's window.rows (or --lines) rows at the
-// theme's row height, exactly. On an output too short for them the panel
-// takes the output's height and shows the rows that fit, the leftover
-// height spread evenly between them, so there is never a gap. Everything
-// above the first row is head and everything below the last is foot:
-// Fit, FitIn and GridOf all measure through them.
+// the prompt line, the rule, a gap, the rows, a gap — and the margin again.
+// The panel's height follows its rows, so no empty band stays below the
+// last row: the theme's window.rows (or --lines) rows at the theme's row
+// height, exactly. On an output too short for them the panel takes the
+// output's height and shows the rows that fit, the leftover height spread
+// evenly between them, so there is never a gap. Everything above the first
+// row is head and everything below the last is foot: Fit, FitIn and GridOf
+// all measure through them.
 
 // head is from the surface's top to the first row's top.
 func head(t *theme.Theme) float32 { return t.Window.Margin + listTop(t) + t.Row.Gap }

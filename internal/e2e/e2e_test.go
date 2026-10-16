@@ -14,8 +14,8 @@ import (
 
 func TestMain(m *testing.M) { Main(m) }
 
-// The harness in a real compositor (LOGIS_E2E=niri|sway): Rust tests/e2e.rs's
-// harness scenario with the debug panel (the only window logis shows yet),
+// The harness in a real compositor (LOGIS_E2E=niri|sway): the harness
+// scenario with the debug panel (the only window logis shows yet),
 // and checks of the pointer, the selection owner and the watchdog against
 // probe clients. Skipped without LOGIS_E2E.
 

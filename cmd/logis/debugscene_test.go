@@ -7,8 +7,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust src/window/debug/mod.rs's tests (the query itself comes
-// with the keyboard slice).
+// The debug panel's scene: its body, title, rows and query line (the
+// query's contents are debugsession_test.go's).
 
 func TestAtTheRequestedSizeTheBodyIsTheFullPanel(t *testing.T) {
 	sc := debugScene(debugSize)
@@ -50,7 +50,7 @@ func TestTheBodyIsSootUnderABrassToCrimsonBorderWithACrimsonGlow(t *testing.T) {
 	}
 }
 
-func TestTheTitleRowsAndQueryLineAreTheRustPanels(t *testing.T) {
+func TestTheTitleRowsAndQueryLineSitInThePanel(t *testing.T) {
 	sc := debugScene(debugSize)
 	if len(sc.Texts) != 1+len(debugRows)+1 || len(debugRows) != 9 {
 		t.Fatalf("%d texts for %d rows, want a title, every row and the query line", len(sc.Texts), len(debugRows))
@@ -102,9 +102,9 @@ func TestASmallerBodyShowsOnlyTheRowsThatFit(t *testing.T) {
 	}
 }
 
-// Rust confines the panel's lines to the body: rows and the query line to
-// a column 44 px narrower than it, the title 24 px narrower still, all
-// ending with an ellipsis when too long.
+// The panel's lines keep to the body: rows and the query line to a column
+// 44 px narrower than it, the title 24 px narrower still, all ending with
+// an ellipsis when too long.
 func TestTheLinesKeepToTheirColumns(t *testing.T) {
 	for _, size := range []scale.Size{debugSize, {W: 466, H: 300}} {
 		sc := debugScene(size)

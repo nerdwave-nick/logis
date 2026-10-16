@@ -13,10 +13,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// A provider process (Rust src/provider/process.rs), spawned in its own
-// process group with the caller's working directory and environment,
-// spoken to through its stdin and heard on its stdout, one JSON line at a
-// time.
+// A provider process, spawned in its own process group with the caller's
+// working directory and environment, spoken to through its stdin and heard
+// on its stdout, one JSON line at a time.
 //
 //   - A listener goroutine turns stdout lines into callbacks, reads on to
 //     the end (so the provider never blocks on a full pipe), and reports
@@ -53,7 +52,7 @@ func LaunchOf(l protocol.Launch) Launch {
 
 // Heard is what the listener reports: one line (its Message, or Err why it
 // could not be read), or the provider's exit (Exited, how in Status, as
-// Rust's ExitStatus says it: "exit status: 0", "signal: 15 (SIGTERM)").
+// StatusOf says it: "exit status: 0", "signal: 15 (SIGTERM)").
 type Heard struct {
 	Message Message
 	Err     error

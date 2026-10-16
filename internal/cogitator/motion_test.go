@@ -17,8 +17,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// Motion and blur as the window wears them (Rust src/daemon/window/wear.rs
-// motion/blur/drawing, ui.rs's glide): the theme's timings unless
+// Motion and blur as the window wears them: the theme's timings unless
 // LOGIS_MOTION outranks them, blur where both the config and the theme
 // want it, and each frame drawn in its pose with the selection band
 // gliding to the selected row and the body blurred behind.

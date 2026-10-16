@@ -10,9 +10,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// Ports of the line features of Rust tests/text.rs, tests/faces.rs and
-// src/render/measure.rs: columns, the ellipsis, colour spans, end
-// alignment, emphasis in another face with underlines, and measuring.
+// The line features: columns, the ellipsis, colour spans, end alignment,
+// emphasis in another face with underlines, and measuring.
 
 func round(v float32) float32 { return float32(math.Round(float64(v))) }
 
@@ -149,7 +148,7 @@ func TestAnEndAlignedLineEndsAtItsColumnEdge(t *testing.T) {
 	}
 }
 
-// facesScene is tests/faces.rs's scene: a tracked label in a theme face,
+// facesScene is the faces golden's scene: a tracked label in a theme face,
 // and a row with colour spans and emphasis in another face, twice, the
 // second with its emphasis underlined.
 func facesScene() *render.Scene {

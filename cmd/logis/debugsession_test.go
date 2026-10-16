@@ -12,8 +12,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust src/window/debug/session.rs's and mod.rs's tests: the
-// debug panel as a session of the input model's actions.
+// The debug panel as a session of the input model's actions.
 
 func TestNextAndPreviousMoveTheSelectionWithinTheRows(t *testing.T) {
 	s := &debugSession{}
@@ -102,8 +101,8 @@ func TestThePanelsKeyboardFollowsTheFocusLossPolicy(t *testing.T) {
 }
 
 // The config is read before any window: a heretical one ends the panel
-// with exit 2 and says why, in the words Rust's debug panel used (the
-// config's own error, without the daemon's "the config is heretical").
+// with exit 2 and says why in the config's own error, without the
+// daemon's "the config is heretical".
 func TestAHereticalConfigEndsThePanelBeforeAnyWindow(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
 	if err := os.WriteFile(path, []byte(`{"focus-loss": "linger"}`), 0o600); err != nil {

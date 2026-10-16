@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Ported from Rust src/motion/mod.rs.
+// Curves, the default and a theme's timings, and LOGIS_MOTION.
 
 const ms Nanos = 1_000_000
 

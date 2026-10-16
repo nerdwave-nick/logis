@@ -4,8 +4,7 @@ import (
 	"testing"
 )
 
-// Ports of Rust src/render/scene.rs's tests: colours, paints and the
-// instance layout the sdf shader reads.
+// Colours, paints and the instance layout the sdf shader reads.
 
 func rect(w, h float32) RoundedRect {
 	return RoundedRect{
@@ -110,7 +109,7 @@ func TestWithoutAHighlightTheWidthIsOneAndTheColourTransparent(t *testing.T) {
 	eq(t, "colour", packed[52:56], []float32{0, 0, 0, 0})
 }
 
-// tests/primitives.rs: one_or_two_stops_are_the_paints_there_were.
+// A ramp of one stop is solid, of two linear, and keeps four at most.
 func TestOneOrTwoStopsAreThePaintsThereWere(t *testing.T) {
 	red, green, blue, white := Hex(0xff0000), Hex(0x00ff00), Hex(0x0000ff), Hex(0xffffff)
 	start, end := [2]float32{0, 0}, [2]float32{0, 10}

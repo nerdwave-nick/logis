@@ -10,9 +10,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust tests/icons.rs's GPU half: the image atlas and the image
-// pass, read back pixel by pixel. (Its sRGB-target case has no
-// counterpart: logis's GL targets are plain RGBA8.)
+// The image atlas and the image pass, read back pixel by pixel. (No
+// sRGB-target case: logis's GL targets are plain RGBA8.)
 
 // image is a w×h premultiplied image whose texels come from texel.
 func image(w, h int, texel func(x, y int) [4]byte) *render.Image {

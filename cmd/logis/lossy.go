@@ -5,9 +5,9 @@ import (
 	"unicode/utf8"
 )
 
-// lossy is s as text, the way Rust's to_string_lossy read an argument: each
-// maximal ill-formed subsequence (Unicode's "maximal subpart": a lead byte
-// and the continuation bytes that still fit it) becomes one U+FFFD.
+// lossy is s as text: each maximal ill-formed subsequence (Unicode's
+// "maximal subpart": a lead byte and the continuation bytes that still fit
+// it) becomes one U+FFFD.
 func lossy(s string) string {
 	if utf8.ValidString(s) {
 		return s

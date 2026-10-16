@@ -11,10 +11,10 @@ const MaxRegions = 4
 // Post is the post-processing over a finished frame: the glitch pass
 // (Glitch), then the CRT pass's effects (effects.CRT, every control the
 // theme sets), on the panel's body and on up to MaxRegions further screens
-// of glass (the tab strip's plates). Outside them the frame stays as drawn (the glow), bent with the
-// panel when it is curved; then the custom pass (Custom) over the whole
-// frame. Rust v1 had seven strengths here; the named controls diverge from
-// it on purpose (cd816303), and the custom pass is new.
+// of glass (the tab strip's plates). Outside them the frame stays as drawn
+// (the glow), bent with the panel when it is curved; then the custom pass
+// (Custom) over the whole frame. The CRT pass's named controls are
+// cd816303's.
 type Post struct {
 	// Rect is the body the effects cover: left, top, width, height
 	// (logical); Radius its corner radius.
@@ -27,25 +27,25 @@ type Post struct {
 	// body, in the body's phase (scanlines, mask and grain run on from
 	// it); the first MaxRegions count.
 	Regions []Region
-	// CRT are the effects; start from effects.Defaults, whose controls
-	// reproduce v1's look, and turn strengths up.
+	// CRT are the effects; start from effects.Defaults, every effect off,
+	// and turn strengths up.
 	CRT effects.CRT
 	// Time is seconds, for whatever moves (grain, flicker, roll, wobble):
 	// a frozen time gives a frozen frame.
 	Time float32
-	// Glitch is the glitch pass's controls (33cfcf44, new beside Rust v1):
-	// it runs before the CRT pass on the same screens, and not at all at a
-	// strength of 0. Moment is where it stands: the seconds since the
-	// panel opened and the burst intensity (internal/glitch); a frozen
-	// moment gives a frozen frame. A later pass that wants the glitch's
-	// intensity takes Moment.Event (the burst) or Glitch.Intensity(Moment).
+	// Glitch is the glitch pass's controls (33cfcf44): it runs before the
+	// CRT pass on the same screens, and not at all at a strength of 0.
+	// Moment is where it stands: the seconds since the panel opened and the
+	// burst intensity (internal/glitch); a frozen moment gives a frozen
+	// frame. A later pass that wants the glitch's intensity takes
+	// Moment.Event (the burst) or Glitch.Intensity(Moment).
 	Glitch effects.Glitch
 	Moment effects.Moment
-	// Custom is the custom pass's shader (a5e5f876, new beside Rust v1):
-	// a theme's or the config's, run after the CRT pass over the whole
-	// frame; one the driver refuses is skipped (and said once). It takes
-	// Moment.Time as iTime (0 when Frozen), Frame as iFrame (frames drawn
-	// since the panel opened) and Glitch.Intensity(Moment) as iGlitch.
+	// Custom is the custom pass's shader (a5e5f876): a theme's or the
+	// config's, run after the CRT pass over the whole frame; one the driver
+	// refuses is skipped (and said once). It takes Moment.Time as iTime (0
+	// when Frozen), Frame as iFrame (frames drawn since the panel opened)
+	// and Glitch.Intensity(Moment) as iGlitch.
 	Custom custom.Shader
 	Frame  int
 }

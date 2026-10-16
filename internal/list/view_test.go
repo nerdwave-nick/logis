@@ -7,7 +7,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/input"
 )
 
-// The ListView tests port Rust src/list/view.rs's.
+// The View: the query, its matches, the selection and the rows in view.
 
 func plain(texts ...string) []Entry {
 	out := make([]Entry, len(texts))

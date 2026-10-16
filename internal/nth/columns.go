@@ -39,9 +39,8 @@ func (c Columns) Accepted(raw []byte) []byte {
 }
 
 // Lossy is b as text, every maximal invalid UTF-8 subpart replaced by one
-// U+FFFD (Unicode §3.9, "U+FFFD substitution of maximal subparts"), as
-// Rust's String::from_utf8_lossy does. Go's own conversions replace every
-// invalid byte instead.
+// U+FFFD (Unicode §3.9, "U+FFFD substitution of maximal subparts"). Go's
+// own conversions replace every invalid byte instead.
 func Lossy(b []byte) string {
 	if utf8.Valid(b) {
 		return string(b)

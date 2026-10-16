@@ -16,12 +16,11 @@ import (
 )
 
 // The shell completions in contrib/completions/ (bash, zsh, fish) are
-// maintained by hand, so they are pinned to the parser (Rust
-// tests/completions.rs): each offers exactly the runes the parser accepts,
-// plus the `daemon` subcommand. A rune added to or removed from the parser
-// without its completions fails here. The runes are read from the string
-// literals of this package's code (not its tests), which is where a new
-// rune must appear to be accepted at all.
+// maintained by hand, so they are pinned to the parser: each offers exactly
+// the runes the parser accepts, plus the `daemon` subcommand. A rune added
+// to or removed from the parser without its completions fails here. The
+// runes are read from the string literals of this package's code (not its
+// tests), which is where a new rune must appear to be accepted at all.
 //
 // bash and zsh are asked what they offer (zsh through a pseudo-terminal:
 // tests/fixtures/completions/zsh-capture.zsh); the fish script is read and,

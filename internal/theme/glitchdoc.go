@@ -7,7 +7,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// The theme's glitch (33cfcf44, new beside Rust v1): effects.glitch is a
+// The theme's glitch (33cfcf44): effects.glitch is a
 // group of the glitch pass's controls (effects.GlitchControls) in their
 // parts, its strength first, then the bursts (effects.BurstControls and
 // the events that fire them). A bare number is the strength, as for the

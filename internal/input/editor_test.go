@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Tests ported from Rust src/input/editor.rs.
+// Tests of query editing.
 
 func typed(text string) *Query {
 	q := &Query{}

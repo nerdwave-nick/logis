@@ -8,13 +8,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// servitor mode as a provider flow (feat/logis stories 8–10, §4.8; Rust
-// src/servitor/flow.rs): the census's rites, then the chosen rite's
-// aspects, then one prompt per inscription of its canon, then `servitor
-// invoke` and close. A pure state machine: what the census tells and what
-// logis answers go in, the lines to say and the invocation to launch come
-// out (run.go does the I/O). logis shows no outcome: servitor's vox
-// announces the verdict.
+// servitor mode as a provider flow (feat/logis stories 8–10, §4.8): the
+// census's rites, then the chosen rite's aspects, then one prompt per
+// inscription of its canon, then `servitor invoke` and close. A pure state
+// machine: what the census tells and what logis answers go in, the lines to
+// say and the invocation to launch come out (run.go does the I/O). logis
+// shows no outcome: servitor's vox announces the verdict.
 //
 // Nothing unsettled drives anything (story 10): a rite whose auspex is
 // still awaited is pending (never chosen), and an aspect is marked current

@@ -13,8 +13,7 @@ import (
 	"github.com/nerdwave-nick/logis/themes"
 )
 
-// Finding a theme by name and reading it with what it extends (Rust
-// src/theme/load.rs): a user file in the themes directory (themes/ beside
+// Finding a theme by name and reading it with what it extends: a user file in the themes directory (themes/ beside
 // the config) wins over a bundled theme of the same name; a theme may
 // extend one other theme, and every theme lies over the bundled default,
 // which gives every key.

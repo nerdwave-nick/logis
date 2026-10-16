@@ -1,20 +1,18 @@
 package render
 
-// Rust v1's post-processing pass, the shader the CRT pass replaced, kept
-// for the compatibility test only (crt_compat_test.go): with v1's
-// strengths and every other control at its default, the CRT pass draws
-// what this one drew.
+// The legacy post-processing pass, the shader the CRT pass replaced, kept
+// for the compatibility test only (crt_compat_test.go): with its seven
+// strengths and every other control at its default, the CRT pass draws what
+// this one drew.
 //
-// The GLSL ES 3.00 port of Rust's src/render/post.wgsl as it was (after
-// the research port in research/go/render-gpu/gles): one
-// full-screen triangle over the finished frame. Within a rounded
-// rectangle (the panel's body) it applies curvature, chromatic aberration,
-// bloom, scanlines, flicker, grain and a vignette, each by its strength
-// (0 is off); outside it the frame passes through (the glow). Pixels are
-// read with texelFetch (no sampler filtering) and every random term comes
-// from an integer hash, so a frozen time gives the same image on any GPU.
-// Premultiplied in, premultiplied out. Coordinates are turned into a
-// top-left origin (pixel centres at +0.5); the frame's texture has GL's
+// GLSL ES 3.00, one full-screen triangle over the finished frame. Within a
+// rounded rectangle (the panel's body) it applies curvature, chromatic
+// aberration, bloom, scanlines, flicker, grain and a vignette, each by its
+// strength (0 is off); outside it the frame passes through (the glow).
+// Pixels are read with texelFetch (no sampler filtering) and every random
+// term comes from an integer hash, so a frozen time gives the same image on
+// any GPU. Premultiplied in, premultiplied out. Coordinates are turned into
+// a top-left origin (pixel centres at +0.5); the frame's texture has GL's
 // bottom-up rows, so load flips them.
 
 const legacyPostFragment = `#version 300 es

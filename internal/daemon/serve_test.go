@@ -14,7 +14,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Ported from Rust tests/daemon.rs dmenu_sessions_queue_and_each_caller_gets_its_own_answer_in_order.
+// Dmenu sessions queue, and each caller gets its own answer in order.
 func TestDmenuSessionsQueueAndEachCallerGetsItsOwnAnswerInOrder(t *testing.T) {
 	r := newRig(t)
 	r.start(0)
@@ -123,8 +123,8 @@ func TestAGarbledFrameEndsTheConnectionWithTheReason(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/daemon/lifecycle.rs an_idle_daemon_exits_after_the_timeout,
-// and from tests/daemon.rs: the socket is not left behind.
+// An idle daemon exits after the timeout, and its socket is not left
+// behind.
 func TestAnIdleDaemonExitsAfterTheTimeoutAndRemovesItsSocket(t *testing.T) {
 	r := newRig(t)
 	start := time.Now()
@@ -314,10 +314,10 @@ func TestWindowlessListensButRefusesEverySession(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/daemon::run's order (caller contract parity): the
-// runtime dir, then the session's preflight, then the config, then the
-// socket. A session that cannot host the window is named before a broken
-// config, and a second daemon in such a session does not defer.
+// The daemon's start-up order (part of the caller contract): the runtime
+// dir, then the session's preflight, then the config, then the socket. A
+// session that cannot host the window is named before a broken config, and
+// a second daemon in such a session does not defer.
 func TestThePreflightComesAfterTheRuntimeDirAndBeforeTheConfigAndTheSocket(t *testing.T) {
 	silent := func() error { return errors.New("the noosphere is silent") }
 	d := (&rig{t: t}).run(Options{Preflight: func() error { t.Error("preflight without a dwelling"); return nil }})

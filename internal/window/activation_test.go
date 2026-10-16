@@ -10,9 +10,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// xdg-activation on a fake compositor (Rust src/window/activation.rs):
-// a token is asked for the panel's surface with the seat and the serial of
-// the last key or button press, the one that chose the app.
+// xdg-activation on a fake compositor: a token is asked for the panel's
+// surface with the seat and the serial of the last key or button press,
+// the one that chose the app.
 
 var withActivation = append(slices.Clone(withSelections),
 	wltest.Global{Interface: "xdg_activation_v1", Version: 1})

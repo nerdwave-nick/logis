@@ -15,12 +15,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/config"
 )
 
-// The config at the binary's boundary (ported from Rust tests/config.rs):
-// --check-config, --config handed from a client to the daemon it starts,
-// and live reload in the daemon. Every test uses the rig's scratch
-// XDG_CONFIG_HOME and XDG_RUNTIME_DIR. The scripted resolver stands in for
-// the window, so what the daemon applies is observed through its log and
-// through the setting that already acts: idle-timeout.
+// The config at the binary's boundary: --check-config, --config handed from
+// a client to the daemon it starts, and live reload in the daemon. Every
+// test uses the rig's scratch XDG_CONFIG_HOME and XDG_RUNTIME_DIR. The
+// scripted resolver stands in for the window, so what the daemon applies is
+// observed through its log and through the setting that already acts:
+// idle-timeout.
 
 const heeds = "heeds the amended config"
 

@@ -1,13 +1,13 @@
-// Package custom is the custom post-processing pass's shader
-// (feat/logis-go a5e5f876, new beside Rust v1): one GLSL ES 3.00 fragment
-// shader a theme (effects.custom-shader) or the config (custom-shader)
-// names, run after the built-in effects. It is written as for Shadertoy:
-// it defines mainImage(out vec4 fragColor, in vec2 fragCoord), and logis
-// gives it the frame after the built-in effects (iChannel0, rows bottom-up
-// as fragCoord's), iResolution, iTime, iFrame and iGlitch in a prelude of
-// its own (Fragment). What the driver says of a shader it refuses is moved
-// to the user's lines (Explain). The renderer compiles it; this package
-// draws on no GL.
+// Package custom is the custom post-processing pass's shader (feat/logis-go
+// a5e5f876): one GLSL ES 3.00 fragment shader a theme
+// (effects.custom-shader) or the config (custom-shader) names, run after
+// the built-in effects. It is written as for Shadertoy: it defines
+// mainImage(out vec4 fragColor, in vec2 fragCoord), and logis gives it the
+// frame after the built-in effects (iChannel0, rows bottom-up as
+// fragCoord's), iResolution, iTime, iFrame and iGlitch in a prelude of its
+// own (Fragment). What the driver says of a shader it refuses is moved to
+// the user's lines (Explain). The renderer compiles it; this package draws
+// on no GL.
 package custom
 
 import (

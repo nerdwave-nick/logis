@@ -12,9 +12,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// Ported from Rust src/list/scene/tests.rs for the bundled default theme;
-// the phosphor theme, the post pass and personal sigil images are in
-// effects_test.go.
+// The scene in the bundled default theme; the phosphor theme, the post pass
+// and personal sigil images are in effects_test.go.
 
 func forge() *theme.Theme {
 	t := theme.Default()
@@ -67,7 +66,7 @@ func texts(s *render.Scene) []string {
 	return out
 }
 
-// Rust v1: 820×520 and nine rows. Go: the height follows the theme's
+// Without a size the body is 820 wide and its height follows the theme's
 // eleven rows (fit_test.go): 55 + 2·12 + 11·38 = 497.
 func TestWithoutASizeTheWindowIsTheThemes(t *testing.T) {
 	th := forge()
@@ -464,7 +463,7 @@ func TestUnmeasuredColumnsAreEstimatedFromTheRowsInView(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/list/scene/rows.rs's tests.
+// A row's columns at its tabs, and its matches cut to them.
 func TestALineIsCutIntoColumnsAtItsTabs(t *testing.T) {
 	for _, c := range []struct {
 		text string

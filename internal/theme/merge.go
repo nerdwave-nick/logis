@@ -10,7 +10,7 @@ import (
 )
 
 // A theme's palette and font roles as written, and how a theme lies over
-// the theme it extends and over the bundled default (Rust Merge): a section
+// the theme it extends and over the bundled default: a section
 // key by key, a part that is on over one that is on key by key, a palette
 // name by name, font roles role by role; anything else whole.
 
@@ -65,7 +65,7 @@ func (r reader) palette(v *jsonc.Value) (palette, error) {
 		}
 		p[m.Key] = swatch
 	}
-	// Rust checked the names once the map was read, in sorted order.
+	// The names are checked once the map is read, in sorted order.
 	for _, name := range slices.Sorted(maps.Keys(p)) {
 		if !isName(name) {
 			return nil, r.doc.Errorf(r.doc.Settled(v, '}'), "invalid value: string %s, expected %s", strconv.Quote(name), nameWants)

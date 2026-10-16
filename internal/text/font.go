@@ -20,7 +20,7 @@ type FontID int
 type Font struct {
 	File fc.FontFile
 	// Family is the face's family name (typographic if it has one) and
-	// Weight its OS/2 weight class, as Rust's identity reads them.
+	// Weight its OS/2 weight class.
 	Family string
 	Weight int
 	// Metrics are its line metrics in font units.

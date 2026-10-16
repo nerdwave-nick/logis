@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Tests ported from Rust src/input/repeat.rs.
+// Tests of client-side key repeat.
 
 func ms(n int) time.Duration { return time.Duration(n) * time.Millisecond }
 

@@ -1,8 +1,8 @@
 name: Go
 
-# logis's only workflow since the switch-over from Rust (ADR 0004): gofmt,
-# vet and the tests with the race detector, the keyboard's differential
-# suite, and the E2E and latency suites in headless sway. It runs on every
+# logis's workflow: gofmt, vet and the tests with the race detector, the
+# keyboard's differential suite, and the E2E and latency suites in headless
+# sway. It runs on every
 # push (main and any other branch) and on pull requests, for changes to
 # what the build and the tests read: the Go code, everything under tests/
 # (fixtures, pinned fonts, goldens), the themes and schemas, and the files

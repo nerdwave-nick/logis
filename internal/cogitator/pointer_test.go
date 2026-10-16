@@ -10,9 +10,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list/scene"
 )
 
-// The pointer and paste in the session logic (Rust src/daemon/window/ui.rs
-// react): a point means the row drawn under it on the panel's current
-// size; a paste is the window's to read.
+// The pointer and paste in the session logic: a point means the row drawn
+// under it on the panel's current size; a paste is the window's to read.
 
 // rowCentre is the middle of row in view on the shown panel.
 func (r *rig) rowCentre(t *testing.T, row int) (float64, float64) {

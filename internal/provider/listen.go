@@ -66,7 +66,7 @@ func waitReadable(stdout, pidfd int) (bool, error) {
 	return fds[0].Revents != 0, nil
 }
 
-// reap waits for the gone process and says how it ended, as Rust does.
+// reap waits for the gone process and says how it ended (StatusOf).
 func reap(proc *os.Process) string {
 	state, err := proc.Wait()
 	if err != nil {
@@ -75,8 +75,8 @@ func reap(proc *os.Process) string {
 	return StatusOf(state)
 }
 
-// StatusOf says how a process ended as Rust's ExitStatus does: "exit
-// status: 0", "signal: 15 (SIGTERM)".
+// StatusOf says how a process ended: "exit status: 0", "signal: 15
+// (SIGTERM)".
 func StatusOf(state *os.ProcessState) string {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	switch {

@@ -1,5 +1,5 @@
-// Package latency is the latency harness's statistics and reports (Rust
-// tests/support/latency.rs), measured the research/bench way (T0_NS): the
+// Package latency is the latency harness's statistics and reports,
+// measured the research/bench way (T0_NS): the
 // harness reads CLOCK_MONOTONIC (trace.MonotonicNS) just before it acts —
 // injects a key, starts a client — and the client stamps its milestones
 // with the same clock in its test trace (`commit` …). Each series is
@@ -33,7 +33,7 @@ const (
 // WarmOpenMS is the warm open budget (spec §3: ≤ 15 ms).
 const WarmOpenMS = 15.0
 
-// SlowOpenMS: no single warm open may take longer (Rust ticket d49bceee),
+// SlowOpenMS: no single warm open may take longer (ticket d49bceee),
 // enforced with the budgets; a median within budget can hide a two-second
 // open.
 const SlowOpenMS = 100.0

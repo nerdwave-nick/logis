@@ -16,11 +16,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// Provider sessions end to end (Rust tests/provider_window.rs): a real
-// daemon in the test compositor, `logis --provider` running the fixture
-// provider tests/fixtures/providers/forge.sh, and keys from the harness's
-// virtual keyboard. Runs only with LOGIS_E2E=niri|sway. Waits follow the
-// daemon's test trace.
+// Provider sessions end to end: a real daemon in the test compositor,
+// `logis --provider` running the fixture provider
+// tests/fixtures/providers/forge.sh, and keys from the harness's virtual
+// keyboard. Runs only with LOGIS_E2E=niri|sway. Waits follow the daemon's
+// test trace.
 
 func TestE2EATwoStageFlowWithAPendingRowEndsInAToast(t *testing.T) {
 	c := e2e.StartCogitator(t, nil, "")

@@ -38,8 +38,7 @@ func Parse(line []byte) (Message, error) {
 	return m, nil
 }
 
-// decoders read each known type; serde's required fields are refused when
-// missing.
+// decoders read each known type; a required field is refused when missing.
 var decoders = map[string]func([]byte) (Message, error){
 	"hello": func(b []byte) (Message, error) {
 		var w struct {

@@ -1,5 +1,5 @@
-// Package oserr words operating-system errors as Rust v1's io::Error did,
-// for messages that must read as Rust's (caller contract parity).
+// Package oserr words operating-system errors as "<description> (os
+// error N)", for messages whose wording is part of the caller contract.
 package oserr
 
 import (
@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-// Words is err as Rust's io::Error displayed it: strerror's words
+// Words is err as "<description> (os error N)": strerror's words
 // (capitalised, as glibc has them) and the error number, or err's own
 // text when it carries no errno.
 func Words(err error) string {

@@ -8,8 +8,8 @@ import (
 )
 
 // servitor's streaming census, `servitor census --vigil` (servitor caller
-// interface S1, S4, S5; codex passages vigil, herald, canon; Rust
-// src/servitor/census.rs): one JSON object per line, tagged by "herald". A
+// interface S1, S4, S5; codex passages vigil, herald, canon): one JSON
+// object per line, tagged by "herald". A
 // rite line is a whole census entry that replaces any earlier one of the
 // same rite; lament lines may come anywhere; concluded comes once, last.
 // Heralds and keys only ever grow, so unknown ones are passed over.

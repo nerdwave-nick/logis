@@ -8,7 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Rust src/provider/dmenu.rs tests.
+// The built-in dmenu provider: its stage, lines and answers.
 
 func lines(texts ...string) []protocol.Item {
 	items := make([]protocol.Item, len(texts))

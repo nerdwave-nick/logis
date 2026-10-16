@@ -11,12 +11,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// dmenu latency (spec §3 budgets; Rust tests/latency.rs dmenu_latency) in
-// the test compositor, the T0_NS way: warm open is `logis --dmenu` from
-// exec to the daemon's first commit of its window (and to `settled`);
-// keystroke → commit with 3 items and with 100 000 lines, plain and in
-// columns. Budgets: warm open 15 ms, a keystroke one frame. Run alone,
-// under the shared measurement lock (see the worker brief).
+// dmenu latency (spec §3 budgets) in the test compositor, the T0_NS way:
+// warm open is `logis --dmenu` from exec to the daemon's first commit of
+// its window (and to `settled`); keystroke → commit with 3 items and with
+// 100 000 lines, plain and in columns. Budgets: warm open 15 ms, a
+// keystroke one frame. Run alone, under the shared measurement lock (see
+// the worker brief).
 func TestLatencyDmenu(t *testing.T) {
 	c := e2e.StartCogitator(t, nil, "")
 	watch := e2e.StartWatchdog(t, c.Compositor)
@@ -86,7 +86,7 @@ func keystrokes(t *testing.T, c *e2e.Cogitator, f e2e.Focused, keys []uint32, ru
 
 // manyLines are 100 000 distinct path-like lines, as a big dmenu input
 // might be; with columns, each a path, a word and a number, separated by
-// tabs (Rust many_lines).
+// tabs.
 func manyLines(columns bool) []byte {
 	words := []string{"rite", "aspect", "cogitator", "noosphere", "spirit", "litany", "forge"}
 	var b strings.Builder
@@ -102,9 +102,9 @@ func manyLines(columns bool) []byte {
 }
 
 // A warm open shows its session without a single round trip to the
-// compositor (Rust a_warm_open_waits_on_no_round_trip_before_it_is_shown):
-// counted in the daemon's own WAYLAND_DEBUG log, from the last window gone
-// (`faded`) to the next `show`; the daemon's first window may ask.
+// compositor: counted in the daemon's own WAYLAND_DEBUG log, from the last
+// window gone (`faded`) to the next `show`; the daemon's first window may
+// ask.
 func TestE2EAWarmOpenWaitsOnNoRoundTripBeforeItIsShown(t *testing.T) {
 	c := e2e.StartCogitator(t, []string{"WAYLAND_DEBUG=client"}, "")
 	for run := range 3 {

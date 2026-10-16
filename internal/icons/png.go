@@ -9,10 +9,10 @@ import (
 )
 
 // PNG icons: decoded by image/png into premultiplied RGBA8, then resampled
-// as Rust v1 did with tiny-skia: halved with 2×2 averaging while at least
-// twice too big, so large downscales skip no source pixels, then fitted
-// with a bicubic (Mitchell–Netravali, B = C = 1/3) filter on premultiplied
-// values, the edges clamped.
+// as tiny-skia does: halved with 2×2 averaging while at least twice too
+// big, so large downscales skip no source pixels, then fitted with a
+// bicubic (Mitchell–Netravali, B = C = 1/3) filter on premultiplied values,
+// the edges clamped.
 
 func decodePNG(data []byte, pixels int) (*image.RGBA, []string, error) {
 	decoded, err := png.Decode(bytes.NewReader(data))

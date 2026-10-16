@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/entry.rs.
+// Reading desktop entries: required keys, localised values, actions.
 
 // fixtures is tests/fixtures/apps in the repository.
 func fixtures(t *testing.T) string {

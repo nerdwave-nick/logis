@@ -1,10 +1,9 @@
-// Package ot is an OpenType layout engine: the tables a shaper reads from
-// a face (cmap with variation sequences, metrics, GDEF, GSUB, GPOS, kern)
-// and the application of their lookups to a glyph buffer — GSUB lookup
-// types 1–8 and GPOS 1–9 with lookup flags, mark filtering sets, device
-// tables and HarfBuzz's matching rules (default ignorables, ligature
-// components, attachment chains). It follows HarfBuzz's algorithm (as
-// ported by harfrust, which Rust logis v1 shapes with) so that glyphs and
+// Package ot is an OpenType layout engine: the tables a shaper reads from a
+// face (cmap with variation sequences, metrics, GDEF, GSUB, GPOS, kern) and
+// the application of their lookups to a glyph buffer — GSUB lookup types
+// 1–8 and GPOS 1–9 with lookup flags, mark filtering sets, device tables
+// and HarfBuzz's matching rules (default ignorables, ligature components,
+// attachment chains). It follows HarfBuzz's algorithm so that glyphs and
 // positions equal HarfBuzz's; the Unicode side of shaping (normalisation,
 // scripts, joining) is internal/shape's.
 //

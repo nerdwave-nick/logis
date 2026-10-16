@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The tab element (feat/logis-go 8cba2fc9, new beside Rust v1): the
+// The tab element (feat/logis-go 8cba2fc9): the
 // corners of plain logis's tab plates; the rest of their look comes from
 // the elements they echo (the selection, the panel, the prompt's label,
 // the badges).

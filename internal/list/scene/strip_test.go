@@ -9,10 +9,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// Plain logis's tab strip (feat/logis-go 8cba2fc9, new beside Rust v1):
-// two equal plates above the panel, Applications left and Rites right,
-// fixed in place; the active one is lit. The panel keeps its own size
-// below the strip, so the surface grows by the strip.
+// Plain logis's tab strip (feat/logis-go 8cba2fc9): two equal plates above
+// the panel, Applications left and Rites right, fixed in place; the active
+// one is lit. The panel keeps its own size below the strip, so the surface
+// grows by the strip.
 
 func phosphor(t *testing.T) *theme.Theme {
 	t.Helper()

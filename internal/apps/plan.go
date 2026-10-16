@@ -7,11 +7,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/launch"
 )
 
-// What launching an application (or one of its desktop actions) runs (Rust
-// src/apps/plan.rs): its Exec with the field codes expanded, behind the
-// configured terminal for Terminal=true, in its Path; or, for
-// DBusActivatable=true, an activation the bus may perform (with the Exec,
-// if any, to fall back on).
+// What launching an application (or one of its desktop actions) runs: its
+// Exec with the field codes expanded, behind the configured terminal for
+// Terminal=true, in its Path; or, for DBusActivatable=true, an activation
+// the bus may perform (with the Exec, if any, to fall back on).
 
 // ErrNoTerminal: Terminal=true, and no terminal is configured.
 var ErrNoTerminal = errors.New(`it must run in a terminal, and none is named ` +

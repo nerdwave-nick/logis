@@ -7,8 +7,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/custom"
 )
 
-// Live is the theme in force while the daemon runs (Rust src/config/live.rs
-// Worn): the last sound theme the config named, stilled when the config
+// Live is the theme in force while the daemon runs: the last sound theme the config named, stilled when the config
 // reduces motion. A theme that cannot be worn leaves the last sound one in
 // force. A worn theme is never changed in place, so the window may hold
 // one while the daemon reloads. Not safe for concurrent use; the daemon's

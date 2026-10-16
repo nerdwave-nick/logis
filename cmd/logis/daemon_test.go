@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// Ported from Rust src/cli daemon_takes_an_optional_idle_timeout_in_seconds
-// and daemon_can_detach_from_its_starter.
+// The daemon takes an optional idle timeout in seconds and can detach from
+// its starter.
 func TestDaemonTakesAnIdleTimeoutInSecondsAndCanDetach(t *testing.T) {
 	for _, tc := range []struct {
 		args   []string
@@ -32,7 +32,8 @@ func TestDaemonTakesAnIdleTimeoutInSecondsAndCanDetach(t *testing.T) {
 	}
 }
 
-// Ported from an_invalid_idle_timeout_is_refused.
+// An idle timeout that is not a non-negative number of seconds, or none at
+// all, is refused.
 func TestAnInvalidIdleTimeoutIsRefused(t *testing.T) {
 	for _, bad := range []string{"soon", "-1", "NaN", "inf", "", "0x10"} {
 		_, err := parseDaemon([]string{"--idle-timeout", bad})
@@ -48,7 +49,7 @@ func TestAnInvalidIdleTimeoutIsRefused(t *testing.T) {
 	}
 }
 
-// Ported from an_unknown_argument_is_named_in_the_error, for daemon runes.
+// An unknown daemon rune is named in the error, with every rune known.
 func TestAnUnknownDaemonRuneIsNamed(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"daemon", "--debug"}, &stdout, &stderr)
@@ -64,8 +65,8 @@ func TestAnUnknownDaemonRuneIsNamed(t *testing.T) {
 	}
 }
 
-// A huge idle timeout that Rust's Duration holds (under 2^64 seconds) is
-// as good as none ending; a longer one Rust refused.
+// A huge idle timeout under 2^64 seconds is as good as none ending; a
+// longer one is refused.
 func TestAHugeIdleTimeoutIsKeptAsTheLongestThereIs(t *testing.T) {
 	o, err := parseDaemon([]string{"--idle-timeout", "1e19"})
 	if err != nil || o.IdleTimeout < 100*365*24*time.Hour {
@@ -79,7 +80,7 @@ func TestAHugeIdleTimeoutIsKeptAsTheLongestThereIs(t *testing.T) {
 	}
 }
 
-// The daemon's runes are read in order, as Rust read them: the first
+// The daemon's runes are read in order: the first
 // refused one is named, and --idle-timeout takes whatever follows it.
 func TestDaemonRunesAreReadInOrder(t *testing.T) {
 	for _, c := range []struct {

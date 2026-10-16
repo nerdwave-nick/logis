@@ -4,9 +4,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// How servitor mode looks: its stages, rows and words (feat/logis §4.8;
-// the mapping in docs/provider-protocol.md, "servitor mode on this
-// protocol"; Rust src/servitor/shown.rs).
+// How servitor mode looks: its stages, rows and words (feat/logis §4.8; the
+// mapping in docs/provider-protocol.md, "servitor mode on this protocol").
 
 // The stage ids. An inscription's is "inscription:<key>".
 const (

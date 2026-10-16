@@ -14,8 +14,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// The pointer, cursor shape and paste on a fake compositor (Rust
-// src/window/{pointer,paste}.rs).
+// The pointer, cursor shape and paste on a fake compositor.
 
 // Server-created objects (data offers) take ids from here, in order
 // (libwayland refuses a gap).

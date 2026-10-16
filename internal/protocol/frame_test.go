@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/protocol/frame.rs a_frame_is_a_big_endian_length_and_json.
+// A frame is a big-endian length and JSON.
 func TestAFrameIsABigEndianLengthAndJSON(t *testing.T) {
 	var out bytes.Buffer
 	if err := WriteFrame(&out, map[string]int{"a": 1}); err != nil {

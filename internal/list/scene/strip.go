@@ -8,13 +8,13 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// Plain logis's tab strip (feat/logis-go 8cba2fc9, new beside Rust v1;
-// the owner's design, effects lab v6): two equal plates above the panel,
-// set apart from it, Applications left and Rites right, fixed in place;
-// Tab or a click only moves which is lit. Each carries its tab's count of
-// matches; a key hint ends the strip. The panel keeps its own size below
-// the strip: the surface grows by StripHeight, and everything of the
-// panel (body, rows, band, pointer) lies that much lower.
+// Plain logis's tab strip (feat/logis-go 8cba2fc9; the owner's design,
+// effects lab v6): two equal plates above the panel, set apart from it,
+// Applications left and Rites right, fixed in place; Tab or a click only
+// moves which is lit. Each carries its tab's count of matches; a key hint
+// ends the strip. The panel keeps its own size below the strip: the surface
+// grows by StripHeight, and everything of the panel (body, rows, band,
+// pointer) lies that much lower.
 //
 // The plates echo the theme's elements, so a personal theme dresses them
 // too: the lit plate is the selection (its band over the panel's fill,

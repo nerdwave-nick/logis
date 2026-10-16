@@ -27,8 +27,7 @@ func TestANumberSelectsThatColumnCountedFromOne(t *testing.T) {
 	}
 }
 
-// A plain number is read as Rust's usize parser reads it: a leading plus
-// is allowed.
+// A plain number is read as an unsigned decimal: a leading plus is allowed.
 func TestAPlusSignedNumberIsAColumnToo(t *testing.T) {
 	if got := apply(t, "+2", "a\tb"); got != "b" {
 		t.Errorf("got %q", got)
@@ -184,8 +183,8 @@ func TestSelectionsFollowTheirRunesDelimiter(t *testing.T) {
 	}
 }
 
-// Invalid UTF-8 is shown as Rust's String::from_utf8_lossy shows it: one
-// U+FFFD per maximal invalid subpart (Unicode §3.9), not per byte.
+// Invalid UTF-8 is shown with one U+FFFD per maximal invalid subpart
+// (Unicode §3.9), not per byte.
 func TestInvalidBytesShowAsOneReplacementPerMaximalSubpart(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"plain", "plain"},

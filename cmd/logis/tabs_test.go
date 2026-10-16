@@ -9,10 +9,9 @@ import (
 )
 
 // Plain logis's tabbed launcher on the client's side (feat/logis-go
-// 8cba2fc9, a divergence from Rust v1): plain logis with servitor on its
-// PATH opens the app launcher with servitor mode's provider as its rites'
-// tab; without servitor its rites are silent (2aaad4b9); --apps opens the
-// launcher alone.
+// 8cba2fc9): plain logis with servitor on its PATH opens the app launcher
+// with servitor mode's provider as its rites' tab; without servitor its
+// rites are silent (2aaad4b9); --apps opens the launcher alone.
 
 func TestOnlyPlainLogisIsTabbed(t *testing.T) {
 	for _, args := range [][]string{{}, {"--config", "/c"}} {

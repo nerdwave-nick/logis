@@ -6,9 +6,9 @@ import (
 	"unicode/utf8"
 )
 
-// Command-line parsing of the client role (Rust src/cli/mod.rs): one pass
-// over the arguments, --config and the dmenu runes taken wherever they
-// stand, every other argument naming the command. `logis daemon …` is
+// Command-line parsing of the client role: one pass over the arguments,
+// --config and the dmenu runes taken wherever they stand, every other
+// argument naming the command. `logis daemon …` is
 // parsed apart (daemon.go).
 
 // providerRune: everything after it is the provider's command line.
@@ -75,7 +75,7 @@ func parse(args []string) (command, error) {
 			break
 		}
 		if !utf8.ValidString(arg) {
-			return c, unknownRune(arg) // Rust knew only runes that are text
+			return c, unknownRune(arg) // runes are text only
 		}
 		if took, err := configFlag(arg, rest, &c.config); took || err != nil {
 			if err != nil {
@@ -151,7 +151,7 @@ func configFlag(arg string, rest *argQueue, config *string) (bool, error) {
 	return true, nil
 }
 
-// unknownRune and badValue name the argument as text (lossy), as Rust did.
+// unknownRune and badValue name the argument as text (lossy).
 func unknownRune(arg string) error {
 	return runeError(fmt.Sprintf("the rune '%s' is unknown to this cogitator. It knows only %s.", lossy(arg), knownRunes))
 }

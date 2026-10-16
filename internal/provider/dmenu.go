@@ -5,12 +5,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Dmenu is the built-in dmenu provider (Rust src/provider/dmenu.rs): its
-// items are the lines a client streams from stdin, its one stage the list
-// the client asked for, and an answer ends the session with the chosen
-// line's original bytes (or the typed text). It speaks the same Steps and
-// Answers as an external provider, without a process or ids: an item's
-// index is its line number.
+// Dmenu is the built-in dmenu provider: its items are the lines a client
+// streams from stdin, its one stage the list the client asked for, and an
+// answer ends the session with the chosen line's original bytes (or the
+// typed text). It speaks the same Steps and Answers as an external
+// provider, without a process or ids: an item's index is its line number.
 type Dmenu struct {
 	options list.Options
 	// shown: the stage went out; later lines are appended.

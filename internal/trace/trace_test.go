@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// Ports of Rust src/window/trace.rs's tests and of the line parser in
-// tests/support/e2e/client.rs.
+// Tests of the trace's lines and of the line parser a harness reads them
+// with.
 
 func TestALineCarriesThePrefixTheTimeAndTheEvent(t *testing.T) {
 	if got := Line(1_234_567_890, "key 30 pressed"); got != "logis-trace: 1234567890 key 30 pressed" {

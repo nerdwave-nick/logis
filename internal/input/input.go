@@ -1,6 +1,6 @@
-// Package input is keyboard input and query editing (spec feat/logis-go
-// D3, feat/logis §4.5; Rust src/input), a pipeline of small parts, each
-// testable without Wayland:
+// Package input is keyboard input and query editing (spec feat/logis-go D3,
+// feat/logis §4.5), a pipeline of small parts, each testable without
+// Wayland:
 //
 //  1. Keyboard is fed the wl_keyboard events (keymap, enter, leave, key,
 //     modifiers, repeat info) and turns key presses into Actions. It owns
@@ -87,10 +87,9 @@ type Action struct {
 	Edit      Edit      // for EditQuery
 	Selection Selection // for Paste
 	Point     Point     // for PointAt
-	// ByTab: a Select that Tab or Shift+Tab asked for. Plain logis's
-	// tabbed launcher switches tabs with it instead (feat/logis-go
-	// 8cba2fc9, a divergence from Rust v1); everywhere else it moves
-	// the selection as Down and Up do.
+	// ByTab: a Select that Tab or Shift+Tab asked for. Plain logis's tabbed
+	// launcher switches tabs with it instead (feat/logis-go 8cba2fc9);
+	// everywhere else it moves the selection as Down and Up do.
 	ByTab bool
 }
 

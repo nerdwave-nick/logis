@@ -21,8 +21,8 @@ func font(name string) string {
 	return p
 }
 
-// The pinned fonts of tests/text.rs and tests/faces.rs together, with
-// their aliases.
+// The pinned fonts of the text and faces goldens together, with their
+// aliases.
 var files = []string{
 	"NotoSans-Regular.ttf",
 	"NotoSansHebrew-Regular.ttf",
@@ -220,7 +220,7 @@ func TestAFontGoroutineThatDiesIsAnErrorNotAPanic(t *testing.T) {
 	}
 }
 
-// tests/faces.rs: the faces a theme asks for.
+// forgeFaces are the faces a theme asks for.
 func forgeFaces() []text.Face {
 	return []text.Face{
 		{Families: []string{"IBM Plex Mono", "monospace"}, Weight: 400},

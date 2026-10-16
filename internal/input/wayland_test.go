@@ -210,7 +210,7 @@ const harnessCompose = "<Multi_key> <o> <quotedbl> : \"ö\" odiaeresis\n" +
 	"<Multi_key> <e> <e> : \"e\u0301\"\n"
 
 // nestedTrace is what research/go/xkb's e2eprobe recorded from a nested
-// niri typing tests/e2e.rs's keyboard scenario through a virtual keyboard
+// niri typing the E2E keyboard scenario through a virtual keyboard
 // (two keymaps: niri's own, then the injector's, mid-session).
 type nestedTrace struct {
 	Keymaps []string

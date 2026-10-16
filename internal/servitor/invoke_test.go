@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Ported from Rust src/servitor/invoke.rs tests.
+// Launching `servitor invoke` detached.
 
 func TestInvokeRunsInASessionOfItsOwnWithStdioOnDevNullAndUnawaited(t *testing.T) {
 	dir := t.TempDir()

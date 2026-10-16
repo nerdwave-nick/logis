@@ -8,12 +8,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
-// Motion and blur on the window (Rust src/window/windows/motion.rs): the
-// parameters in force, the panel's open transition and its animated
-// close, and the optional globals that pace and blur the panels. With the
-// test trace on: `faded` once a hidden panel is gone, `cut` when a panel
-// still closing is cut short by the next one, `blur <rectangles>` and
-// `blur-capable true|false`.
+// Motion and blur on the window: the parameters in force, the panel's open
+// transition and its animated close, and the optional globals that pace and
+// blur the panels. With the test trace on: `faded` once a hidden panel is
+// gone, `cut` when a panel still closing is cut short by the next one,
+// `blur <rectangles>` and `blur-capable true|false`.
 
 // closeGrace is how long a closing panel may outlast its transition when
 // no frame callback comes (its output went dark): then it goes without

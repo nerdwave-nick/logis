@@ -20,7 +20,7 @@ func font(name string) string {
 	return p
 }
 
-// rules declares aliases as a user's fonts.conf would (tests/text.rs RULES).
+// rules declares aliases as a user's fonts.conf would.
 const rules = `<?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
 <fontconfig>

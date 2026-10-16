@@ -1,10 +1,9 @@
 // Package effects is the controls of logis's post-processing passes as a
 // theme sets them and the renderer draws them: the CRT pass (the clean-room
-// crt.frag in internal/render) in seven groups of named controls, which
-// replaced Rust v1's seven strengths (feat/logis-go cd816303, a deliberate
-// divergence). A strength of 0 turns its effect off; every other control
-// has a default that reproduces v1's look (Defaults), so a v1 theme's
-// strengths alone look as they did.
+// crt.frag in internal/render) in seven groups of named controls
+// (feat/logis-go cd816303). A strength of 0 turns its effect off; every
+// other control has a default (Defaults), so a theme may give strengths
+// alone.
 package effects
 
 // MaskKind is the dot mask's structure.
@@ -25,19 +24,19 @@ var MaskWords = []string{"dots", "grille", "slot"}
 // Scanlines are dark lines across the glass. Lengths are logical pixels.
 type Scanlines struct {
 	// Strength is how dark the lines get; Period the spacing from line to
-	// line; Sharpness from a soft wave (0) through v1's profile (0.25) to a
-	// hard line one pixel thick (1); Roll the drift in px/s (down when
-	// positive).
+	// line; Sharpness from a soft wave (0) through the default profile
+	// (0.25) to a hard line one pixel thick (1); Roll the drift in px/s
+	// (down when positive).
 	Strength, Period, Sharpness, Roll float32
 }
 
-// Glow is light from bright parts spreading to their surroundings (v1's
-// bloom).
+// Glow is light from bright parts spreading to their surroundings
+// (bloom).
 type Glow struct {
-	// Strength is v1's bloom; Threshold the brightness below which nothing
+	// Strength is the bloom's; Threshold the brightness below which nothing
 	// glows; Reach the outer sampling ring's radius (px); Bleed how much of
-	// the source colour the light keeps (0 grey, 1 v1, above 1 saturated);
-	// DimBright how much more dim pixels take than bright ones.
+	// the source colour the light keeps (0 grey, 1 its own, above 1
+	// saturated); DimBright how much more dim pixels take than bright ones.
 	Strength, Threshold, Reach, Bleed, DimBright float32
 }
 
@@ -87,8 +86,8 @@ type CRT struct {
 	Flicker    Flicker
 }
 
-// Defaults is every control at its default: each effect off, the rest
-// as in Rust v1's pass.
+// Defaults is every control at its default: each effect off, the rest as
+// the clean room's table gives them.
 func Defaults() CRT {
 	var c CRT
 	for _, k := range Controls {
@@ -121,7 +120,7 @@ func (c CRT) Moves() bool {
 
 // Stilled is c with everything that moves stilled (reduce-motion): the
 // scanlines stop rolling, the aberration steady, the grain frozen, no
-// flicker (v1 turned flicker off). The static look stays.
+// flicker. The static look stays.
 func (c CRT) Stilled() CRT {
 	c.Scanlines.Roll = 0
 	c.Aberration.Wobble = 0

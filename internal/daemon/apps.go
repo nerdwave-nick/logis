@@ -11,10 +11,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// App sessions in the daemon (feat/logis stories 5–7, §4.7; Rust
-// src/daemon/apps.rs): the index the daemon keeps resident (rescanned
-// whenever the applications directories change, indexer.go), frecency,
-// and the launch of the chosen application.
+// App sessions in the daemon (feat/logis stories 5–7, §4.7): the index the
+// daemon keeps resident (rescanned whenever the applications directories
+// change, indexer.go), frecency, and the launch of the chosen application.
 //
 // A launch first asks the window for an xdg-activation token (the
 // compositor issues it for the focused window and the key or button that

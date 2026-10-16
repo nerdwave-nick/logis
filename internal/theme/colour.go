@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Colours as a theme writes them (Rust src/theme/colour.rs): "#rrggbb" or
+// Colours as a theme writes them: "#rrggbb" or
 // "#rrggbbaa", "transparent", or a palette name ("brass", or "soot.1" for
 // the second of a palette entry's colours), each optionally followed by
 // "/alpha" (0 to 1), which multiplies the colour's own alpha:
@@ -106,8 +106,8 @@ func isName(name string) bool {
 	return true
 }
 
-// parseIndex reads a palette index as Rust's usize::from_str does: decimal
-// digits after an optional '+'.
+// parseIndex reads a palette index: decimal digits after an optional '+',
+// leading zeros allowed.
 func parseIndex(text string) (int, bool) {
 	digits := strings.TrimPrefix(text, "+")
 	if digits == "" || strings.ContainsAny(digits, "+-") {

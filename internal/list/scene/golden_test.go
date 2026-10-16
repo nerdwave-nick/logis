@@ -15,17 +15,16 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The list as drawn in each bundled theme (Rust tests/list.rs): the prompt
-// line with query, caret and counter, tab-separated columns, the selection
-// band and matches set apart; a provider's stage with glyphs, badges, a
-// pending row and a toast; the app launcher's icons; and the theme's own
-// window with its effects. Compared with goldens per theme at 1.0, 1.3 and
-// 2.0 in tests/goldens/themes/<theme>/, stored with straight alpha
+// The list as drawn in each bundled theme: the prompt line with query,
+// caret and counter, tab-separated columns, the selection band and matches
+// set apart; a provider's stage with glyphs, badges, a pending row and a
+// toast; the app launcher's icons; and the theme's own window with its
+// effects. Compared with goldens per theme at 1.0, 1.3 and 2.0 in
+// tests/goldens/themes/<theme>/, stored with straight alpha
 // (rendertest.Straight). Deterministic: the frame's time is frozen (the
 // glow at full strength, the highlight at the top, grain and flicker at
-// time 0), fonts are pinned. Columns are measured with the renderer's
-// fonts at each scale, afresh per theme and scale, as Rust's check_with
-// does.
+// time 0), fonts are pinned. Columns are measured with the renderer's fonts
+// at each scale, afresh per theme and scale.
 
 var goldenScales = []scale.Scale{scale.One, scale.From120ths(156), scale.FromInteger(2)}
 
@@ -77,7 +76,7 @@ func checkThemes(t *testing.T, name string, view *list.View, o list.Options, toa
 	}
 }
 
-// measureAt measures with h's fonts at s (Rust Renderer::measure).
+// measureAt measures with h's fonts at s.
 func measureAt(h *render.Headless, s scale.Scale) scene.Measure {
 	return scene.MeasureFunc(func(t render.Text) (float32, bool) { return h.MeasureText(t, s) })
 }
@@ -214,10 +213,9 @@ func TestGoldenAnAppListDrawsItsIcons(t *testing.T) {
 }
 
 // The columns are measured with each theme's row font at each scale: the
-// first is as wide as the widest name in view (21 characters of a
-// monospace face, about 0.6 em each), the second as "auto", and every
-// row's columns start at the same place (Rust
-// columns_are_measured_with_the_row_font).
+// first is as wide as the widest name in view (21 characters of a monospace
+// face, about 0.6 em each), the second as "auto", and every row's columns
+// start at the same place.
 func TestGoldenColumnsAreMeasuredWithTheRowFont(t *testing.T) {
 	h := rendertest.HeadlessForStructure(t)
 	for _, themeName := range theme.Bundled() {
@@ -266,11 +264,10 @@ func TestGoldenColumnsAreMeasuredWithTheRowFont(t *testing.T) {
 	}
 }
 
-// Plain logis's tab strip (8cba2fc9, new beside Rust v1) in each bundled
-// theme, each tab lit in turn: the plates with their counts and the key
-// hint above the theme's own window, as the owner's references show it
-// (lab v6: Rites lit with its 7 rites, Applications with 22 apps). Go
-// goldens only: Rust v1 had no tabs.
+// Plain logis's tab strip (8cba2fc9) in each bundled theme, each tab lit in
+// turn: the plates with their counts and the key hint above the theme's own
+// window, as the owner's references show it (lab v6: Rites lit with its 7
+// rites, Applications with 22 apps).
 func TestGoldenTheTabStripWithEachTabLit(t *testing.T) {
 	apps := entries("kitty", "Abyssus", "Alacritty", "Alina of the Arena", "ALSA Scarlett Control Panel",
 		"Audacity", "Avahi SSH Server Browser", "Avahi VNC Server Browser", "Blender", "btop++", "Discord")
@@ -285,9 +282,9 @@ func TestGoldenTheTabStripWithEachTabLit(t *testing.T) {
 	}
 }
 
-// Silent rites (2aaad4b9, new beside Rust v1) in each bundled theme: plain
-// logis whose caller has no servitor on its PATH, on its Rites tab; the
-// plate counts "—" and the tab says why.
+// Silent rites (2aaad4b9) in each bundled theme: plain logis whose caller
+// has no servitor on its PATH, on its Rites tab; the plate counts "—" and
+// the tab says why.
 func TestGoldenSilentRites(t *testing.T) {
 	o := list.DefaultOptions()
 	o.Placeholder = "seek a rite"

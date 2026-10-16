@@ -8,9 +8,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/xkb"
 )
 
-// Tests ported from Rust src/input/layout.rs. Rust compiled its keymaps
-// from xkeyboard-config names; these are the same layouts as a compositor
-// serialises them (internal/xkb/testdata).
+// Tests of the layout: what a key means under a keymap and its state.
+// The keymaps are layouts as a compositor serialises them
+// (internal/xkb/testdata).
 
 // evdev codes used below.
 const (

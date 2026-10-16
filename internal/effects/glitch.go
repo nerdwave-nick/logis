@@ -1,12 +1,12 @@
 package effects
 
-// The glitch pass's controls (feat/logis-go 33cfcf44, new beside Rust v1):
-// the clean-room glitch.frag in internal/render disturbs the glass like a
-// signal breaking up, before the CRT pass. A master strength scales
-// everything (0 is an exact pass-through); most parts have an amount at
-// rest and one in an episode, and the episode intensity comes from an
-// ambient cycle (at the end of each period, counted from the panel's
-// opening) or from a burst (Bursts, which logis schedules).
+// The glitch pass's controls (feat/logis-go 33cfcf44): the clean-room
+// glitch.frag in internal/render disturbs the glass like a signal breaking
+// up, before the CRT pass. A master strength scales everything (0 is an
+// exact pass-through); most parts have an amount at rest and one in an
+// episode, and the episode intensity comes from an ambient cycle (at the
+// end of each period, counted from the panel's opening) or from a burst
+// (Bursts, which logis schedules).
 
 // Episodes are the ambient cycle.
 type Episodes struct {

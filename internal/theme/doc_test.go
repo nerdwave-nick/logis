@@ -8,8 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// Ported from Rust src/theme/doc.rs tests, plus the words and places of
-// Rust logis v1's refusals (taken from its `--check-config` on each text).
+// Reading a theme document, and the words and places of its refusals.
 
 func doc(t *testing.T, text string) node {
 	t.Helper()
@@ -118,8 +117,7 @@ func TestADashIsTwoLengthsOrFalse(t *testing.T) {
 	}
 }
 
-// refusals are texts and Rust logis v1's verdict on them, "LINE:COLUMN:
-// message".
+// refusals are texts and the verdict on them, "LINE:COLUMN: message".
 var refusals = []struct{ text, want string }{
 	{"{\n \"decorations\": {\"rivets\": {\"sise\": 4}}}", "2:39: data did not match any variant of untagged enum Either"},
 	{`{"decorations": {"rivets": {"sise": 4} }}`, "1:40: data did not match any variant of untagged enum Either"},
@@ -194,7 +192,7 @@ var refusals = []struct{ text, want string }{
 	{`[1]`, "1:1: the theme must be a JSON object: { \"key\": value, … }"},
 }
 
-func TestUnknownKeysAndWrongKindsAreRefusedWithRustsWordsAndPlaces(t *testing.T) {
+func TestUnknownKeysAndWrongKindsAreRefusedWithTheirWordsAndPlaces(t *testing.T) {
 	for _, c := range refusals {
 		_, err := parseDoc([]byte(c.text))
 		var invalid *jsonc.Invalid

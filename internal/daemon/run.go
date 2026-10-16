@@ -46,9 +46,9 @@ type Options struct {
 	// frecency and the session bus are, the current desktops, PATH and the
 	// locale. Nil: the process's own.
 	Getenv func(string) string
-	// Preflight checks the session before anything else is read or taken
-	// (Rust: wayland::preflight); its error ends the daemon (exit 2). Nil:
-	// none, for a resolver that needs no compositor.
+	// Preflight checks the session before anything else is read or taken;
+	// its error ends the daemon (exit 2). Nil: none, for a resolver that
+	// needs no compositor.
 	Preflight func() error
 	// Stdout takes the readiness line; Stderr is the daemon's log.
 	Stdout, Stderr io.Writer

@@ -21,7 +21,7 @@ const watchEvery = 10 * time.Millisecond
 // compositor's, not the client's: a nested niri whose window the session
 // does not draw (another workspace, out of view) gets frame callbacks
 // about once a second and blocks in its buffer swap meanwhile, answering
-// nobody for up to two seconds (Rust ticket d49bceee).
+// nobody for up to two seconds (ticket d49bceee).
 type Watchdog struct {
 	mu     sync.Mutex
 	stalls [][2]uint64 // (asked, answered), CLOCK_MONOTONIC ns

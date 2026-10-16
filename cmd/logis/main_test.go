@@ -8,8 +8,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/version"
 )
 
-// Ported from Rust tests/cli.rs version_flag_prints_name_and_version_and_succeeds
-// and src/cli version_flags_ask_for_the_version.
+// --version and -V print `logis VERSION` on stdout, nothing on stderr, and
+// exit 0.
 func TestVersionRunesPrintNameAndVersion(t *testing.T) {
 	for _, flag := range []string{"--version", "-V"} {
 		t.Run(flag, func(t *testing.T) {
@@ -28,9 +28,8 @@ func TestVersionRunesPrintNameAndVersion(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/cli an_unknown_argument_is_named_in_the_error, for the
-// runes this build knows: an unknown rune, or a second command, is named in
-// the error, exit 2 with empty stdout.
+// An unknown rune, or a second command, is named in the error, exit 2 with
+// empty stdout.
 func TestUnknownRunesAreNamedAndExit2(t *testing.T) {
 	for _, tc := range []struct {
 		args    []string

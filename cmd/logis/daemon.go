@@ -51,8 +51,8 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 	}
 	o.Resolver = func(host daemon.Host) (daemon.Resolver, error) { return resolverFromEnv(host, stderr) }
 	if _, set := os.LookupEnv("LOGIS_RESOLVER"); !set {
-		// The window's session is checked first, as Rust did: before the
-		// config, and before a second daemon defers to a first.
+		// The window's session is checked first: before the config, and
+		// before a second daemon defers to a first.
 		o.Preflight = window.Preflight
 	}
 	o.Stdout, o.Stderr = stdout, stderr
@@ -91,9 +91,9 @@ type daemonArgs struct {
 	debugPanel bool
 }
 
-// parseDaemon parses the arguments after `daemon` in order, as Rust did:
-// the first refused one is named, and --idle-timeout takes whatever
-// follows it as its value.
+// parseDaemon parses the arguments after `daemon` in order: the first
+// refused one is named, and --idle-timeout takes whatever follows it as its
+// value.
 func parseDaemon(args []string) (daemonArgs, error) {
 	var o daemonArgs
 	var path string
@@ -142,9 +142,8 @@ func parseDaemon(args []string) (daemonArgs, error) {
 	return o, nil
 }
 
-// seconds parses a non-negative decimal number of seconds that Rust's
-// Duration holds (under 2^64); one too large for a Go Duration is the
-// longest there is.
+// seconds parses a non-negative decimal number of seconds under 2^64; one
+// too large for a time.Duration is the longest there is.
 func seconds(text string) (time.Duration, bool) {
 	if strings.ContainsAny(text, "xX_") {
 		return 0, false // ParseFloat's hexadecimal and digit separators

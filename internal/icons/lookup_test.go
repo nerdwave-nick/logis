@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ported from Rust src/icons/lookup.rs, over tests/fixtures/icons.
+// The icon lookup over tests/fixtures/icons.
 
 // fixtures is the repository's tests/fixtures/icons (go test runs in the
 // package directory).

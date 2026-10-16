@@ -1,10 +1,9 @@
 package render
 
-// shelfPacker places rectangles in an area for the image atlas (Rust
-// src/render/packer.rs): shelves (rows) filled left to right, a new shelf
-// opened below the last when none fits. Icons come in a few sizes, so
-// shelves stay tight. Growing doubles both sides and keeps every placed
-// rectangle where it is.
+// shelfPacker places rectangles in an area for the image atlas: shelves
+// (rows) filled left to right, a new shelf opened below the last when none
+// fits. Icons come in a few sizes, so shelves stay tight. Growing doubles
+// both sides and keeps every placed rectangle where it is.
 type shelfPacker struct {
 	width, height uint32
 	shelves       []shelf

@@ -14,13 +14,12 @@ import (
 	"time"
 )
 
-// servitor mode through a real daemon (Rust tests/servitor.rs): `logis
-// --servitor` with the scripted resolver standing in for the window (it
-// chooses the first settled row starting with '>' and types an
-// inscription's placeholder after its '>'; internal/daemon/scripted.go)
-// and a fake `servitor` on the caller's PATH
-// (tests/fixtures/servitor/servitor) telling census lines recorded from
-// the real one and recording how it was invoked.
+// servitor mode through a real daemon: `logis --servitor` with the scripted
+// resolver standing in for the window (it chooses the first settled row
+// starting with '>' and types an inscription's placeholder after its '>';
+// internal/daemon/scripted.go) and a fake `servitor` on the caller's PATH
+// (tests/fixtures/servitor/servitor) telling census lines recorded from the
+// real one and recording how it was invoked.
 
 // world is a caller's world: a directory with bin/servitor (the fake) and
 // the fake's records.
@@ -300,8 +299,8 @@ func TestServitorModeRunsLogisItselfAsItsProvider(t *testing.T) {
 	}
 }
 
-// Not in Rust's tests: a provider whose logis is gone (its stdout read by
-// nobody) ends quietly, exit 0, rather than killed by SIGPIPE.
+// A provider whose logis is gone (its stdout read by nobody) ends quietly,
+// exit 0, rather than killed by SIGPIPE.
 func TestAProviderWhoseLogisIsGoneEndsWithExit0(t *testing.T) {
 	r := newRig(t)
 	w := newWorld(t)

@@ -1,7 +1,7 @@
-// Package theme is a theme resolved for drawing (feat/logis §4.9; Rust
-// src/theme/model.rs): every colour a render.Color, every font a face and
-// a size, every part that may be off a flag. Lengths are logical pixels;
-// the renderer multiplies by the output scale.
+// Package theme is a theme resolved for drawing (feat/logis §4.9): every
+// colour a render.Color, every font a face and a size, every part that may
+// be off a flag. Lengths are logical pixels; the renderer multiplies by the
+// output scale.
 //
 // The engine (feat/logis §4.9, the theme model of three layers): a theme
 // file is a palette of named colours with alpha, the elements of the
@@ -56,7 +56,7 @@ type Theme struct {
 	Selection Selection
 	Match     Match
 	Badge     Badge
-	// Tab is plain logis's tab plates' (8cba2fc9, new beside Rust v1).
+	// Tab is plain logis's tab plates' (8cba2fc9).
 	Tab     Tab
 	Pending Pending
 	Effects Effects
@@ -121,9 +121,9 @@ type Panel struct {
 	Blur bool
 }
 
-// Tab is the plates of plain logis's tab strip (feat/logis-go 8cba2fc9,
-// new beside Rust v1); the rest of their look echoes the selection, the
-// panel, the prompt's label and the badges (scene/strip.go).
+// Tab is the plates of plain logis's tab strip (feat/logis-go 8cba2fc9);
+// the rest of their look echoes the selection, the panel, the prompt's
+// label and the badges (scene/strip.go).
 type Tab struct {
 	// Radius is their corners'.
 	Radius float32

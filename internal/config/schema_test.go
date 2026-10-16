@@ -12,11 +12,10 @@ import (
 	"unicode/utf8"
 )
 
-// The published schema (schema/logis.schema.json, unchanged from Rust v1)
-// and the parser agree: the same keys, defaults, words and kinds of value
-// (ported from Rust src/config/schema_tests.rs), and, beyond Rust, the same
-// verdict on a corpus of documents through a validator for the part of JSON
-// Schema the file uses.
+// The published schema (schema/logis.schema.json) and the parser agree:
+// the same keys, defaults, words and kinds of value, and the same verdict
+// on a corpus of documents through a validator for the part of JSON Schema
+// the file uses.
 
 type schemaDoc map[string]any
 

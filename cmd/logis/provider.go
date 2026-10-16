@@ -8,12 +8,12 @@ import (
 )
 
 // The client side of a provider session, `logis --provider PROGRAM
-// [ARG]...` (feat/logis §4.8; Rust src/client/provider.rs): the daemon
-// runs the provider as if this client had, in its working directory and
-// with its environment, and shows what the provider says. The client waits
-// for the end: exit 0 when the provider closed its flow, 1 when the user
-// dismissed it (or another session replaced it), 2 on error (the provider
-// could not start, broke the protocol or departed early).
+// [ARG]...` (feat/logis §4.8): the daemon runs the provider as if this
+// client had, in its working directory and with its environment, and shows
+// what the provider says. The client waits for the end: exit 0 when the
+// provider closed its flow, 1 when the user dismissed it (or another
+// session replaced it), 2 on error (the provider could not start, broke the
+// protocol or departed early).
 
 // runProvider runs a provider session for argv; configPath goes to a
 // daemon this client has to start.

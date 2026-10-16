@@ -15,11 +15,11 @@ import (
 // folding and normalisation of every character they change, and its
 // character class of every non-ASCII range.
 type recorded struct {
-	Items     []string     `json:"items"`
-	Queries   []string     `json:"queries"`
-	Cases     [][4]any     `json:"cases"`
-	Fold      [][2]rune    `json:"fold"`
-	Normalize [][2]rune    `json:"normalize"`
+	Items     []string    `json:"items"`
+	Queries   []string    `json:"queries"`
+	Cases     [][4]any    `json:"cases"`
+	Fold      [][2]rune   `json:"fold"`
+	Normalize [][2]rune   `json:"normalize"`
 	Classes   []classSpan `json:"classes"`
 }
 

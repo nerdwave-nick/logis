@@ -7,7 +7,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/input"
 )
 
-// Ported from Rust src/list/view/pointer.rs.
+// The pointer over the list: hover, clicks and scrolling.
 
 const (
 	pointerLines = 3

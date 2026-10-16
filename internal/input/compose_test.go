@@ -8,9 +8,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/xkb"
 )
 
-// Tests ported from Rust src/input/compose.rs.
+// Tests of dead keys and Compose sequences.
 
-// composeTable is Rust's test table: no test depends on the machine's
+// composeTable is the tests' own table: no test depends on the machine's
 // locale or anyone's ~/.XCompose.
 const composeTable = "\n<Multi_key> <o> <quotedbl> : \"ö\" odiaeresis\n" +
 	"<Multi_key> <e> <e> : \"é\"\n" +

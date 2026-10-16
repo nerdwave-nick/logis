@@ -1,11 +1,10 @@
 // Package shape turns one run of text — one font, one direction — into
-// positioned glyphs the way HarfBuzz does (and harfrust, which Rust logis
-// v1 shapes with): Unicode properties and grapheme clusters, mirroring,
-// normalisation against the font's cmap with HarfBuzz's mark ordering,
-// the default, Hebrew and Arabic shapers, the GSUB and GPOS features of
-// internal/ot, fallback spaces and mark positioning, and hidden default
-// ignorables. Glyphs come out in visual order with clusters as byte
-// offsets and positions in font units.
+// positioned glyphs the way HarfBuzz does: Unicode properties and grapheme
+// clusters, mirroring, normalisation against the font's cmap with
+// HarfBuzz's mark ordering, the default, Hebrew and Arabic shapers, the
+// GSUB and GPOS features of internal/ot, fallback spaces and mark
+// positioning, and hidden default ignorables. Glyphs come out in visual
+// order with clusters as byte offsets and positions in font units.
 //
 // Complex-script shapers (Indic, USE, Khmer, Myanmar, Thai, Hangul jamo),
 // AAT tables, the legacy kern table, vertical text and variable fonts are

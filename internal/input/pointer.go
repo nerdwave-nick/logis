@@ -2,10 +2,10 @@ package input
 
 import "math"
 
-// The pointer as the visible session sees it (spec feat/logis §3 story 16;
-// Rust src/input/pointer.rs): the wl_pointer events in, Points out. The
-// window's seat forwards the protocol events; this model groups them into
-// frames and decides what they mean.
+// The pointer as the visible session sees it (spec feat/logis §3 story 16):
+// the wl_pointer events in, Points out. The window's seat forwards the
+// protocol events; this model groups them into frames and decides what they
+// mean.
 //
 //   - Position: motion reports where the pointer is, in the surface's
 //     logical pixels; leave ends it. Enter only records the position: a
@@ -192,5 +192,5 @@ func (p *Pointer) Frame() []Point {
 	return points
 }
 
-// saturate clamps v to int32, as Rust's saturating arithmetic.
+// saturate clamps v to int32 (saturating arithmetic).
 func saturate(v int64) int32 { return int32(max(min(v, math.MaxInt32), math.MinInt32)) }

@@ -10,8 +10,7 @@ import (
 )
 
 // Each key's value is checked as it is read, and each expectation names its
-// key, so the message says which setting is wrong — in the words serde gave
-// Rust logis v1.
+// key, so the message says which setting is wrong — in serde's words.
 
 // field reads one key into a Config.
 type field struct {
@@ -126,8 +125,8 @@ func (r reader) flag(key string) (bool, error) {
 	return r.v.Bool, nil
 }
 
-// seconds is a number of seconds, 0 or more. Rust held up to 2⁶⁴ − 1
-// seconds; a Duration ends at 292 years, which stands for any longer one.
+// seconds is a number of seconds, 0 or more, up to 2⁶⁴ − 1; a Duration
+// ends at 292 years, which stands for any longer one.
 func (r reader) seconds() (time.Duration, error) {
 	const expected = "`idle-timeout` as seconds, 0 or more (0 keeps the daemon resident)"
 	if r.v.Kind != jsonc.Number {

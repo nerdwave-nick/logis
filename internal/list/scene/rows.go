@@ -8,12 +8,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The rows (Rust src/list/scene/rows.rs): each a single line whose
-// tab-separated columns line up with the other rows' (at the widths the
-// Look carries, else estimated) and take the theme's column colours,
-// matched characters set apart in the match colour, face and underline; an
-// emblem column when some item has one; badges and the pending mark at the
-// end. The selected row lies on the band.
+// The rows: each a single line whose tab-separated columns line up with the
+// other rows' (at the widths the Look carries, else estimated) and take the
+// theme's column colours, matched characters set apart in the match colour,
+// face and underline; an emblem column when some item has one; badges and
+// the pending mark at the end. The selected row lies on the band.
 
 // selectionBand draws the band on the row whose top is top, pitch tall,
 // with its edge bar.
