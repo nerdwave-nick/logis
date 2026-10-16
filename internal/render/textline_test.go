@@ -1,6 +1,7 @@
 package render_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/render"
@@ -12,6 +13,8 @@ import (
 // Ports of the line features of Rust tests/text.rs, tests/faces.rs and
 // src/render/measure.rs: columns, the ellipsis, colour spans, end
 // alignment, emphasis in another face with underlines, and measuring.
+
+func round(v float32) float32 { return float32(math.Round(float64(v))) }
 
 func longLine(o render.Overflow) *render.Scene {
 	return texts(render.NewText("MMMMMMMMMMMMMMMMMMMM", [2]float32{10, 10}, 16, white).InColumn(60, o))

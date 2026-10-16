@@ -26,7 +26,7 @@ const pinnedRules = `<fontconfig>
 </fontconfig>`
 
 // PinnedFonts are the test fonts through an isolated fontconfig that knows
-// only them (Rust tests/list.rs pinned_fonts): the themes' own families
+// only them: the themes' own families
 // (IBM Plex Mono, Cinzel, VT323) fall back to the pinned monospace and
 // serif. The caller owns them (a renderer's SetFonts takes them over).
 func PinnedFonts(t testing.TB) *text.Fonts {

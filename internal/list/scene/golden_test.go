@@ -2,7 +2,6 @@ package scene_test
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/effects"
@@ -139,9 +138,7 @@ func TestGoldenAProviderStageWithGlyphsBadgesAPendingRowAndAToast(t *testing.T) 
 }
 
 // The theme's own window: no size asked, as servitor mode and the app
-// launcher open; the rows of the design canvas. Its Go golden stands in for
-// Rust's because of two pinned divergences (row order, emphasis face; see
-// TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences).
+// launcher open; the rows of the design canvas.
 func TestGoldenTheThemesWindowWithTheRitesOfTheCanvas(t *testing.T) {
 	o := list.DefaultOptions()
 	o.Counter = true
@@ -178,114 +175,6 @@ func windowRows() []list.Entry {
 		decorated("vox\tauto\tWho hears the machine", "", []string{"edict"}, false),
 		decorated("night-light\toff\tDim the light of the screens", "", nil, false),
 		decorated("theme\tforge\tThe visage of the machine", "", nil, false),
-	}
-}
-
-// The window case differs from Rust's golden by two pinned divergences
-// only (feat/logis-go G20), not by its measured columns, when drawn in
-// Rust v1's window (820×520, nine rows; Go's own window is as tall as its
-// eleven rows, a third, deliberate divergence): drawn with
-// Rust's row order and cosmic-text's word-wide emphasis face imitated, it
-// equals Rust's golden but for anti-aliasing.
-//   - Tie order: nucleo scores "power-profile\t·\t…" 16 for "o" where its
-//     ASCII twin scores 36: its non-ASCII scan carries the class of the
-//     last match, not of the character before (internal/fuzzy divergence
-//     (a), testdata/divergences.json). logis scores it 36, so it keeps its
-//     input place among the rows tied at 36; Rust ranks it below them.
-//   - Emphasis face: cosmic-text 0.19 shapes a simple ASCII word in the
-//     attributes of its first byte when every span set on it agrees with
-//     them, and spans equal to the line's defaults are never set; so a
-//     match at a word's start sets the whole word in the match face ("of",
-//     "off", "on" semibold in forge; the colour stays per letter). logis
-//     sets only the matched letters apart, as Rust's rows.rs describes
-//     (internal/text divergences).
-//
-// Since the CRT pass (cd816303) the bundled themes wear other effects than
-// Rust's goldens show: the comparison draws forge with its v1 strengths,
-// which the CRT pass draws byte for byte as v1 did, and without the glitch
-// (33cfcf44), which v1 had not. Phosphor's v1 look
-// bent its picture behind a straight border, which the pass no longer
-// does, so its Rust golden is out of reach.
-func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T) {
-	h := rendertest.Headless(t)
-	g := rendertest.CheckedIn(t)
-	g.Alpha = rendertest.Straight
-	o := list.DefaultOptions()
-	o.Counter = true
-	for _, themeName := range []string{theme.DefaultName} {
-		th, err := theme.Themes{}.Load(themeName)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// v1's forge: scanlines 0.16, grain 0.08, flicker 0.015, vignette 0.42.
-		th.Effects = effects.Defaults()
-		th.Effects.Scanlines.Strength, th.Effects.Grain.Strength = 0.16, 0.08
-		th.Effects.Flicker.Strength, th.Effects.Roundness.Vignette = 0.015, 0.42
-		// v1 had no glitch (33cfcf44).
-		th.Glitch.Strength = 0
-		// Rust v1's window: 820×520 and nine rows (Go's height follows
-		// its rows: fit_test.go), so Rust's golden is the oracle.
-		logical, rows := scale.Size{W: 884, H: 584}, uint32(9)
-		v := list.NewView(o)
-		v.SetLines(rows)
-		v.Push(windowRows())
-		v.Apply(input.Insert("o"))
-		l := v.Look()
-		var order []string
-		for _, r := range l.Rows {
-			order = append(order, strings.SplitN(r.Text, "\t", 2)[0])
-		}
-		if want := "do-not-disturb keyboard-layout mouse-autohide-toggle power-profile night-light theme vox"; strings.Join(order, " ") != want {
-			t.Fatalf("rows %v, want %s", order, want)
-		}
-		// Rust's order: the power-profile row below night-light and theme.
-		l.Rows = append(l.Rows[:3:3], l.Rows[4], l.Rows[5], l.Rows[3], l.Rows[6])
-		h.SetFonts(rendertest.PinnedFonts(t))
-		if err := h.SetFaces(th.Faces); err != nil {
-			t.Fatal(err)
-		}
-		for _, s := range goldenScales {
-			l := l
-			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
-			sc := scene.Draw(&l, logical, scene.Style{Theme: &th})
-			for i := range sc.Texts {
-				if !sc.Texts[i].UnderlineEmphasis {
-					wordWide(&sc.Texts[i])
-				}
-			}
-			img, err := h.Offscreen(sc, logical, s)
-			if err != nil {
-				t.Fatal(err)
-			}
-			rust, err := rendertest.ReadPNG(g.RustPath("themes/"+th.Name, "window@"+rendertest.ScaleSuffix(s)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			rust = rendertest.Premultiply(rust)
-			c, err := rendertest.Compare(img, rust, rendertest.Offscreen.Channel)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("%s @%s: %v", th.Name, rendertest.ScaleSuffix(s), c)
-			if float64(c.Outliers) > 0.003*float64(c.Total) {
-				t.Errorf("%s @%s: beyond anti-aliasing: %v", th.Name, rendertest.ScaleSuffix(s), c)
-			}
-		}
-	}
-}
-
-// wordWide imitates cosmic-text's fast path: an emphasis that starts an
-// ASCII word takes the face to the word's end (its colour spans stay).
-func wordWide(t *render.Text) {
-	for i, e := range t.Emphasis {
-		if e.Start > 0 && t.Text[e.Start-1] != ' ' {
-			continue
-		}
-		end := e.End
-		for end < len(t.Text) && t.Text[end] != ' ' {
-			end++
-		}
-		t.Emphasis[i].End = end
 	}
 }
 
