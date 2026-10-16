@@ -35,3 +35,29 @@ func TestLatencyApps(t *testing.T) {
 	warm.EnforceNoneSlow(t)
 	latency.EnforceBudgets(t, series)
 }
+
+// Plain logis's tabbed launcher's warm open (8cba2fc9): as TestLatencyApps,
+// but plain `logis` with the fake servitor on its PATH, so the panel opens
+// tabbed and servitor mode's provider starts with it (its rites fill their
+// tab after the first frame). Run alone, under the shared measurement lock.
+func TestLatencyTabbedApps(t *testing.T) {
+	c := e2e.StartCogitator(t, nil, "")
+	watch := e2e.StartWatchdog(t, c.Compositor)
+	runs := latency.Runs(t)
+	frameMS := 1000 / c.Harness.RefreshHz()
+	time.Sleep(500 * time.Millisecond)
+	w := newWorld(t)
+	w.openGate()
+	env := tabbedEnv(t, t.TempDir(), w)
+	warm := latency.WarmOpen(t, c.Daemon, watch, runs, true, func() func() {
+		client := c.ClientWith(env)
+		return func() { _ = client.Kill() }
+	})
+	series := []latency.Series{
+		latency.NewSeries("tabbed warm open: start → first commit", latency.WarmOpenMS, warm.First),
+		latency.NewSeries("tabbed warm open: start → open settled", latency.WarmOpenMS+150+2*frameMS, warm.Settled),
+	}
+	latency.Record(t, c.Compositor.Kind().Name(), series)
+	warm.EnforceNoneSlow(t)
+	latency.EnforceBudgets(t, series)
+}
