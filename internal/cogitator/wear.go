@@ -139,9 +139,9 @@ func (u *ui) present(size scale.Size, sh *shown) error {
 // painter draws sh's list each frame in the theme worn then (Rust
 // wear.rs drawing), at the frame's moment and in its pose: the selection
 // band glides to the selected row, the theme's continuous effects (glow
-// pulse, travelling highlight, flicker, a pending row's shimmer) move, and
-// either keeps the window drawing on every frame callback (scene.Moving);
-// the body is blurred behind.
+// pulse, travelling highlight, flicker, a pending row's shimmer) and its
+// glitch move, and any of them keeps the window drawing on every frame
+// callback (scene.Moving, glitch.go); the body is blurred behind.
 func (u *ui) painter(sh *shown) window.FramePainter {
 	return func(f window.Frame) window.Drawing {
 		look := u.lookOf(sh)
@@ -152,18 +152,19 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 		sh.columns.Fit(&look, u.theme, measure)
 		target, selected := scene.BandTop(&look, f.Logical, u.theme)
 		band, banded, gliding := sh.glide.Toward(target, selected, f.At, f.Interval)
+		moment, glitching := u.glitchAt(sh, f.At)
 		if u.draw != nil {
 			var icons scene.Icons
 			if u.icons != nil {
 				icons = u.icons(f.Geometry)
 			}
-			sc := scene.DrawAt(&look, f.Logical, band, banded, scene.Style{Theme: u.theme, At: f.At}, icons)
+			sc := scene.DrawAt(&look, f.Logical, band, banded, scene.Style{Theme: u.theme, At: f.At, Glitch: moment}, icons)
 			f.Pose.Apply(sc)
 			u.draw(sc, f.Geometry)
 		}
 		body, radius := scene.Body(f.Logical, u.theme)
 		return window.Drawing{
-			Moving:   gliding || scene.Moving(&look, u.theme),
+			Moving:   gliding || glitching || scene.Moving(&look, u.theme),
 			Backdrop: &window.Backdrop{Rect: body, Radius: radius},
 		}
 	}

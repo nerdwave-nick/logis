@@ -138,9 +138,11 @@ func (r *Resolver) run(w *window.Window, u *ui, actions *[]input.Action) error {
 			busy = true
 		}
 		u.expire()
+		u.wake()
 		u.check()
 		// Something changed: draw now if a frame is due, else sleep in
-		// poll until the compositor, a command or the toast's end.
+		// poll until the compositor, a command, the toast's end or the
+		// glitch's next start.
 		timeout := time.Duration(-1)
 		if until, ok := u.deadline(); ok {
 			timeout = max(time.Until(until), 0)

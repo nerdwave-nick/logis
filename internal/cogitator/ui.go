@@ -2,10 +2,12 @@ package cogitator
 
 import (
 	"errors"
+	"math/rand/v2"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/daemon"
+	"github.com/nerdwave-nick/logis/internal/glitch"
 	"github.com/nerdwave-nick/logis/internal/input"
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
@@ -83,6 +85,11 @@ type shown struct {
 	lingering bool
 	// glide moves the selection band to the selected row.
 	glide motion.Glide
+	// glitch is its glitch's clock, from its first frame (glitch.go);
+	// next is when it next starts to move (0: nothing to come), woke the
+	// start the window last woke for.
+	glitch     *glitch.Clock
+	next, woke uint64
 }
 
 type ui struct {
@@ -116,6 +123,8 @@ type ui struct {
 	// timings; blur is the config's (wear.go).
 	envMotion *motion.Motion
 	blur      bool
+	// random draws the glitch's chances (glitch.go).
+	random func() float64
 	// room is the logical height of the output panels show on (0: not
 	// known): the window's word at each show, and the compositor's when it
 	// puts a panel on an output (wear.go).
@@ -123,7 +132,7 @@ type ui struct {
 }
 
 func newUI(host daemon.Host, surf surface, th *theme.Theme, kb focusPolicy) *ui {
-	return &ui{host: host, surf: surf, theme: th, keyboard: kb, emit: trace.Emit, now: time.Now}
+	return &ui{host: host, surf: surf, theme: th, keyboard: kb, emit: trace.Emit, now: time.Now, random: rand.Float64}
 }
 
 // accepts says which sessions the window serves: dmenu, provider and app
@@ -150,7 +159,7 @@ func (u *ui) show(s daemon.Session) {
 	size, rows := u.fitIn(o)
 	o.Lines = &rows
 	sh := &shown{id: s.ID, view: list.NewView(o), rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu,
-		glide: motion.NewGlide(u.motion().Selection)}
+		glide: motion.NewGlide(u.motion().Selection), glitch: glitch.New(u.random)}
 	u.shown = nil
 	if err := u.present(size, sh); err != nil {
 		u.host.Fail(s.ID, err.Error())
@@ -291,9 +300,17 @@ func (u *ui) toast(t daemon.Toast) {
 	u.surf.RequestRedraw()
 }
 
-// deadline is when the toast goes, if one shows.
+// deadline is when the toast goes, if one shows, or when the glitch
+// next starts to move, whichever comes first.
 func (u *ui) deadline() (time.Time, bool) {
-	return u.noticeUntil, !u.noticeUntil.IsZero()
+	at, ok := u.noticeUntil, !u.noticeUntil.IsZero()
+	if next, wake := u.glitchWake(); wake {
+		w := u.now().Add(time.Duration(next - min(next, u.clock())))
+		if !ok || w.Before(at) {
+			at, ok = w, true
+		}
+	}
+	return at, ok
 }
 
 // expire takes the toast away once its time is up.

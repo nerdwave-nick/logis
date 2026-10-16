@@ -51,7 +51,8 @@ type Config struct {
 	// ext-background-effect).
 	Blur bool
 	// ReduceMotion stills the theme's continuous effects (glow pulse,
-	// travelling highlight, flicker, shimmer); transitions stay.
+	// travelling highlight, flicker, shimmer, the CRT pass's motion) and
+	// turns the glitch off; transitions stay.
 	ReduceMotion bool
 }
 

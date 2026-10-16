@@ -109,6 +109,18 @@ func TestCheckConfigJudgesTheThemesContents(t *testing.T) {
 	if want := "logis: the theme is heretical: " + mine + ":1:35: unknown variant `hex`, expected one of `dots`, `grille`, `slot`\n"; code != 2 || stderr != want {
 		t.Errorf("exit %d stderr %q", code, stderr)
 	}
+	// The glitch (33cfcf44): its parts held to their ranges, its events to
+	// their words.
+	writeFile(t, mine, `{"effects": {"glitch": {"wobble": {"episode": 81}}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ": effects.glitch.wobble.episode: 81 is out of range (0 to 80)\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+	writeFile(t, mine, `{"effects": {"glitch": {"bursts": {"on": ["close"]}}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ":1:49: unknown variant `close`, expected `open` or `tab`\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
 }
 
 func TestCheckConfigFindsTheThemeItNames(t *testing.T) {

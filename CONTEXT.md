@@ -257,13 +257,23 @@ rule, row, selection, match, badge, pending), which name palette colours and fon
 (scanlines, grain, flicker, vignette, bloom, curvature, chromatic aberration),
 each a strength where 0 is off, with the motion timings. In the Go build the
 effects are the **CRT pass**'s groups of settings (scanlines, glow,
-aberration, mask, roundness, grain, flicker), each with its strength.
+aberration, mask, roundness, grain, flicker), each with its strength, and
+the **glitch** before it.
+
+**Glitch / episode / burst**:
+The Go build's **glitch** is a pass before the CRT pass that breaks the
+glass up like a failing signal: calm at **rest**, hard in an **episode**.
+Episodes come from the ambient cycle (at the end of each period, counted
+from the panel's opening) and from **bursts**: short episodes logis fires
+when the panel opens, on a switch of tab and at random. Its strength scales
+all of it; 0 is no glitch. reduce-motion turns it off. Rust v1 had none.
 
 **Continuous effect**:
 What moves on its own while a window is visible: the glow's **pulse**, the
 **travelling highlight** round the border, the **flicker**, and a pending row's
-**shimmer** (in the Go build also rolling scanlines, a wobbling aberration and
-changing grain). They keep the window drawing; **reduce motion** (the config's
+**shimmer** (in the Go build also rolling scanlines, a wobbling aberration,
+changing grain and a glitch that moves at rest; its episodes and bursts move
+while they last). They keep the window drawing; **reduce motion** (the config's
 `reduce-motion`) stills them all.
 
 **Sigil**:
