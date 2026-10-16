@@ -6,7 +6,7 @@ import "github.com/nerdwave-nick/logis/internal/xkb"
 const evdevOffset = 8
 
 // Layout is the compositor's keymap and the state its modifier masks
-// describe: what a key means right now (Rust src/input/layout.rs).
+// describe: what a key means right now.
 type Layout struct {
 	km    *xkb.Keymap
 	state *xkb.State

@@ -19,10 +19,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// The window measures the columns of the rows it draws (Rust
-// daemon/window/wear.rs drawing → ListView::look_measured): as wide as the
-// widest text shown since the list opened, never narrower while typing;
-// a provider's next stage starts afresh.
+// The window measures the columns of the rows it draws: as wide as the
+// widest text shown since the list opened, never narrower while typing; a
+// provider's next stage starts afresh.
 
 // tenPerChar measures ten pixels a character, at the frame's scale it was
 // asked for.

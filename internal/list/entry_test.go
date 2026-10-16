@@ -24,8 +24,8 @@ func TestDecorMakesAnEntryPendingOrEmblemed(t *testing.T) {
 		{Decor{Glyph: "⚙"}, false, true},
 		{Decor{Icon: "forge-cog"}, false, true},
 		{Decor{Badges: []string{"current"}, Boost: 3}, false, false},
-		// A provider's "glyph": "" or "icon": "" is there, though empty
-		// (Rust Some("")): it claims the icon column.
+		// A provider's "glyph": "" or "icon": "" is there, though empty: it
+		// claims the icon column.
 		{Decor{HasGlyph: true}, false, true},
 		{Decor{HasIcon: true}, false, true},
 	} {

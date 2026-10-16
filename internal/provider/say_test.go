@@ -7,9 +7,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// A built-in provider (servitor mode) says its lines as Rust's serde does
-// for FromProvider: the "type" first, every field present, null for what
-// is absent.
+// A built-in provider (servitor mode) says its lines with the "type"
+// first, every field present, null for what is absent.
 
 func TestALineSaidReadsBackAsTheSameMessage(t *testing.T) {
 	glyph, sel, prompt := "⚙", "on", "rite: "
@@ -37,7 +36,7 @@ func TestALineSaidReadsBackAsTheSameMessage(t *testing.T) {
 	}
 }
 
-func TestALineSaidHasSerdesShape(t *testing.T) {
+func TestALineSaidHasTheTypeFirstAndEveryFieldPresent(t *testing.T) {
 	prompt, glyph := "rite: ", "⚙"
 	for _, c := range []struct {
 		m    Message

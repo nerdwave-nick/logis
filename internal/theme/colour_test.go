@@ -8,7 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ported from Rust src/theme/colour.rs tests.
+// Colour references: hex, transparent, palette names and indices, alpha.
 
 func testPalette() palette {
 	return palette{
@@ -60,7 +60,7 @@ func TestPaletteNamesAndIndicesResolve(t *testing.T) {
 	if got := mustColour(t, "soot.1"); got.A != 128.0/255 {
 		t.Errorf("%v", got)
 	}
-	// Rust's usize parse takes a leading '+' and leading zeros.
+	// An index may have a leading '+' and leading zeros.
 	for _, text := range []string{"soot.+1", "soot.01"} {
 		if got := mustColour(t, text); got.A != 128.0/255 {
 			t.Errorf("%s: %v", text, got)

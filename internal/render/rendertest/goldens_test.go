@@ -11,8 +11,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust tests/golden_harness.rs's harness tests (update mode,
-// failure artefacts, alpha), plus the Go goldens beside the Rust ones.
+// The golden harness: update mode, failure artefacts, alpha, and when
+// update mode rewrites a checked-in golden.
 
 func TestTheDifferenceImageMarksOutliersInMagenta(t *testing.T) {
 	golden := solid(2, 1, [4]byte{200, 100, 40, 255})
@@ -45,8 +45,8 @@ func TestUpdateModeWritesTheGoldenAndCompareModeThenMatchesIt(t *testing.T) {
 	if err != nil || !v.Updated {
 		t.Fatalf("update: %+v, %v", v, err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "goldens/go/set/scene@1.0.png")); err != nil {
-		t.Fatalf("no Go golden written: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, "goldens/set/scene@1.0.png")); err != nil {
+		t.Fatalf("no golden written: %v", err)
 	}
 	v, err = goldens(dir, false).Check("set", "scene@1.0", img, Offscreen)
 	if err != nil || v.Updated || v.Comparison.Outliers != 0 {
@@ -129,7 +129,7 @@ func TestStraightAlphaGoldensArePremultipliedWhenReadAndDemultipliedWhenWritten(
 	if _, err := g.Check("set", "t", premultiplied, Offscreen); err != nil {
 		t.Fatal(err)
 	}
-	written, err := ReadPNG(filepath.Join(dir, "goldens/go/set/t.png"))
+	written, err := ReadPNG(filepath.Join(dir, "goldens/set/t.png"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestStraightAlphaGoldensArePremultipliedWhenReadAndDemultipliedWhenWritten(
 	}
 }
 
-// writeGolden puts a Rust golden in place, as the checked-in ones are.
+// writeGolden puts a golden in place, as the checked-in ones are.
 func writeGolden(t *testing.T, path string, img *render.Image) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -149,47 +149,32 @@ func writeGolden(t *testing.T, path string, img *render.Image) {
 	}
 }
 
-func TestAGoGoldenStandsInForTheRustOneItDiffersFrom(t *testing.T) {
+// An image within tolerance of the checked-in golden leaves it as it is,
+// so update mode never churns goldens over anti-aliasing; an image beyond
+// it rewrites the golden, and the verdict says how the two differed.
+func TestUpdateModeKeepsAGoldenWithinToleranceAndRewritesOneBeyondIt(t *testing.T) {
 	dir := t.TempDir()
-	writeGolden(t, filepath.Join(dir, "goldens/set/s.png"), solid(2, 2, [4]byte{0, 0, 0, 255}))
-	ours := solid(2, 2, [4]byte{9, 0, 0, 255})
-	if _, err := goldens(dir, false).Check("set", "s", ours, Offscreen); err == nil {
-		t.Fatal("the Rust golden matched a different image")
-	}
-	writeGolden(t, filepath.Join(dir, "goldens/go/set/s.png"), ours)
-	if _, err := goldens(dir, false).Check("set", "s", ours, Offscreen); err != nil {
-		t.Errorf("the Go golden was not used: %v", err)
-	}
-}
+	path := filepath.Join(dir, "goldens/set/s.png")
+	writeGolden(t, path, solid(2, 2, [4]byte{0, 0, 0, 255}))
+	before, _ := os.ReadFile(path)
 
-func TestUpdateModeNeverRewritesARustGolden(t *testing.T) {
-	dir := t.TempDir()
-	rust := filepath.Join(dir, "goldens/set/s.png")
-	writeGolden(t, rust, solid(2, 2, [4]byte{0, 0, 0, 255}))
-	before, _ := os.ReadFile(rust)
-
-	// Within tolerance of the Rust golden: no Go golden is needed, and a
-	// stale one goes.
-	stale := filepath.Join(dir, "goldens/go/set/s.png")
-	writeGolden(t, stale, solid(2, 2, [4]byte{50, 0, 0, 255}))
 	v, err := goldens(dir, true).Check("set", "s", solid(2, 2, [4]byte{1, 0, 0, 255}), Offscreen)
-	if err != nil || v.Updated || v.Comparison.Worst != 1 {
+	if err != nil || v.Updated || v.Path != path || v.Comparison.Worst != 1 {
 		t.Fatalf("matching update: %+v, %v", v, err)
 	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Errorf("the redundant Go golden stayed: %v", err)
+	if after, _ := os.ReadFile(path); !bytes.Equal(before, after) {
+		t.Error("update mode rewrote a golden within tolerance")
 	}
 
-	// Beyond it: a Go golden, and how it differs from the Rust one.
 	v, err = goldens(dir, true).Check("set", "s", solid(2, 2, [4]byte{9, 0, 0, 255}), Offscreen)
-	if err != nil || !v.Updated || v.Path != stale {
+	if err != nil || !v.Updated || v.Path != path {
 		t.Fatalf("differing update: %+v, %v", v, err)
 	}
-	if v.Rust == nil || v.Rust.Outliers != 4 || v.Rust.Worst != 9 {
-		t.Errorf("against the Rust golden: %+v", v.Rust)
+	if v.Previous == nil || v.Previous.Outliers != 4 || v.Previous.Worst != 9 {
+		t.Errorf("against the previous golden: %+v", v.Previous)
 	}
-	if after, _ := os.ReadFile(rust); !bytes.Equal(before, after) {
-		t.Error("update mode rewrote the Rust golden")
+	if written, err := ReadPNG(path); err != nil || written.Pixel(0, 0) != [4]byte{9, 0, 0, 255} {
+		t.Errorf("rewritten golden %v, %v", written, err)
 	}
 }
 

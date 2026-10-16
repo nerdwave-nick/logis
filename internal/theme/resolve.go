@@ -12,11 +12,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// From a merged theme document to a Theme (Rust src/theme/resolve.rs):
-// colours looked up in the palette, font roles turned into faces, ranges
-// checked. Every error names the key it is about ("border.paint[1]: no
-// colour named 'embr' …"). The resolver keeps the first error and reads
-// in Rust's order, so the error is the one Rust reported.
+// From a merged theme document to a Theme: colours looked up in the
+// palette, font roles turned into faces, ranges checked. Every error
+// names the key it is about ("border.paint[1]: no colour named 'embr' …").
+// The resolver keeps the first error, reading the elements in a fixed
+// order.
 
 // regular is the weight a face has when its role names none.
 const regular = 400
@@ -89,8 +89,8 @@ func need[T any](r *resolver, n node, k, key string) T {
 	return v
 }
 
-// show is a number as Rust's Display shows an f32.
-func show(v float32) string { return jsonc.RustFloat(float64(v), 32) }
+// show is an f32 as the messages show a number.
+func show(v float32) string { return jsonc.ShortestDecimal(float64(v), 32) }
 
 func (r *resolver) millis(n node, k, key string) time.Duration {
 	return time.Duration(need[uint32](r, n, k, key)) * time.Millisecond

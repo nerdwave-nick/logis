@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestErrnosReadAsRustsIOErrors(t *testing.T) {
+func TestErrnosReadAsTheirDescriptionAndNumber(t *testing.T) {
 	_, err := os.Open("/nonexistent/logis")
 	for _, c := range []struct {
 		err  error

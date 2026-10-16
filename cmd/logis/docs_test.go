@@ -11,17 +11,16 @@ import (
 	"testing"
 )
 
-// The caller contract stays pinned (Rust v1's tests/docs.rs): every
-// promise of the README's "Caller contract" section names the Go tests that
-// pin it, as `path_test.go::TestName`, and each exists as a top-level
+// The caller contract stays pinned: every promise of the README's "Caller
+// contract" section names the Go tests that pin it, as
+// `path_test.go::TestName`, and each exists as a top-level
 // `func TestX(t *testing.T)` in the file named, so no promise is left
 // without a test, and a renamed or deleted test cannot leave one without
-// its proof. Since the switch-over the contract names Go tests only; the
-// Rust tests it named before (`path.rs::test_name`) are in the history.
+// its proof. Only code spans of that form count as references.
 
 // contractTests is the least number of distinct Go tests the caller
-// contract names (135 at the switch-over): a section that lost its names
-// would otherwise pass with nothing to check.
+// contract names (135 when this floor was set): a section that lost its
+// names would otherwise pass with nothing to check.
 const contractTests = 130
 
 // contractSection is the README's section under `## Caller contract`, up
@@ -84,20 +83,6 @@ func declaresTest(t *testing.T, file, source, name string) bool {
 	return false
 }
 
-// The contract names no Rust test any more: each `path.rs::name` it named
-// was replaced by the Go tests that pin the same promise.
-func TestTheCallerContractNamesNoRustTest(t *testing.T) {
-	readme, err := os.ReadFile(filepath.Join(repoRoot(t), "README.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, line := range strings.Split(contractSection(t, string(readme)), "\n") {
-		if strings.Contains(line, ".rs::") || strings.Contains(line, "tests/docs.rs") {
-			t.Errorf("caller contract line %d names a Rust test: %s", i+1, line)
-		}
-	}
-}
-
 func TestATestCountsOnlyAsATopLevelTestFunction(t *testing.T) {
 	source := "package p\nimport \"testing\"\n" +
 		"func TestPinned(t *testing.T) {}\n" +
@@ -135,7 +120,7 @@ func goReferences(text string) []string {
 
 func TestGoReferencesAreReadFromCodeSpansOnly(t *testing.T) {
 	text := "see `cmd/logis/a_test.go::TestOne`, `internal/x/y_test.go::TestTwo` and b_test.go::TestThree; " +
-		"`tests/a.rs::one`, `cmd/logis/a_test.go::TestOne` again"
+		"`docs/a.md::one`, `cmd/logis/a_test.go::TestOne` again"
 	want := []string{"cmd/logis/a_test.go::TestOne", "internal/x/y_test.go::TestTwo"}
 	if got := goReferences(text); !slices.Equal(got, want) {
 		t.Errorf("goReferences %q, want %q", got, want)

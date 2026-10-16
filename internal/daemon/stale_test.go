@@ -192,7 +192,7 @@ func TestAnUnreplacedDaemonToastsNothing(t *testing.T) {
 	}
 }
 
-// A client of another protocol version (4: the Go build before open's
+// A client of another protocol version (4: the version before open's
 // rites) is refused plainly: restart the daemon.
 func TestAClientOfTheVersionBeforeIsRefusedWithARestart(t *testing.T) {
 	c, _ := newTestCore()

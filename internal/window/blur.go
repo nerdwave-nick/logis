@@ -7,14 +7,14 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wlproto"
 )
 
-// Blur behind the cogitator (Rust src/window/blur.rs; spec §4.2,
-// ext-background-effect-v1, used when offered): the compositor blurs what
-// lies behind the panel's body, a rounded rectangle. A wl_region is a set
-// of rectangles in whole surface-local (logical) pixels, so the rounded
-// corners are stepped one logical pixel row at a time, always inside the
-// curve: the blur never shows outside the body. The region follows the
-// body as it moves and as the surface is resized or rescaled. A compositor
-// without the protocol simply gets no blur.
+// Blur behind the cogitator (spec §4.2, ext-background-effect-v1, used when
+// offered): the compositor blurs what lies behind the panel's body, a
+// rounded rectangle. A wl_region is a set of rectangles in whole
+// surface-local (logical) pixels, so the rounded corners are stepped one
+// logical pixel row at a time, always inside the curve: the blur never
+// shows outside the body. The region follows the body as it moves and as
+// the surface is resized or rescaled. A compositor without the protocol
+// simply gets no blur.
 
 // Backdrop is the area behind a panel to blur: its body, in logical pixels.
 type Backdrop struct {

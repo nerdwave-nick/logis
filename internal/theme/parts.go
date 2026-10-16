@@ -1,7 +1,6 @@
 package theme
 
-// Each element of a theme document resolved (Rust src/theme/resolve/
-// parts.rs): lengths and strengths checked, colours and paints looked up,
+// Each element of a theme document resolved: lengths and strengths checked, colours and paints looked up,
 // parts that may be off turned into flags.
 
 func (r *resolver) window(w node) Window {
@@ -10,8 +9,8 @@ func (r *resolver) window(w node) Window {
 		r.fail("window.rows: show at least one row")
 	}
 	width := r.positive(w, "width", "window.width")
-	// Rust v1's height: still checked, so a v1 theme keeps its verdict,
-	// but the panel's height follows its rows.
+	// The deprecated height: still checked, so an older theme keeps its
+	// verdict, but the panel's height follows its rows.
 	if h, given := w["height"].(float32); given {
 		r.checkPositive(h, "window.height")
 	}

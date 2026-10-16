@@ -7,7 +7,7 @@ import (
 
 // One icon theme's index.theme (freedesktop Icon Theme Specification): its
 // parents and its directories with their size, scale and type, and the
-// spec's two rules for choosing among them (Rust src/icons/theme.rs).
+// spec's two rules for choosing among them.
 
 // dirKind is how a theme directory's icons may be sized.
 type dirKind uint8

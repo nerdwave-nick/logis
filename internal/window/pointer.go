@@ -9,10 +9,9 @@ import (
 )
 
 // pointer is the seat's pointer while it has one, its cursor-shape device
-// and the pointer model (Rust src/window/pointer.rs): it forwards the
-// wl_pointer events over the visible panel to input.Pointer and hands the
-// actions it yields to the window's sink, beside the keyboard's, so their
-// order is kept.
+// and the pointer model: it forwards the wl_pointer events over the visible
+// panel to input.Pointer and hands the actions it yields to the window's
+// sink, beside the keyboard's, so their order is kept.
 //
 // The cursor is the compositor's default arrow, set through
 // wp_cursor_shape_v1 on every enter when the compositor offers it. Without
@@ -171,6 +170,6 @@ func (p *pointer) listen(wl *wlproto.WlPointer) {
 	wl.OnFrame = p.frame
 }
 
-// num writes a coordinate as Rust's Display does for f64: the shortest
-// decimal that reads back the same, never an exponent.
+// num writes a coordinate as the shortest decimal that reads back the same,
+// never an exponent.
 func num(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }

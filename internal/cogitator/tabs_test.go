@@ -16,11 +16,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Plain logis's tabbed launcher in the window (feat/logis-go 8cba2fc9, new
-// beside Rust v1): the applications and the rites as two tabs under a
-// strip; Tab and Shift+Tab (or a click on a plate) switch, the query stays
-// across them, both plates count its matches; each tab's answers say
-// which tab they come from.
+// Plain logis's tabbed launcher in the window (feat/logis-go 8cba2fc9): the
+// applications and the rites as two tabs under a strip; Tab and Shift+Tab
+// (or a click on a plate) switch, the query stays across them, both plates
+// count its matches; each tab's answers say which tab they come from.
 
 // showTabbed shows plain logis's session id on tab with apps, and stages
 // the rites in their tab.

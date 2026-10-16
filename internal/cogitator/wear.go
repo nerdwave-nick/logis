@@ -13,14 +13,13 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// The theme the window wears (Rust src/daemon/window/wear.rs put_on and
-// ui.rs Command::Theme): worn from now on, the visible panel included,
+// The theme the window wears: worn from now on, the visible panel included,
 // which is re-fitted to the theme's size (in the terms its session asked
 // for) and drawn again. Fontconfig is asked again only when the faces
 // change. With the test trace on it reports `theme <name>`. Its motion
-// timings move the panels shown from then on (unless LOGIS_MOTION
-// outranks them), and the body is blurred behind where both the config's
-// and the theme's blur want it.
+// timings move the panels shown from then on (unless LOGIS_MOTION outranks
+// them), and the body is blurred behind where both the config's and the
+// theme's blur want it.
 
 // resizer is a surface whose visible panel can ask for another size.
 type resizer interface{ Resize(scale.Size) }
@@ -145,12 +144,12 @@ func (u *ui) present(size scale.Size, sh *shown) error {
 	})
 }
 
-// painter draws sh's list each frame in the theme worn then (Rust
-// wear.rs drawing), at the frame's moment and in its pose: the selection
-// band glides to the selected row, the theme's continuous effects (glow
-// pulse, travelling highlight, flicker, a pending row's shimmer) and its
-// glitch move, and any of them keeps the window drawing on every frame
-// callback (scene.Moving, glitch.go); the body is blurred behind.
+// painter draws sh's list each frame in the theme worn then, at the frame's
+// moment and in its pose: the selection band glides to the selected row,
+// the theme's continuous effects (glow pulse, travelling highlight,
+// flicker, a pending row's shimmer) and its glitch move, and any of them
+// keeps the window drawing on every frame callback (scene.Moving,
+// glitch.go); the body is blurred behind.
 func (u *ui) painter(sh *shown) window.FramePainter {
 	return func(f window.Frame) window.Drawing {
 		look := u.lookOf(sh)

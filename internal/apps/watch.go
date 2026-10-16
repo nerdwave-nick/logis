@@ -13,10 +13,10 @@ import (
 )
 
 // Watching the applications directories so the daemon's app index stays
-// current (feat/logis §4.7; Rust src/apps/watch.rs), with inotify through
-// package syscall as the config watcher does: the descriptor is read
-// through the runtime's poller, so a waiting watcher costs no thread and
-// no wake-up, and Close ends a Wait.
+// current (feat/logis §4.7), with inotify through package syscall as the
+// config watcher does: the descriptor is read through the runtime's poller,
+// so a waiting watcher costs no thread and no wake-up, and Close ends a
+// Wait.
 //
 // Scan reads the index and watches what it reads, so that no change can
 // fall between the two:

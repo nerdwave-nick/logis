@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Ported from Rust src/apps/watch.rs, on Watcher.Scan: inotify queues
+// Watching the applications directories, on Watcher.Scan: inotify queues
 // what happens once a directory is watched, so a change made before Wait
 // is still reported by it. afterRead puts a change exactly where a scan
 // could lose it: right after a directory was read.

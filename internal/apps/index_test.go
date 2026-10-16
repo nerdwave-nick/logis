@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/index.rs.
+// Scanning the applications directories into the app index.
 
 func testContext(t *testing.T) Context {
 	return Context{Desktops: []string{"niri"}, Path: []string{filepath.Join(fixtures(t), "bin")}}

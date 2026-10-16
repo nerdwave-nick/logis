@@ -6,10 +6,9 @@ import (
 	"syscall"
 )
 
-// One session's external provider (Rust src/provider/external.rs): the
-// protocol's rules on top of a running process. It greets the provider,
-// checks its greeting, keeps its stages and maps the user's answers to its
-// lines.
+// One session's external provider: the protocol's rules on top of a running
+// process. It greets the provider, checks its greeting, keeps its stages
+// and maps the user's answers to its lines.
 //
 // When the session ends without the provider's close, logis says cancel and
 // closes the provider's input. Whether logis may then also signal it

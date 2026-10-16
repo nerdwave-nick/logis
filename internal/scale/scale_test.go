@@ -2,7 +2,7 @@ package scale
 
 import "testing"
 
-// Ported from Rust src/render/scale.rs.
+// Scales in 120ths and the logical → buffer size rule.
 
 func TestIntegerScalesMultiplyExactly(t *testing.T) {
 	if got := One.Physical(Size{640, 360}); got != (Size{640, 360}) {

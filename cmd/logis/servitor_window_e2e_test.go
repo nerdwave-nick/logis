@@ -13,11 +13,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// servitor mode in the window (Rust tests/servitor_window.rs): a real
-// daemon in the test compositor, `logis --servitor` with the fake servitor
-// on its PATH (tests/fixtures/servitor/servitor, census window.jsonl),
-// keys from the harness's virtual keyboard. Runs only with
-// LOGIS_E2E=niri|sway.
+// servitor mode in the window: a real daemon in the test compositor, `logis
+// --servitor` with the fake servitor on its PATH
+// (tests/fixtures/servitor/servitor, census window.jsonl), keys from the
+// harness's virtual keyboard. Runs only with LOGIS_E2E=niri|sway.
 
 func TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation(t *testing.T) {
 	c := e2e.StartCogitator(t, nil, "")

@@ -14,10 +14,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Provider sessions through a real daemon and real provider processes
-// (Rust tests/provider.rs), with the scripted resolver standing in for the
-// window: it chooses the first settled item marked '>'. The fixture
-// provider is tests/fixtures/providers/forge.sh. No compositor is needed;
+// Provider sessions through a real daemon and real provider processes, with
+// the scripted resolver standing in for the window: it chooses the first
+// settled item marked '>'. The fixture provider is
+// tests/fixtures/providers/forge.sh. No compositor is needed;
 // provider_window_e2e_test.go covers the window itself.
 
 func forge(t *testing.T) string {
@@ -74,7 +74,7 @@ func endOwn(pid int) { _ = syscall.Kill(pid, syscall.SIGKILL) }
 
 // probe opens a dmenu session only to see whether it would be shown at
 // once ("visible") or wait ("queued"), then cancels it and waits for the
-// cancellation (Rust Rig::probe).
+// cancellation.
 func (r *rig) probe() string {
 	r.t.Helper()
 	c, err := client.Connect(client.Options{RuntimeDir: r.dir, Exe: "/nonexistent", Patience: time.Second})

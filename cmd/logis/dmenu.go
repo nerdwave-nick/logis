@@ -9,12 +9,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// The client side of a dmenu session (feat/logis stories 1–4, §4.6; Rust
-// src/client/dmenu): stdin streams to the daemon as items while the session
-// is open (the window opens before the input ends), and the answer comes
-// back on stdout: the chosen item's original bytes (or its --accept-nth
-// columns, or its --index), or the typed text when it matched nothing.
-// Exit 0 with a choice, 1 with empty stdout when dismissed, 2 on error.
+// The client side of a dmenu session (feat/logis stories 1–4, §4.6): stdin
+// streams to the daemon as items while the session is open (the window
+// opens before the input ends), and the answer comes back on stdout: the
+// chosen item's original bytes (or its --accept-nth columns, or its
+// --index), or the typed text when it matched nothing. Exit 0 with a
+// choice, 1 with empty stdout when dismissed, 2 on error.
 
 // exitDismissed is the exit status of a session that ended without a
 // choice.

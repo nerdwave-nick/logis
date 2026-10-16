@@ -17,10 +17,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// Provider sessions in the window (Rust src/daemon/window/ui.rs): after an
-// answer the window stays and Return waits for the provider's next stage or
-// ready; a next stage keeps the window's size; toasts come and go; a
-// session over lingers on its toast without the keyboard.
+// Provider sessions in the window: after an answer the window stays and
+// Return waits for the provider's next stage or ready; a next stage keeps
+// the window's size; toasts come and go; a session over lingers on its
+// toast without the keyboard.
 
 func (r *rig) showProvider(id daemon.SessionID, o list.Options, e ...list.Entry) {
 	r.ui.show(daemon.Session{ID: id, Mode: protocol.ModeProvider, Options: o, Entries: e})
@@ -40,7 +40,7 @@ func (r *rig) wantAnswers(t *testing.T, want ...daemon.Answer) {
 
 func u32(n uint32) *uint32 { return &n }
 
-// Ported from Rust a_later_stage_keeps_the_rows_the_window_has_room_for.
+// A later stage keeps the rows the window has room for.
 func TestALaterStageKeepsTheRowsTheWindowHasRoomFor(t *testing.T) {
 	r := newRig()
 	first := list.DefaultOptions()

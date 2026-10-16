@@ -8,10 +8,9 @@ import (
 
 // PendingFonts are fonts being resolved on a goroutine of their own, so
 // that fontconfig's start-up overlaps the compositor's and the GPU's
-// (Rust PendingFonts, ticket 9d8ec26d): loading its configuration and
-// caches, matching the family against every installed face and sorting
-// the fallback order each cost milliseconds per thousand faces, and none
-// needs the GPU.
+// (ticket 9d8ec26d): loading its configuration and caches, matching the
+// family against every installed face and sorting the fallback order each
+// cost milliseconds per thousand faces, and none needs the GPU.
 type PendingFonts struct{ done chan resolved }
 
 type resolved struct {

@@ -19,7 +19,7 @@ func wantEffects(t *testing.T, what string, got, want []effect) {
 	}
 }
 
-// Ported from Rust src/daemon/sessions.rs the_first_session_is_shown_at_once.
+// The first session is shown at once.
 func TestTheFirstSessionIsShownAtOnce(t *testing.T) {
 	var s sessions
 	wantEffects(t, "open 1", s.open(1, dmenu), effects(effect{show, 1}))

@@ -9,21 +9,20 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Plain logis's tabbed launcher in the window (feat/logis-go 8cba2fc9, new
-// beside Rust v1): the applications and the rites, each a pane of the one
-// shown session, under the tab strip. The plates stay in place; Tab and
-// Shift+Tab (both: there are two tabs) or a press on the other plate only
-// move which is shown, and fire the glitch's tab burst. The query stays
-// across the tabs: an edit is copied to the other pane, so both plates
-// count its matches. Up, Down, Ctrl+N and Ctrl+P move the selection as
-// ever; Return answers the shown tab, and every answer says its tab. The
-// rites' first stage keeps the query and says "seek a rite" under the
-// theme's own label. Silent rites (2aaad4b9: the caller found no
-// servitor) have no provider: their plate counts "—", their tab says why,
-// and Return there does nothing. With the test trace on it reports `tab
-// <name>` when a tabbed panel shows and on each switch, `rites silent`
-// when it shows with silent rites, and the rites' steps as `rites stage
-// <session>`, `rites items <n>` and so on.
+// Plain logis's tabbed launcher in the window (feat/logis-go 8cba2fc9): the
+// applications and the rites, each a pane of the one shown session, under
+// the tab strip. The plates stay in place; Tab and Shift+Tab (both: there
+// are two tabs) or a press on the other plate only move which is shown, and
+// fire the glitch's tab burst. The query stays across the tabs: an edit is
+// copied to the other pane, so both plates count its matches. Up, Down,
+// Ctrl+N and Ctrl+P move the selection as ever; Return answers the shown
+// tab, and every answer says its tab. The rites' first stage keeps the
+// query and says "seek a rite" under the theme's own label. Silent rites
+// (2aaad4b9: the caller found no servitor) have no provider: their plate
+// counts "—", their tab says why, and Return there does nothing. With the
+// test trace on it reports `tab <name>` when a tabbed panel shows and on
+// each switch, `rites silent` when it shows with silent rites, and the
+// rites' steps as `rites stage <session>`, `rites items <n>` and so on.
 
 // pane is one list of a shown session: the only one, or a tab's.
 type pane struct {

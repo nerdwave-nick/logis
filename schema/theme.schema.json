@@ -125,7 +125,7 @@
           "$ref": "#/$defs/positive"
         },
         "height": {
-          "description": "Deprecated and ignored: the panel's height follows its rows. Still accepted (and checked) so Rust v1 themes load.",
+          "description": "Deprecated and ignored: the panel's height follows its rows. Still accepted (and checked) so older themes load.",
           "deprecated": true,
           "$ref": "#/$defs/positive"
         },
@@ -729,7 +729,7 @@
       }
     },
     "tab": {
-      "description": "The plates of plain logis's tab strip (Applications and Rites, above the panel; new beside logis v1). The active plate echoes the selection (its band, edge, glow and columns), the others the panel's fill and the rule; labels are in the prompt's label font, counts in the badges' font (in brackets where the badges are brackets).",
+      "description": "The plates of plain logis's tab strip (Applications and Rites, above the panel). The active plate echoes the selection (its band, edge, glow and columns), the others the panel's fill and the rule; labels are in the prompt's label font, counts in the badges' font (in brackets where the badges are brackets).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -777,7 +777,7 @@
       }
     },
     "effects": {
-      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths. The glitch (a pass of its own, before the CRT pass) is new. A custom shader (custom-shader) may run after them all.",
+      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount); the older keys bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The glitch is a pass of its own, before the CRT pass. A custom shader (custom-shader) may run after them all.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -796,19 +796,19 @@
                   "$ref": "#/$defs/strength"
                 },
                 "period": {
-                  "description": "Logical pixels from one line to the next, counted from the body's top (v1: 3).",
+                  "description": "Logical pixels from one line to the next, counted from the body's top (default 3).",
                   "type": "number",
                   "minimum": 1,
                   "maximum": 16
                 },
                 "sharpness": {
-                  "description": "How thin and hard each line is: 0 a soft wave, 0.25 v1's profile, 1 a hard line one pixel thick.",
+                  "description": "How thin and hard each line is: 0 a soft wave, 0.25 the default, 1 a hard line one pixel thick.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
                 },
                 "roll": {
-                  "description": "Drift in logical pixels per second, downwards when positive; 0 holds them still (v1). A continuous effect.",
+                  "description": "Drift in logical pixels per second, downwards when positive; 0 holds them still (the default). A continuous effect.",
                   "type": "number",
                   "minimum": -60,
                   "maximum": 60
@@ -818,7 +818,7 @@
           ]
         },
         "glow": {
-          "description": "Light from bright parts spreading to their surroundings (v1's bloom); a bare number is its strength.",
+          "description": "Light from bright parts spreading to their surroundings (bloom); a bare number is its strength.",
           "oneOf": [
             {
               "$ref": "#/$defs/strength"
@@ -832,25 +832,25 @@
                   "$ref": "#/$defs/strength"
                 },
                 "threshold": {
-                  "description": "Brightness per channel below which nothing glows (v1: 0.35).",
+                  "description": "Brightness per channel below which nothing glows (default 0.35).",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
                 },
                 "reach": {
-                  "description": "Radius of the outer sampling ring in logical pixels, the inner ring at 3/7 of it; beyond 9 more rings keep a wide halo soft (v1: 7).",
+                  "description": "Radius of the outer sampling ring in logical pixels, the inner ring at 3/7 of it; beyond 9 more rings keep a wide halo soft (default 7).",
                   "type": "number",
                   "minimum": 1,
                   "maximum": 32
                 },
                 "bleed": {
-                  "description": "How much of the source colour the light keeps: 0 a neutral halo, 1 the bright pixels' own colours (v1), above 1 more saturated.",
+                  "description": "How much of the source colour the light keeps: 0 a neutral halo, 1 the bright pixels' own colours (the default), above 1 more saturated.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 3
                 },
                 "dim-bright": {
-                  "description": "0: every pixel takes the same glow (v1). Towards 1 dim pixels take up to 1.7 times as much and bright ones, or those inside filled bright bands, only 0.15 times: text gets a halo without washing out a highlighted row.",
+                  "description": "0: every pixel takes the same glow (the default). Towards 1 dim pixels take up to 1.7 times as much and bright ones, or those inside filled bright bands, only 0.15 times: text gets a halo without washing out a highlighted row.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
@@ -874,13 +874,13 @@
                   "$ref": "#/$defs/strength"
                 },
                 "edges-only": {
-                  "description": "0: the same horizontal offset everywhere (v1); 1: none at the centre, growing outwards and pointing away from it.",
+                  "description": "0: the same horizontal offset everywhere (the default); 1: none at the centre, growing outwards and pointing away from it.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
                 },
                 "wobble": {
-                  "description": "How much the offset varies over time; 0 keeps it steady (v1). A continuous effect.",
+                  "description": "How much the offset varies over time; 0 keeps it steady (the default). A continuous effect.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
@@ -912,7 +912,7 @@
               "additionalProperties": false,
               "properties": {
                 "strength": {
-                  "description": "How much the structure darkens; 0 is off (v1).",
+                  "description": "How much the structure darkens; 0 is off.",
                   "$ref": "#/$defs/strength"
                 },
                 "size": {
@@ -939,13 +939,13 @@
           "additionalProperties": false,
           "properties": {
             "curvature": {
-              "description": "How far the whole panel bows out as one tube face: border, glass and the glow around it bend together, the outline turns convex and every effect lies on the bent glass. 0 is flat. v1 bent only the picture behind a straight border.",
+              "description": "How far the whole panel bows out as one tube face: border, glass and the glow around it bend together, the outline turns convex and every effect lies on the bent glass. 0 is flat.",
               "type": "number",
               "minimum": 0,
               "maximum": 1
             },
             "corners": {
-              "description": "Extra rounding of the visible glass's corners on the bent glass; beyond them the screen is black. 0 is off (v1).",
+              "description": "Extra rounding of the visible glass's corners on the bent glass; beyond them the screen is black. 0 is off.",
               "type": "number",
               "minimum": 0,
               "maximum": 1
@@ -971,7 +971,7 @@
                   "$ref": "#/$defs/strength"
                 },
                 "rate": {
-                  "description": "How many times a second it changes (v1: 24); 0 freezes it. Changing grain is a continuous effect.",
+                  "description": "How many times a second it changes (default 24); 0 freezes it. Changing grain is a continuous effect.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 60
@@ -995,7 +995,7 @@
                   "$ref": "#/$defs/strength"
                 },
                 "frequency": {
-                  "description": "Its main rate in Hz, with a slower irregular modulation riding on it (v1: 7.4802823, 47 radians a second).",
+                  "description": "Its main rate in Hz, with a slower irregular modulation riding on it (default 7.4802823, 47 radians a second).",
                   "type": "number",
                   "minimum": 0.5,
                   "maximum": 30
@@ -1005,7 +1005,7 @@
           ]
         },
         "glitch": {
-          "description": "The glitch pass before the CRT pass (new in the Go logis; v1 had none): the glass breaks up like a failing signal, gently at rest and hard in episodes (at the end of each ambient period) and bursts (on opening, a switch of tab, a key press, at random). A bare number is its strength. Most parts have an amount at rest and one in an episode. Lengths are logical pixels. reduce-motion turns it off.",
+          "description": "The glitch pass before the CRT pass: the glass breaks up like a failing signal, gently at rest and hard in episodes (at the end of each ambient period) and bursts (on opening, a switch of tab, a key press, at random). A bare number is its strength. Most parts have an amount at rest and one in an episode. Lengths are logical pixels. reduce-motion turns it off.",
           "oneOf": [
             {
               "$ref": "#/$defs/strength"
@@ -1406,24 +1406,24 @@
           ]
         },
         "custom-shader": {
-          "description": "A custom post-processing pass after the built-in effects (new beside logis v1): the path of a GLSL ES 3.00 fragment shader file, absolute or from this theme's file, that defines mainImage(out vec4 fragColor, in vec2 fragCoord) as for Shadertoy. logis gives it iChannel0 (the frame after the built-in effects, premultiplied, rows bottom-up), iResolution, iTime (seconds since the panel opened; frozen at 0 by reduce-motion), iFrame and iGlitch (the glitch's intensity, 0 to 1). A panel with a custom pass keeps drawing while it is shown. A shader that cannot be read or compiled is skipped with one line in the log; --check-config compiles it. The config's custom-shader outranks it; \"\" is none.",
+          "description": "A custom post-processing pass after the built-in effects: the path of a GLSL ES 3.00 fragment shader file, absolute or from this theme's file, that defines mainImage(out vec4 fragColor, in vec2 fragCoord) as for Shadertoy. logis gives it iChannel0 (the frame after the built-in effects, premultiplied, rows bottom-up), iResolution, iTime (seconds since the panel opened; frozen at 0 by reduce-motion), iFrame and iGlitch (the glitch's intensity, 0 to 1). A panel with a custom pass keeps drawing while it is shown. A shader that cannot be read or compiled is skipped with one line in the log; --check-config compiles it. The config's custom-shader outranks it; \"\" is none.",
           "type": "string",
           "examples": [
             "shaders/phosphor-bleed.frag"
           ]
         },
         "vignette": {
-          "description": "logis v1's name of roundness.vignette; give one of the two.",
+          "description": "An older name of roundness.vignette; give one of the two.",
           "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "bloom": {
-          "description": "logis v1's name of glow.strength; give one of the two.",
+          "description": "An older name of glow.strength; give one of the two.",
           "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "curvature": {
-          "description": "logis v1's name of roundness.curvature; give one of the two.",
+          "description": "An older name of roundness.curvature; give one of the two.",
           "deprecated": true,
           "$ref": "#/$defs/strength"
         }

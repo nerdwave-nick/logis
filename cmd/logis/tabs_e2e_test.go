@@ -16,11 +16,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// Plain logis's tabbed launcher end to end (feat/logis-go 8cba2fc9, a
-// divergence from Rust v1): a real daemon in the test compositor over the
-// app fixtures, plain `logis` with the fake servitor (census window.jsonl)
-// and the fixture apps on its PATH, keys and the pointer from the
-// harness. Runs only with LOGIS_E2E=niri|sway.
+// Plain logis's tabbed launcher end to end (feat/logis-go 8cba2fc9): a real
+// daemon in the test compositor over the app fixtures, plain `logis` with
+// the fake servitor (census window.jsonl) and the fixture apps on its PATH,
+// keys and the pointer from the harness. Runs only with
+// LOGIS_E2E=niri|sway.
 
 // e2eApps and e2eRites are how many apps and rites the fixtures give.
 const e2eApps, e2eRites = 2, 3

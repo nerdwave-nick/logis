@@ -15,15 +15,15 @@ import (
 	"github.com/nerdwave-nick/logis/internal/dbus/dbustest"
 )
 
-// The app launcher through a real daemon (Rust tests/apps.rs), with the
-// scripted resolver standing in for the window: it chooses the app whose
-// name starts with '>' and hands out a stand-in token, scripted-<n>. The
-// daemon reads fixture applications directories only, keeps frecency in a
-// scratch state dir and talks to a fake session bus (never the real one:
-// it records the scope it is asked for and refuses the user manager's
-// environment, so the app keeps the client's). The launched program is the
-// fixture tests/fixtures/apps/bin/anoint, which records how it was started
-// and runs until its hold file is gone.
+// The app launcher through a real daemon, with the scripted resolver
+// standing in for the window: it chooses the app whose name starts with '>'
+// and hands out a stand-in token, scripted-<n>. The daemon reads fixture
+// applications directories only, keeps frecency in a scratch state dir and
+// talks to a fake session bus (never the real one: it records the scope it
+// is asked for and refuses the user manager's environment, so the app keeps
+// the client's). The launched program is the fixture
+// tests/fixtures/apps/bin/anoint, which records how it was started and runs
+// until its hold file is gone.
 
 func appFixtures(t *testing.T) string {
 	t.Helper()

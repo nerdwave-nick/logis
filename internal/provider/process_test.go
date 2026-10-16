@@ -13,7 +13,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Rust src/provider/process.rs tests, with real sh processes.
+// Provider processes, with real sh processes.
 
 const patience = 5 * time.Second
 

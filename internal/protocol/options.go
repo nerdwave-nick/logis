@@ -9,10 +9,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// An open's options are the list's options (list.Options) in the shape
-// Rust's serde gave them: kebab-case keys, every one optional (a missing
-// key keeps its default), lines and width left out when unset, password a
-// one-character string, select {"text": T} or {"index": N}.
+// An open's options are the list's options (list.Options) in this shape on
+// the wire: kebab-case keys, every one optional (a missing key keeps its
+// default), lines and width left out when unset, password a one-character
+// string, select {"text": T} or {"index": N}.
 
 type wireOptions struct {
 	Prompt      *string        `json:"prompt,omitempty"`

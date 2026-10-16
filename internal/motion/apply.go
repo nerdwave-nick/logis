@@ -2,9 +2,9 @@ package motion
 
 import "github.com/nerdwave-nick/logis/internal/render"
 
-// Apply moves and fades sc into this pose (Rust src/motion/apply.rs): every
-// position moved by the offset and every colour's alpha multiplied by the
-// opacity, images, the effects' areas (body and plates) and the caret included, so any scene
+// Apply moves and fades sc into this pose: every position moved by the
+// offset and every colour's alpha multiplied by the opacity, images, the
+// effects' areas (body and plates) and the caret included, so any scene
 // opens and closes the same way. The rest pose changes nothing.
 func (p Pose) Apply(sc *render.Scene) {
 	if p.IsRest() {

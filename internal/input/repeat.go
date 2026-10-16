@@ -10,7 +10,7 @@ const maxBurst = 4
 // compositor announces a rate and a delay, and the client repeats the last
 // pressed key itself. It is only a deadline: the window arms its timerfd
 // for Deadline while a key is held and disarms it otherwise, so nothing
-// wakes the CPU when no key is held (Rust src/input/repeat.rs).
+// wakes the CPU when no key is held.
 type Repeat struct {
 	enabled         bool
 	delay, interval time.Duration

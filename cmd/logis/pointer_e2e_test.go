@@ -14,11 +14,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// The pointer and paste end to end (Rust tests/pointer.rs): a real daemon
-// in the test compositor, `logis --dmenu` clients, the harness's virtual
-// pointer (zwlr_virtual_pointer_v1) and a test-only selection owner
-// (wlr-data-control) in place of wl-copy, so the live session's pointer
-// and clipboard are never touched. Runs only with LOGIS_E2E=niri|sway.
+// The pointer and paste end to end: a real daemon in the test compositor,
+// `logis --dmenu` clients, the harness's virtual pointer
+// (zwlr_virtual_pointer_v1) and a test-only selection owner
+// (wlr-data-control) in place of wl-copy, so the live session's pointer and
+// clipboard are never touched. Runs only with LOGIS_E2E=niri|sway.
 //
 // The daemon's trace says what the pointer did (pointer-enter, cursor,
 // button, scroll) and what the list made of it (select, accept, query,

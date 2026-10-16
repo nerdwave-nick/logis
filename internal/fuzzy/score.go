@@ -1,6 +1,6 @@
 package fuzzy
 
-// nucleo's scoring constants (score.rs, Config::DEFAULT).
+// nucleo's scoring constants (its score module, Config::DEFAULT).
 const (
 	scoreMatch        = 16
 	penaltyGapStart   = 3

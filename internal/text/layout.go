@@ -32,13 +32,12 @@ func (v *visualLine) add(spans []span, si int, start, end pos, w float32) {
 	v.w += w
 }
 
-// Layout sets s on one line at size pixels per em, as cosmic-text lays
-// out a single unwrapped line with whole-pixel advances (Rust logis v1):
-// bidi runs, words at line break opportunities, runs of one face shaped
-// with fallback over the loaded fonts, tabs to the next stop, and — in a
-// column — the end alignment and the ellipsis. Line breaks in s are not
-// interpreted (callers replace them). Fallback faces are loaded first
-// (see Ensure).
+// Layout sets s on one line at size pixels per em, as cosmic-text lays out
+// a single unwrapped line with whole-pixel advances: bidi runs, words at
+// line break opportunities, runs of one face shaped with fallback over the
+// loaded fonts, tabs to the next stop, and — in a column — the end
+// alignment and the ellipsis. Line breaks in s are not interpreted (callers
+// replace them). Fallback faces are loaded first (see Ensure).
 func (f *Fonts) Layout(s string, size float32, opt LineOptions) Line {
 	f.Ensure(s)
 	if opt.Column && opt.Ellipsis {

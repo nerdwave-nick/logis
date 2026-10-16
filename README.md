@@ -17,8 +17,8 @@ logis is meant to be:
 
 ## Status
 
-**1.0.0** (prepared; see [CHANGELOG.md](CHANGELOG.md)). `logis` (the app
-launcher), `logis --dmenu`, `logis --provider` and `logis --servitor` work; to
+`logis` (the app launcher), `logis --dmenu`, `logis --provider` and
+`logis --servitor` work (changes are in [CHANGELOG.md](CHANGELOG.md)); to
 install it, see [Installing](#installing). The binary does this much:
 
 - `logis --version` prints the version.
@@ -141,8 +141,8 @@ window (the app itself first, then each action); Return there launches the one
 chosen. Apps you launch often and lately come first and rank higher when you
 type (frecency, kept in `$XDG_STATE_HOME/logis/frecency.json`).
 
-**Tabs (the Go build; a divergence from logis v1).** Plain `logis` always
-opens a tabbed launcher: two plates above the panel,
+**Tabs.** Plain `logis` always opens a tabbed launcher: two plates above the
+panel,
 **Applications** on the left and **Rites** (servitor mode's rites) on the right,
 each counting what the query matches, and a TAB/SWITCH hint at the strip's end.
 Tab or Shift+Tab, or a click on a plate, switches tabs; the plates stay in place
@@ -276,7 +276,7 @@ stated here (message wording, timings, the socket protocol) may change.
 | 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ETypingFiltersAndReturnPrintsTheChosenLine` |
 | 0 | empty | `--provider`: the provider closed its flow | `cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose` |
 | 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`, `cmd/logis/servitor_window_e2e_test.go::TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation` |
-| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `cmd/logis/apps_e2e_test.go::TestPlainLogisIsTheAppLauncher`, `cmd/logis/apps_e2e_test.go::TestTheChosenAppIsLaunchedWithItsTokenInAScopeAndCountsForFrecency`, `cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken` |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched; in its tabbed launcher also a rite invoked | `cmd/logis/apps_e2e_test.go::TestPlainLogisIsTheAppLauncher`, `cmd/logis/apps_e2e_test.go::TestTheChosenAppIsLaunchedWithItsTokenInAScopeAndCountsForFrecency`, `cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken` |
 | 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `cmd/logis/contract_test.go::TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers`, `cmd/logis/daemon_e2e_test.go::TestE2EDaemonDetachOnlyEnsuresTheDaemon` |
 | 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `cmd/logis/dmenu_e2e_test.go::TestE2EAnUnmarkedListIsDismissedWithExit1AndEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EEscapeDismissesWithEmptyStdoutAndExit1`, `cmd/logis/provider_window_e2e_test.go::TestE2EEscapeAfterAnActivationNeverKillsTheActionItStarted`, `cmd/logis/apps_window_e2e_test.go::TestE2EPlainLogisOpensTheLauncherAndEscapeExits1`, `internal/input/bindings_test.go::TestEscapeCtrlGAndCtrlBracketDismiss`, `internal/input/keyboard_test.go::TestFocusLossDismissesByDefaultAndKeepsOnRequest` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`, `cmd/logis/provider_e2e_test.go::TestAReplacedProviderCallerExits1WithEmptyStdout` |
@@ -520,8 +520,8 @@ What the man page adds, pinned as well:
   [Keyboard](#keyboard): `internal/input/bindings_test.go::TestUpDownTabAndCtrlNPMove`,
   `internal/input/bindings_test.go::TestEditingKeysEdit`,
   `cmd/logis/keyboard_e2e_test.go::TestE2EEveryEditingAndSelectionKeyDoesItsWork`.
-  The Go build diverges in plain `logis`, always its tabbed
-  launcher ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
+  Plain `logis` differs, always its tabbed launcher
+  ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
   between the Applications and Rites tabs, keeping the query, and a click on a
   plate does the same
   (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered`,
@@ -613,9 +613,9 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
   `counter`, `rule`, `row` (font, height, colour per tab-separated column,
   `column-gap` between columns and `column-max`, the share of the row any
   column but the last may take),
-  `selection`, `match` (colour, weight, underline), `badge`, `tab` (the Go
-  build's: the corner radius of plain logis's tab plates, whose other looks
-  follow the selection, the panel, the label and the badges), `pending` — and
+  `selection`, `match` (colour, weight, underline), `badge`, `tab` (the
+  corner radius of plain logis's tab plates, whose other looks follow the
+  selection, the panel, the label and the badges), `pending` — and
   `fonts`, the font roles they name;
 - **effects and motion**: the CRT pass over the body (`scanlines`, `glow`,
   `aberration`, `mask`, `roundness`, `grain`, `flicker`, each a group of settings
@@ -683,10 +683,9 @@ overrides it.
   that pitch. The output's height comes from xdg-output, the output the panel
   lands on from the compositor (a panel that lands on another output is fitted
   anew); without xdg-output the panel asks for all its rows. While a panel is
-  open its size stays, however few items the query leaves. **Divergence from
-  Rust v1**, whose theme also had a `window.height` (820×520, nine rows, about
-  three rows of empty glass below the ninth): Go reads and checks
-  `window.height` so v1 themes still load, and ignores it.
+  open its size stays, however few items the query leaves. A theme may still
+  carry a `window.height`, an older key: logis checks that it is positive, so
+  such a theme still loads, and otherwise ignores it.
 - **Live:** the daemon watches `themes/*.jsonc` and the config and applies an
   edited theme at once, a visible window included (its colours, fonts, effects,
   motion timings and, when the session named no size, its size). An invalid
@@ -695,35 +694,33 @@ overrides it.
   goes to the log and a notice over a shown list. A theme that cannot be worn at
   start leaves the bundled default in force. `logis --check-config` checks the
   theme the config names.
-- **Effects** (the Go build; a deliberate divergence from Rust v1, whose
-  effects were seven strengths): the CRT pass is logis's own clean-room shader
+- **Effects:** the CRT pass is logis's own clean-room shader
   (`internal/render/crt.frag`), and each effect is a group of settings. A bare
-  number is still the group's strength (the aberration's amount), and v1's
-  `bloom`, `curvature` and `vignette` set `glow.strength`,
-  `roundness.curvature` and `roundness.vignette`, so a v1 theme stays valid
-  and, with the other settings at their defaults, looks as it did (the groups'
-  other settings come from the theme's base, like any key). The settings,
-  lengths in logical pixels, rates in Hz:
-  - `scanlines`: `strength`, `period` (1–16, v1 3), `sharpness` (0 a soft
-    wave, 0.25 v1's profile, 1 a hard one-pixel line), `roll` (px/s, −60–60,
+  number is the group's strength (the aberration's amount). The older keys
+  `bloom`, `curvature` and `vignette` are still accepted and set
+  `glow.strength`, `roundness.curvature` and `roundness.vignette` (the groups'
+  other settings come from the theme's base, like any key). Every effect is
+  off by default. The settings, lengths in logical pixels, rates in Hz:
+  - `scanlines`: `strength`, `period` (1–16, default 3), `sharpness` (0 a soft
+    wave, 0.25 the default, 1 a hard one-pixel line), `roll` (px/s, −60–60,
     down when positive);
-  - `glow`: `strength` (v1's bloom), `threshold` (v1 0.35), `reach` (1–32, v1
-    7), `bleed` (0 a grey halo, 1 v1's colours, up to 3 saturated),
-    `dim-bright` (dim pixels take more glow than bright ones);
+  - `glow`: `strength`, `threshold` (default 0.35), `reach` (1–32, default
+    7), `bleed` (0 a grey halo, 1 the source's colours and the default, up to
+    3 saturated), `dim-bright` (dim pixels take more glow than bright ones);
   - `aberration`: `amount` (2 px at 1), `edges-only` (none at the centre,
     growing outwards), `wobble`, `wobble-rate` (0.05–20), `twitch` (0 smooth
     breathing, 1 calm with sudden spikes);
   - `mask`: `strength`, `size` (1–16), `kind` (`dots`, `grille` or `slot`);
   - `roundness`: `curvature`, `corners` (extra rounding of the glass, black
     beyond), `vignette`;
-  - `grain`: `strength`, `rate` (0–60, v1 24, 0 frozen);
-  - `flicker`: `strength`, `frequency` (0.5–30, v1 7.48).
+  - `grain`: `strength`, `rate` (0–60, default 24, 0 frozen);
+  - `flicker`: `strength`, `frequency` (0.5–30, default 7.48).
 
   A value outside its range is refused with its key
   (`effects.scanlines.period: 40 is out of range (1 to 16)`), as
   `logis --check-config` reports it. The bundled themes wear the looks chosen
   in the effects lab.
-- **Glitch** (the Go build; new, Rust v1 had none): a pass of its own before
+- **Glitch:** a pass of its own before
   the CRT pass (logis's clean-room `internal/render/glitch.frag`) breaks the
   glass up like a failing signal, on the same screens. `effects.glitch` is a
   group of parts; a bare number is its `strength` (0 to 1), which scales the
@@ -771,10 +768,8 @@ overrides it.
 - **Curved glass** (`roundness.curvature`) bends the whole panel as one tube
   face: border, rivets, glass and the glow around it bend together, the
   outline turns convex, and every other effect lies on the bent glass; what the
-  bend uncovers at the surface's edge is transparent. Rust v1 bowed only what
-  lay inside a straight border and left the unbent picture's alpha in the dark
-  it uncovered (a ghost of the text over a light desktop); the Go build does
-  neither.
+  bend uncovers at the surface's edge is transparent, so no ghost of the
+  unbent picture shows over a light desktop.
 - **Continuous effects** (glow pulse, travelling highlight, flicker, rolling
   scanlines, a wobbling colour split, changing grain, a glitch that moves at
   rest, a custom shader, a pending row's shimmer)
@@ -786,7 +781,7 @@ overrides it.
 
 ## Custom shaders
 
-The Go build (new beside Rust v1) can run one shader of your own after the
+logis can run one shader of your own after the
 theme's built-in effects, which stay as they are: a theme names it under
 `effects.custom-shader` (a path from the theme's file), or the config under
 `custom-shader` (a path from the config's directory), which outranks the
@@ -954,7 +949,9 @@ makepkg -si
 ```
 
 It builds the commit checked out in the repository (`HEAD`; uncommitted changes
-are not built): `./cmd/logis` with cgo, as Arch's Go package guidelines ask
+are not built; check out a release's tag first to package that release), with
+the version `git describe` gives that commit (see [Versions and
+releases](#versions-and-releases)): `./cmd/logis` with cgo, as Arch's Go package guidelines ask
 (makepkg's C flags, a PIE linked by the system linker, `-trimpath`). It needs
 `go`, `pkgconf` and `git` to build, and `wayland`, `libglvnd`, an
 `opengl-driver` (Mesa's, NVIDIA's or another vendor's EGL and OpenGL ES
@@ -984,13 +981,11 @@ The package installs:
 | README, changelog, provider protocol | `/usr/share/doc/logis/` |
 | the licence | `/usr/share/licenses/logis/LICENSE` |
 
-Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
-instead of the checkout; its header says which two lines to change.
-`cmd/logis/packaging_test.go` keeps the PKGBUILD, its `.SRCINFO` (`makepkg
---printsrcinfo > .SRCINFO` after editing), the man page and the changelog on the
-version logis reports (`internal/version`, its single source), the package's
-`depends` on the libraries the binary links and an `opengl-driver`, and the
-package without `optdepends`.
+`cmd/logis/packaging_test.go` keeps the package installing what the
+repository ships, its `depends` on the libraries the binary links and an
+`opengl-driver`, and the package without `optdepends`; `cmd/logis/version_test.go`
+keeps the version coming from git (below). logis is not in the AUR, so the
+repository keeps no `.SRCINFO`.
 
 The completions in [`contrib/completions/`](contrib/completions/) are written by
 hand; `cmd/logis/completions_test.go` checks that
@@ -1000,8 +995,9 @@ to `~/.config/fish/completions/`.
 
 ## Building
 
-logis is written in Go (ADR 0003, ADR 0004). It needs Go 1.27 or later, a C
-compiler, `pkg-config`, and the development files of the six C libraries it
+logis is written in Go
+([ADR 0002](docs/adr/0002-go-and-a-small-cgo-set.md)). It needs Go 1.27 or
+later, a C compiler, `pkg-config`, and the development files of the six C libraries it
 links: libwayland-client (1.22 or later), libwayland-egl, libEGL, libGLESv2,
 libfontconfig and libfreetype (`wayland`, `libglvnd`, `fontconfig` and
 `freetype2` on Arch; `libwayland-dev`, `libegl-dev`, `libgles-dev`,
@@ -1039,20 +1035,64 @@ libwayland the build machine has: bindings from a newer one need interfaces
 older libwayland lacks (`wl_fixes` since 1.24), and
 `internal/wlproto/floor_test.go` fails on them.
 
-`cmd/logis/parity_test.go` holds every rune's exit status, stdout and stderr
-to Rust logis v1's, recorded in `cmd/logis/testdata/parity.json` (the frozen
-v1 record, from the last Rust commit, `main` 2ffdd02); the deliberate
-differences are listed there with their reason. With `LOGIS_RUST_LOGIS`
-naming a Rust logis v1 binary built from that commit it asks that binary too,
-and `-update-parity` records its answers anew.
+`cmd/logis/answers_test.go` holds every rune's exit status, stdout and
+stderr to what `cmd/logis/testdata/answers.json` records, byte for byte: a
+corpus of 353 cases (`cmd/logis/answers_corpus_test.go`), each run in a
+scratch directory of its own with no Wayland session unless the case names
+one. The record was written by logis itself; after a deliberate change to an
+answer, rewrite it and review its diff:
 
-Two recorded oracles are standalone Rust programs, kept beside the data they
-wrote because the libraries they ran cannot be linked into Go tests:
-`internal/fuzzy/testdata/oracle` (nucleo-matcher 0.3.1, the matcher of v1)
-and `internal/text/testdata/cosmic-oracle` (cosmic-text 0.19, v1's line
-layout). Only regenerating `nucleo.json` or `cosmic.json` needs cargo; the
-command is in each program's `Cargo.toml` and beside the Go test that reads
-it. Rust logis v1 itself is in the history only (`main` up to 2ffdd02).
+```sh
+go test ./cmd/logis -run TestEveryCallerFacingAnswerIsAsRecorded -update-answers
+```
+
+The version line is recorded as `$VERSION`, so a new version leaves the
+record as it is.
+
+Two recorded references hold logis to the libraries it follows:
+`internal/fuzzy/testdata/nucleo.json` holds nucleo-matcher 0.3.1's scores
+(the reviewed divergences in `divergences.json` beside it) and
+`internal/text/testdata/cosmic.json` cosmic-text 0.19's line layouts. Both
+were recorded once and are only read; no other toolchain is needed.
+
+### Versions and releases
+
+A release is a git tag `vX.Y.Z`, and the tag is the only place its number is
+kept: no file names it but the changelog's headings. Every build takes its
+version from git:
+
+- **A plain `go build`** in a checkout reports the module version Go records
+  from the tags (`runtime/debug.ReadBuildInfo`): `logis 0.1.1` at the tag
+  `v0.1.1`, Go's pseudo-version between tags (`logis
+  0.1.2-0.20261020093000-abcdef123456`, the commit's time and hash), with
+  `+dirty` when the checkout has uncommitted or untracked files. `go install
+  github.com/nerdwave-nick/logis/cmd/logis@v0.1.1` reports `0.1.1`. A build
+  without either, such as `go run` or `-buildvcs=false`, reports `logis dev`.
+- **A stamped build** sets the version through the linker, as the PKGBUILD
+  does with `git describe` of the commit it packages (`0.1.1` at the tag,
+  `0.1.1-3-gabc1234` three commits after it, `0.0.0-<commits>-g<hash>` before
+  the first tag); its package version is the Arch form of the same
+  (`0.1.1`, `0.1.1.r3.gabc1234`), and its man page carries it too:
+
+  ```sh
+  v=$(git describe --tags --match 'v[0-9]*')
+  go build -ldflags "-X github.com/nerdwave-nick/logis/internal/version.Version=${v#v}" -o logis ./cmd/logis
+  ```
+
+At a release tag all of them report the same version. To release:
+
+1. Add the release's section to `CHANGELOG.md`, `## [X.Y.Z] - YYYY-MM-DD`
+   with its link at the bottom, and commit it.
+2. Tag that commit and push the tag:
+
+   ```sh
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+CI runs on the pushed tag and fails unless the changelog has the release's
+section; `cmd/logis/version_test.go` checks the same wherever `HEAD` is at a
+release tag.
 
 ### Goldens and pinned fonts
 
@@ -1070,15 +1110,12 @@ fontconfig setup that knows only the OFL subsets in `tests/fonts/`
 (regenerated by `tests/fonts/subset.sh`), so the goldens do not depend on
 installed fonts.
 
-The goldens live in `tests/goldens/`. `tests/goldens/go/<set>/` holds the Go
-build's own; `tests/goldens/<set>/` holds the frozen goldens of Rust logis v1
-that a Go test still reads: the text corpus and faces and the icons (the Go
-renders are bounded against them), forge's window (the scene test's
-oracle for the row layout), the debug panel's captures and the golden
-harness's reference. The harness, `internal/render/rendertest`
-(`Goldens.Check`, `CheckScene`), compares an image with the Go golden where
-there is one and with v1's otherwise, each channel within a tolerance (an
-allowed fraction of outlier pixels for E2E captures); the icon and theme
+The goldens live in `tests/goldens/<set>/<name>.png`, one tree: the text
+corpus and faces, the icons, the themes, the E2E captures (the debug panel's
+among them) and the golden harness's reference. The harness,
+`internal/render/rendertest` (`Goldens.Check`, `CheckScene`), compares an
+image with its golden, each channel within a tolerance (an allowed fraction
+of outlier pixels for E2E captures); the icon and theme
 goldens store straight alpha, so a viewer shows the translucent glow in its
 colour, and are compared premultiplied. The theme goldens draw the same
 lists in each bundled theme at scales 1.0, 1.3 and 2.0 with the frame's time
@@ -1093,10 +1130,9 @@ LOGIS_UPDATE_GOLDENS=1 go test ./internal/render/ ./internal/list/scene/ ./inter
 LOGIS_E2E=niri LOGIS_UPDATE_GOLDENS=1 go test -count=1 -run E2E ./cmd/logis/
 ```
 
-Update mode writes only Go goldens, never one of v1's: an image within
-tolerance of v1's golden needs none (a stale Go golden is removed), any other
-is written under `tests/goldens/go/` and the test log says how it differs
-from v1's. A mismatch leaves `<name>.actual.png` and `<name>.diff.png`
+Update mode keeps a golden the render matches within tolerance, so
+anti-aliasing never churns them, and rewrites any other, the test log saying
+how it differs from the one it replaced. A mismatch leaves `<name>.actual.png` and `<name>.diff.png`
 (outliers magenta over the dimmed golden) under `$LOGIS_GOLDEN_FAILURES`
 (by default the temp dir's `logis-golden-failures`); a passing check removes
 an earlier failure's.
@@ -1176,8 +1212,7 @@ from it) and records how `servitor invoke` was launched
 (`servitor_e2e_test.go`, `servitor_window_e2e_test.go`). Test daemons run
 without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so they find no
 session bus, and with `reduce-motion` unless their test's config names it, so
-their windows settle and screen captures agree. `cmd/logis/e2emap_test.go`
-keeps each of Rust v1's 55 E2E tests mapped to its Go port.
+their windows settle and screen captures agree.
 
 `LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr
 lines `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
@@ -1268,17 +1303,14 @@ and most session setups import.
 
 - [`CONTEXT.md`](CONTEXT.md): domain vocabulary, including the grimdark words used in
   help, error and UI text.
-- [`docs/adr/`](docs/adr/): architecture decisions: logis's own GPU renderer, no
-  CPU renderer (0001, written for Rust v1 on wgpu), a resident daemon and a thin
-  client (0002), the Go rewrite's stack (0003) and the switch-over from Rust to
-  Go (0004).
-- [`docs/research/`](docs/research/): the stack research (`stack.md`, for Rust
-  v1), the launcher landscape (`landscape.md`) and the Go rewrite's research
-  (`go-rendering.md`, `go-text-input.md`) that the decisions rest on.
-- [`research/`](research/): disposable research code (benchmarks and the
-  GPU/daemon spike's evidence and screenshots; the Rust prototypes it measured
-  are in the history). It is evidence, not a foundation, and is not part of
-  the build.
+- [`docs/adr/`](docs/adr/): architecture decisions: a resident daemon and a
+  thin client (0001) and the stack, Go with a small cgo set (0002).
+- [`docs/research/`](docs/research/): the launcher landscape (`landscape.md`)
+  and the research on rendering (`rendering.md`) and text and input
+  (`text-input.md`) that the decisions rest on.
+- [`research/`](research/): disposable research code (first-frame and launch
+  benchmarks). It is evidence, not a foundation, and is not part of the
+  build.
 
 ## Licence
 

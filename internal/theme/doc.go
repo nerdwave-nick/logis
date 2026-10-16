@@ -9,9 +9,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// Reading a theme file (Rust src/theme/doc.rs through serde_json): each
-// refusal has serde's words and serde_json's place, the last byte it had
-// read — a scalar of the wrong kind's last character, the byte before a
+// Reading a theme file: each refusal has serde's words and serde_json's
+// place, the last byte it had read — a scalar of the wrong kind's last character, the byte before a
 // container of the wrong kind (left unread), a key's closing quote for an
 // unknown or repeated key, and where reading on stopped (jsonc Settled,
 // Opened) for what is judged once a value or its first byte was read.

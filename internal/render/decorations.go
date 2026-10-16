@@ -3,8 +3,7 @@ package render
 import "math"
 
 // decorations are what the prepared lines draw with the shapes: the
-// underlines under their emphasis and their carets (Rust
-// TextPass::decorations), in logical pixels.
+// underlines under their emphasis and their carets, in logical pixels.
 func (p *glyphPass) decorations() []RoundedRect {
 	var out []RoundedRect
 	for i := range p.shaped {

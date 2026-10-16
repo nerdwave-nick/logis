@@ -12,9 +12,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The prompt line (Rust src/list/scene/prompt.rs): the sigil, the theme's
-// label, the session's prompt and the query (or its placeholder) with the
-// caret, and the counter at the end.
+// The prompt line: the sigil, the theme's label, the session's prompt and
+// the query (or its placeholder) with the caret, and the counter at the
+// end.
 
 // promptLine draws the prompt line across the top of body; a sigil image
 // comes from icons.

@@ -8,12 +8,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// A provider's steps in the window (Rust src/daemon/window/ui.rs
-// Shown::step). A next stage is not a close and an open: the window stays
-// where it is, at the first stage's size, and only its list changes. The
-// daemon times a provider's toast and says when it is over (untoast). A
-// session that is over lingers on its toast without the keyboard, taking
-// no steps or keys, until the daemon hides it.
+// A provider's steps in the window. A next stage is not a close and an
+// open: the window stays where it is, at the first stage's size, and only
+// its list changes. The daemon times a provider's toast and says when it is
+// over (untoast). A session that is over lingers on its toast without the
+// keyboard, taking no steps or keys, until the daemon hides it.
 
 // step applies what session id's provider asks next.
 func (u *ui) step(id daemon.SessionID, step provider.Step) {

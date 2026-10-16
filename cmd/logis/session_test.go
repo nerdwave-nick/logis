@@ -40,10 +40,10 @@ var withoutFractionalScale = []wltest.Global{
 	{Interface: "wp_viewporter", Version: 1},
 }
 
-// session gives the test a Wayland environment it fully controls, as the
-// Rust CLI tests do: a fake compositor with globals at
-// $XDG_RUNTIME_DIR/wayland-test (none for nil), no WAYLAND_SOCKET, and
-// WAYLAND_DISPLAY set only with a compositor. It returns the runtime dir.
+// session gives the test a Wayland environment it fully controls: a fake
+// compositor with globals at $XDG_RUNTIME_DIR/wayland-test (none for nil),
+// no WAYLAND_SOCKET, and WAYLAND_DISPLAY set only with a compositor. It
+// returns the runtime dir.
 func session(t *testing.T, globals []wltest.Global) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -94,7 +94,8 @@ func fails(t *testing.T, args []string, want ...string) {
 	}
 }
 
-// Ported from Rust tests/cli.rs, for plain logis and the debug panel.
+// unusable are the commands that need a usable session: plain logis and
+// the debug panel.
 var unusable = []struct {
 	name string
 	args []string
@@ -150,7 +151,7 @@ func TestWithoutXDGRuntimeDirExits2NamingIt(t *testing.T) {
 	}
 }
 
-// --debug-panel belongs to the daemon (Rust src/cli: a daemon flag only).
+// --debug-panel belongs to the daemon: a daemon flag only.
 func TestDebugPanelIsADaemonFlagOnly(t *testing.T) {
 	session(t, nil)
 	fails(t, []string{"--debug-panel"}, "the rune '--debug-panel' is unknown")

@@ -12,10 +12,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// The custom pass (feat/logis-go a5e5f876, new beside Rust v1): a
-// theme's or the config's shader, written as for Shadertoy, runs after
-// the built-in effects over the whole frame. Every shader here is written
-// for these tests.
+// The custom pass (feat/logis-go a5e5f876): a theme's or the config's
+// shader, written as for Shadertoy, runs after the built-in effects over
+// the whole frame. Every shader here is written for these tests.
 
 // identity hands the frame on as it came: rows bottom-up as fragCoord's,
 // premultiplied alpha kept.

@@ -69,7 +69,7 @@ func TestRepeatedKeysAreAllKept(t *testing.T) {
 }
 
 // Errors point at the last character of the token they concern, counted in
-// characters (serde_json's convention, which Rust logis v1 reported).
+// characters (serde_json's convention).
 func TestErrorsAboutAValuePointAtItsLastCharacter(t *testing.T) {
 	text := "{\n  \"⚙\": \"soon\",\n  \"thme\": [1]\n}"
 	doc := mustParse(t, text)

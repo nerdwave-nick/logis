@@ -14,25 +14,17 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// The golden harness (Rust tests/support/golden.rs, spec §6 "offscreen
-// golden renders"): compare an image (an offscreen render or an E2E
-// capture) with a checked-in PNG under a Tolerance, or write it in update
-// mode.
+// The golden harness (spec §6 "offscreen golden renders"): compare an
+// image (an offscreen render or an E2E capture) with a checked-in PNG under
+// a Tolerance, or write it in update mode.
 //
-//   - Files: tests/goldens/<set>/<name>.png are Rust logis v1's goldens,
-//     reference data the Go port never rewrites. At the switch-over only
-//     those a Go test still reads were kept (the debug panel's captures,
-//     the harness reference, the icons, the text, the forge window); the
-//     rest are in the history. Where the Go render differs from one beyond
-//     its tolerance, the Go golden tests/goldens/go/<set>/<name>.png stands
-//     in for it, reviewed once against the Rust one; where Rust has none,
-//     the Go golden is the only one. Scaled variants are named
+//   - Files: tests/goldens/<set>/<name>.png. Scaled variants are named
 //     <name>@<scale> (ScaleSuffix).
 //   - Update mode: LOGIS_UPDATE_GOLDENS=1 go test … renders instead of
-//     comparing. An image within tolerance of the Rust golden needs no Go
-//     golden (a stale one is removed); any other image is written as the
-//     Go golden, and the verdict says how it differs from the Rust one.
-//     Review before committing.
+//     comparing. An image within tolerance of the checked-in golden leaves
+//     it untouched; any other is written as the golden, and the verdict
+//     says how it differs from the one it replaces. Review before
+//     committing.
 //   - Failures name the golden and leave <name>.actual.png and
 //     <name>.diff.png (outliers magenta over the dimmed golden) under
 //     $LOGIS_GOLDEN_FAILURES/<set>/ (default: the temp dir's
@@ -55,7 +47,7 @@ type Alpha int
 const (
 	// Premultiplied stores the renderer's bytes as they are (the default).
 	Premultiplied Alpha = iota
-	// Straight stores PNG's straight alpha (Rust's icon and theme goldens).
+	// Straight stores PNG's straight alpha (the icon and theme goldens).
 	Straight
 )
 
@@ -108,8 +100,7 @@ func DiffImage(actual, golden *render.Image, channel uint8) *render.Image {
 	return out
 }
 
-// Goldens is a directory of goldens (Rust's under Root, Go's under
-// Root/go) and where failure artefacts go.
+// Goldens is a directory of goldens and where failure artefacts go.
 type Goldens struct {
 	Root, Failures string
 	// Update writes goldens instead of comparing.
@@ -132,24 +123,9 @@ func CheckedIn(t testing.TB) *Goldens {
 	}
 }
 
-// RustPath is Rust's golden set/name; GoPath is the Go golden standing in
-// for it.
-func (g *Goldens) RustPath(set, name string) string {
-	return filepath.Join(g.Root, set, name+".png")
-}
-
-// GoPath is the Go golden set/name.
-func (g *Goldens) GoPath(set, name string) string {
-	return filepath.Join(g.Root, "go", set, name+".png")
-}
-
-// Path is the golden a check of set/name compares with: the Go golden if
-// there is one, else Rust's.
+// Path is golden set/name's file.
 func (g *Goldens) Path(set, name string) string {
-	if _, err := os.Stat(g.GoPath(set, name)); err == nil {
-		return g.GoPath(set, name)
-	}
-	return g.RustPath(set, name)
+	return filepath.Join(g.Root, set, name+".png")
 }
 
 func (g *Goldens) read(path string) (*render.Image, error) {
@@ -175,15 +151,16 @@ func (g *Goldens) Load(set, name string) (*render.Image, error) {
 
 // Verdict is what a check did.
 type Verdict struct {
-	// Updated: update mode wrote the Go golden at Path.
+	// Updated: update mode wrote the golden at Path.
 	Updated bool
 	// Path is the golden compared with or written.
 	Path string
 	// Comparison is how the image compared with the golden at Path
-	// (compare mode, or update mode when Rust's golden sufficed).
+	// (compare mode, or update mode when the golden was kept).
 	Comparison Comparison
-	// Rust is how a written Go golden differs from Rust's, if Rust has one.
-	Rust *Comparison
+	// Previous is how a written golden differs from the one it replaced,
+	// if there was one of the same size.
+	Previous *Comparison
 }
 
 // Check compares img with golden set/name, or in update mode writes it
@@ -222,26 +199,23 @@ func (g *Goldens) Check(set, name string, img *render.Image, tol Tolerance) (Ver
 }
 
 func (g *Goldens) update(set, name string, img *render.Image, tol Tolerance) (Verdict, error) {
-	goPath := g.GoPath(set, name)
-	v := Verdict{Path: goPath, Updated: true}
-	if rust, err := g.read(g.RustPath(set, name)); err == nil {
-		c, err := Compare(img, rust, tol.Channel)
+	path := g.Path(set, name)
+	v := Verdict{Path: path, Updated: true}
+	if previous, err := g.read(path); err == nil {
+		c, err := Compare(img, previous, tol.Channel)
 		if err == nil && c.Passes(tol) {
-			if err := os.Remove(goPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return Verdict{}, err
-			}
-			return Verdict{Path: g.RustPath(set, name), Comparison: c}, nil
+			return Verdict{Path: path, Comparison: c}, nil
 		}
 		if err == nil {
-			v.Rust = &c
+			v.Previous = &c
 		}
 	}
 	stored := img
 	if g.Alpha == Straight {
 		stored = Demultiply(img)
 	}
-	if err := writeAll(filepath.Dir(goPath), map[string]*render.Image{goPath: stored}); err != nil {
-		return Verdict{}, fmt.Errorf("cannot write golden %s: %v", goPath, err)
+	if err := writeAll(filepath.Dir(path), map[string]*render.Image{path: stored}); err != nil {
+		return Verdict{}, fmt.Errorf("cannot write golden %s: %v", path, err)
 	}
 	return v, nil
 }
@@ -265,10 +239,10 @@ func (g *Goldens) Assert(t testing.TB, set, name string, img *render.Image, tol 
 	switch {
 	case err != nil:
 		t.Error(err)
-	case v.Updated && v.Rust != nil:
-		t.Logf("wrote Go golden %s; against Rust's: %v — review it", v.Path, *v.Rust)
+	case v.Updated && v.Previous != nil:
+		t.Logf("wrote golden %s; against the previous one: %v — review it", v.Path, *v.Previous)
 	case v.Updated:
-		t.Logf("wrote Go golden %s (Rust has none) — review it", v.Path)
+		t.Logf("wrote golden %s (there was none of this size) — review it", v.Path)
 	default:
 		t.Logf("%s: %v", v.Path, v.Comparison)
 	}

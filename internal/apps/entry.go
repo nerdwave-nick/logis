@@ -8,8 +8,7 @@ import (
 
 // One desktop entry of Type=Application, read from its key file: what the
 // launcher shows, matches, hides and runs (Desktop Entry Specification,
-// "Recognized desktop entry keys" and "Additional applications actions";
-// Rust src/apps/entry.rs).
+// "Recognized desktop entry keys" and "Additional applications actions").
 //
 //   - Name (required), GenericName and Keywords are localised;
 //   - Exec is required unless DBusActivatable=true; an invalid one makes

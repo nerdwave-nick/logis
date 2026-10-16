@@ -15,7 +15,7 @@ import (
 // The daemon's config: read before the socket is taken, its idle-timeout
 // in force from the start, sound edits applied at once (to the resolver,
 // that is the window, too), invalid ones logged and toasted while the last
-// sound config stands (Rust src/daemon/lifecycle.rs, tests/config.rs).
+// sound config stands.
 
 const heeds = "heeds the amended config"
 

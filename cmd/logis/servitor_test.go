@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/cli/mod.rs servitor_asks_for_servitor_mode.
+// --servitor asks for servitor mode, a command of its own that takes
+// --config and no dmenu runes.
 func TestServitorAsksForServitorMode(t *testing.T) {
 	if c := mustParse(t, "--servitor"); c.kind != servitorCommand || c.config != "" {
 		t.Fatalf("%+v", c)
@@ -30,7 +31,8 @@ func TestServitorAsksForServitorMode(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/cli/mod.rs provide_names_a_built_in_provider.
+// `logis provide` names a built-in provider (servitor, the only one);
+// anything else exits 2 naming what it could not bear.
 func TestProvideNamesABuiltInProvider(t *testing.T) {
 	for _, c := range []struct {
 		args []string

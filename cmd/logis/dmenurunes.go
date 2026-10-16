@@ -9,10 +9,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/nth"
 )
 
-// The dmenu runes (feat/logis §4.6, Rust src/cli/dmenu.rs),
-// fuzzel-compatible: what the list shows and how the choice is printed. A
-// value follows its flag as `--flag=V` or `--flag V` (--password takes its
-// character only as `--password=C`).
+// The dmenu runes (feat/logis §4.6), fuzzel-compatible: what the list shows
+// and how the choice is printed. A value follows its flag as `--flag=V` or
+// `--flag V` (--password takes its character only as `--password=C`).
 
 // dmenuOptions are what a dmenu session reads, shows and prints.
 type dmenuOptions struct {
@@ -63,8 +62,8 @@ func (r *dmenuRunes) take(arg string, rest *argQueue) (bool, error) {
 	if before, after, ok := strings.Cut(arg, "="); ok && strings.HasPrefix(before, "--") {
 		name, inline, hasInline = before, after, true
 	}
-	// value is the rune's value, as text (Rust's to_string_lossy); flag
-	// names the rune in an error by its long name.
+	// value is the rune's value, as text (lossy); flag names the rune
+	// in an error by its long name.
 	value := func(flag, wants string) (string, error) {
 		if hasInline {
 			return inline, nil
@@ -124,7 +123,7 @@ func (r *dmenuRunes) apply(name, inline string, hasInline bool, value valueOf) e
 	case "--select-index":
 		var v string
 		if v, err = value("--select-index", indexWant); err == nil {
-			i, ok := rustUint(v, 64)
+			i, ok := parseDecimalUint(v, 64)
 			if !ok {
 				return badValue("--select-index", v, indexWant)
 			}
@@ -181,20 +180,20 @@ func numberRune(flag, wants string, value valueOf, positive bool) (*uint32, erro
 	if err != nil {
 		return nil, err
 	}
-	n, ok := rustUint(v, 32)
+	n, ok := parseDecimalUint(v, 32)
 	if !ok {
 		return nil, badValue(flag, v, wants)
 	}
 	if positive && n == 0 {
-		return nil, badValue(flag, "0", wants) // Rust named the number read
+		return nil, badValue(flag, "0", wants) // the number read, not its spelling
 	}
 	u := uint32(n)
 	return &u, nil
 }
 
-// rustUint parses an unsigned decimal as Rust's FromStr does: digits only,
-// one leading '+' allowed.
-func rustUint(s string, bits int) (uint64, bool) {
+// parseDecimalUint parses an unsigned decimal that fits in bits: digits
+// only, one leading '+' allowed; a value too large for bits is refused.
+func parseDecimalUint(s string, bits int) (uint64, bool) {
 	digits := strings.TrimPrefix(s, "+")
 	if digits == "" || strings.TrimLeft(digits, "0123456789") != "" {
 		return 0, false

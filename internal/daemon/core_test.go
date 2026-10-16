@@ -166,7 +166,7 @@ func isError(replies []protocol.Reply, needle string) bool {
 		strings.Contains(replies[0].Message, needle)
 }
 
-// Ported from Rust src/daemon/core.rs a_session_the_resolver_could_not_show_ends_with_its_error.
+// A session the resolver could not show ends with its error.
 func TestASessionTheResolverCouldNotShowEndsWithItsError(t *testing.T) {
 	c, r := newTestCore()
 	failing := open(t, c, 1, protocol.ModeDmenu)
@@ -315,8 +315,9 @@ func TestTypedTextIsTheOutcomeAndAnUnknownItemIsIgnored(t *testing.T) {
 	wantReplies(t, w, protocol.Result(protocol.Outcome{Kind: protocol.Typed, Text: "free"}))
 }
 
-// Ported from protocol_violations_end_the_connection_with_an_error, plus the
-// provider rules of Rust's Feed::new.
+// Protocol violations end the connection with an error, among them the
+// provider rules: a provider session must name its provider, and only a
+// provider session names one.
 func TestProtocolViolationsEndTheConnectionWithAnError(t *testing.T) {
 	rite := protocol.Open(protocol.ModeProvider, nil)
 	rite.Provider = &protocol.Launch{Argv: [][]byte{[]byte("rite")}}

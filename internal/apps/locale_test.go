@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/locale.rs.
+// Which localised key a locale prefers.
 
 func ranks(locale string, keys ...string) []int {
 	l := ParseLocale(locale)

@@ -10,9 +10,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// App sessions in the window (Rust src/daemon/window/ui.rs, Command::
-// Activation): answered as a provider's stage is (the window waits for the
-// daemon), and an xdg-activation token asked for the shown session.
+// App sessions in the window: answered as a provider's stage is (the
+// window waits for the daemon), and an xdg-activation token asked for the
+// shown session.
 
 func (r *rig) showApps(id daemon.SessionID, texts ...string) {
 	o := list.DefaultOptions()

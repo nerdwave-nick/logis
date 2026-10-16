@@ -19,8 +19,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// The window's session logic (Rust src/daemon/window/ui.rs), driven
-// without a compositor: a fake surface, a recording host and trace.
+// The window's session logic, driven without a compositor: a fake
+// surface, a recording host and trace.
 
 type fakeSurface struct {
 	shown    bool

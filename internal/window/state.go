@@ -13,10 +13,10 @@ type Geometry struct {
 	Scale scale.Scale
 }
 
-// surfaceState is the pure part of a layer surface (Rust
-// src/window/state.rs): what size and scale it must render at and when it
-// may draw. Free of Wayland and EGL, so every configure, scale change and
-// frame callback sequence is unit-testable.
+// surfaceState is the pure part of a layer surface: what size and scale
+// it must render at and when it may draw. Free of Wayland and EGL, so
+// every configure, scale change and frame callback sequence is
+// unit-testable.
 type surfaceState struct {
 	requested    scale.Size
 	configured   *scale.Size

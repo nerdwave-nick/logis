@@ -14,8 +14,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Provider sessions through the daemon's core with a fake process (Rust
-// src/daemon/providing/tests.rs), on a clock the tests move.
+// Provider sessions through the daemon's core with a fake process, on a
+// clock the tests move.
 
 // fakeRunning records what a provider process was sent and how it was
 // treated: sent lines, `eof`, `signal N`.

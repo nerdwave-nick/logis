@@ -22,12 +22,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// The window's session logic (Rust src/daemon/window/ui.rs), on the
-// window's goroutine: the session on screen, the keys' actions applied to
-// its list, and its answer to the daemon. A dmenu answer ends its session,
-// so the window closes at once (the answer is sent first); after a
-// provider's answer the window stays and Return waits for the provider's
-// next stage or ready (Escape still dismisses). Provider steps: steps.go.
+// The window's session logic, on the window's goroutine: the session on
+// screen, the keys' actions applied to its list, and its answer to the
+// daemon. A dmenu answer ends its session, so the window closes at once
+// (the answer is sent first); after a provider's answer the window stays
+// and Return waits for the provider's next stage or ready (Escape still
+// dismisses). Provider steps: steps.go.
 //
 // With the test trace on it reports `show <session>`, `stage <session>` (a
 // provider's next stage), `items <total>`, `update <item>`, `remove
@@ -37,7 +37,7 @@ import (
 // <session>` (the daemon took it away), beside the window's own focus, key,
 // commit and settled events.
 
-// noticeFor is how long a toast from the daemon stays (Rust NOTICE).
+// noticeFor is how long a toast from the daemon stays.
 const noticeFor = 3 * time.Second
 
 // surface is what the session logic needs of the window.

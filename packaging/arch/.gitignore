@@ -3,3 +3,5 @@
 /pkg/
 /*.pkg.tar.*
 /*.log
+# logis is not in the AUR, so no .SRCINFO is kept
+/.SRCINFO

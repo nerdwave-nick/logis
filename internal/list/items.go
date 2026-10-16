@@ -3,7 +3,7 @@ package list
 import "strings"
 
 // A View's items as they arrive, change and go, and the preselection that
-// waits for its item (Rust src/list/view.rs push/update/remove/preselect).
+// waits for its item.
 
 // Push adds entries in arrival order and reports whether the rows in view
 // may have changed.

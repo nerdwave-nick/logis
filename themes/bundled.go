@@ -1,7 +1,6 @@
-// Package themes holds the bundled themes' files, compiled into logis (Rust
-// src/theme/load.rs BUNDLED, include_str!). It lives beside the files
-// because go:embed reaches no parent directory; the theme engine is
-// internal/theme.
+// Package themes holds the bundled themes' files, compiled into logis. It
+// lives beside the files because go:embed reaches no parent directory; the
+// theme engine is internal/theme.
 package themes
 
 import _ "embed" // the files below

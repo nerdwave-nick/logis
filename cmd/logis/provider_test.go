@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/client/provider.rs the_launch_carries_argv_cwd_and_environment_as_bytes.
+// The launch carries the provider's argv, the client's working directory
+// and its environment, all as bytes.
 func TestTheLaunchCarriesArgvCwdAndEnvironmentAsBytes(t *testing.T) {
 	l := providerLaunch([]string{"rite", "\xff"})
 	if !reflect.DeepEqual(l.Argv, [][]byte{[]byte("rite"), []byte("\xff")}) {

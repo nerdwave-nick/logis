@@ -16,53 +16,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/logis/internal/version"
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// The caller-facing surface of Rust logis v1, held against the Go binary
-// argument by argument: for every case of the corpus below, exit status,
-// stdout and stderr must be Rust's byte for byte. testdata/parity.json is
-// the frozen v1 record: Rust's answers, recorded from a release build of
-// the last Rust commit (main 2ffdd02, in the history only since the
-// switch-over), so the comparison needs no Rust build. With
-// LOGIS_RUST_LOGIS naming a Rust logis v1 binary (built from that commit)
-// the cases also run against it live, and `-update-parity` rewrites the
-// record from its answers.
+// The caller-facing surface of the command line, argument by argument:
+// for every case of the corpus (answers_corpus_test.go), exit status,
+// stdout and stderr must be as testdata/answers.json records them, byte
+// for byte. A deliberate change to an answer is recorded with
+// `go test ./cmd/logis -run TestEveryCallerFacingAnswerIsAsRecorded
+// -update-answers` and reviewed in the record's diff.
 //
 // Every case runs in a scratch directory of its own (its working directory,
 // HOME, XDG_RUNTIME_DIR=$DIR/run, XDG_CONFIG_HOME=$DIR/config), with no
 // Wayland session unless the case names one and no LOGIS_* variable, so no
 // case ever reaches a compositor or starts a daemon that stays. The
-// directory's path is written $DIR in the record.
+// directory's path is written $DIR in the record, and the version that
+// --version prints $VERSION.
 
-var updateParity = flag.Bool("update-parity", false,
-	"rewrite testdata/parity.json from the Rust logis that LOGIS_RUST_LOGIS names")
+var updateAnswers = flag.Bool("update-answers", false, "rewrite testdata/answers.json from the logis build")
 
-const parityRecord = "testdata/parity.json"
+const answersRecord = "testdata/answers.json"
 
-// divergences are the answers the Go binary gives unlike Rust's on
-// purpose, for features new beside v1: case key → Rust's recorded answer
-// as the Go binary gives it. The record stays Rust's.
-// v1Version is the version Rust logis v1 named itself in the record; the Go
-// build names its own (internal/version) wherever v1 named 1.0.0.
-const v1Version = "1.0.0"
-
-var divergences = map[string]func(answer) answer{
-	// a5e5f876: the config's custom-shader key is among the keys an
-	// unknown one is told of.
-	`[config/logis/logis.jsonc={"heresy": 1}] logis --check-config`: func(a answer) answer {
-		a.Stderr = strings.Replace(a.Stderr, "`reduce-motion`\n", "`reduce-motion`, `custom-shader`\n", 1)
-		return a
-	},
-}
-
-// parityCase is one invocation: its arguments ("hex:" marks an argument
+// answerCase is one invocation: its arguments ("hex:" marks an argument
 // given as hexadecimal bytes, for ones that are not UTF-8), stdin, extra
 // environment ("NAME=" unsets NAME), files written below $DIR first, and
-// the fake compositor (a key of parityCompositors) served at
+// the fake compositor (a key of answerCompositors) served at
 // $DIR/run/wayland-test as WAYLAND_DISPLAY=wayland-test, if any.
-type parityCase struct {
+type answerCase struct {
 	args       []string
 	stdin      string
 	env        []string
@@ -70,10 +50,10 @@ type parityCase struct {
 	compositor string
 }
 
-// parityCompositors are the fake compositors a case may name: ones the
+// answerCompositors are the fake compositors a case may name: ones the
 // window cannot use, or (for scripted cases only) one that passes the
 // preflight, so no case ever opens a window.
-var parityCompositors = map[string][]wltest.Global{
+var answerCompositors = map[string][]wltest.Global{
 	"no-layer-shell":      withoutLayerShell,
 	"no-fractional-scale": withoutFractionalScale,
 	"everything":          withLayerShell,
@@ -87,7 +67,7 @@ type answer struct {
 }
 
 // key names the case in the record: its environment, files and arguments.
-func (c parityCase) key() string {
+func (c answerCase) key() string {
 	var parts []string
 	if c.compositor != "" {
 		parts = append(parts, "[compositor="+c.compositor+"]")
@@ -119,7 +99,7 @@ func quoteArg(a string) string {
 	return string(b)
 }
 
-func (c parityCase) argv(t *testing.T) []string {
+func (c answerCase) argv(t *testing.T) []string {
 	out := make([]string, len(c.args))
 	for i, a := range c.args {
 		if h, ok := strings.CutPrefix(a, "hex:"); ok {
@@ -134,8 +114,8 @@ func (c parityCase) argv(t *testing.T) []string {
 	return out
 }
 
-// runParity runs bin for one case in a fresh scratch directory.
-func runParity(t *testing.T, bin string, c parityCase) answer {
+// runAnswer runs bin for one case in a fresh scratch directory.
+func runAnswer(t *testing.T, bin string, c answerCase) answer {
 	t.Helper()
 	dir := t.TempDir()
 	for _, sub := range []string{"run", "config", "home"} {
@@ -160,7 +140,7 @@ func runParity(t *testing.T, bin string, c parityCase) answer {
 		"LANG":            "C.UTF-8",
 	}
 	if c.compositor != "" {
-		globals, ok := parityCompositors[c.compositor]
+		globals, ok := answerCompositors[c.compositor]
 		if !ok {
 			t.Fatalf("%s: no such compositor", c.key())
 		}
@@ -211,12 +191,13 @@ func runParity(t *testing.T, bin string, c parityCase) answer {
 		t.Errorf("%s: %s left a daemon's socket behind", c.key(), bin)
 	}
 	unDir := func(b []byte) string { return strings.ReplaceAll(string(b), dir, "$DIR") }
-	return answer{cmd.ProcessState.ExitCode(), unDir(stdout.Bytes()), unDir(stderr.Bytes())}
+	out := strings.ReplaceAll(unDir(stdout.Bytes()), "logis "+binaryVersion(t, bin)+"\n", "logis $VERSION\n")
+	return answer{cmd.ProcessState.ExitCode(), out, unDir(stderr.Bytes())}
 }
 
-func readParityRecord(t *testing.T) map[string]answer {
+func readAnswers(t *testing.T) map[string]answer {
 	t.Helper()
-	data, err := os.ReadFile(parityRecord)
+	data, err := os.ReadFile(answersRecord)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,65 +208,52 @@ func readParityRecord(t *testing.T) map[string]answer {
 	return record
 }
 
-func writeParityRecord(t *testing.T, record map[string]answer) {
+func writeAnswers(t *testing.T, record map[string]answer) {
 	t.Helper()
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(parityRecord, append(data, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(answersRecord, append(data, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestTheCallerFacingSurfaceIsRustsArgumentByArgument(t *testing.T) {
-	cases := parityCorpus()
-	rust := os.Getenv("LOGIS_RUST_LOGIS")
-	if *updateParity {
-		if rust == "" {
-			t.Fatal("-update-parity needs LOGIS_RUST_LOGIS naming a Rust logis v1 binary")
-		}
+func TestEveryCallerFacingAnswerIsAsRecorded(t *testing.T) {
+	cases := answersCorpus()
+	bin := buildLogis(t)
+	if *updateAnswers {
 		record := map[string]answer{}
 		for _, c := range cases {
-			record[c.key()] = runParity(t, rust, c)
+			record[c.key()] = runAnswer(t, bin, c)
 		}
-		writeParityRecord(t, record)
+		writeAnswers(t, record)
 	}
-	record := readParityRecord(t)
+	record := readAnswers(t)
 	if len(record) != len(cases) {
-		t.Errorf("the record holds %d cases, the corpus %d: rerun with -update-parity", len(record), len(cases))
+		t.Errorf("the record holds %d cases, the corpus %d: rerun with -update-answers", len(record), len(cases))
 	}
-	bin := buildLogis(t)
 	for _, c := range cases {
 		want, ok := record[c.key()]
 		if !ok {
-			t.Errorf("%s: not in the record: rerun with -update-parity", c.key())
+			t.Errorf("%s: not in the record: rerun with -update-answers", c.key())
 			continue
 		}
-		if rust != "" && !*updateParity {
-			if live := runParity(t, rust, c); live != want {
-				t.Errorf("%s: Rust answers\n  %+v\nnot as recorded\n  %+v", c.key(), live, want)
-			}
-		}
-		if diverge, ok := divergences[c.key()]; ok {
-			want = diverge(want)
-		}
-		want.Stdout = strings.ReplaceAll(want.Stdout, "logis "+v1Version+"\n", "logis "+version.Version+"\n")
-		if got := runParity(t, bin, c); got != want {
-			t.Errorf("%s:\n  Go   %+v\n  Rust %+v", c.key(), got, want)
+		if got := runAnswer(t, bin, c); got != want {
+			t.Errorf("%s:\n  got  %+v\n  want %+v", c.key(), got, want)
 		}
 	}
 }
 
-func TestParityKeysAreUniqueAndQuoted(t *testing.T) {
+func TestAnswerKeysAreUniqueAndQuoted(t *testing.T) {
 	seen := map[string]bool{}
-	for _, c := range parityCorpus() {
+	for _, c := range answersCorpus() {
 		if seen[c.key()] {
 			t.Errorf("two cases are %s", c.key())
 		}
 		seen[c.key()] = true
 	}
-	if got := (parityCase{args: []string{"--prompt", "a b", ""}, env: []string{"X="}}).key(); got != `X= logis --prompt "a b" ""` {
+	if got := (answerCase{args: []string{"--prompt", "a b", ""}, env: []string{"X="}}).key(); got != `X= logis --prompt "a b" ""` {
 		t.Errorf("key %s", got)
 	}
 }

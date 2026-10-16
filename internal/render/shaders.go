@@ -1,12 +1,11 @@
 package render
 
-// GLSL ES 3.00 ports of Rust's src/render/sdf.wgsl and image.wgsl (after
-// the research port in research/go/render-gpu/gles). The maths is the
-// WGSL's: fragment coordinates are turned into a top-left origin (pixel
+// The renderer's shaders, GLSL ES 3.00: signed-distance rounded rectangles
+// with borders, glows and gradients (sdf), and image quads from the atlas
+// (image). Fragment coordinates are turned into a top-left origin (pixel
 // centres at +0.5) with u_size, inputs and outputs are premultiplied, and
 // every quad's corners come from gl_VertexID of a four-vertex strip.
 //
-// Rust's `srgb` flag (store linear into an sRGB-encoding target) is gone:
 // logis's EGL surfaces and offscreen targets are plain RGBA8, so colours
 // are stored as given.
 

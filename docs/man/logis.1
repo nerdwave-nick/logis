@@ -2,7 +2,7 @@
 .\" View with: man -l docs/man/logis.1
 .\" The caller contract here matches README.md's "Caller contract" section,
 .\" which names the test that pins each statement. Change both together.
-.TH LOGIS 1 2026-10-16 "logis 1.1.1" "User Commands"
+.TH LOGIS 1 2026-10-16 logis "User Commands"
 .SH NAME
 logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible picker
 .SH SYNOPSIS
@@ -92,7 +92,7 @@ opens its desktop actions in the same window.
 .PP
 Plain
 .B logis
-is a tabbed launcher (the Go build; logis v1 had none): two plates above the
+is a tabbed launcher: two plates above the
 panel,
 .B Applications
 and
@@ -208,9 +208,9 @@ output's height).
 Default: the theme's
 .B window.rows
 (eleven for the bundled themes, 820 logical pixels wide).
-Unlike logis v1 (Rust), a theme's
+A theme's
 .B window.height
-is ignored.
+(an older key) is checked and ignored.
 .TP
 .BR \-w ", " \-\-width =\fIN\fP
 The window's width in characters of the theme's row font (1 or more; an
@@ -625,7 +625,7 @@ Its
 .B effects
 are groups of settings for the CRT pass over the panel (scanlines, glow,
 aberration, mask, roundness, grain, flicker); a bare number is a group's
-strength, as logis v1's seven strengths were, and v1's
+strength, and the older keys
 .BR bloom ,
 .B curvature
 and
@@ -633,7 +633,7 @@ and
 still set their groups' values.
 Its
 .B effects.glitch
-(new in the Go build) configures a glitch pass before the CRT pass: parts
+configures a glitch pass before the CRT pass: parts
 with an amount at rest and in an episode, ambient episodes at the end of each
 period counted from the panel's opening, and bursts on opening, on a switch of
 tab, on a key press (a small one:
@@ -645,7 +645,7 @@ and at random; a bare number is its strength, and 0 or
 turns it off.
 Its
 .B effects.custom\-shader
-(new in the Go build) names a GLSL ES 3.00 fragment shader, a path from the
+names a GLSL ES 3.00 fragment shader, a path from the
 theme's file, that runs after the built-in effects: it defines
 .BR mainImage ,
 as for Shadertoy, and reads

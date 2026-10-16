@@ -140,7 +140,8 @@ The `hello` lines carry the protocol version. New optional fields and new messag
 types keep the version (old peers ignore or skip them); a change in the meaning of
 an existing message bumps it, and logis then refuses providers of another version
 with a clear error. (The client ↔ daemon socket protocol has its own version,
-4 since the Go rewrite; Rust v1 spoke 3, and the two refuse each other; see
+now 5; a daemon refuses a client of any other version, older or newer, asking
+for the daemon to be restarted, and that client exits 2; see
 [`internal/protocol`](../internal/protocol/protocol.go).)
 
 ## Examples

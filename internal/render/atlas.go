@@ -17,10 +17,10 @@ const (
 )
 
 // Atlas is one GPU texture holding every image the renderer draws (icons,
-// later glyph-like images), each uploaded once (Rust src/render/atlas.rs).
-// Pixels are premultiplied RGBA8 with sRGB-encoded channels, exactly as
-// the sdf program takes its colours. When full, the texture doubles on the
-// GPU and every ImageID stays valid.
+// later glyph-like images), each uploaded once. Pixels are premultiplied
+// RGBA8 with sRGB-encoded channels, exactly as the sdf program takes its
+// colours. When full, the texture doubles on the GPU and every ImageID
+// stays valid.
 type Atlas struct {
 	tex     gles.Texture
 	packer  *shelfPacker

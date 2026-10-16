@@ -12,11 +12,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The theme the config names (Rust src/daemon/mod.rs, lifecycle.rs
-// reconfigure): worn from the start (the bundled default when it cannot be
-// worn, said in the log), its file watched in themes/ beside the config, a
-// sound edit worn at once, a broken one logged and toasted while the last
-// sound theme stands; reduce-motion stills it.
+// The theme the config names: worn from the start (the bundled default
+// when it cannot be worn, said in the log), its file watched in themes/
+// beside the config, a sound edit worn at once, a broken one logged and
+// toasted while the last sound theme stands; reduce-motion stills it.
 
 const dons = "the cogitator dons the theme"
 

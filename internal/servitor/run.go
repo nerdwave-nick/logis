@@ -1,5 +1,5 @@
-// Package servitor is servitor mode (feat/logis stories 8–10, §4.8; Rust
-// src/servitor): a provider built into logis. `logis --servitor` opens a
+// Package servitor is servitor mode (feat/logis stories 8–10, §4.8): a
+// provider built into logis. `logis --servitor` opens a
 // provider session whose provider is logis itself, `logis provide
 // servitor`: the daemon runs it as the caller would have (the caller's
 // working directory and environment, a process group of its own) and
@@ -147,7 +147,7 @@ func heard(line []byte) (provider.ToProvider, error) {
 	return m, nil
 }
 
-// fromLogis read each known type; every field is required, as serde has it.
+// fromLogis read each known type; every field is required.
 var fromLogis = map[string]func([]byte) (provider.ToProvider, error){
 	"hello": func(b []byte) (provider.ToProvider, error) {
 		var w struct {

@@ -39,8 +39,7 @@ func TestRepliesReachAReadingClientWhole(t *testing.T) {
 }
 
 // A client that stops reading stalls the daemon at most writeTimeout per
-// reply (Rust's write timeout): once its socket is full, a reply waits that
-// long and gives up.
+// reply: once its socket is full, a reply waits that long and gives up.
 func TestAClientThatStopsReadingStallsASendAtMostTheWriteTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("timing: the write timeout is measured on the wall clock, not under -short")

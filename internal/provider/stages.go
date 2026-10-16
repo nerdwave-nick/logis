@@ -8,11 +8,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// A provider's stages as the window takes them (Rust
-// src/provider/stages.rs): the provider names items by id, the list by
-// index (the order the ids first arrived in its stage). Stages maps one
-// onto the other, turns wire items into list entries, and turns the user's
-// answers back into lines for the provider.
+// A provider's stages as the window takes them: the provider names items by
+// id, the list by index (the order the ids first arrived in its stage).
+// Stages maps one onto the other, turns wire items into list entries, and
+// turns the user's answers back into lines for the provider.
 
 const (
 	// ToastSeconds is how long a toast shows unless the provider says

@@ -1,13 +1,12 @@
 // Package rendertest helps tests check what internal/render draws: a
 // headless renderer that skips without EGL (unless LOGIS_REQUIRE_EGL is
 // set) and, for a test of the pixels it draws, under go test -short
-// (SkipPixels); image comparison with a tolerance in the terms of Rust's
-// golden harness (tests/support/golden.rs: a per-channel difference and a
-// fraction of outlier pixels); and PNG files holding premultiplied bytes
-// as the checked-in goldens do.
+// (SkipPixels); image comparison with a tolerance (a per-channel
+// difference and a fraction of outlier pixels); and PNG files holding
+// premultiplied bytes as the checked-in goldens do.
 //
-// The golden harness proper (Goldens: update mode, Go goldens beside the
-// Rust ones, failure artefacts; CheckScene) is in goldens.go.
+// The golden harness proper (Goldens: update mode, failure artefacts;
+// CheckScene) is in goldens.go.
 package rendertest
 
 import (
@@ -74,11 +73,10 @@ type Tolerance struct {
 }
 
 var (
-	// Offscreen is for offscreen renders: rounding between GPUs only
-	// (Rust's Tolerance::OFFSCREEN).
+	// Offscreen is for offscreen renders: rounding between GPUs only.
 	Offscreen = Tolerance{Channel: 2}
 	// Capture is for a compositor's capture of a panel: the compositor
-	// composites the translucent panel itself (Rust's E2E CAPTURE).
+	// composites the translucent panel itself.
 	Capture = Tolerance{Channel: 4, Outliers: 0.001}
 )
 

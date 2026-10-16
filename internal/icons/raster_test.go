@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ported from Rust src/icons/raster.rs.
+// Rasterising icon files: SVG and PNG into square premultiplied images.
 
 func fixture(t testing.TB, rel string) string { return filepath.Join(fixtures(t), rel) }
 

@@ -11,7 +11,7 @@ import (
 
 // crtFragment is the CRT pass's fragment shader: the clean-room crt.frag
 // (MIT, the logis project; see its header), integrated with logis's
-// bottom-up frames. It replaced the port of Rust's post.wgsl.
+// bottom-up frames. It replaced the seven-strength legacy post shader.
 //
 //go:embed crt.frag
 var crtFragment string

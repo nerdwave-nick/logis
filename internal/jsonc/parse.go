@@ -35,7 +35,7 @@ type Value struct {
 	Members []Member
 	// End is the offset of the value's last byte: a scalar's last
 	// character, a container's closing bracket. Errors about the value
-	// point there (serde_json's convention, which Rust logis v1 reported).
+	// point there (serde_json's convention).
 	End int
 	// Start is the offset of the value's first byte.
 	Start int
@@ -199,8 +199,8 @@ func (v *Value) Unexpected() string {
 }
 
 // number names a JSON number as serde_json parsed it: an integer while it
-// fits u64 (or i64, negative), else an f64 ("-0" is one), which Rust shows
-// without an exponent and with a decimal point.
+// fits u64 (or i64, negative), else an f64 ("-0" is one), shown without an
+// exponent and with a decimal point.
 func number(text string) string {
 	if !strings.ContainsAny(text, ".eE") && text != "-0" {
 		_, uerr := strconv.ParseUint(text, 10, 64)
@@ -210,13 +210,13 @@ func number(text string) string {
 		}
 	}
 	f, _ := strconv.ParseFloat(text, 64)
-	return "floating point `" + RustFloat(f, 64) + "`"
+	return "floating point `" + ShortestDecimal(f, 64) + "`"
 }
 
-// RustFloat formats f as Rust's Display does for an f64 (bits 64) or f32
-// (bits 32) in serde's messages: the shortest digits that read back, no
+// ShortestDecimal formats f, an f64 (bits 64) or f32 (bits 32), as the
+// messages show a number: the shortest digits that read back, no
 // exponent, "inf" for an infinity; f64s always with a decimal point.
-func RustFloat(f float64, bits int) string {
+func ShortestDecimal(f float64, bits int) string {
 	switch {
 	case math.IsInf(f, 1):
 		return "inf"

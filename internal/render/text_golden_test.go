@@ -1,8 +1,6 @@
 package render_test
 
 import (
-	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,13 +9,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 	"github.com/nerdwave-nick/logis/internal/scale"
-	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// The Rust text goldens (tests/goldens/text/corpus@<scale>.png, from
-// tests/text.rs corpus_scene) against the Go text pass: the corpus lines
-// on a panel, plus an ellipsised and a clipped column whose line features
-// (clipping, the ellipsis) belong to the shaping slice.
+// The text goldens (tests/goldens/text/{corpus,faces}@<scale>.png) against
+// the text pass: the corpus lines on a panel, plus an ellipsised and a
+// clipped column whose line features (clipping, the ellipsis) belong to the
+// shaping slice; and a scene of theme faces.
 
 var goldenSize = scale.Size{W: 330, H: 184}
 
@@ -31,8 +28,8 @@ func corpus(t testing.TB) []string {
 	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 }
 
-// corpusScene is Rust's corpus_scene: the corpus lines on a panel, then
-// the first line in a 150 px column twice, ellipsised and clipped.
+// corpusScene is the corpus lines on a panel, then the first line in a
+// 150 px column twice, ellipsised and clipped.
 func corpusScene(lines []string) *render.Scene {
 	sc := &render.Scene{Clear: render.Hex(0x140c0a)}
 	for _, y := range []float32{126, 150} {
@@ -48,209 +45,20 @@ func corpusScene(lines []string) *render.Scene {
 	return sc
 }
 
-// band is one corpus line's rows compared with the golden.
-type band struct {
-	meanAbs     float64 // mean absolute channel difference
-	over2       float64 // share of pixels with a channel more than 2 off
-	worst       int
-	goldInk     [4]int // ink box: left, top, right, bottom
-	goInk       [4]int
-	goldMass    float64 // ink in fully inked pixels
-	goMass      float64
-	pixels      int
-	outlierRows int
-}
-
-func lum(p [4]byte) float64 {
-	return 0.2126*float64(p[0]) + 0.7152*float64(p[1]) + 0.0722*float64(p[2])
-}
-
-// compareBand compares rows y0..y1 of got with gold, ink measured against
-// the scene's background.
-func compareBand(gold, got *render.Image, x0, x1, y0, y1 int) band {
-	bg, ink := lum([4]byte{0x14, 0x0c, 0x0a}), lum([4]byte{0xe8, 0xd8, 0xb0})
-	b := band{goldInk: [4]int{1 << 30, 1 << 30, -1, -1}, goInk: [4]int{1 << 30, 1 << 30, -1, -1}}
-	var sum float64
-	for y := y0; y < min(y1, gold.Height); y++ {
-		rowOut := false
-		for x := x0; x < min(x1, gold.Width); x++ {
-			p, q := gold.Pixel(x, y), got.Pixel(x, y)
-			m := 0
-			for c := range 3 {
-				d := int(p[c]) - int(q[c])
-				d = max(d, -d)
-				sum += float64(d)
-				m = max(m, d)
-			}
-			b.worst = max(b.worst, m)
-			if m > 2 {
-				b.over2++
-				rowOut = true
-			}
-			b.pixels++
-			grow := func(box *[4]int, l float64, mass *float64) {
-				*mass += math.Max(0, (l-bg)/(ink-bg))
-				if l-bg > 24 {
-					box[0], box[1], box[2], box[3] = min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y)
-				}
-			}
-			grow(&b.goldInk, lum(p), &b.goldMass)
-			grow(&b.goInk, lum(q), &b.goMass)
-		}
-		if rowOut {
-			b.outlierRows++
-		}
-	}
-	b.meanAbs = sum / float64(3*b.pixels)
-	b.over2 /= float64(b.pixels)
-	return b
-}
-
-var corpusScales = []struct {
-	n    uint32
-	name string
-}{{120, "1.0"}, {156, "1.3"}, {240, "2.0"}}
-
-// bandRows is corpus line i's band in buffer rows at s: its line box
-// plus the gap to the next.
-func bandRows(i int, s scale.Scale) (int, int) {
-	f := float64(s.Factor())
-	return int(math.Round((6 + 24*float64(i)) * f)), int(math.Round((6 + 24*float64(i+1)) * f))
-}
-
-func renderCorpus(t *testing.T, h *render.Headless, lines []string, hinting text.Hinting, s scale.Scale) *render.Image {
-	t.Helper()
-	fonts := pinnedFonts(t)
-	fonts.SetHinting(hinting)
-	h.SetFonts(fonts)
-	img, err := h.Offscreen(corpusScene(lines), goldenSize, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return img
-}
-
-// TestTextComparisonWithTheRustGoldens reports, per load target, scale
-// and corpus line, how the Go render differs from the Rust golden. It is
-// the evidence for text.DefaultHinting; run it with LOGIS_TEXT_COMPARE=1.
-func TestTextComparisonWithTheRustGoldens(t *testing.T) {
-	if os.Getenv("LOGIS_TEXT_COMPARE") == "" {
-		t.Skip("set LOGIS_TEXT_COMPARE=1 for the comparison table")
-	}
-	h := rendertest.Headless(t)
-	lines := corpus(t)
-	var out strings.Builder
-	fmt.Fprintf(&out, "\n%-8s %-5s %-5s %8s %8s %6s %6s %18s %18s %8s %8s\n", "target", "scale", "line", "meanAbs", ">2", "worst", "rows", "gold ink", "go ink", "goldInk", "goInk")
-	for _, target := range []text.Hinting{text.Light, text.Normal, text.LCD, text.Unhinted} {
-		for _, sc := range corpusScales {
-			s := scale.From120ths(sc.n)
-			gold, err := rendertest.ReadPNG(rendertest.Golden(t, "text", "corpus@"+sc.name))
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := renderCorpus(t, h, lines, target, s)
-			if dump := os.Getenv("LOGIS_RENDER_DUMP"); dump != "" {
-				_ = rendertest.WritePNG(filepath.Join(dump, fmt.Sprintf("corpus-%v@%s.png", target, sc.name)), got)
-			}
-			for i := range lines {
-				y0, y1 := bandRows(i, s)
-				b := compareBand(gold, got, 0, gold.Width, y0, y1)
-				fmt.Fprintf(&out, "%-8v %-5s %-5d %8.3f %7.2f%% %6d %6d %18v %18v %8.1f %8.1f\n",
-					target, sc.name, i+1, b.meanAbs, 100*b.over2, b.worst, b.outlierRows, b.goldInk, b.goInk, b.goldMass, b.goMass)
-			}
-		}
-	}
-	t.Log(out.String())
-}
-
-func round(v float32) float32 { return float32(math.Round(float64(v))) }
-
-// The bounds measured when text.DefaultHinting was chosen (G6 handoff):
-// at 1.0 within the Rust tolerance (2 levels, a stray 3); at 1.3 and 2.0
-// identical ink boxes and stems, with anti-aliasing of curve pixels a few
-// levels apart (FreeType vs skrifa point interpolation and rasterisers)
-// and a few glyphs up to 28 levels on single pixels.
-var rustBounds = map[string]struct {
-	over2 float64
-	worst int
-}{"1.0": {0.0002, 3}, "1.3": {0.025, 30}, "2.0": {0.015, 30}}
-
-// checkBand holds a band to the Rust bounds: the same ink box and ink
-// mass (±1 %), few pixels beyond 2 levels.
-func checkBand(t *testing.T, what string, b band, scaleName string) {
-	t.Helper()
-	bound := rustBounds[scaleName]
-	t.Logf("%s @%s: %.2f%% beyond 2 levels, worst %d, mean %.3f", what, scaleName, 100*b.over2, b.worst, b.meanAbs)
-	if b.goldInk != b.goInk || math.Abs(b.goMass-b.goldMass) > 0.01*b.goldMass ||
-		b.over2 > bound.over2 || b.worst > bound.worst || b.meanAbs > 0.15 {
-		t.Errorf("%s @%s: %.2f%% beyond 2 levels, worst %d, mean %.3f, ink %v vs %v, mass %.1f vs %.1f",
-			what, scaleName, 100*b.over2, b.worst, b.meanAbs, b.goInk, b.goldInk, b.goMass, b.goldMass)
-	}
-}
-
-// The whole Rust corpus scene — Latin, accents, CJK and Hangul, Hebrew
-// points and Arabic joining in a bidi line, emoji with skin tone and ZWJ
-// sequences, an ellipsised and a clipped column — against the Rust
-// goldens, band by band.
-func TestTheCorpusMatchesTheRustGoldensWithinTheirBounds(t *testing.T) {
-	h := rendertest.Headless(t)
-	lines := corpus(t)
-	for _, sc := range corpusScales {
-		s := scale.From120ths(sc.n)
-		gold, err := rendertest.ReadPNG(rendertest.Golden(t, "text", "corpus@"+sc.name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		h.SetFonts(pinnedFonts(t))
-		got, err := h.Offscreen(corpusScene(lines), goldenSize, s)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := range len(lines) + 2 {
-			y0, y1 := bandRows(i, s)
-			checkBand(t, fmt.Sprintf("line %d", i+1), compareBand(gold, got, 0, gold.Width, y0, y1), sc.name)
-		}
-	}
-}
-
-// tests/faces.rs's scene against the Rust goldens (faces@<scale>.png):
-// the tracked label in a theme face, the row with colour spans and
-// emphasis in another face, and the row with the emphasis underlined.
-func TestTheFacesSceneMatchesTheRustGoldensWithinTheirBounds(t *testing.T) {
-	h := rendertest.Headless(t)
-	for _, sc := range corpusScales {
-		s := scale.From120ths(sc.n)
-		gold, err := rendertest.ReadPNG(rendertest.Golden(t, "text", "faces@"+sc.name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		h.SetFonts(pinnedFonts(t))
-		if err := h.SetFaces(forgeFaces); err != nil {
-			t.Fatal(err)
-		}
-		got, err := h.Offscreen(facesScene(), scale.Size{W: 220, H: 84}, s)
-		if err != nil {
-			t.Fatal(err)
-		}
-		f := float32(s.Factor())
-		for i, rows := range [][2]float32{{0, 30}, {30, 56}, {56, 84}} {
-			y0, y1 := int(round(rows[0]*f)), min(int(round(rows[1]*f)), gold.Height)
-			checkBand(t, []string{"label", "row", "underlined row"}[i], compareBand(gold, got, 0, gold.Width, y0, y1), sc.name)
-		}
-	}
-}
-
-// Go's own goldens (spec §6: FreeType does not meet the Rust goldens'
-// tolerance at 1.3 and 2.0), tests/goldens/go/text/{corpus,faces}@<scale>,
-// reviewed against the Rust ones by the bounds above; G5's harness
-// rewrites them with LOGIS_UPDATE_GOLDENS=1.
-func TestTheCorpusMatchesItsGoGoldens(t *testing.T) {
+// The whole corpus scene — Latin, accents, CJK and Hangul, Hebrew points
+// and Arabic joining in a bidi line, emoji with skin tone and ZWJ
+// sequences, an ellipsised and a clipped column — at 1.0, 1.3 and 2.0.
+// LOGIS_UPDATE_GOLDENS=1 rewrites the goldens.
+func TestTheCorpusMatchesItsGoldens(t *testing.T) {
 	h := rendertest.Headless(t)
 	h.SetFonts(pinnedFonts(t))
 	rendertest.CheckScene(t, h, "text", "corpus", corpusScene(corpus(t)), goldenSize, goldenScales()...)
 }
 
-func TestTheFacesSceneMatchesItsGoGoldens(t *testing.T) {
+// The faces scene: the tracked label in a theme face, the row with colour
+// spans and emphasis in another face, and the row with the emphasis
+// underlined.
+func TestTheFacesSceneMatchesItsGoldens(t *testing.T) {
 	h := rendertest.Headless(t)
 	h.SetFonts(pinnedFonts(t))
 	if err := h.SetFaces(forgeFaces); err != nil {
@@ -260,9 +68,5 @@ func TestTheFacesSceneMatchesItsGoGoldens(t *testing.T) {
 }
 
 func goldenScales() []scale.Scale {
-	var out []scale.Scale
-	for _, sc := range corpusScales {
-		out = append(out, scale.From120ths(sc.n))
-	}
-	return out
+	return []scale.Scale{scale.From120ths(120), scale.From120ths(156), scale.From120ths(240)}
 }

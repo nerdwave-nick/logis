@@ -22,11 +22,10 @@ const (
 	accepted                 // the selected row was chosen
 )
 
-// debugSession is the debug panel as a session (Rust
-// src/window/debug/session.rs): the keyboard's actions move its selection,
-// edit its query, accept or dismiss it. With the test trace on it reports
-// `select <row>`, `query <JSON string>`, `accept <row>` and `dismiss`, so
-// harnesses can check what each key did.
+// debugSession is the debug panel as a session: the keyboard's actions
+// move its selection, edit its query, accept or dismiss it. With the test
+// trace on it reports `select <row>`, `query <JSON string>`, `accept <row>`
+// and `dismiss`, so harnesses can check what each key did.
 type debugSession struct {
 	row    int
 	query  input.Query
@@ -89,9 +88,8 @@ func debugKeyboard(cfg config.Config, s *debugSession, stderr io.Writer) *input.
 	return k
 }
 
-// debugSceneWithQuery is debugSceneAt with the query in the query line
-// (Rust's debug_scene_at): the prompt, the text before the cursor, the
-// cursor mark, the rest.
+// debugSceneWithQuery is debugSceneAt with the query in the query line:
+// the prompt, the text before the cursor, the cursor mark, the rest.
 func debugSceneWithQuery(logical scale.Size, row int, q *input.Query) *render.Scene {
 	sc := debugSceneAt(logical, row)
 	text := q.Text()

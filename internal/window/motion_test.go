@@ -12,9 +12,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// The window's motion, blur and frame timing (Rust src/window/panel/paint.rs,
-// windows/motion.rs, blur.rs, clock.rs) on the fake compositor, with the
-// window's clock and trace in the test's hands.
+// The window's motion, blur and frame timing on the fake compositor, with
+// the window's clock and trace in the test's hands.
 
 var (
 	withEffects      = append(slices.Clone(niri), wltest.Global{Interface: "ext_background_effect_manager_v1", Version: 1})

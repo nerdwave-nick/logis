@@ -6,7 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ported from Rust tests/faces.rs a_caret_stands_between_the_characters_in_its_shape.
+// Carets in their shapes: between characters, at the end, on an empty line.
 
 func caretLine(shape render.CaretShape, caret bool) *render.Scene {
 	line := render.NewText("rite", [2]float32{8, 8}, 16, render.Hex(0xf1e6cc))

@@ -8,16 +8,15 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// piece is a run of a line with one colour and one face (Rust Piece).
+// piece is a run of a line with one colour and one face.
 type piece struct {
 	start, end int
 	color      *Color
 	emphasised bool
 }
 
-// pieces cuts line wherever a colour span or an emphasis begins or ends
-// (Rust render::text::pieces); ranges out of order, overlapping or off a
-// character boundary are skipped.
+// pieces cuts line wherever a colour span or an emphasis begins or ends;
+// ranges out of order, overlapping or off a character boundary are skipped.
 func (t *Text) pieces(line string) []piece {
 	colours := validSpans(line, t.Spans)
 	marks := validRanges(line, t.Emphasis)

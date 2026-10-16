@@ -210,7 +210,7 @@ func TestTheDefaultIsTheBundledForgeTheme(t *testing.T) {
 	}
 }
 
-// Faces are interned as Rust's resolver does: the body's first, the row's
+// Faces are interned in order: the body's first, the row's
 // at the match weight, then the roles in the order the parts name them.
 func TestTheDefaultFacesAreTheBodysTheMatchsAndTheLabels(t *testing.T) {
 	d := Default()
@@ -229,7 +229,7 @@ func TestTheDefaultFacesAreTheBodysTheMatchsAndTheLabels(t *testing.T) {
 	}
 }
 
-// Ported from Rust src/theme/model.rs's is_continuous/shimmers/stilled.
+// What moves in the forge theme, and what reduce-motion stills.
 func TestTheForgeMovesUntilStilled(t *testing.T) {
 	d := Default()
 	if !d.IsContinuous() || !d.Shimmers() || !d.Effects.Any() {

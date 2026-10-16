@@ -7,11 +7,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// The provider protocol on the wire (Rust src/provider/wire.rs;
-// docs/provider-protocol.md): JSON lines over a provider process's stdin
-// (logis → provider) and stdout (provider → logis), one object per line,
-// tagged by "type". Unknown fields are ignored, so later versions can add
-// optional ones; a line of an unknown type is skipped.
+// The provider protocol on the wire (docs/provider-protocol.md): JSON lines
+// over a provider process's stdin (logis → provider) and stdout (provider →
+// logis), one object per line, tagged by "type". Unknown fields are
+// ignored, so later versions can add optional ones; a line of an unknown
+// type is skipped.
 
 // Protocol is the version logis speaks; both hello lines name it.
 const Protocol uint32 = 1
@@ -142,7 +142,7 @@ func (Submit) toProvider()   {}
 func (Cancel) toProvider()   {}
 
 // Encode is one line to a provider, newline included, its strings as they
-// are (no HTML escapes, as serde writes them).
+// are (no HTML escapes).
 func Encode(m ToProvider) []byte {
 	var w any
 	switch m := m.(type) {

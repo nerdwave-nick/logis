@@ -12,7 +12,7 @@ import (
 const quadFloats = 8
 
 // imagePass draws a scene's ImageQuads from the atlas after the shapes,
-// with the same premultiplied blending (Rust src/render/images.rs).
+// with the same premultiplied blending.
 type imagePass struct {
 	atlas        *Atlas
 	program      *gles.Program
@@ -78,7 +78,7 @@ func (p *imagePass) close() {
 // snapped to the pixel grid, rounding half away from zero; its size its
 // own pixel size), its top-left atlas texel and its opacity.
 func packQuad(origin [2]float32, rect [4]uint32, s scale.Scale, opacity float32) [quadFloats]float32 {
-	// As Rust: the product in f32, then rounded.
+	// The product in f32, then rounded.
 	f := s.Factor()
 	snap := func(v float32) float32 { return float32(math.Round(float64(v * f))) }
 	return [quadFloats]float32{

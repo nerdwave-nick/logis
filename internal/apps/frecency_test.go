@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/frecency.rs.
+// The frecency file, the boost it gives and how the ranks age.
 
 const frecencyNow = 1_760_000_000
 
@@ -103,8 +103,9 @@ func TestASavedHistoryLoadsBackAndAMissingFileIsEmpty(t *testing.T) {
 	}
 }
 
-// The Rust daemon's file (serde: floats with a decimal point) loads too.
-func TestRustsFileLoads(t *testing.T) {
+// A file whose numbers are written with a decimal point (rank 2.0) loads
+// too.
+func TestAFileWithDecimalPointNumbersLoads(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "frecency.json")
 	text := `{"version":1,"apps":{"oil.desktop":{"rank":2.0,"last":1760000000}}}`
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {

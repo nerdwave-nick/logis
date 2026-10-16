@@ -9,9 +9,8 @@ import (
 	"time"
 )
 
-// manyLines is Rust's tests/latency.rs many_lines: 100 000 distinct
-// path-like lines, as a big dmenu input might be; with columns, each a
-// path, a word and a number separated by tabs.
+// manyLines is 100 000 distinct path-like lines, as a big dmenu input might
+// be; with columns, each a path, a word and a number separated by tabs.
 func manyLines(columns bool) []string {
 	words := []string{"rite", "aspect", "cogitator", "noosphere", "spirit", "litany", "forge"}
 	out := make([]string, 0, 100_000)
@@ -42,9 +41,9 @@ func keystroke(f *Filter, query string) {
 // frame itself fits too (spec §3: keystroke → frame within one frame).
 const frame = time.Second / 60
 
-// As the Rust latency harness: rounds from LOGIS_LATENCY_RUNS (5 by
-// default), and the budget fails the run only with
-// LOGIS_LATENCY_BUDGETS=enforce; otherwise the times are recorded.
+// Rounds come from LOGIS_LATENCY_RUNS (5 by default), and the budget fails
+// the run only with LOGIS_LATENCY_BUDGETS=enforce; otherwise the times are
+// recorded.
 func TestTypingOver100000ItemsStaysWithinAFrame(t *testing.T) {
 	if testing.Short() || raceEnabled {
 		t.Skip("timing: not under -short or -race")

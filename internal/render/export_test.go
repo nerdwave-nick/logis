@@ -7,8 +7,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// LegacyPostOver runs Rust v1's post shader (legacyPostFragment) over
-// frame, an image as Offscreen returns it (top-down), at scale s with v1's
+// LegacyPostOver runs the legacy post shader (legacyPostFragment) over
+// frame, an image as Offscreen returns it (top-down), at scale s with its
 // seven strengths taken from post.CRT, and reads the result back as
 // Offscreen does. For the compatibility test of the CRT pass.
 func (h *Headless) LegacyPostOver(frame *Image, s scale.Scale, post Post) (*Image, error) {

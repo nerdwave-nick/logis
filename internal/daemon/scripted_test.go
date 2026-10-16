@@ -61,7 +61,7 @@ func wantAnswers(t *testing.T, h *hostLog, want ...answered) {
 	}
 }
 
-// Ported from Rust src/daemon/resolver.rs a_dmenu_session_is_answered_at_its_end_with_the_first_marked_item.
+// A dmenu session is answered at its end with the first marked item.
 func TestADmenuSessionIsAnsweredAtItsEndWithTheFirstMarkedItem(t *testing.T) {
 	h := &hostLog{}
 	r := NewScripted(h)
@@ -102,7 +102,7 @@ func TestServitorSessionsAreLeftOpen(t *testing.T) {
 }
 
 // App sessions are answered as provider stages are (an app whose name
-// starts with the mark), and get a stand-in token at once (Rust Scripted).
+// starts with the mark), and get a stand-in token at once.
 func TestAnAppSessionIsAnsweredAndGetsAStandInToken(t *testing.T) {
 	h := &hostLog{}
 	r := NewScripted(h)

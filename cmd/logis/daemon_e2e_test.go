@@ -214,7 +214,7 @@ func gone(path string) bool {
 	return errors.Is(err, os.ErrNotExist)
 }
 
-// Ported from Rust tests/daemon.rs a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it.
+// A client starts the daemon when none answers; later clients reuse it.
 func TestE2EAClientStartsTheDaemonAndLaterClientsReuseIt(t *testing.T) {
 	r := newRig(t)
 	if !gone(r.socket()) {
@@ -232,7 +232,8 @@ func TestE2EAClientStartsTheDaemonAndLaterClientsReuseIt(t *testing.T) {
 	}
 }
 
-// Ported from a_dismissed_dmenu_session (the daemon's half): no marked item.
+// A dmenu session the resolver finds no marked item in is dismissed (the
+// daemon's half).
 func TestE2EADmenuSessionWithoutAMarkedItemIsDismissed(t *testing.T) {
 	r := newRig(t)
 	if got := r.dmenu("nothing", "marked"); got.Kind != protocol.Dismissed {
@@ -240,8 +241,7 @@ func TestE2EADmenuSessionWithoutAMarkedItemIsDismissed(t *testing.T) {
 	}
 }
 
-// Ported from an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir:
-// detached, the daemon holds neither of its starter's pipes, and logs to
+// Detached, the daemon holds neither of its starter's pipes, and logs to
 // logis.log.
 func TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir(t *testing.T) {
 	r := newRig(t)
@@ -269,7 +269,8 @@ func TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir(t *testi
 	}
 }
 
-// Ported from with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected.
+// With an idle timeout the daemon stays while a client is connected and
+// exits 0 once none is, taking its socket with it.
 func TestE2EWithAnIdleTimeoutTheDaemonExitsOnceNoClientIsConnected(t *testing.T) {
 	r := newRig(t)
 	d := r.start("--idle-timeout", "0.3")
@@ -287,7 +288,7 @@ func TestE2EWithAnIdleTimeoutTheDaemonExitsOnceNoClientIsConnected(t *testing.T)
 	}
 }
 
-// Ported from a_second_daemon_defers_to_the_one_already_listening.
+// A second daemon defers to the one already listening.
 func TestE2EASecondDaemonDefersToTheOneAlreadyListening(t *testing.T) {
 	r := newRig(t)
 	r.start()
@@ -318,7 +319,8 @@ func TestE2EDaemonDetachOnlyEnsuresTheDaemon(t *testing.T) {
 	}
 }
 
-// Ported from an_unknown_idle_timeout_value_is_an_error.
+// An --idle-timeout value that is not a number of seconds exits 2 naming
+// it.
 func TestE2EAnUnknownIdleTimeoutValueIsAnError(t *testing.T) {
 	r := newRig(t)
 	out, err := r.logis("daemon", "--idle-timeout", "soon").CombinedOutput()
@@ -427,7 +429,7 @@ func (r *rig) socketActivated(args ...string) *daemonProc {
 	return d
 }
 
-// Ported from a_socket_activated_daemon_serves_the_socket_it_was_given.
+// A socket-activated daemon serves the socket it was given.
 func TestE2EASocketActivatedDaemonServesTheSocketItWasGiven(t *testing.T) {
 	r := newRig(t)
 	d := r.socketActivated()
@@ -439,7 +441,7 @@ func TestE2EASocketActivatedDaemonServesTheSocketItWasGiven(t *testing.T) {
 	}
 }
 
-// Ported from a_socket_activated_daemon_leaves_the_socket_to_systemd_when_idle.
+// A socket-activated daemon that idles out leaves the socket to systemd.
 func TestE2EASocketActivatedDaemonLeavesTheSocketToSystemdWhenIdle(t *testing.T) {
 	r := newRig(t)
 	d := r.socketActivated("--idle-timeout", "0.2")

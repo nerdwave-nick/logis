@@ -12,15 +12,13 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/client"
 	"github.com/nerdwave-nick/logis/internal/protocol"
-	"github.com/nerdwave-nick/logis/internal/version"
 )
 
-// The caller contract (README "Caller contract") at the process boundary,
-// ported from the Rust tests it names that no other Go test held at the
-// same boundary: the built binary, a real daemon over its socket in a
-// scratch runtime directory, the scripted resolver standing in for the
-// window (it picks the first item whose shown text starts with '>', or
-// dismisses). No compositor is needed.
+// The caller contract's process-level tests (README "Caller contract"): the
+// built binary, a real daemon over its socket in a scratch runtime
+// directory, the scripted resolver standing in for the window (it picks the
+// first item whose shown text starts with '>', or dismisses). No compositor
+// is needed.
 
 // caller is a `logis --dmenu` client started with its stdin held open, so
 // its session stays visible until something else ends it.
@@ -74,18 +72,18 @@ func (c *caller) running() bool {
 	}
 }
 
-// Ported from Rust tests/cli.rs version_flag_prints_name_and_version_and_succeeds.
+// --version and -V print `logis VERSION` on stdout and exit 0.
 func TestVersionFlagPrintsNameAndVersionAndSucceeds(t *testing.T) {
 	r := newRig(t)
 	for _, rune := range []string{"--version", "-V"} {
 		got := r.runClient(r.logis(rune), nil)
-		if got.code != 0 || got.stdout != "logis "+version.Version+"\n" || got.stderr != "" {
+		if got.code != 0 || got.stdout != "logis "+binaryVersion(t, r.bin)+"\n" || got.stderr != "" {
 			t.Errorf("%s: %+v", rune, got)
 		}
 	}
 }
 
-// Ported from Rust tests/cli.rs unknown_argument_exits_2_naming_it.
+// An unknown argument exits 2 with an error that names it.
 func TestUnknownArgumentExits2NamingIt(t *testing.T) {
 	r := newRig(t)
 	got := r.runClient(r.logis("--heresy"), nil)
@@ -94,7 +92,7 @@ func TestUnknownArgumentExits2NamingIt(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/cli.rs daemon_detach_exits_0_at_once_when_a_daemon_already_answers.
+// `logis daemon --detach` exits 0 at once when a daemon already answers.
 func TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers(t *testing.T) {
 	r := newRig(t)
 	r.start("--detach")
@@ -110,13 +108,13 @@ func TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/daemon.rs the_original_bytes_of_the_chosen_item_are_returned_exactly.
+// The chosen item comes back as its original bytes, exactly.
 func TestTheOriginalBytesOfTheChosenItemAreReturnedExactly(t *testing.T) {
 	r := dmenuRig(t)
 	r.dmenuRun([]byte("plain\n>\xff\xfe not utf-8\r\n\tlast")).printed(t, ">\xff\xfe not utf-8\r\n")
 }
 
-// Ported from Rust tests/daemon.rs a_replaced_dmenu_caller_exits_1_with_empty_stdout.
+// A dmenu caller whose session another replaces exits 1, stdout empty.
 func TestAReplacedDmenuCallerExits1WithEmptyStdout(t *testing.T) {
 	r := newRig(t)
 	r.start()
@@ -134,7 +132,7 @@ func TestAReplacedDmenuCallerExits1WithEmptyStdout(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/daemon.rs a_dmenu_caller_waits_in_the_queue_for_its_turn.
+// A dmenu caller waits in the queue until the visible session ends.
 func TestADmenuCallerWaitsInTheQueueForItsTurn(t *testing.T) {
 	r := newRig(t)
 	r.start()
@@ -164,8 +162,8 @@ func TestADmenuCallerWaitsInTheQueueForItsTurn(t *testing.T) {
 	waiting.ended(t).printed(t, ">mine\n")
 }
 
-// Ported from Rust tests/daemon.rs a_dmenu_caller_whose_daemon_dies_exits_2_with_empty_stdout,
-// the caller's half: Rust's daemon dies of a lost compositor, which
+// A dmenu caller whose daemon dies exits 2 with empty stdout. This is the
+// caller's half: a daemon dies of a lost compositor, which
 // TestE2ELosingTheCompositorEndsTheDaemonWithExit2 holds in a nested niri;
 // here it is killed.
 func TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout(t *testing.T) {
@@ -182,8 +180,8 @@ func TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/daemon.rs a_caller_the_daemon_refuses_exits_2_with_the_daemons_reason:
-// a daemon of another version, left running across an upgrade, reads the
+// A caller the daemon refuses exits 2 with the daemon's reason: here a
+// daemon of another version, left running across an upgrade, reads the
 // greeting and refuses it.
 func TestACallerTheDaemonRefusesExits2WithTheDaemonsReason(t *testing.T) {
 	r := newRig(t)
@@ -219,10 +217,9 @@ func TestACallerTheDaemonRefusesExits2WithTheDaemonsReason(t *testing.T) {
 	}
 }
 
-// Ported from Rust tests/daemon.rs an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir:
-// the daemon a `logis --dmenu` caller starts serves on after its starter
-// has gone, and its later diagnostics (Rust: the compositor's loss; here,
-// with no compositor, its idle end) go to $XDG_RUNTIME_DIR/logis.log.
+// The daemon a `logis --dmenu` caller starts serves on after its starter
+// has gone, and its later diagnostics (here, with no compositor, its idle
+// end) go to $XDG_RUNTIME_DIR/logis.log.
 func TestAnAutoStartedDaemonOutlivesItsStarterAndLogsToTheRuntimeDir(t *testing.T) {
 	r := newRig(t)
 	r.stopsItsDaemon()

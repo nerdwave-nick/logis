@@ -2,10 +2,10 @@ package list
 
 import "github.com/nerdwave-nick/logis/internal/input"
 
-// A View is a session's list as the user works it (Rust src/list/view.rs):
-// the query, what it matches, the selection and the rows in view. Keys
-// arrive as input.Actions; the result is a Reaction: redraw, accept a
-// Choice, or dismiss.
+// A View is a session's list as the user works it: the query, what it
+// matches, the selection and the rows in view. Keys arrive as
+// input.Actions; the result is a Reaction: redraw, accept a Choice, or
+// dismiss.
 //
 // Accepting follows fuzzel's dmenu rules: the selected match if any;
 // otherwise the typed text, unless OnlyMatch forbids it (then Return does

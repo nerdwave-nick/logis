@@ -1,10 +1,10 @@
 // Package glitch keeps the glitch's time for one panel (feat/logis-go
-// 33cfcf44, new beside Rust v1): the ambient clock counted from the
-// panel's opening, and the bursts that events (the opening, a switch of
-// tab, a key press) and chance fire, with the envelope the glitch pass reads as its
-// burst intensity. It also says when the panel must keep drawing for the
-// glitch and when it must wake for the next episode or random burst.
-// The scheduling is the effects lab's, which the owner approved.
+// 33cfcf44): the ambient clock counted from the panel's opening, and the
+// bursts that events (the opening, a switch of tab, a key press) and chance
+// fire, with the envelope the glitch pass reads as its burst intensity. It
+// also says when the panel must keep drawing for the glitch and when it
+// must wake for the next episode or random burst. The scheduling is the
+// effects lab's, which the owner approved.
 //
 // Times are CLOCK_MONOTONIC nanoseconds, as the window's frames have them;
 // a Clock is used on the window's goroutine only.

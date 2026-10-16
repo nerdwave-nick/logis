@@ -2,13 +2,13 @@ package window
 
 import "github.com/nerdwave-nick/logis/internal/wlproto"
 
-// xdg-activation (spec §4.2; Rust src/window/activation.rs): tokens for
-// the applications the launcher starts, so that the compositor focuses
-// them. A token is asked for the visible panel's surface with the seat and
-// the serial of the last key press or button press (the one that chose
-// the app): niri, like most compositors, issues a valid token only for a
-// focused surface and a recent serial. Without the global, every request
-// is answered at once with no token.
+// xdg-activation (spec §4.2): tokens for the applications the launcher
+// starts, so that the compositor focuses them. A token is asked for the
+// visible panel's surface with the seat and the serial of the last key
+// press or button press (the one that chose the app): niri, like most
+// compositors, issues a valid token only for a focused surface and a recent
+// serial. Without the global, every request is answered at once with no
+// token.
 
 // activation is the activation global and the last press's serial.
 type activation struct {

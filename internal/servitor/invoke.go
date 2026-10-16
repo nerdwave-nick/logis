@@ -6,9 +6,8 @@ import (
 )
 
 // Launching `servitor invoke` so that it outlives logis (servitor caller
-// interface S7, codex passage detached; owner decision ae44412a; Rust
-// src/servitor/invoke.rs). As fuzzel launches applications: fork and
-// exec, with
+// interface S7, codex passage detached; owner decision ae44412a). As
+// fuzzel launches applications: fork and exec, with
 //
 //   - stdin, stdout and stderr on /dev/null, never a pipe logis would
 //     leave;

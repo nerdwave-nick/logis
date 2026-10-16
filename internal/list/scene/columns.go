@@ -11,9 +11,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// How wide a list's columns are (Rust src/list/scene/columns.rs): measured
-// with the renderer's fonts from the rows the list shows, so tab-separated
-// columns line up the way the design canvas draws them.
+// How wide a list's columns are: measured with the renderer's fonts from
+// the rows the list shows, so tab-separated columns line up the way the
+// design canvas draws them.
 //
 // Policy (stable widths). A column is as wide as the widest text that has
 // stood in it in any row shown since the list opened (each column of a row
@@ -33,9 +33,9 @@ import (
 // starts again (the widths stay; a row forgotten is only measured again).
 const remembered = 4096
 
-// Measure is how wide lines of text are (Rust render::Measure): the width
-// t takes on one line in logical pixels, ignoring its column, colours and
-// emphasis; false when it cannot be measured (no fonts).
+// Measure is how wide lines of text are: the width t takes on one line in
+// logical pixels, ignoring its column, colours and emphasis; false when it
+// cannot be measured (no fonts).
 type Measure interface {
 	Width(t render.Text) (float32, bool)
 }

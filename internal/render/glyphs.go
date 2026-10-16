@@ -18,11 +18,11 @@ type glyphSlot struct {
 	color      bool
 }
 
-// glyphPass draws texts (Rust text_pass.rs over glyphon): lines shaped by
-// the fonts, glyph images rasterised once into their own atlas texture
-// (coverage in alpha for outlines, straight RGBA for colour emoji) and
-// drawn texel for texel as instanced quads, blended as glyphon does on a
-// non-sRGB target: sRGB-encoded colours, alpha blending.
+// glyphPass draws texts: lines shaped by the fonts, glyph images rasterised
+// once into their own atlas texture (coverage in alpha for outlines,
+// straight RGBA for colour emoji) and drawn texel for texel as instanced
+// quads, blended as glyphon does on a non-sRGB target: sRGB-encoded
+// colours, alpha blending.
 type glyphPass struct {
 	fonts   *text.Fonts
 	shaped  []shapedLine

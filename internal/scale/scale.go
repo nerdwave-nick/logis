@@ -1,6 +1,6 @@
-// Package scale is the surface scale in the units of
-// wp_fractional_scale_v1 (1/120ths) and the logical → buffer size rule
-// windows and offscreen renders share (Rust src/render/scale.rs).
+// Package scale is the surface scale in the units of wp_fractional_scale_v1
+// (1/120ths) and the logical → buffer size rule windows and offscreen
+// renders share.
 package scale
 
 // Size is a width and height, in logical or in buffer pixels.

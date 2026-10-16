@@ -9,8 +9,7 @@ import (
 	"testing"
 )
 
-// Rust src/provider/external.rs tests, on Rust's fake process
-// (src/provider/fake.rs).
+// An external provider's protocol rules, on a fake process.
 
 // fake records what a provider process was sent and how it was treated,
 // one string each: sent lines (without newline), `eof`, `signal N`.

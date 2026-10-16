@@ -8,8 +8,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// The config while the daemon runs (ported from Rust src/config/live.rs;
-// the theme half arrives with the theme engine, G18).
+// The config while the daemon runs (the theme half is package theme's,
+// G18).
 
 func withIdle(d time.Duration) Config {
 	c := Default()

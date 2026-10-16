@@ -1,8 +1,7 @@
 // Package apps is logis's own reading of desktop applications (feat/logis
-// stories 5–7, §4.7; Rust src/apps): desktop entries (the Desktop Entry
-// Specification 1.5, not GIO's reading), the index of what the launcher
-// shows, what launching one runs, frecency, and the watch that keeps the
-// index current.
+// stories 5–7, §4.7): desktop entries (the Desktop Entry Specification 1.5,
+// not GIO's reading), the index of what the launcher shows, what launching
+// one runs, frecency, and the watch that keeps the index current.
 package apps
 
 import (
@@ -17,7 +16,7 @@ import (
 
 // The app index: every desktop entry the launcher may show, read from the
 // applications directories of the XDG base directories (Desktop Entry
-// Specification, "Desktop File ID" and "Hidden"; Rust src/apps/index.rs):
+// Specification, "Desktop File ID" and "Hidden"):
 //
 //   - $XDG_DATA_HOME/applications (default ~/.local/share) first, then
 //     applications in each of $XDG_DATA_DIRS (default

@@ -5,12 +5,11 @@ import (
 	"unicode/utf8"
 )
 
-// Paste (spec feat/logis §4.5; Rust src/input/paste.rs): which selection,
-// which of its offered MIME types to read, and what of the bytes read
-// reaches the query. The window reads the selection's pipe without
-// blocking its frame loop and hands the bytes here once the owner closes
-// it (or the limit is reached); the text then becomes an ordinary Insert
-// edit at the cursor.
+// Paste (spec feat/logis §4.5): which selection, which of its offered MIME
+// types to read, and what of the bytes read reaches the query. The window
+// reads the selection's pipe without blocking its frame loop and hands the
+// bytes here once the owner closes it (or the limit is reached); the text
+// then becomes an ordinary Insert edit at the cursor.
 
 // Selection is which selection a paste reads.
 type Selection int
@@ -93,10 +92,10 @@ func PasteText(b []byte) string {
 	return out.String()
 }
 
-// lossy decodes b as Rust's String::from_utf8_lossy, after dropping a
-// sequence cut off at the end when that is the first error: each maximal
-// invalid subpart becomes one U+FFFD (Unicode's recommended substitution;
-// Go's own conversions replace per byte).
+// lossy decodes b as UTF-8, after dropping a sequence cut off at the end
+// when that is the first error: each maximal invalid subpart becomes one
+// U+FFFD (Unicode's recommended substitution; Go's own conversions
+// replace per byte).
 func lossy(b []byte) string {
 	var out strings.Builder
 	first := true

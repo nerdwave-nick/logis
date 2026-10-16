@@ -10,8 +10,7 @@ import (
 )
 
 // What ends a row (its badges in their order, then the pending mark,
-// shimmering) and the toast across the bottom of the body (Rust
-// src/list/scene/marks.rs).
+// shimmering) and the toast across the bottom of the body.
 
 // rowMarks are what ends a row, and the room they take from it, gaps
 // included.

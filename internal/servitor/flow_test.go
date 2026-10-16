@@ -10,7 +10,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Ported from Rust src/servitor/flow/tests.rs. The recorded vigil
+// servitor mode's flow, stage by stage. The recorded vigil
 // (tests/fixtures/servitor/vigil.jsonl), line by line: broken, dnd
 // (awaited), hush (awaited), screenshot, theme, hush (mute), dnd (heeded
 // "on"), concluded.

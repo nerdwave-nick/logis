@@ -19,7 +19,7 @@ const (
 )
 
 // Compose is a Compose table and the sequence typed so far (dead keys and
-// the Compose key; Rust src/input/compose.rs).
+// the Compose key).
 type Compose struct {
 	state *xkb.ComposeState
 }

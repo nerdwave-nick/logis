@@ -29,8 +29,8 @@ func (Windowless) Hide(SessionID)                {}
 const ScriptedMark = ">"
 
 // Scripted answers sessions without a user, for tests and measurements
-// (LOGIS_RESOLVER=scripted; Rust src/daemon/resolver.rs Scripted),
-// choosing the first item whose text starts with ScriptedMark:
+// (LOGIS_RESOLVER=scripted), choosing the first item whose text starts
+// with ScriptedMark:
 //
 //   - a dmenu session once its client has sent every item, or dismissed
 //     when none is marked;

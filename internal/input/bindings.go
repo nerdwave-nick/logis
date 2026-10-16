@@ -3,8 +3,8 @@ package input
 import "github.com/nerdwave-nick/logis/internal/xkb"
 
 // Mods are the modifiers that are active and were not consumed by the key
-// (consumed-modifier semantics, XKB mode as in Rust v1). Lock and Num Lock
-// are never part of a binding.
+// (consumed-modifier semantics, XKB mode). Lock and Num Lock are never part
+// of a binding.
 type Mods struct {
 	Shift, Ctrl, Alt bool
 	Logo             bool // Super, the logo key
@@ -21,8 +21,7 @@ var (
 // held: text is typed only without one.
 func (m Mods) Commands() bool { return m.Ctrl || m.Alt || m.Logo }
 
-// Binding is the action bound to keysym ks with the unconsumed modifiers
-// m (Rust src/input/bindings.rs).
+// Binding is the action bound to keysym ks with the unconsumed modifiers m.
 func Binding(ks xkb.Keysym, m Mods) (Action, bool) {
 	plain, ctrl, shift := m == None, m == Ctrl, m == Shift
 	edit := func(k EditKind) (Action, bool) { return EditAction(Edit{Kind: k}), true }
@@ -81,5 +80,5 @@ func Typed(text string, m Mods) (Action, bool) {
 	return Insert(text), true
 }
 
-// isControl is Rust's char::is_control: the Cc category.
+// isControl is the Cc category.
 func isControl(r rune) bool { return r < 0x20 || r >= 0x7f && r < 0xa0 }

@@ -17,10 +17,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// App sessions in the core (ported from Rust src/daemon/apps/tests.rs),
-// launching the fixture program tests/fixtures/apps/bin/anoint, which
-// records how it was started. No session bus unless a test starts the
-// fake one.
+// App sessions in the core, launching the fixture program
+// tests/fixtures/apps/bin/anoint, which records how it was started. No
+// session bus unless a test starts the fake one.
 
 // Activation makes the recorder an Activator.
 func (r *recorder) Activation(id SessionID, appID string) { r.note("activation %d %s", id, appID) }

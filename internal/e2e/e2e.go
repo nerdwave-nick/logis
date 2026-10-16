@@ -1,7 +1,7 @@
-// Package e2e is the end-to-end harness (spec §6; Rust tests/support/e2e):
-// a test compositor the harness starts itself, logis clients inside it with
-// the test trace on, a virtual keyboard and pointer, screen capture and a
-// selection owner, all confined to that compositor.
+// Package e2e is the end-to-end harness (spec §6): a test compositor the
+// harness starts itself, logis clients inside it with the test trace on, a
+// virtual keyboard and pointer, screen capture and a selection owner, all
+// confined to that compositor.
 //
 //   - Locally: a nested niri (LOGIS_E2E=niri), opened as a window in the
 //     running session (WAYLAND_DISPLAY) with its own generated config (never

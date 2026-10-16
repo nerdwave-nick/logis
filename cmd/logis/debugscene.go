@@ -8,14 +8,14 @@ import (
 // debugMargin is the room around the debug panel's body for its glow.
 const debugMargin = 24
 
-// debugSize is the surface the debug panel requests: Rust's 640×360 body
-// plus the glow margin on every side (DEBUG_SIZE).
+// debugSize is the surface the debug panel requests: a 640×360 body plus
+// the glow margin on every side.
 var debugSize = scale.Size{W: 640 + 2*debugMargin, H: 360 + 2*debugMargin}
 
 // debugPanelBody is the panel body in logical pixels.
 var debugPanelBody = [2]float32{640, 360}
 
-// Forge crimson & brass (Rust src/window/debug/mod.rs).
+// Forge crimson & brass.
 var (
 	brass      = render.RGBA(0.83, 0.63, 0.09, 1)
 	crimson    = render.RGBA(0.70, 0.06, 0.05, 1)
@@ -26,7 +26,7 @@ var (
 )
 
 // debugRows are the panel's rows: every script and feature the text
-// slices cover, the eighth too long for its column (Rust ROWS).
+// slices cover, the eighth too long for its column.
 var debugRows = [...]string{
 	"The machine spirit wakes: 0123456789",
 	"Ça déjà vu, naïve Ærø — Œuvre, Šťastný",
@@ -43,14 +43,14 @@ var debugRows = [...]string{
 // line.
 const queryBlock = 44
 
-// debugScene is the debug panel's scene for a surface of logical size, as
-// Rust's debug_scene draws its shapes: a soot body with a brass-to-crimson
-// border and a crimson glow, the title rune, a rule, the selected row's
-// band and marker, and the query rule; then its title, the rows that fit
-// above the query rule and the query line. The body fills the surface up
-// to 640×360, less the glow margin, so a smaller configure than requested
-// still shows the whole panel. Every line keeps to a column inside the
-// body and ends with an ellipsis when too long, as in Rust.
+// debugScene is the debug panel's scene for a surface of logical size: a
+// soot body with a brass-to-crimson border and a crimson glow, the title
+// rune, a rule, the selected row's band and marker, and the query rule;
+// then its title, the rows that fit above the query rule and the query
+// line. The body fills the surface up to 640×360, less the glow margin, so
+// a smaller configure than requested still shows the whole panel. Every
+// line keeps to a column inside the body and ends with an ellipsis when
+// too long.
 func debugScene(logical scale.Size) *render.Scene {
 	fit := func(side uint32, most float32) float32 {
 		return min(max(float32(side)-2*debugMargin, 64), most)
@@ -96,8 +96,8 @@ func debugScene(logical scale.Size) *render.Scene {
 	return &render.Scene{Shapes: []render.RoundedRect{body, rune, rule, selected, marker, queryRule}, Texts: texts}
 }
 
-// debugSelectable is the number of rows the selection can rest on (Rust's
-// SELECTABLE: the text rows); debugRowPitch is the distance between them.
+// debugSelectable is the number of rows the selection can rest on (the
+// text rows); debugRowPitch is the distance between them.
 const (
 	debugSelectable = len(debugRows)
 	debugRowPitch   = 26
@@ -109,9 +109,9 @@ const (
 	debugMarker   = 4
 )
 
-// debugSceneAt is debugScene with row selected (Rust's debug_scene_at,
-// without the query line): the band and its marker move down one row pitch
-// per row and stop at the last row above the query block.
+// debugSceneAt is debugScene with row selected (without the query line):
+// the band and its marker move down one row pitch per row and stop at the
+// last row above the query block.
 func debugSceneAt(logical scale.Size, row int) *render.Scene {
 	sc := debugScene(logical)
 	body, band := sc.Shapes[0].Rect, sc.Shapes[debugSelected].Rect

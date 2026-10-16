@@ -7,25 +7,28 @@ import (
 	"testing"
 )
 
-// oracle is testdata/nucleo.json: what nucleo-matcher 0.3.1, the matcher
-// of Rust logis v1, makes of a corpus. testdata/oracle is the standalone
-// Rust program that wrote it; to regenerate (with cargo, the crates in its
-// cache): cd testdata/oracle && cargo run --release --offline > ../nucleo.json
-type oracle struct {
-	Items     []string     `json:"items"`
-	Queries   []string     `json:"queries"`
-	Cases     [][4]any     `json:"cases"`
-	Fold      [][2]rune    `json:"fold"`
-	Normalize [][2]rune    `json:"normalize"`
-	Classes   []oracleSpan `json:"classes"`
+// recorded is testdata/nucleo.json: what nucleo-matcher 0.3.1 made of a
+// corpus (nucleo's Pattern::parse with case and normalisation ignored,
+// its default config, positions sorted and deduplicated), recorded once
+// from the crate itself. It is the reference logis's matcher is held to:
+// items and queries, a score and positions for every pair tried, its case
+// folding and normalisation of every character they change, and its
+// character class of every non-ASCII range.
+type recorded struct {
+	Items     []string    `json:"items"`
+	Queries   []string    `json:"queries"`
+	Cases     [][4]any    `json:"cases"`
+	Fold      [][2]rune   `json:"fold"`
+	Normalize [][2]rune   `json:"normalize"`
+	Classes   []classSpan `json:"classes"`
 }
 
-type oracleSpan struct {
+type classSpan struct {
 	lo, hi rune
 	class  string
 }
 
-func (s *oracleSpan) UnmarshalJSON(b []byte) error {
+func (s *classSpan) UnmarshalJSON(b []byte) error {
 	var v [3]any
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
@@ -34,18 +37,18 @@ func (s *oracleSpan) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var loadOracle = sync.OnceValues(func() (*oracle, error) {
+var loadRecorded = sync.OnceValues(func() (*recorded, error) {
 	b, err := os.ReadFile("testdata/nucleo.json")
 	if err != nil {
 		return nil, err
 	}
-	var o oracle
+	var o recorded
 	return &o, json.Unmarshal(b, &o)
 })
 
-func nucleo(t *testing.T) *oracle {
+func nucleo(t *testing.T) *recorded {
 	t.Helper()
-	o, err := loadOracle()
+	o, err := loadRecorded()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,11 +117,11 @@ func TestAccentFoldingBeyondNucleo(t *testing.T) {
 	}
 }
 
-// Character classes (for word-boundary bonuses) are nucleo's: Rust's
-// Unicode properties. Rust 1.91 has UCD 16.0 and Go 1.27 UCD 17.0, so
-// characters new in 17.0 are words here and non-words there, and letters
-// that gained a case pair are cased here; nothing else may differ but
-// U+0295, no longer Lowercase in 17.0.
+// Character classes (for word-boundary bonuses) are nucleo's, from the
+// Unicode properties of UCD 16.0; Go 1.27 has UCD 17.0, so characters new
+// in 17.0 are words here and non-words there, and letters that gained a
+// case pair are cased here; nothing else may differ but U+0295, no longer
+// Lowercase in 17.0.
 func TestClassesAreNucleos(t *testing.T) {
 	names := map[class]string{
 		classWhitespace: "w", classNonWord: "n", classDelimiter: "n",

@@ -1,7 +1,7 @@
-// Package fc is logis's thin binding to libfontconfig (spec §5, D4), the
-// same few calls as Rust src/text/fc.rs: load a configuration, substitute
-// and match a family list at a weight, sort one fallback order, and read
-// file, index, family and coverage from the resulting patterns.
+// Package fc is logis's thin binding to libfontconfig (spec §5, D4), a few
+// calls only: load a configuration, substitute and match a family list at a
+// weight, sort one fallback order, and read file, index, family and
+// coverage from the resulting patterns.
 //
 // Every C object is owned by exactly one Go value and freed by its Close,
 // never by a finalizer. fontconfig has no thread affinity and is

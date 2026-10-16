@@ -16,11 +16,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/window"
 )
 
-// The theme the window wears (Rust src/daemon/window/wear.rs, ui.rs
-// Command::Theme): worn at once, the visible panel included (re-fitted to
-// the theme's size and drawn again), its faces resolved only when they
-// change; the frame's time drives its continuous effects, and a window
-// keeps drawing only while the theme moves on its own.
+// The theme the window wears: worn at once, the visible panel included
+// (re-fitted to the theme's size and drawn again), its faces resolved only
+// when they change; the frame's time drives its continuous effects, and a
+// window keeps drawing only while the theme moves on its own.
 
 // resizable is a fake surface that can also be resized.
 type resizable struct {

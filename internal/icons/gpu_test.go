@@ -11,10 +11,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// Ports of Rust tests/icons.rs's cache and golden tests on the GPU: the
-// icon cache over the fixture themes filling the renderer's real atlas,
-// and golden renders of fixture icons at scales 1.0 and 1.3. (The atlas
-// and image pass tests are internal/render's.)
+// The icon cache and golden renders on the GPU: the icon cache over the
+// fixture themes filling the renderer's real atlas, and golden renders of
+// fixture icons at scales 1.0 and 1.3. (The atlas and image pass tests are
+// internal/render's.)
 
 var scale13 = scale.From120ths(156)
 
@@ -59,25 +59,15 @@ func TestTheCacheFillsTheAtlasOncePerFileAndPixelSize(t *testing.T) {
 	}
 }
 
-// The Rust goldens (tests/goldens/icons, straight alpha, written through
-// resvg and tiny-skia) are matched within Rust's GOLDEN_TOLERANCE of 3
-// levels by every PNG icon and the backdrop. The two SVG icons differ on
-// anti-aliased edges: tiny-skia's supersampled coverage against
-// x/image/vector's area coverage. Against an 8×8 oversampled resvg render
-// at 32 px, logis's SVG pixels are the closer ones (forge-banner: mean
-// 0.21 vs resvg's 1.27 levels, worst 12.0 vs 59.5; cogitator-skull: mean
-// 0.58 vs 2.45, worst 6.8 vs 37.2). So the Rust goldens bound the
-// outliers (measured 159 of 11904 pixels at 1.0, worst 48; 285 of 19964
-// at 1.3, worst 33) and logis's own goldens in tests/goldens/go/icons,
-// reviewed against the Rust ones, are matched within the offscreen
-// tolerance. LOGIS_UPDATE_GOLDENS=1 rewrites logis's own.
-var (
-	rustTolerance = rendertest.Tolerance{Channel: 3, Outliers: 0.015}
-	goTolerance   = rendertest.Offscreen
-)
+// The icon goldens (tests/goldens/icons) are matched within the offscreen
+// tolerance; LOGIS_UPDATE_GOLDENS=1 rewrites them. The SVG icons' edges
+// use x/image/vector's area coverage, which against an 8×8 oversampled
+// resvg render at 32 px is closer than a plain resvg render
+// (forge-banner: mean 0.21 vs resvg's 1.27 levels, worst 12.0 vs 59.5;
+// cogitator-skull: mean 0.58 vs 2.45, worst 6.8 vs 37.2).
 
-// goldenScene is Rust's: a backdrop panel and one icon from each lookup
-// source, 32 logical pixels each, 8 apart.
+// goldenScene is a backdrop panel and one icon from each lookup source,
+// 32 logical pixels each, 8 apart.
 func goldenScene(t *testing.T, h *render.Headless, s scale.Scale) (*render.Scene, scale.Size) {
 	names := []string{
 		"forge-cog",       // PNG: 32x32 at 1.0, 32x32@2 at 1.3
@@ -103,23 +93,6 @@ func goldenScene(t *testing.T, h *render.Headless, s scale.Scale) (*render.Scene
 	return sc, size
 }
 
-// straightGolden reads a golden stored with straight alpha (as tiny-skia
-// wrote the icon goldens) premultiplied, rounding as Rust's harness does.
-func straightGolden(t *testing.T, name string) *render.Image {
-	t.Helper()
-	img, err := rendertest.ReadPNG(rendertest.Golden(t, "icons", name))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < len(img.Pixels); i += 4 {
-		a := uint16(img.Pixels[i+3])
-		for k := range 3 {
-			img.Pixels[i+k] = uint8((uint16(img.Pixels[i+k])*a + 127) / 255)
-		}
-	}
-	return img
-}
-
 func TestGoldenIcons(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -136,7 +109,7 @@ func TestGoldenIcons(t *testing.T) {
 			if img.Width != tc.w || img.Height != tc.h {
 				t.Fatalf("%dx%d, want %dx%d", img.Width, img.Height, tc.w, tc.h)
 			}
-			own := rendertest.Golden(t, filepath.Join("go", "icons"), tc.name)
+			own := rendertest.Golden(t, "icons", tc.name)
 			if os.Getenv("LOGIS_UPDATE_GOLDENS") != "" {
 				if err := os.MkdirAll(filepath.Dir(own), 0o755); err != nil {
 					t.Fatal(err)
@@ -146,15 +119,7 @@ func TestGoldenIcons(t *testing.T) {
 				}
 				t.Logf("updated golden %s", own)
 			}
-			rendertest.Check(t, img, own, goTolerance)
-			c, err := rendertest.Compare(img, straightGolden(t, tc.name), rustTolerance.Channel)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("%s against Rust's golden: %v", tc.name, c)
-			if !c.Passes(rustTolerance) {
-				t.Errorf("%s against Rust's golden: %v", tc.name, c)
-			}
+			rendertest.Check(t, img, own, rendertest.Offscreen)
 		})
 	}
 }

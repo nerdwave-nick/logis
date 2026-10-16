@@ -10,8 +10,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// Ports of the rendering half of Rust tests/text.rs (and the face change
-// of tests/faces.rs) for simple runs. Fonts are pinned as there: an
+// Simple runs of text drawn, and a change of face. Fonts are pinned: an
 // isolated fontconfig that knows only the OFL subsets in tests/fonts.
 
 var pinnedFiles = []string{

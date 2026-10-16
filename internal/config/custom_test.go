@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// custom-shader (a5e5f876, new beside Rust v1): the custom pass's shader
+// custom-shader (a5e5f876): the custom pass's shader
 // file, a path from the config's directory; --check-config compiles it.
 
 func TestACustomShaderIsAPathFromTheConfigsDirectory(t *testing.T) {

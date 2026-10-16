@@ -26,7 +26,7 @@ type Nth struct {
 }
 
 // Parse parses a selection. "0" means none (nil, nil), as if the flag were
-// not given. The error's text is the reason, as logis v1 words it.
+// not given. The error's text is the reason.
 func Parse(text string) (*Nth, error) {
 	if text == "0" {
 		return nil, nil
@@ -107,7 +107,7 @@ func (n *Nth) Apply(line []byte, delimiter byte) []byte {
 	return out
 }
 
-// number parses digits only (no sign), as Rust's usize parsing does.
+// number parses digits only (no sign).
 func number(s string) (int, bool) {
 	if s == "" || strings.TrimLeft(s, "0123456789") != "" {
 		return 0, false

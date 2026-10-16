@@ -7,7 +7,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/config"
 )
 
-// Tests ported from Rust src/input/keyboard.rs.
+// Tests of the keyboard: keymaps, modifiers, repeat and focus loss.
 
 func keyboard(t *testing.T) *Keyboard {
 	t.Helper()

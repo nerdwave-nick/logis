@@ -9,11 +9,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The panel's height follows its rows (a divergence from Rust v1, whose
-// theme gave the window a height of its own and left an empty band below
-// the last row): the prompt line, the rule, a gap, the rows, a gap and the
-// glow margins, exactly. On an output too short for that many rows, the
-// panel takes the output's height, shows the rows that fit and spreads the
+// The panel's height follows its rows, with no empty band below the last
+// row: the prompt line, the rule, a gap, the rows, a gap and the glow
+// margins, exactly. On an output too short for that many rows, the panel
+// takes the output's height, shows the rows that fit and spreads the
 // leftover height between them.
 
 // bodyBottomGap is the distance from the last row's bottom to the body's
@@ -166,12 +165,12 @@ func TestTheBandAndTheRowsFollowTheSpreadPitch(t *testing.T) {
 }
 
 // Only the leftover of a full panel is spread: on a surface with room for
-// more rows than asked (a compositor's larger configure, or Rust v1's
-// window in the golden comparison) the rows keep the theme's height.
+// more rows than asked (a compositor's larger configure, or a fixed window)
+// the rows keep the theme's height.
 func TestFewerRowsThanFitKeepTheThemesPitch(t *testing.T) {
 	th := forge()
-	rustV1 := scale.Size{W: 884, H: 584} // 820×520 and nine rows
-	if g := GridOf(rustV1, 9, th); g.Rows != 9 || g.Pitch != th.Row.Height {
+	fixed := scale.Size{W: 884, H: 584} // an 820×520 body showing nine rows
+	if g := GridOf(fixed, 9, th); g.Rows != 9 || g.Pitch != th.Row.Height {
 		t.Fatalf("%d rows at %v", g.Rows, g.Pitch)
 	}
 }

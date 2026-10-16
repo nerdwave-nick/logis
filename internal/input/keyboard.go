@@ -9,11 +9,10 @@ import (
 )
 
 // Keyboard is the keyboard as the visible session sees it: keymap,
-// modifiers, Compose, repeat and the focus-loss policy (Rust
-// src/input/keyboard.rs). Its model methods (Press, SetMask, …) return
-// what a key does; wayland.go feeds it the wl_keyboard events and hands
-// the actions to the session's sink. It is owned by the window's
-// goroutine.
+// modifiers, Compose, repeat and the focus-loss policy. Its model
+// methods (Press, SetMask, …) return what a key does; wayland.go feeds
+// it the wl_keyboard events and hands the actions to the session's sink.
+// It is owned by the window's goroutine.
 type Keyboard struct {
 	layout    *Layout
 	compose   *Compose

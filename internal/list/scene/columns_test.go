@@ -12,9 +12,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// Ported from Rust src/list/scene/columns/tests.rs: the columns' widths,
-// measured from the rows in view, each row once, growing and never
-// shrinking, afresh for another font.
+// The columns' widths, measured from the rows in view, each row once,
+// growing and never shrinking, afresh for another font.
 
 // ruler measures ten pixels a character, counting what it measured;
 // nothing while off.
@@ -100,8 +99,8 @@ func TestAnotherRowFontStartsAfresh(t *testing.T) {
 	}
 }
 
-// Not in Rust's tests: its key holds the row face's families and weight,
-// so a theme whose row face changes (same index) starts afresh too.
+// The measures' key holds the row face's families and weight, so a theme
+// whose row face changes (same index) starts afresh too.
 func TestAnotherRowFaceStartsAfresh(t *testing.T) {
 	c, r, th := &Columns{}, &ruler{}, forge()
 	fitWith(c, r, th, "abcdef\tx")
@@ -128,8 +127,8 @@ func TestWithoutFontsRowsAreEstimatedAndMeasuredOnceFontsCome(t *testing.T) {
 	}
 }
 
-// Rust REMEMBERED: past 4096 rows the memory starts again; the widths stay
-// and a row forgotten is only measured again.
+// remembered: past 4096 rows the memory starts again; the widths stay and a
+// row forgotten is only measured again.
 func TestManyRowsForgetTheirMeasuresButNotTheWidths(t *testing.T) {
 	c, r, th := &Columns{}, &ruler{}, forge()
 	fitWith(c, r, th, "abcdefgh\tx")

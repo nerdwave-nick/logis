@@ -1,6 +1,6 @@
-// Package motion is the cogitator's motion (spec §4.3; Rust src/motion):
-// the open and close transitions and the selection band's movement. Pure
-// values and arithmetic; the window paces them by its frame callbacks (and
+// Package motion is the cogitator's motion (spec §4.3): the open and close
+// transitions and the selection band's movement. Pure values and
+// arithmetic; the window paces them by its frame callbacks (and
 // wp_presentation timing when the compositor offers it), and draws nothing
 // once they have settled.
 //
@@ -121,8 +121,8 @@ func FromEnvValue(value string) (Motion, error) {
 		return Off, nil
 	}
 	refused := fmt.Errorf("%s=%s is no rite of motion: use 'off' or a factor such as 4", Env, value)
-	// Numbers as Rust's f64 parse takes them: no hex, no digit
-	// separators (inf and NaN parse, and are refused below).
+	// Plain decimal numbers only: no hex, no digit separators (inf and NaN
+	// parse, and are refused below).
 	if strings.ContainsAny(value, "xX_") {
 		return Motion{}, refused
 	}

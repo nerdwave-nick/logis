@@ -8,14 +8,13 @@ import (
 	"github.com/nerdwave-nick/logis/internal/e2e/latency"
 )
 
-// The app launcher's warm open (story 5, budget 15 ms; Rust
-// tests/latency.rs apps_latency) in the test compositor, the T0_NS way:
-// with the daemon running and its index resident (the applications of the
-// system this runs on, and their icons, rasterised by a first, warming
-// session), `logis --apps` from exec to the daemon's first commit of its
-// window, and to `settled`. Each session ends with its client: nothing is
-// ever launched. Run alone, under the shared measurement lock (see the
-// worker brief).
+// The app launcher's warm open (story 5, budget 15 ms) in the test
+// compositor, the T0_NS way: with the daemon running and its index resident
+// (the applications of the system this runs on, and their icons, rasterised
+// by a first, warming session), `logis --apps` from exec to the daemon's
+// first commit of its window, and to `settled`. Each session ends with its
+// client: nothing is ever launched. Run alone, under the shared measurement
+// lock (see the worker brief).
 func TestLatencyApps(t *testing.T) {
 	c := e2e.StartCogitator(t, nil, "")
 	watch := e2e.StartWatchdog(t, c.Compositor)

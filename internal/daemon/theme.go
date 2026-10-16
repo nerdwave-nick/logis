@@ -5,12 +5,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The theme the config names (Rust src/daemon/mod.rs, lifecycle.rs
-// reconfigure): read with the config at the start (one that cannot be worn
-// leaves the bundled default, said once the log is in place), its files
-// watched in themes/ beside the config, read again after every settled
-// edit to either, a sound one handed to the resolver at once, a broken one
-// logged and toasted while the last sound theme stands.
+// The theme the config names: read with the config at the start (one that
+// cannot be worn leaves the bundled default, said once the log is in
+// place), its files watched in themes/ beside the config, read again after
+// every settled edit to either, a sound one handed to the resolver at
+// once, a broken one logged and toasted while the last sound theme stands.
 
 // Rethemer is a Resolver that wears themes: the daemon calls Retheme once
 // before the first session, then whenever the theme in force changes. A

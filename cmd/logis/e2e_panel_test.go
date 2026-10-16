@@ -19,15 +19,15 @@ import (
 //
 // The compositor maps the buffer through the viewport onto the output
 // itself, and resamples it by under a pixel where that mapping is not 1:1:
-// at fractional scales (530 buffer rows over 408 × 1.3 = 530.4 output
-// rows) and where the surface's centred position falls between output
-// pixels (nested niri at 2.0: 816 rows shown over about 815.2, 0.8 rows
-// down). Bilinear resampling by less than a pixel can only produce values
-// within the range of a pixel's 3×3 neighbourhood, so each captured pixel
-// must lie in that range of the reference, give or take Rust's E2E capture
-// tolerance (4 levels, 0.1 % outliers). That still catches a wrong colour,
-// a missing shape or geometry off by more than a pixel; the exact pixels
-// are the offscreen goldens' business.
+// at fractional scales (530 buffer rows over 408 × 1.3 = 530.4 output rows)
+// and where the surface's centred position falls between output pixels
+// (nested niri at 2.0: 816 rows shown over about 815.2, 0.8 rows down).
+// Bilinear resampling by less than a pixel can only produce values within
+// the range of a pixel's 3×3 neighbourhood, so each captured pixel must lie
+// in that range of the reference, give or take the E2E capture tolerance
+// (rendertest.Capture: 4 levels, 0.1 % outliers). That still catches a
+// wrong colour, a missing shape or geometry off by more than a pixel; the
+// exact pixels are the offscreen goldens' business.
 
 // reference renders the debug scene for f at s offscreen, its text with
 // the fonts fontconfig gives this process: checkPanel points it at the

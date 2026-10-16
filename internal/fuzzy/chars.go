@@ -22,7 +22,8 @@ const (
 )
 
 // asciiClass is a byte's class: the delimiters are nucleo's default
-// "/,:;|", whitespace is Rust's is_ascii_whitespace (no \v).
+// "/,:;|", whitespace is space, \t, \n, \f and \r (no \v), as nucleo
+// has it.
 var asciiClass = func() (t [128]class) {
 	for c := range t {
 		switch {
@@ -43,9 +44,9 @@ var asciiClass = func() (t [128]class) {
 	return t
 }()
 
-// classOf is r's class, from Rust's Unicode properties as nucleo reads
-// them: Lowercase, then "changes under case folding", Numeric,
-// Alphabetic, White_Space.
+// classOf is r's class, from the Unicode properties nucleo reads:
+// Lowercase, then "changes under case folding", Numeric, Alphabetic,
+// White_Space.
 func classOf(r rune) class {
 	if r < utf8.RuneSelf {
 		return asciiClass[r]

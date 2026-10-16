@@ -1,5 +1,5 @@
-// Package cogitator is the window-backed resolver of the daemon (Rust
-// src/daemon/window): sessions are shown in the cogitator window.
+// Package cogitator is the window-backed resolver of the daemon: sessions
+// are shown in the cogitator window.
 //
 // The window lives on a goroutine of its own, locked to its thread, which
 // owns the daemon's single compositor connection, the GPU (woken at start,
@@ -57,8 +57,7 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 	ready := make(chan error, 1)
 	go func() {
 		th := theme.Default()
-		// Fonts resolve meanwhile, off the window's path (Rust
-		// PendingFonts).
+		// Fonts resolve meanwhile, off the window's path.
 		fonts := text.ResolveSystemWith(th.Faces)
 		w, err := window.Open()
 		if err != nil {

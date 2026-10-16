@@ -7,12 +7,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/dbus"
 )
 
-// The apps of a running daemon (Rust src/daemon/mod.rs apps_state and
-// index_apps): frecency from $XDG_STATE_HOME/logis/ and the session bus's
-// address at start; the index read on a goroutine of its own (so it never
-// delays the first frame), and read again whenever the applications
-// directories change. The directories, the current desktops (OnlyShowIn),
-// PATH (TryExec) and the locale are the daemon's own environment's.
+// The apps of a running daemon: frecency from $XDG_STATE_HOME/logis/ and
+// the session bus's address at start; the index read on a goroutine of its
+// own (so it never delays the first frame), and read again whenever the
+// applications directories change. The directories, the current desktops
+// (OnlyShowIn), PATH (TryExec) and the locale are the daemon's own
+// environment's.
 
 // startApps gives the core its apps from getenv and starts the indexer;
 // stop ends the indexer and waits for frecency still being kept.

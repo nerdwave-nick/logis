@@ -11,7 +11,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// Ported from Rust src/client/dmenu/mod.rs and stream.rs.
+// The client side of a dmenu session: what it prints, and how stdin streams
+// to the daemon as items.
 
 func chosen(index uint64, raw string) protocol.Outcome {
 	return protocol.Outcome{Kind: protocol.Selected, Index: index, Item: protocol.Item{Raw: []byte(raw)}}

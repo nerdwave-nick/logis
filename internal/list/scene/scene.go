@@ -1,11 +1,10 @@
 // Package scene draws a list as a cogitator panel in a theme (feat/logis
-// §4.9; Rust src/list/scene): the body with its glow, border and
-// ornaments; the prompt line with its sigil, label, query, caret and
-// counter; a rule; the rows below it, the selected one on a band, matched
-// characters set apart; badges, pending rows and a toast. Rows are single
-// lines whose tab-separated columns line up (at measured widths when the
-// Look carries them, else estimated from the rows in view) and take the
-// theme's column colours.
+// §4.9): the body with its glow, border and ornaments; the prompt line with
+// its sigil, label, query, caret and counter; a rule; the rows below it,
+// the selected one on a band, matched characters set apart; badges, pending
+// rows and a toast. Rows are single lines whose tab-separated columns line
+// up (at measured widths when the Look carries them, else estimated from
+// the rows in view) and take the theme's column colours.
 //
 // Every length is the theme's, in logical pixels. A scene is drawn at a
 // moment (Style.At) so the theme's continuous effects (glow pulse,

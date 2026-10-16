@@ -11,8 +11,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ported from Rust src/theme/tests.rs: bundled and user files, extends,
-// the default as the last base, and errors that say where.
+// Loading themes: bundled and user files, extends, the default as the
+// last base, and errors that say where.
 
 // themesDir is a scratch themes directory holding name → text.
 func themesDir(t *testing.T, files map[string]string) (Themes, string) {
@@ -110,10 +110,10 @@ func TestAUserFileOverridesABundledThemeOfItsName(t *testing.T) {
 	}
 }
 
-// Rust v1's window.height is still read and checked, so a v1 theme keeps
-// loading with the same verdict, but the panel's height follows its rows:
-// the height changes nothing.
-func TestARustV1WindowHeightIsReadButChangesNothing(t *testing.T) {
+// The deprecated window.height is still read and checked, so an older
+// theme keeps loading with the same verdict, but the panel's height
+// follows its rows: the height changes nothing.
+func TestTheDeprecatedWindowHeightIsReadButChangesNothing(t *testing.T) {
 	th, _ := themesDir(t, map[string]string{
 		"tall": `{"window": {"width": 640, "height": 400, "rows": 7}}`,
 		"bare": `{"window": {"width": 640, "rows": 7}}`,
@@ -203,7 +203,7 @@ func TestAnUnreadableFileSaysWhy(t *testing.T) {
 	}
 }
 
-// A bad reference or value names its key, in Rust logis v1's words.
+// A bad reference or value names its key.
 func TestABadReferenceOrValueNamesItsKey(t *testing.T) {
 	cases := map[string]string{
 		`{"border": {"paint": ["brass", "embr"]}}`:                            "border.paint[1]: no colour named 'embr' in the palette",
@@ -269,7 +269,7 @@ func TestReduceMotionStillsEveryContinuousEffect(t *testing.T) {
 	}
 }
 
-// Faces are interned in Rust's order: the body's first, the row's at the
+// Faces are interned in order: the body's first, the row's at the
 // match weight, then the roles as the elements name them.
 func TestFacesAreInternedOnceInTheResolversOrder(t *testing.T) {
 	forge := Default()

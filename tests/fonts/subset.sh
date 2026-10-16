@@ -9,7 +9,7 @@
 # All fonts are SIL OFL 1.1, see OFL.txt. Changing a font changes the goldens:
 # rerun the golden tests with LOGIS_UPDATE_GOLDENS=1 go test ./internal/render/
 # ./internal/list/scene/ ./internal/icons/ (as README "Goldens" says), then
-# review the Go goldens they write under tests/goldens/go/.
+# review the goldens they rewrite under tests/goldens/.
 set -eu
 cd "$(dirname "$0")"
 src=/usr/share/fonts

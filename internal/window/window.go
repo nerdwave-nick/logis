@@ -1,9 +1,9 @@
-// Package window is logis's layer-shell window (spec §4.2, D1, D5; Rust
-// src/window): the compositor connection through wlproto, the GPU woken on
-// it at start (EGL Wayland platform, OpenGL ES 3), and at most one panel —
-// an overlay layer surface in namespace "logis" with exclusive keyboard
-// focus, drawn at the compositor's fractional scale through a viewport and
-// paced by frame callbacks.
+// Package window is logis's layer-shell window (spec §4.2, D1, D5): the
+// compositor connection through wlproto, the GPU woken on it at start (EGL
+// Wayland platform, OpenGL ES 3), and at most one panel — an overlay layer
+// surface in namespace "logis" with exclusive keyboard focus, drawn at the
+// compositor's fractional scale through a viewport and paced by frame
+// callbacks.
 //
 // A Window is owned by one goroutine: Open locks it to its OS thread (the
 // GL context is current there) and Close unlocks it. Only Wake may be
@@ -133,7 +133,7 @@ func openWith(open openGPU) (w *Window, err error) {
 func (w *Window) GPU() egl.Info { return w.gpu.info() }
 
 // SetLog reports every buffer (re)configuration to log ("cogitator glass"
-// lines, as Rust's verbose debug panel does).
+// lines; the debug panel logs them to stderr).
 func (w *Window) SetLog(log io.Writer) { w.log = log }
 
 // SetKeyboard sends the seat's keyboard events to k from now on; without

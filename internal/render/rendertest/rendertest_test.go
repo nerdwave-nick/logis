@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/render"
 )
 
-// Ports of Rust tests/golden_harness.rs's comparison and file tests.
+// The image comparison and the PNG files.
 
 func solid(w, h int, rgba [4]byte) *render.Image {
 	return &render.Image{Width: w, Height: h, Pixels: bytes.Repeat(rgba[:], w*h)}

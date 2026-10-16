@@ -8,7 +8,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// Rust src/provider/wire.rs tests.
+// Provider protocol lines, read and written.
 
 func ptr[T any](v T) *T { return &v }
 
@@ -92,7 +92,7 @@ func TestLinesToTheProviderHaveAStableShape(t *testing.T) {
 		{Cancel{}, `{"type":"cancel"}` + "\n"},
 		{Greeting(), `{"type":"hello","protocol":1}` + "\n"},
 		{Submit{Stage: "s", Text: "v"}, `{"type":"submit","stage":"s","text":"v"}` + "\n"},
-		// Bytes as written, as serde writes them: no HTML escapes.
+		// Bytes as written: no HTML escapes.
 		{Activate{Stage: "<a&b>", ID: ">oil"}, `{"type":"activate","stage":"<a&b>","id":">oil"}` + "\n"},
 	} {
 		if got := string(Encode(c.message)); got != c.want {

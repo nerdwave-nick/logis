@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/input/paste.rs.
+// Tests of paste: the MIME type chosen and the text that reaches the query.
 
 func TestUTF8TextIsPreferredWhateverElseIsOffered(t *testing.T) {
 	got, ok := ChooseMIME([]string{"image/png", "STRING", "text/plain;charset=utf-8", "text/plain"})
@@ -75,13 +75,13 @@ func TestInvalidUTF8IsReplacedAndACutSequenceDropped(t *testing.T) {
 		"caf\xc3\xa9 \xff!": "café �!",
 		"caf\xc3":           "caf", // cut by the limit
 		"caf\xe2\x82":       "caf",
-		// Rust's from_utf8_lossy: one U+FFFD per maximal invalid subpart.
+		// One U+FFFD per maximal invalid subpart.
 		"a\xe2\x82Xb":   "a�Xb",
 		"a\xff\xfeb":    "a��b",
 		"a\xed\xa0\x80": "a���", // a surrogate is three
 		"a\xf0\x9f\x98": "a",    // cut emoji
 		// An earlier error decodes the whole input lossily, the cut tail
-		// included (Rust checks only the first error).
+		// included (only the first error is checked for a cut).
 		"\xff caf\xc3": "� caf�",
 		"\xc0\xafx":    "��x", // overlong
 		"\xf5\x80x":    "��x",

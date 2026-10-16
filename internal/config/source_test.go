@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Where the config comes from (ported from Rust src/config/source.rs).
+// Where the config comes from.
 
 func write(t *testing.T, path, text string) {
 	t.Helper()
@@ -129,7 +129,7 @@ func TestAFileThatIsNotUTF8IsUnreadable(t *testing.T) {
 	}
 }
 
-func TestHeresiesAreWordedAsInRust(t *testing.T) {
+func TestHeresiesSayWhatIsHeretical(t *testing.T) {
 	e := &Error{Path: "/c.jsonc", Problem: Missing}
 	if got := Heresy(e); got != "the config is heretical: /c.jsonc: no such file" {
 		t.Error(got)
@@ -139,7 +139,7 @@ func TestHeresiesAreWordedAsInRust(t *testing.T) {
 	}
 }
 
-// --check-config's verdict (Rust src/config/mod.rs check).
+// --check-config's verdict.
 
 func TestCheckNamesTheSoundConfigAndItsTheme(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")

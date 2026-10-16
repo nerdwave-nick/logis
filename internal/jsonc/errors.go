@@ -54,7 +54,7 @@ const (
 	atClose              // a container's closing bracket
 )
 
-// syntax words a decoder error as serde_json did for Rust logis v1.
+// syntax words a decoder error in serde_json's words.
 func (p *parser) syntax(err error, at place) *Invalid {
 	return p.doc.Errorf(p.offending(err), "%s", p.wording(err, at))
 }

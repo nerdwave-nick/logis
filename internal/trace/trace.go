@@ -1,9 +1,8 @@
-// Package trace is the test trace (Rust src/window/trace.rs): a test-only
-// observable of what the window saw, enabled by LOGIS_TEST_TRACE=1 and
-// silent otherwise. Each event is one stderr line,
-// `logis-trace: <CLOCK_MONOTONIC ns> <event>`, so a harness can wait for
-// keyboard focus before typing and time commits against its own clock
-// (research/bench's T0_NS method).
+// Package trace is the test trace: a test-only observable of what the
+// window saw, enabled by LOGIS_TEST_TRACE=1 and silent otherwise. Each
+// event is one stderr line, `logis-trace: <CLOCK_MONOTONIC ns> <event>`, so
+// a harness can wait for keyboard focus before typing and time commits
+// against its own clock (research/bench's T0_NS method).
 //
 // Events so far: `keyboard-enter`, `keyboard-leave`, `key <evdev code>
 // pressed|released`, `modifiers <depressed> <latched> <locked> <group>`,
@@ -20,7 +19,7 @@
 // `dismiss` from the debug panel. The
 // daemon's sessions add theirs (`show <session>`, `items <n>`, `query`,
 // `select`, `accept`, `typed`, `dismiss`, `toast`, `hide <session>` …) as
-// Rust's README lists them.
+// the README lists them.
 package trace
 
 import (
@@ -97,7 +96,7 @@ var process = sync.OnceValue(func() *Tracer {
 func Emit(format string, args ...any) { process().Emit(format, args...) }
 
 // Quote is how the trace writes text (`query <JSON string>`): a JSON
-// string, with <, > and & as they are (as Rust's serde_json writes it).
+// string, with <, > and & as they are.
 func Quote(text string) string {
 	var b strings.Builder
 	enc := json.NewEncoder(&b)

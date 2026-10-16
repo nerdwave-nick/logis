@@ -12,13 +12,12 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// Themes end to end (spec §4.9; Rust tests/theme_window.rs): a daemon in
-// the test compositor wears the theme its config names, wears an edited
-// theme at once on a visible window, keeps the last sound theme when an
-// edit is broken and says so over the list, and keeps a window drawing
-// only while the theme's continuous effects move (reduce-motion stills
-// them, and then an idle window draws nothing). Runs only with
-// LOGIS_E2E=niri|sway.
+// Themes end to end (spec §4.9): a daemon in the test compositor wears the
+// theme its config names, wears an edited theme at once on a visible
+// window, keeps the last sound theme when an edit is broken and says so
+// over the list, and keeps a window drawing only while the theme's
+// continuous effects move (reduce-motion stills them, and then an idle
+// window draws nothing). Runs only with LOGIS_E2E=niri|sway.
 
 func themesDir(t *testing.T, c *e2e.Cogitator) string {
 	t.Helper()

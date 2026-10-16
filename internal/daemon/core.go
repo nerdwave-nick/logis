@@ -29,10 +29,10 @@ const (
 )
 
 // conn is one client connection and the session it may carry, with what
-// feeds that session (Rust Feed): the built-in dmenu provider (dmenu, and
-// the list of servitor sessions until its feature), the app launcher, or
-// an external provider: its launch until the session is shown, then the
-// started provider.
+// feeds that session: the built-in dmenu provider (dmenu, and the list of
+// servitor sessions until its feature), the app launcher, or an external
+// provider: its launch until the session is shown, then the started
+// provider.
 type conn struct {
 	peer  peer
 	phase phase

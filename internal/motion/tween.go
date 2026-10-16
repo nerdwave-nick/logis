@@ -1,8 +1,8 @@
 package motion
 
-// Values moving over time (Rust src/motion/tween.rs): a Tween between two
-// values along a Curve, the Pose a whole panel takes during its open and
-// close Transition, and the Glide of the selection band.
+// Values moving over time: a Tween between two values along a Curve, the
+// Pose a whole panel takes during its open and close Transition, and the
+// Glide of the selection band.
 //
 // A change takes effect one frame interval (lead) before the frame that
 // first shows it, since it was asked for between frames: so that frame

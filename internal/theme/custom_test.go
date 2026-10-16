@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/config"
 )
 
-// The custom pass's shader (a5e5f876, new beside Rust v1): a theme names
+// The custom pass's shader (a5e5f876): a theme names
 // it under effects.custom-shader, a path from the theme's file; the
 // config's custom-shader outranks it. A shader that cannot be read leaves
 // the theme sound: the renderer says why once and skips it.

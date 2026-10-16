@@ -10,10 +10,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
 
-// The post-processing pass (spec §4.3, §4.9; Rust tests/post.rs):
-// scanlines, grain, flicker, vignette, bloom, curvature and chromatic
-// aberration over the panel's body, each a strength where 0 is off. Read
-// back pixel by pixel; the time is frozen, so every term is deterministic.
+// The post-processing pass (spec §4.3, §4.9): scanlines, grain, flicker,
+// vignette, bloom, curvature and chromatic aberration over the panel's
+// body, each a strength where 0 is off. Read back pixel by pixel; the time
+// is frozen, so every term is deterministic.
 
 var (
 	postLogical = scale.Size{W: 120, H: 90}
@@ -212,12 +212,12 @@ func TestPostThePassScalesWithTheOutput(t *testing.T) {
 	}
 }
 
-// Curvature bends the whole panel as one tube face (cd816303; Rust v1 bent
-// only what lay inside a straight border): the middles of its edges stay,
-// its corners draw in, so the outline turns convex and what the bend
-// uncovers beyond it is the frame there (here transparent); and nothing of
-// the unbent picture is left behind (v1 left the unbent text's alpha in
-// the dark it uncovered, a ghost over a light desktop).
+// Curvature bends the whole panel as one tube face (cd816303), not only
+// what lies inside a straight border: the middles of its edges stay, its
+// corners draw in, so the outline turns convex and what the bend uncovers
+// beyond it is the frame there (here transparent); and nothing of the
+// unbent picture is left behind (no ghost of the unbent text's alpha in the
+// dark it uncovers, over a light desktop).
 func TestPostCurvatureBendsTheWholePanel(t *testing.T) {
 	body := solidRect(postBody, render.Hex(0x808080).WithAlpha(0.9))
 	body.Border = render.Border{Width: 2, Paint: render.Solid(render.Hex(0x2fd36a))}

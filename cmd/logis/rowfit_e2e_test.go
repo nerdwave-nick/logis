@@ -17,15 +17,14 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The panel's height follows its rows (a divergence from Rust v1, whose
-// 520-pixel window left an empty band of about three rows below the ninth
-// row): a dmenu with more items than rows and no --lines shows the theme's
-// eleven rows, or on an output too short for them the rows that fit,
-// spread over its height, and the body ends right after the last row,
-// with nothing below it but the theme's row gap. Measured in the capture,
-// not in logis's own numbers: the rows are the bands of bright text in the
-// body's left part, the body's bottom the first crimson pixel (border or
-// glow) below the last row in its right part, where no row text reaches.
+// The panel's height follows its rows: a dmenu with more items than rows
+// and no --lines shows the theme's eleven rows, or on an output too short
+// for them the rows that fit, spread over its height, and the body ends
+// right after the last row, with nothing below it but the theme's row gap.
+// Measured in the capture, not in logis's own numbers: the rows are the
+// bands of bright text in the body's left part, the body's bottom the first
+// crimson pixel (border or glow) below the last row in its right part,
+// where no row text reaches.
 func TestE2EThePanelEndsAfterItsLastRow(t *testing.T) {
 	for _, s := range []string{"2", "2.5"} {
 		t.Run("scale "+s, func(t *testing.T) { checkRowFit(t, s) })
@@ -106,7 +105,7 @@ func checkRowFit(t *testing.T, scaleText string) {
 		t.Fatalf("no body bottom below the last row (at %d)", last)
 	}
 	// Below the last row's text: half the row's free height and the gap,
-	// never another row's room (Rust v1 left about three).
+	// never another row's room.
 	below := float64(bottom-last) / sc
 	t.Logf("%.1f logical px from the last row's text to the body's bottom", below)
 	if want := float64(th.Row.Gap + pitch/2); below > want || below < float64(th.Row.Gap) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/icons/search.rs.
+// The icon search path: the XDG data directories and pixmaps.
 
 func TestFromVarsOrdersHomeDataHomeThenDataDirs(t *testing.T) {
 	got := FromVars("/home/adept", "/home/adept/data", "/opt/share:/usr/share")

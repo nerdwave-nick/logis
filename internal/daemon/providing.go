@@ -10,9 +10,9 @@ import (
 	"github.com/nerdwave-nick/logis/internal/provider"
 )
 
-// Provider sessions in the daemon (feat/logis §4.8; Rust
-// src/daemon/providing.rs): starting a provider when its session is shown,
-// turning its lines into window steps, and its timers:
+// Provider sessions in the daemon (feat/logis §4.8): starting a provider
+// when its session is shown, turning its lines into window steps, and its
+// timers:
 //
 //   - its first stage is due within startPatience, or the session fails;
 //   - a toast shows for its span (3 s unless the provider says otherwise),

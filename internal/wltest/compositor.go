@@ -5,8 +5,7 @@
 // may answer with events (file descriptors included). Close hangs up on
 // every client, as a compositor that quits or crashes would.
 //
-// It is the Go port of the Rust tests' support/fake_compositor.rs and is
-// imported only by tests.
+// It is imported only by tests.
 package wltest
 
 import (

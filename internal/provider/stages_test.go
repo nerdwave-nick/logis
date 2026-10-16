@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 )
 
-// Rust src/provider/stages.rs tests.
+// A provider's stages as the window takes them.
 
 func item(id, text string) Item { return Item{ID: id, Columns: []string{text}} }
 

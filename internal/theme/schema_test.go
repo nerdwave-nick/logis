@@ -13,11 +13,10 @@ import (
 	"github.com/nerdwave-nick/logis/themes"
 )
 
-// The published theme schema (schema/theme.schema.json, Rust v1's but for
-// the row fit: window.height deprecated, the default window.rows 11) and the
-// parser agree: the same sections and keys, the bundled
-// default's values as the schema's defaults, the same words and the same
-// colour syntax (ported from Rust src/theme/schema_tests.rs).
+// The published theme schema (schema/theme.schema.json; window.height
+// deprecated, the default window.rows 11) and the parser agree: the same
+// sections and keys, the bundled default's values as the schema's
+// defaults, the same words and the same colour syntax.
 
 type object = map[string]any
 

@@ -17,10 +17,10 @@ import (
 	"github.com/nerdwave-nick/logis/internal/trace"
 )
 
-// The keyboard model in a real compositor (Rust tests/e2e.rs, "the keyboard
-// model"): the debug panel reports what each key did (`query`, `select`,
-// `accept`, `dismiss`), typed by the harness's virtual keyboard with real
-// modifier presses and masks, only after the panel reported focus.
+// The keyboard model in a real compositor: the debug panel reports what
+// each key did (`query`, `select`, `accept`, `dismiss`), typed by the
+// harness's virtual keyboard with real modifier presses and masks, only
+// after the panel reported focus.
 
 // typing is a debug panel in c, focused and drawn, with a virtual keyboard
 // made before it (a headless seat gains its keyboard from it).
@@ -114,7 +114,7 @@ func count(events []trace.Event, what string) int {
 // latest change (a query, a selection), captures until two consecutive
 // captures agree, checks the harness's opaque black backdrop around the
 // panel, and compares the panel cropped from the output with golden
-// e2e/<name> (Rust e2e.rs check_panel).
+// e2e/<name>.
 func checkDebugPanel(t *testing.T, h *e2e.Harness, panel *e2e.Traced, name string) {
 	t.Helper()
 	panel.WaitForDrawn()
@@ -134,8 +134,7 @@ func checkDebugPanel(t *testing.T, h *e2e.Harness, panel *e2e.Traced, name strin
 }
 
 // The debug panel takes the keyboard, receives injected keys with real
-// modifier presses and masks, and shows what they did on screen (Rust
-// e2e.rs the_debug_panel_takes_focus_receives_keys_and_shows_them; the
+// modifier presses and masks, and shows what they did on screen (the
 // harness's own self-test of the same flow is in internal/e2e).
 func TestE2ETheDebugPanelTakesFocusReceivesKeysAndShowsThem(t *testing.T) {
 	c := e2e.Start(t, e2e.Requested(t))

@@ -16,15 +16,14 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// The app launcher end to end (Rust tests/apps_window.rs): a real daemon
-// in the test compositor reading the fixture applications
-// tests/fixtures/apps/e2e with icons from the fixture theme, `logis
-// --apps`, keys from the harness's virtual keyboard, and the fixture
-// program tests/fixtures/apps/bin/anoint recording how it was started.
-// The daemon finds no session bus (its runtime dir is scratch), so apps
-// start in the client's environment, outside any scope. Only fixture apps
-// are launched, inside the test compositor's session. Runs only with
-// LOGIS_E2E=niri|sway.
+// The app launcher end to end: a real daemon in the test compositor reading
+// the fixture applications tests/fixtures/apps/e2e with icons from the
+// fixture theme, `logis --apps`, keys from the harness's virtual keyboard,
+// and the fixture program tests/fixtures/apps/bin/anoint recording how it
+// was started. The daemon finds no session bus (its runtime dir is
+// scratch), so apps start in the client's environment, outside any scope.
+// Only fixture apps are launched, inside the test compositor's session.
+// Runs only with LOGIS_E2E=niri|sway.
 
 // startApps starts a daemon over the E2E fixtures, its state in dir.
 func startApps(t *testing.T, dir string) *e2e.Cogitator {

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Ported from Rust src/apps/keyfile.rs.
+// Parsing key files: groups, keys, localised keys and escapes.
 
 const keyFileText = "# a comment before the first group\n" +
 	"[Desktop Entry]\n" +

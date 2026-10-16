@@ -1,13 +1,13 @@
 package fuzzy
 
-// The optimal fuzzy match: nucleo's dynamic program (fuzzy_optimal.rs).
+// The optimal fuzzy match: nucleo's dynamic program (its fuzzy_optimal).
 // Row k holds the best scores of the needle's first k+1 characters with
 // character k matched at each column (M) and of a gap after them (P); rows
-// start at the greedy position of their character, as no match can place
-// it earlier. Ties prefer the gap (P) and, for the end, the last column.
+// start at the greedy position of their character, as no match can place it
+// earlier. Ties prefer the gap (P) and, for the end, the last column.
 
 // The scratch limits of nucleo's matcher: past them it falls back to the
-// greedy match (fuzzy_greedy.rs), which scores differently.
+// greedy match (its fuzzy_greedy), which scores differently.
 const (
 	maxMatrixCells = 100 * 1024
 	maxNeedle      = 2048

@@ -24,8 +24,7 @@ type Row struct {
 	Pending bool
 }
 
-// Look is everything the scene shows of a View at one moment (Rust
-// src/list/view/look.rs).
+// Look is everything the scene shows of a View at one moment.
 type Look struct {
 	// Prompt is shown before the query.
 	Prompt string

@@ -8,17 +8,16 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// The theme's effects as written (cd816303, diverging from Rust v1's seven
-// strengths): a group per effect of the CRT pass with its controls
-// (effects.Controls), where a bare number is the group's strength (the
-// aberration's amount); v1's keys that moved into a group (bloom,
-// curvature, vignette) still set their new places. Both are read into the
+// The theme's effects as written (cd816303): a group per effect of the CRT
+// pass with its controls (effects.Controls), where a bare number is the
+// group's strength (the aberration's amount); the older keys that moved
+// into a group (bloom, curvature, vignette) still set their new places. Both are read into the
 // group as it is written, so a theme over its base sets just what it says.
 
 const groupWants = "a strength (0 to 1), or an object of the effect's settings"
 
-// v1Moved are v1's effects keys that live in a group now.
-var v1Moved = []struct{ name, group, key string }{
+// movedKeys are the older effects keys that live in a group now.
+var movedKeys = []struct{ name, group, key string }{
 	{"vignette", "roundness", "vignette"},
 	{"bloom", "glow", "strength"},
 	{"curvature", "roundness", "curvature"},
@@ -26,7 +25,7 @@ var v1Moved = []struct{ name, group, key string }{
 
 // effectsDoc is the effects section: the groups in effects.Controls'
 // order, the glitch (glitchdoc.go), the custom pass's shader (a path),
-// then v1's moved keys. A group whose first control is no strength
+// then the moved keys. A group whose first control is no strength
 // (roundness) takes no bare number.
 var effectsDoc = func() *section {
 	s := sec("EffectsDoc")
@@ -48,14 +47,14 @@ var effectsDoc = func() *section {
 		s.keys = append(s.keys, key{name: group, kind: kind, sub: sub})
 	}
 	s.keys = append(s.keys, key{name: "glitch", kind: kGroup, sub: glitchDoc}, txt("custom-shader"))
-	for _, m := range v1Moved {
+	for _, m := range movedKeys {
 		s.keys = append(s.keys, flt(m.name))
 	}
 	return s
 }()
 
 // spelled is a control's value written under another name (a bare number
-// for a group's strength, or v1's key): a refusal of it names what was
+// for a group's strength, or an older key): a refusal of it names what was
 // written.
 type spelled struct {
 	v float32
@@ -76,7 +75,7 @@ func (r reader) group(v *jsonc.Value, k key) (node, error) {
 	return nil, r.wrongType(v, groupWants)
 }
 
-// effects reads the effects section and moves v1's keys into their
+// effects reads the effects section and moves the older keys into their
 // groups; a value given under both names is refused at the later one.
 func (r reader) effects(v *jsonc.Value, s *section) (node, error) {
 	n, err := r.section(v, s)
@@ -91,7 +90,7 @@ func (r reader) effects(v *jsonc.Value, s *section) (node, error) {
 		}
 		return v.End
 	}
-	for _, m := range v1Moved {
+	for _, m := range movedKeys {
 		f, ok := n[m.name].(float32)
 		if !ok {
 			continue
@@ -103,7 +102,7 @@ func (r reader) effects(v *jsonc.Value, s *section) (node, error) {
 			n[m.group] = g
 		}
 		if _, given := g[m.key]; given {
-			return nil, r.doc.Errorf(max(end(m.name), end(m.group)), "`%s` is v1's name of `%s.%s`: give it once", m.name, m.group, m.key)
+			return nil, r.doc.Errorf(max(end(m.name), end(m.group)), "`%s` is the older name of `%s.%s`: give it once", m.name, m.group, m.key)
 		}
 		g[m.key] = spelled{f, "effects." + m.name}
 	}

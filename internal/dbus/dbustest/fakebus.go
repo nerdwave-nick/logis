@@ -1,8 +1,8 @@
-// Package dbustest is a fake D-Bus session bus for tests (a port of the
-// Rust reference's tests/support/fake_bus.rs): a Unix socket in a scratch
-// directory that takes EXTERNAL authentication, answers Hello (then
-// announces NameAcquired, as a real bus does), records every other call and
-// answers it as the test says. It never reaches a real bus or systemd.
+// Package dbustest is a fake D-Bus session bus for tests: a Unix socket in
+// a scratch directory that takes EXTERNAL authentication, answers Hello
+// (then announces NameAcquired, as a real bus does), records every other
+// call and answers it as the test says. It never reaches a real bus or
+// systemd.
 package dbustest
 
 import (

@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// table is Rust's test table (src/input/compose.rs): no test depends on
-// the machine's locale or anyone's ~/.XCompose.
+// table is the tests' own table (as in internal/input): no test depends
+// on the machine's locale or anyone's ~/.XCompose.
 const table = `
 <Multi_key> <o> <quotedbl> : "ö" odiaeresis
 <Multi_key> <e> <e> : "e` + "́" + `"

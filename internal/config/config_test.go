@@ -11,7 +11,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 )
 
-// Parsing and validating config texts (ported from Rust src/config/tests.rs).
+// Parsing and validating config texts.
 
 func parse(t *testing.T, text string) Config {
 	t.Helper()
@@ -100,7 +100,7 @@ func TestAnIdleTimeoutOfZeroKeepsTheDaemonResident(t *testing.T) {
 }
 
 func TestAHugeIdleTimeoutIsTheLongestThereIs(t *testing.T) {
-	// Rust kept any u64 of seconds; a Duration ends at 292 years.
+	// Any u64 of seconds is taken; a Duration ends at 292 years.
 	for _, text := range []string{`{"idle-timeout": 18446744073709551615}`, `{"idle-timeout": 1e18}`} {
 		if c := parse(t, text); c.IdleTimeout < 200*365*24*time.Hour {
 			t.Errorf("%s: %v", text, c.IdleTimeout)

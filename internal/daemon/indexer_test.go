@@ -10,11 +10,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
-// A running daemon's apps (Rust src/daemon/mod.rs apps_state, index_apps):
-// the index read on its own goroutine from the daemon's environment and
-// read again when the applications directories change, frecency kept in
-// $XDG_STATE_HOME/logis/. The Scripted resolver chooses the app whose name
-// starts with the mark and hands out a stand-in token.
+// A running daemon's apps: the index read on its own goroutine from the
+// daemon's environment and read again when the applications directories
+// change, frecency kept in $XDG_STATE_HOME/logis/. The Scripted resolver
+// chooses the app whose name starts with the mark and hands out a stand-in
+// token.
 
 // appsEnv is a daemon environment: data dirs, state home, no session bus.
 func appsEnv(dataHome, dataDirs, state string) func(string) string {

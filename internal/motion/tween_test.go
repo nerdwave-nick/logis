@@ -2,7 +2,7 @@ package motion
 
 import "testing"
 
-// Ported from Rust src/motion/tween/tests.rs.
+// Tweens, the panel's transitions and the selection band's glide.
 
 const t0 Nanos = 1_000 * ms
 

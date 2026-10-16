@@ -9,7 +9,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
-// Ported from Rust src/wayland.rs.
+// Tests of connecting: the socket, the globals, preflight and the errors.
 
 func TestARelativeDisplayIsJoinedToTheRuntimeDir(t *testing.T) {
 	path, err := socketPath("wayland-1", "/run/user/1000")
@@ -75,7 +75,7 @@ func TestEachMissingRequiredGlobalIsNamed(t *testing.T) {
 	}
 }
 
-// The messages are Rust v1's (src/wayland.rs, src/window/mod.rs).
+// The messages are the cogitator's, word for word.
 func TestTheErrorsSpeakAsTheCogitator(t *testing.T) {
 	for err, want := range map[error]string{
 		&NoSessionError{Reason: "WAYLAND_DISPLAY is not set"}: "the noosphere is silent: no Wayland session answers " +
@@ -117,8 +117,8 @@ var (
 	}
 )
 
-// session sets the Wayland environment the way the Rust CLI tests do: no
-// WAYLAND_SOCKET, the given WAYLAND_DISPLAY (empty: unset), the runtime dir.
+// session sets the Wayland environment for a test: no WAYLAND_SOCKET, the
+// given WAYLAND_DISPLAY (empty: unset), the runtime dir.
 func session(t *testing.T, runtimeDir, display string) {
 	t.Helper()
 	t.Setenv("WAYLAND_SOCKET", "")
@@ -153,7 +153,7 @@ func TestPreflightWithANonexistentSocketNamesTheSocket(t *testing.T) {
 	if !errors.As(err, &none) || !strings.Contains(err.Error(), filepath.Join(dir, "wayland-nowhere")) {
 		t.Errorf("%v", err)
 	}
-	// Worded as Rust's io::Error was (caller contract parity).
+	// The OS error reads "<description> (os error N)" (caller contract).
 	if want := "cannot reach " + filepath.Join(dir, "wayland-nowhere") + ": No such file or directory (os error 2)"; none == nil || none.Reason != want {
 		t.Errorf("reason %q, want %q", none.Reason, want)
 	}

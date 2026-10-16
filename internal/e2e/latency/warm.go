@@ -29,15 +29,14 @@ func (w WarmOpens) EnforceNoneSlow(t testing.TB) {
 	}
 }
 
-// WarmOpen measures runs warm opens of the daemon's window (Rust
-// tests/latency.rs warm_open; the hook for the daemon's sessions): open
-// starts a client (logis --dmenu …) and returns how to end its session.
-// T0 is read just before open; the sample is T0 → the daemon's first
-// `commit` at or after it, after its `show`, and (if settles) T0 → its
-// `settled`. A first, warming run is not counted. Each session is ended
-// and gone (`hide`, then `faded`) 100 ms before the next starts, as a warm
-// open finds nothing on screen. With a watchdog, a slow open says whether
-// the compositor itself stalled meanwhile.
+// WarmOpen measures runs warm opens of the daemon's window (the hook for
+// the daemon's sessions): open starts a client (logis --dmenu …) and
+// returns how to end its session. T0 is read just before open; the sample
+// is T0 → the daemon's first `commit` at or after it, after its `show`, and
+// (if settles) T0 → its `settled`. A first, warming run is not counted.
+// Each session is ended and gone (`hide`, then `faded`) 100 ms before the
+// next starts, as a warm open finds nothing on screen. With a watchdog, a
+// slow open says whether the compositor itself stalled meanwhile.
 func WarmOpen(t testing.TB, daemon *e2e.Traced, watch *e2e.Watchdog, runs int, settles bool, open func() (end func())) WarmOpens {
 	t.Helper()
 	var w WarmOpens
