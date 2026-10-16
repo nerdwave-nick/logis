@@ -7,20 +7,39 @@
 #
 # It builds the commit checked out in the repository that holds it (HEAD;
 # uncommitted changes are not built), so the package is exactly one commit.
+# To package a release, check out its tag (git checkout v0.1.1) first.
 # prepare() finds that repository through makepkg's startdir, which namcap
 # reports (file-referred-in-startdir): reading the checkout is the point here.
 #
-# Once v$pkgver is tagged and pushed, build the tagged release instead:
-# replace `source=()` and `sha256sums=()` below with
-#
-#   source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-#   sha256sums=('<the output of: curl -L that URL | sha256sum>')
-#
-# The tarball unpacks to the same "$pkgname-$pkgver" directory that prepare()
-# otherwise exports from the checkout afresh on every build.
+# The version comes from git, never from this file: _version is HEAD's
+# `git describe --tags --match 'v[0-9]*'` without the "v" (0.1.1 at the tag
+# v0.1.1, 0.1.1-3-gabc1234 three commits after it, 0.0.0-<commits>-g<hash>
+# before the first tag), build() stamps it into the binary (`logis
+# --version`) and package() into the man page; pkgver is its Arch form
+# (0.1.1, 0.1.1.r3.gabc1234), which vercmp orders after the tag and before
+# the next release. Both are computed here, from the checkout, and not in a
+# pkgver() function: makepkg writes what pkgver() returns back into this
+# tracked file, which would leave the checkout modified after every build.
+
+_describe() {
+  local d
+  if d=$(git -C "$1" describe --tags --match 'v[0-9]*' 2>/dev/null); then
+    printf '%s\n' "${d#v}"
+  elif d=$(git -C "$1" rev-parse --short HEAD 2>/dev/null); then
+    printf '0.0.0-%s-g%s\n' "$(git -C "$1" rev-list --count HEAD)" "$d"
+  else
+    printf '0.0.0\n'
+  fi
+}
+_version=$(_describe "$startdir")
+if [[ $_version =~ ^(.*)-([0-9]+)-g([0-9a-f]+)$ ]]; then
+  _pkgver="${BASH_REMATCH[1]}.r${BASH_REMATCH[2]}.g${BASH_REMATCH[3]}"
+else
+  _pkgver=$_version
+fi
 
 pkgname=logis
-pkgver=1.1.1
+pkgver=${_pkgver//-/_}
 pkgrel=1
 pkgdesc='A grimdark Wayland launcher and dmenu-compatible picker'
 arch=('x86_64')
@@ -65,14 +84,10 @@ prepare() {
     local repo
     rm -rf "$pkgname-$pkgver"
     repo=$(git -C "$startdir" rev-parse --show-toplevel)
-    echo "logis: exporting HEAD of $repo ($(git -C "$repo" rev-parse --short HEAD))"
+    echo "logis: exporting HEAD of $repo ($(git -C "$repo" rev-parse --short HEAD), $_version)"
     git -C "$repo" archive --format=tar --prefix="$pkgname-$pkgver/" HEAD | tar -x
   fi
   cd "$pkgname-$pkgver"
-  if ! grep -qx "const Version = \"$pkgver\"" internal/version/version.go; then
-    echo "logis: internal/version/version.go's Version is not $pkgver" >&2
-    return 1
-  fi
   _goenv
   go mod download
 }
@@ -81,7 +96,10 @@ build() {
   cd "$pkgname-$pkgver"
   _goenv
   export GOPROXY=off
-  go build -trimpath -o build/logis ./cmd/logis
+  # -ldflags replaces GOFLAGS' -ldflags, so it repeats -linkmode=external.
+  go build -trimpath \
+    -ldflags "-linkmode=external -X github.com/nerdwave-nick/logis/internal/version.Version=$_version" \
+    -o build/logis ./cmd/logis
 }
 
 check() {
@@ -103,7 +121,11 @@ check() {
 package() {
   cd "$pkgname-$pkgver"
   install -Dm755 build/logis -t "$pkgdir/usr/bin"
-  install -Dm644 docs/man/logis.1 -t "$pkgdir/usr/share/man/man1"
+  # The man page's title names logis; the package adds the version.
+  install -dm755 "$pkgdir/usr/share/man/man1"
+  sed "/^\.TH /s/ logis / \"logis $_version\" /" docs/man/logis.1 \
+    >"$pkgdir/usr/share/man/man1/logis.1"
+  chmod 644 "$pkgdir/usr/share/man/man1/logis.1"
   install -Dm644 contrib/completions/logis.bash "$pkgdir/usr/share/bash-completion/completions/logis"
   install -Dm644 contrib/completions/_logis -t "$pkgdir/usr/share/zsh/site-functions"
   install -Dm644 contrib/completions/logis.fish -t "$pkgdir/usr/share/fish/vendor_completions.d"

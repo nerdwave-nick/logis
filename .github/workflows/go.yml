@@ -2,15 +2,18 @@ name: Go
 
 # logis's workflow: gofmt, vet and the tests with the race detector, the
 # keyboard's differential suite, and the E2E and latency suites in headless
-# sway. It runs on every
-# push (main and any other branch) and on pull requests, for changes to
-# what the build and the tests read: the Go code, everything under tests/
-# (fixtures, pinned fonts, goldens), the themes and schemas, and the files
-# the packaging, completion and documentation tests check (contrib/,
-# packaging/, the man page, README.md's caller contract and custom-shader
-# example, CHANGELOG.md).
+# sway. It runs on every push (main and any other branch) and on pull
+# requests, for changes to what the build and the tests read: the Go code,
+# everything under tests/ (fixtures, pinned fonts, goldens), the themes and
+# schemas, and the files the packaging, completion and documentation tests
+# check (contrib/, packaging/, the man page, README.md's caller contract and
+# custom-shader example, CHANGELOG.md). It also runs on every pushed release
+# tag vX.Y.Z (path filters never apply to tags), where the check job fails
+# unless CHANGELOG.md has the release's section.
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]
     paths:
       - "go.mod"
       - "go.sum"
@@ -88,7 +91,11 @@ jobs:
             fontconfig freetype2 ttf-dejavu
           pacman -Q freetype2 mesa fontconfig wayland
 
+      # The whole history and the tags: the version tests and the build's
+      # version (go build stamps the module version from the tags) need them.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # In a container job the workspace belongs to the runner's user while
       # the job runs as root with HOME=/github/home, so git refuses the
@@ -106,6 +113,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.mod
+
+      # A release tag's push: the changelog must have the release's section
+      # (the version tests check the same at a tagged HEAD).
+      - name: The release's changelog section
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^## \[$version\] - " CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## [$version] - <date>' section for $GITHUB_REF_NAME"; exit 1
+          fi
 
       - name: gofmt
         run: |
@@ -133,10 +150,18 @@ jobs:
           path: ${{ runner.temp }}/golden-failures/
           if-no-files-found: ignore
 
+      # The documented builds: a plain one reports the module version go
+      # recorded from the tags, a stamped one the PKGBUILD's version (git
+      # describe of HEAD, taken from the PKGBUILD itself).
       - name: Build (the documented one-line build)
+        shell: bash
         run: |
           go build -o logis ./cmd/logis
           ./logis --version
+          version=$(startdir="$PWD/packaging/arch"; source packaging/arch/PKGBUILD; echo "$_version")
+          go build -o logis-stamped \
+            -ldflags "-X github.com/nerdwave-nick/logis/internal/version.Version=$version" ./cmd/logis
+          ./logis-stamped --version
 
   # The keyboard's differential suite (spec §4 test-only oracles, §6):
   # internal/xkb against cgo libxkbcommon, which builds only with -tags

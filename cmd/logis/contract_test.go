@@ -12,7 +12,6 @@ import (
 
 	"github.com/nerdwave-nick/logis/internal/client"
 	"github.com/nerdwave-nick/logis/internal/protocol"
-	"github.com/nerdwave-nick/logis/internal/version"
 )
 
 // The caller contract's process-level tests (README "Caller contract"): the
@@ -78,7 +77,7 @@ func TestVersionFlagPrintsNameAndVersionAndSucceeds(t *testing.T) {
 	r := newRig(t)
 	for _, rune := range []string{"--version", "-V"} {
 		got := r.runClient(r.logis(rune), nil)
-		if got.code != 0 || got.stdout != "logis "+version.Version+"\n" || got.stderr != "" {
+		if got.code != 0 || got.stdout != "logis "+binaryVersion(t, r.bin)+"\n" || got.stderr != "" {
 			t.Errorf("%s: %+v", rune, got)
 		}
 	}

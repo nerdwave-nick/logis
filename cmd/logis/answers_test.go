@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/logis/internal/version"
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
@@ -192,7 +191,7 @@ func runAnswer(t *testing.T, bin string, c answerCase) answer {
 		t.Errorf("%s: %s left a daemon's socket behind", c.key(), bin)
 	}
 	unDir := func(b []byte) string { return strings.ReplaceAll(string(b), dir, "$DIR") }
-	out := strings.ReplaceAll(unDir(stdout.Bytes()), "logis "+version.Version+"\n", "logis $VERSION\n")
+	out := strings.ReplaceAll(unDir(stdout.Bytes()), "logis "+binaryVersion(t, bin)+"\n", "logis $VERSION\n")
 	return answer{cmd.ProcessState.ExitCode(), out, unDir(stderr.Bytes())}
 }
 

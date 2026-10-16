@@ -6,17 +6,15 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/nerdwave-nick/logis/internal/version"
 )
 
-// The release stays consistent (Rust v1's tests/packaging.rs, ported): the
-// PKGBUILD (packaging/arch/), its .SRCINFO, the man page and the changelog
-// name the version logis reports, the package installs everything the
+// The package stays consistent with the repository: the PKGBUILD
+// (packaging/arch/) takes the version from git, as the binary and the man
+// page do (version_test.go), the package installs everything the
 // repository ships for it, and it never enables the systemd units (spec §3:
-// shipped, not enabled). The Go build adds: the PKGBUILD builds cmd/logis
-// with go and cgo, and depends on the package of every C library the binary
-// links (link_test.go's specLibraries) and on an OpenGL driver.
+// shipped, not enabled). It builds cmd/logis with go and cgo, and depends on
+// the package of every C library the binary links (link_test.go's
+// specLibraries) and on an OpenGL driver.
 
 // readRepo reads a file relative to the repository root.
 func readRepo(t *testing.T, path string) string {
@@ -38,19 +36,6 @@ func pkgbuildCode(t *testing.T) string {
 		}
 	}
 	return strings.Join(code, "")
-}
-
-// srcinfo is the values of the .SRCINFO's `key = value` lines.
-func srcinfo(t *testing.T, key string) []string {
-	t.Helper()
-	var values []string
-	for line := range strings.Lines(readRepo(t, "packaging/arch/.SRCINFO")) {
-		k, v, ok := strings.Cut(strings.TrimSpace(line), " = ")
-		if ok && k == key {
-			values = append(values, v)
-		}
-	}
-	return values
 }
 
 // pkgbuildArray is the single-quoted words of the PKGBUILD array
@@ -83,41 +68,6 @@ func sorted(words []string) []string {
 	words = slices.Clone(words)
 	slices.Sort(words)
 	return words
-}
-
-func TestThePackageAndItsSrcinfoCarryTheVersion(t *testing.T) {
-	if !strings.Contains(pkgbuildCode(t), "\npkgver="+version.Version+"\n") {
-		t.Errorf("the PKGBUILD's pkgver is not %s", version.Version)
-	}
-	if got := srcinfo(t, "pkgver"); !slices.Equal(got, []string{version.Version}) {
-		t.Errorf(".SRCINFO pkgver = %q, want %s", got, version.Version)
-	}
-}
-
-func TestTheSrcinfoListsThePkgbuildDependencies(t *testing.T) {
-	for _, key := range []string{"depends", "makedepends"} {
-		pkgbuild, info := sorted(pkgbuildArray(t, key)), sorted(srcinfo(t, key))
-		if !slices.Equal(info, pkgbuild) {
-			t.Errorf("%s: .SRCINFO %q, PKGBUILD %q: regenerate .SRCINFO (makepkg --printsrcinfo > .SRCINFO)",
-				key, info, pkgbuild)
-		}
-	}
-}
-
-func TestTheManPageAndTheChangelogNameTheVersion(t *testing.T) {
-	var title string
-	for line := range strings.Lines(readRepo(t, "docs/man/logis.1")) {
-		if strings.HasPrefix(line, ".TH ") {
-			title = line
-			break
-		}
-	}
-	if !strings.Contains(title, `"logis `+version.Version+`"`) {
-		t.Errorf("man page title %q does not name logis %s", title, version.Version)
-	}
-	if !strings.Contains(readRepo(t, "CHANGELOG.md"), "\n## ["+version.Version+"]") {
-		t.Errorf("CHANGELOG.md has no section for %s", version.Version)
-	}
 }
 
 func TestThePackageInstallsWhatTheRepositoryShips(t *testing.T) {
@@ -189,9 +139,6 @@ func TestThePackageBuildsTheGoBinaryWithCgo(t *testing.T) {
 	if strings.Contains(code, "CGO_ENABLED=0") {
 		t.Error("the PKGBUILD turns cgo off")
 	}
-	if !strings.Contains(code, "internal/version/version.go") {
-		t.Error("prepare() does not check pkgver against internal/version")
-	}
 }
 
 // pkgbuildFunction is the body of the PKGBUILD's function name, without
@@ -251,13 +198,9 @@ func TestThePackageDependsOnWhatTheBinaryLinks(t *testing.T) {
 }
 
 // The package has no optional dependencies: nothing logis does needs a
-// package beyond depends (servitor is a caller, not a dependency). The
-// PKGBUILD writes no optdepends at all, and so its .SRCINFO lists none.
+// package beyond depends (servitor is a caller, not a dependency).
 func TestThePackageHasNoOptionalDependencies(t *testing.T) {
 	if strings.Contains(pkgbuildCode(t), "optdepends") {
 		t.Error("the PKGBUILD has an optdepends array")
-	}
-	if got := srcinfo(t, "optdepends"); len(got) > 0 {
-		t.Errorf(".SRCINFO optdepends = %q, want none", got)
 	}
 }

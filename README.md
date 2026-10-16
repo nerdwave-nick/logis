@@ -949,7 +949,9 @@ makepkg -si
 ```
 
 It builds the commit checked out in the repository (`HEAD`; uncommitted changes
-are not built): `./cmd/logis` with cgo, as Arch's Go package guidelines ask
+are not built; check out a release's tag first to package that release), with
+the version `git describe` gives that commit (see [Versions and
+releases](#versions-and-releases)): `./cmd/logis` with cgo, as Arch's Go package guidelines ask
 (makepkg's C flags, a PIE linked by the system linker, `-trimpath`). It needs
 `go`, `pkgconf` and `git` to build, and `wayland`, `libglvnd`, an
 `opengl-driver` (Mesa's, NVIDIA's or another vendor's EGL and OpenGL ES
@@ -979,13 +981,11 @@ The package installs:
 | README, changelog, provider protocol | `/usr/share/doc/logis/` |
 | the licence | `/usr/share/licenses/logis/LICENSE` |
 
-Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
-instead of the checkout; its header says which two lines to change.
-`cmd/logis/packaging_test.go` keeps the PKGBUILD, its `.SRCINFO` (`makepkg
---printsrcinfo > .SRCINFO` after editing), the man page and the changelog on the
-version logis reports (`internal/version`, its single source), the package's
-`depends` on the libraries the binary links and an `opengl-driver`, and the
-package without `optdepends`.
+`cmd/logis/packaging_test.go` keeps the package installing what the
+repository ships, its `depends` on the libraries the binary links and an
+`opengl-driver`, and the package without `optdepends`; `cmd/logis/version_test.go`
+keeps the version coming from git (below). logis is not in the AUR, so the
+repository keeps no `.SRCINFO`.
 
 The completions in [`contrib/completions/`](contrib/completions/) are written by
 hand; `cmd/logis/completions_test.go` checks that
@@ -1054,6 +1054,45 @@ Two recorded references hold logis to the libraries it follows:
 (the reviewed divergences in `divergences.json` beside it) and
 `internal/text/testdata/cosmic.json` cosmic-text 0.19's line layouts. Both
 were recorded once and are only read; no other toolchain is needed.
+
+### Versions and releases
+
+A release is a git tag `vX.Y.Z`, and the tag is the only place its number is
+kept: no file names it but the changelog's headings. Every build takes its
+version from git:
+
+- **A plain `go build`** in a checkout reports the module version Go records
+  from the tags (`runtime/debug.ReadBuildInfo`): `logis 0.1.1` at the tag
+  `v0.1.1`, Go's pseudo-version between tags (`logis
+  0.1.2-0.20261020093000-abcdef123456`, the commit's time and hash), with
+  `+dirty` when the checkout has uncommitted or untracked files. `go install
+  github.com/nerdwave-nick/logis/cmd/logis@v0.1.1` reports `0.1.1`. A build
+  without either, such as `go run` or `-buildvcs=false`, reports `logis dev`.
+- **A stamped build** sets the version through the linker, as the PKGBUILD
+  does with `git describe` of the commit it packages (`0.1.1` at the tag,
+  `0.1.1-3-gabc1234` three commits after it, `0.0.0-<commits>-g<hash>` before
+  the first tag); its package version is the Arch form of the same
+  (`0.1.1`, `0.1.1.r3.gabc1234`), and its man page carries it too:
+
+  ```sh
+  v=$(git describe --tags --match 'v[0-9]*')
+  go build -ldflags "-X github.com/nerdwave-nick/logis/internal/version.Version=${v#v}" -o logis ./cmd/logis
+  ```
+
+At a release tag all of them report the same version. To release:
+
+1. Add the release's section to `CHANGELOG.md`, `## [X.Y.Z] - YYYY-MM-DD`
+   with its link at the bottom, and commit it.
+2. Tag that commit and push the tag:
+
+   ```sh
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+CI runs on the pushed tag and fails unless the changelog has the release's
+section; `cmd/logis/version_test.go` checks the same wherever `HEAD` is at a
+release tag.
 
 ### Goldens and pinned fonts
 
