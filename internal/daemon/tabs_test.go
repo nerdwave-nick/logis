@@ -134,3 +134,65 @@ func TestAMissingOrStrangeTabFileIsTheApplications(t *testing.T) {
 		t.Errorf("odd: %v", got)
 	}
 }
+
+// openSilent opens plain logis's session id whose caller found no
+// servitor.
+func openSilent(t *testing.T, c *core, id SessionID) *wire {
+	t.Helper()
+	w := greet(t, c, id)
+	open := protocol.Open(protocol.ModeApps, nil)
+	open.RitesSilent = true
+	c.receive(id, open, nil)
+	return w
+}
+
+// Silent rites (2aaad4b9): plain logis without servitor is the tabbed
+// launcher still; no provider runs, an answer from the rites' tab does
+// nothing, and the tab is remembered as ever.
+func TestSilentRitesAreATabbedSessionWithoutAProvider(t *testing.T) {
+	dir := t.TempDir()
+	r := newProviderRig()
+	r.core.apps.tabPath = filepath.Join(dir, "logis", "tab")
+	r.core.indexed(appIndex(t))
+	w := openSilent(t, r.core, 1)
+	wantReplies(t, w, protocol.Visible())
+	if log := r.seen.take(); len(log) != 1 || !hasPrefix(log, 0, "show 1 apps tabbed applications silent [Anoint,") {
+		t.Fatalf("%q", log)
+	}
+	if len(r.fakes) != 0 {
+		t.Fatal("a provider started for silent rites")
+	}
+	for _, kind := range []AnswerKind{AnswerItem, AnswerTyped, AnswerDescend} {
+		r.core.answered(1, Answer{Kind: kind, Tab: provider.TabRites})
+	}
+	wantReplies(t, w)
+	if log := r.seen.take(); len(log) != 0 {
+		t.Fatalf("an answer from silent rites did %q", log)
+	}
+	r.core.answered(1, Answer{Kind: AnswerDismissed, Tab: provider.TabRites})
+	if got := outcome(t, w); got != protocol.Dismissed {
+		t.Fatal(got)
+	}
+	if b, err := os.ReadFile(r.core.apps.tabPath); err != nil || string(b) != "rites\n" {
+		t.Fatalf("%q, %v", b, err)
+	}
+	openSilent(t, r.core, 2)
+	if log := r.seen.take(); !hasPrefix(log, 1, "show 2 apps tabbed rites silent [") {
+		t.Fatalf("%q", log)
+	}
+}
+
+func TestOnlyAnAppSessionWithoutRitesHasThemSilent(t *testing.T) {
+	for _, open := range []protocol.Request{
+		{Type: protocol.TypeOpen, Mode: protocol.ModeDmenu, RitesSilent: true},
+		{Type: protocol.TypeOpen, Mode: protocol.ModeApps, RitesSilent: true,
+			Rites: &protocol.Launch{Argv: [][]byte{[]byte("x")}, Cwd: []byte("/")}},
+	} {
+		r := newProviderRig()
+		w := greet(t, r.core, 1)
+		r.core.receive(1, open, nil)
+		if replies := w.take(); len(replies) != 1 || replies[0].Type != protocol.TypeError {
+			t.Errorf("%s with rites %v: %+v", open.Mode, open.Rites != nil, replies)
+		}
+	}
+}

@@ -19,6 +19,9 @@ type Session struct {
 	// rites come as Steps of their tab.
 	Tabbed bool
 	Tab    provider.Tab
+	// RitesSilent: a tabbed session whose rites are silent: its caller
+	// found no servitor, so no provider runs and the rites' tab says why.
+	RitesSilent bool
 }
 
 // Resolver is the seam between the daemon's session bookkeeping and

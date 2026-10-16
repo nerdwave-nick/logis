@@ -43,8 +43,8 @@ type conn struct {
 	ended  bool
 	launch *protocol.Launch
 	live   *live
-	// tabbed: plain logis's tabbed launcher, its rites run by launch
-	// (tabs.go).
+	// tabbed: plain logis's tabbed launcher, its rites run by launch, or
+	// silent without one (tabs.go).
 	tabbed bool
 }
 
@@ -121,8 +121,11 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 	case request.Mode != protocol.ModeProvider && request.Provider != nil:
 		c.fail(id, "only a provider session names a provider")
 		return
-	case request.Mode != protocol.ModeApps && request.Rites != nil:
+	case request.Mode != protocol.ModeApps && (request.Rites != nil || request.RitesSilent):
 		c.fail(id, "only plain logis's app session names its rites")
+		return
+	case request.Rites != nil && request.RitesSilent:
+		c.fail(id, "silent rites name no provider")
 		return
 	}
 	if err := c.resolver.Accepts(request.Mode); err != nil {
@@ -134,7 +137,7 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 		cn.launch = request.Provider
 	case protocol.ModeApps:
 		cn.apps = &appsFeed{env: launch.EnvFromBytes(request.Env)}
-		cn.launch, cn.tabbed = request.Rites, request.Rites != nil
+		cn.launch, cn.tabbed = request.Rites, request.Rites != nil || request.RitesSilent
 	default:
 		o, err := protocol.DecodeOptions(request.Options)
 		if err != nil {
@@ -293,7 +296,7 @@ func (c *core) show(id SessionID) {
 			c.resolver.End(id)
 		}
 	case cn.apps != nil:
-		c.showApps(id, cn.apps, cn.tabbed)
+		c.showApps(id, cn.apps, cn.tabbed, cn.launch == nil)
 		if cn.launch != nil {
 			c.start(id, cn) // the rites' tab
 		}

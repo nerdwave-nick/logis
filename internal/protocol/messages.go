@@ -34,6 +34,11 @@ type Request struct {
 	// (servitor mode's provider): the session is then the tabbed
 	// launcher (feat/logis-go 8cba2fc9).
 	Rites *Launch `json:"rites,omitempty"`
+	// RitesSilent: plain logis's app session found no servitor on its
+	// PATH; it is the tabbed launcher still, its rites silent (no
+	// provider; the tab says why; feat/logis-go 2aaad4b9). Never with
+	// Rites.
+	RitesSilent bool `json:"rites_silent,omitempty"`
 	// Items is one batch of a dmenu session's rows.
 	Items []Item `json:"items,omitempty"`
 }
