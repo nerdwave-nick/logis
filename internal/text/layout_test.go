@@ -3,6 +3,7 @@ package text_test
 import (
 	"fmt"
 	"math"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -322,9 +323,7 @@ func TestAGraphemeOrALigatureIsShownAsOne(t *testing.T) {
 }
 
 // ASCII operators around a break opportunity ("->", "!=") keep their own
-// glyphs where the font has no ligature for them (none of the pinned fonts
-// has one, so joining them into one word for such a ligature is not
-// observable here).
+// glyphs where the font has no ligature for them.
 func TestOperatorsAroundABreakKeepTheirOwnGlyphs(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	s := "x -> y != z"
@@ -335,6 +334,40 @@ func TestOperatorsAroundABreakKeepTheirOwnGlyphs(t *testing.T) {
 	for i, g := range line.Glyphs {
 		if want := f.Font(g.Font).GlyphIndex(rune(s[i])); g.Cluster != i || g.ID != want {
 			t.Errorf("glyph %d: %+v, want glyph %d", i, g, want)
+		}
+	}
+}
+
+// ASCII operators around a break opportunity ("->", "!=") are one word
+// when the font ligates them, so the ligature shows: one glyph covering
+// both, in a column cut too. Synthetic-Operators.ttf ligates "->" to the
+// glyph of "~" and "!=" to that of "#".
+func TestOperatorsAFontLigatesAcrossABreakAreJoined(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("..", "shape", "testdata", "fonts", "Synthetic-Operators.ttf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := text.Isolated(rules, []string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := text.New(c, "sans-serif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(f.Close)
+	s := "x->y x -> y a!=b"
+	for _, opt := range []text.LineOptions{{}, {Column: true, Width: 1000, Ellipsis: true}} {
+		line := f.Layout(s, 16, opt)
+		got := map[[2]int]uint16{}
+		for _, g := range line.Glyphs {
+			got[[2]int{g.Cluster, g.End}] = g.ID
+		}
+		font := f.Font(line.Glyphs[0].Font)
+		for at, lig := range map[int]rune{1: '~', 7: '~', 13: '#'} {
+			if id, ok := got[[2]int{at, at + 2}]; !ok || id != font.GlyphIndex(lig) || len(line.Glyphs) != len(s)-3 {
+				t.Errorf("%+v: bytes %d..%d %q: glyphs %+v, want one ligature", opt, at, at+2, s[at:at+2], line.Glyphs)
+			}
 		}
 	}
 }
