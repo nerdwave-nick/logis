@@ -119,9 +119,8 @@ func (v *View) preselected(from, to int) (uint32, bool) {
 			found = int(p.Index)
 		}
 	} else {
-		want := strings.ToLower(p.Text)
 		for i := from; i < to; i++ {
-			if !v.removed[i] && strings.ToLower(v.texts[i]) == want {
+			if !v.removed[i] && strings.EqualFold(v.texts[i], p.Text) {
 				found = i
 				break
 			}

@@ -8,6 +8,11 @@ positioning, a mark filtering set, nested lookups that change the
 sequence length, and hinting device tables (formats 1–3). HarfBuzz then
 shapes it like any other test font (hbshape.py).
 
+It also builds fonts/Synthetic-Operators.ttf: the same cut of Noto Sans
+with one ligature lookup (liga) joining the ASCII operators "->" and "!="
+around a line break opportunity, which no pinned font does; internal/text
+tests that a line keeps such a pair in one word, so the font ligates it.
+
     python3 -I internal/shape/testdata/synthetic.py
 """
 import ctypes, os, struct
@@ -15,6 +20,7 @@ import ctypes, os, struct
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = "/usr/share/fonts/noto/NotoSans-Regular.ttf"
 OUT = os.path.join(HERE, "fonts", "Synthetic-Layout.ttf")
+OPERATORS = os.path.join(HERE, "fonts", "Synthetic-Operators.ttf")
 
 hb = ctypes.CDLL("libharfbuzz.so.0")
 hbs = ctypes.CDLL("libharfbuzz-subset.so.0")
@@ -222,6 +228,13 @@ def main():
     gpos = layout(gpos_lookups, {tag("kern"): [0, 1], tag("mark"): [2, 3], tag("dist"): [4, 5, 6, 7]})
 
     write_font(font, {"GDEF": gdef, "GSUB": gsub, "GPOS": gpos}, OUT)
+
+    # Synthetic-Operators: "->" ligates to the glyph of "~", "!=" to that
+    # of "#" (stand-ins: the subset has no arrow or not-equal sign).
+    ligs = sorted([(g("-"), g(">"), g("~")), (g("!"), g("="), g("#"))])
+    operators = lookup(4, [T(1, coverage([first for first, _, _ in ligs]), len(ligs),
+                             *[T(1, T(lig, 2, second)) for _, second, lig in ligs])])
+    write_font(font, {"GSUB": layout([operators], {tag("liga"): [0]})}, OPERATORS)
 
 
 def write_font(data, extra, path):

@@ -33,12 +33,15 @@ func (v *visualLine) add(spans []span, si int, start, end pos, w float32) {
 }
 
 // Layout sets s on one unwrapped line at size pixels per em with
-// whole-pixel advances (the algorithm follows cosmic-text's): bidi runs,
-// words at line break opportunities, runs of one face shaped with fallback
-// over the loaded fonts, tabs to the next stop of 8 spaces, and — in a
-// column — the end alignment and the ellipsis. Line breaks in s are not
-// interpreted (callers replace them). Fallback faces are loaded first (see
-// Ensure).
+// whole-pixel advances, which it is laid out and measured in (the
+// algorithm follows cosmic-text's): bidi runs, words at line break
+// opportunities, runs of one face shaped with fallback over the loaded
+// fonts, tabs to the next stop of 8 spaces, and — in a column — the end
+// alignment and the ellipsis. A cut line is drawn within its column, its
+// ellipsis right after its last visible glyph (the blanks before it
+// dropped); in a column narrower than the ellipsis it is drawn not at all. Line breaks in
+// s are not interpreted (callers replace them). Fallback faces are loaded
+// first (see Ensure).
 func (f *Fonts) Layout(s string, size float32, opt LineOptions) Line {
 	f.Ensure(s)
 	if opt.Column && opt.Ellipsis {
@@ -46,6 +49,7 @@ func (f *Fonts) Layout(s string, size float32, opt LineOptions) Line {
 	}
 	st := &setting{f: f, line: s, opt: opt}
 	spans := st.spans()
+	st.tabStops(spans, size)
 	var ellipsis []shapedGlyph
 	if opt.Column && opt.Ellipsis {
 		ellipsis = st.ellipsis()
@@ -84,7 +88,10 @@ outer:
 			ww := w.width(size)
 			if check && (total+rangeW+ww > maxWidth ||
 				remainingExceeds(spans, size, si, wi, congruent, ellipsisW) && total+rangeW+ww+ellipsisW > maxWidth) {
-				end, gw := fitGlyphs(w, size, total+rangeW, max(maxWidth-ellipsisW, 0), congruent)
+				if ellipsisW > maxWidth {
+					return visualLine{} // not even the ellipsis fits
+				}
+				end, gw := fitGlyphs(w, size, total+rangeW, maxWidth-ellipsisW, congruent)
 				if congruent {
 					vl.add(spans, si, pos{}, pos{wi, end}, rangeW+gw)
 				} else {
@@ -99,6 +106,7 @@ outer:
 		vl.add(spans, si, pos{}, pos{len(sp.words), 0}, rangeW)
 	}
 	if vl.ellipsized {
+		vl.trimBlankEnd(spans, rtl, size)
 		level := int8(0)
 		if rtl {
 			level = 1
@@ -110,58 +118,6 @@ outer:
 		vl.w += ellipsisW
 	}
 	return vl
-}
-
-// remainingExceeds reports whether what follows word wi of span si is
-// wider than threshold.
-func remainingExceeds(spans []span, size float32, si, wi int, congruent bool, threshold float32) bool {
-	var acc float32
-	words := spans[si].words
-	from, to := wi+1, len(words)
-	if !congruent {
-		from, to = 0, wi
-	}
-	for i := from; i < to; i++ {
-		if acc += words[i].width(size); acc > threshold {
-			return true
-		}
-	}
-	for s := si + 1; s < len(spans); s++ {
-		for i := range spans[s].words {
-			if acc += spans[s].words[i].width(size); acc > threshold {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// fitGlyphs is how many of w's glyphs fit beside used within available,
-// from its start (forward) or its end, and their width.
-func fitGlyphs(w *word, size, used, available float32, forward bool) (int, float32) {
-	var gw float32
-	if forward {
-		end := 0
-		for i := range w.glyphs {
-			g := w.glyphs[i].width(size)
-			if used+gw+g > available {
-				break
-			}
-			gw += g
-			end = i + 1
-		}
-		return end, gw
-	}
-	end := len(w.glyphs)
-	for i := len(w.glyphs) - 1; i >= 0; i-- {
-		g := w.glyphs[i].width(size)
-		if used+gw+g > available {
-			break
-		}
-		gw += g
-		end = i
-	}
-	return end, gw
 }
 
 // rangeGlyphs are the glyphs a range covers, word by word.
@@ -189,13 +145,13 @@ func rangeGlyphs(words []word, r vlRange, visit func(w *word, g *shapedGlyph)) {
 // with hinting): ranges in bidi order, whole-pixel advances, a right to
 // left line from its right edge, end alignment within the column.
 func place(spans []span, ellipsis []shapedGlyph, vl *visualLine, rtl bool, size float32, opt LineOptions) Line {
-	line := Line{RTL: rtl, LayoutWidth: vl.w}
+	line := Line{RTL: rtl}
 	if len(vl.ranges) == 0 {
 		return line
 	}
 	lineWidth := vl.w
 	if opt.Column {
-		lineWidth = opt.Width
+		lineWidth = float32(math.Floor(float64(opt.Width))) // the last whole pixel within it
 	}
 	var x float32
 	if rtl {
@@ -204,7 +160,6 @@ func place(spans []span, ellipsis []shapedGlyph, vl *visualLine, rtl bool, size 
 	if opt.AlignEnd {
 		x = alignEnd(x, lineWidth, vl.w, rtl)
 	}
-	x = float32(math.Round(float64(x)))
 	cut := elided(spans, vl)
 	levels := make([]int8, len(vl.ranges))
 	for i, r := range vl.ranges {
@@ -215,7 +170,7 @@ func place(spans []span, ellipsis []shapedGlyph, vl *visualLine, rtl bool, size 
 		reverse(order)
 	}
 	emit := func(r vlRange, g *shapedGlyph) {
-		adv := float32(math.Round(float64(float32(size * g.xAdvance))))
+		adv := g.width(size)
 		if rtl {
 			x -= adv
 		}
@@ -254,51 +209,4 @@ func alignEnd(x, lineWidth, w float32, rtl bool) float32 {
 		return x - max(lineWidth-w, 0)
 	}
 	return x + max(lineWidth-w, 0)
-}
-
-// elided is the byte offset an ellipsis stands for: where the visible
-// text before it ends, or where the text after it starts if none comes
-// before.
-func elided(spans []span, vl *visualLine) int {
-	if !vl.ellipsized {
-		return 0
-	}
-	at := -1
-	for i, r := range vl.ranges {
-		if r.span < 0 {
-			at = i
-		}
-	}
-	bounds := func(r vlRange) (int, int, bool) {
-		lo, hi, ok := math.MaxInt, 0, false
-		rangeGlyphs(spans[r.span].words, r, func(_ *word, g *shapedGlyph) {
-			lo, hi, ok = min(lo, g.start), max(hi, g.end), true
-		})
-		return lo, hi, ok
-	}
-	before := 0
-	for i := at - 1; i >= 0; i-- {
-		if _, hi, ok := bounds(vl.ranges[i]); ok {
-			before = hi
-			break
-		}
-	}
-	if before != 0 {
-		return before
-	}
-	after := 0
-	for _, sp := range spans {
-		for _, w := range sp.words {
-			for _, g := range w.glyphs {
-				after = max(after, g.end)
-			}
-		}
-	}
-	for i := at + 1; i < len(vl.ranges); i++ {
-		if lo, _, ok := bounds(vl.ranges[i]); ok {
-			after = lo
-			break
-		}
-	}
-	return after
 }

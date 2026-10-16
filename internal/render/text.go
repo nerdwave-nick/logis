@@ -142,7 +142,7 @@ func (r *Renderer) MeasureText(t Text, s scale.Scale) (float32, bool) {
 	}
 	f := s.Factor()
 	l := r.glyphs.fonts.Layout(t.line(), max(t.Size*f, 1), text.LineOptions{Face: t.Face, Tracking: t.Tracking})
-	return l.LayoutWidth / f, true
+	return l.Width / f, true
 }
 
 // shape is texts shaped at s, reusing unchanged lines: in buffer pixels, so

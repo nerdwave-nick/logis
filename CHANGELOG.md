@@ -9,6 +9,13 @@ may still change it; each such change is listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **An operating-system error reads as its description alone**, without the
+  "(os error N)" the port from Rust left behind: "cannot reach
+  /run/user/1000/wayland-nowhere: No such file or directory", and the same
+  for a custom shader or theme file that cannot be read.
+
 ### Fixed
 
 - **A dmenu switch given a value is refused**, as logis(1) promises ("a value a
@@ -16,6 +23,25 @@ may still change it; each such change is listed here.
   `--counter=x`, `--index=x`, `--only-match=x` and `--no-run-if-empty=x` are
   unknown runes, exit 2, like `--dmenu=x` and every other switch. They were
   taken as the bare switch before.
+- **Matching ignores case by Unicode's case folding throughout**: ΐ (U+1FD3)
+  and U+0390, ΰ (U+1FE3) and U+03B0, and the ligatures ﬅ (U+FB05) and ﬆ
+  (U+FB06) match each other, which they did not, and a lower-case letter
+  that folds to another (ς, ſ) matches it also in a word that types an
+  accent.
+- **`--select=TEXT` is equal ignoring case by Unicode's case folding**, like
+  the matcher: `--select=ΟΔΟΣ` finds "οδος" (final sigma), and ﬅ finds ﬆ. It
+  compared lower cases before, which keep those apart.
+- **A cut column never draws past its width.** A line is laid out and measured
+  in the whole-pixel advances it is drawn with, so a cut line's glyphs and its
+  `…` stay within the column (a mixed Hebrew/Arabic line drew 222 px in a
+  220 px column), a right-to-left line starts exactly at its right edge, and
+  columns fitted to their widest text are as wide as that text is drawn (a few
+  pixels wider than before at some scales). A column narrower than `…` shows
+  nothing; the ellipsis was drawn outside it. The `…` follows the last visible
+  character directly: spaces and tabs where the cut falls are dropped
+  ("the rite of the long…", not "the rite of the long …").
+- **Tab stops are exact**: stops are 8 drawn spaces apart, and the text after a
+  tab starts exactly at its stop, where it could drift a pixel or two.
 
 ## [0.1.1] - 2026-10-16
 

@@ -1,9 +1,13 @@
 package text_test
 
 import (
+	"fmt"
 	"math"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/nerdwave-nick/logis/internal/grapheme"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -79,8 +83,7 @@ func whole(v float32) bool { return v == float32(math.Round(float64(v))) }
 
 // Each glyph stands where the one before it ends: left to right in a left
 // to right line, right to left in a right to left one, every advance a
-// whole pixel; the line is as wide as their sum. LayoutWidth is the same
-// sum before rounding, so they differ by at most half a pixel a glyph.
+// whole pixel; the line is as wide as their sum, and laid out with it.
 func TestGlyphsFollowEachOtherAtWholePixelAdvances(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	for _, size := range sizes {
@@ -102,9 +105,6 @@ func TestGlyphsFollowEachOtherAtWholePixelAdvances(t *testing.T) {
 			}
 			if line.Width != sum {
 				t.Errorf("@%g %q: width %g, advances %g", size, s, line.Width, sum)
-			}
-			if d := math.Abs(float64(line.Width - line.LayoutWidth)); d > 0.5*float64(len(line.Glyphs)) {
-				t.Errorf("@%g %q: width %g, layout width %g", size, s, line.Width, line.LayoutWidth)
 			}
 		}
 	}
@@ -133,12 +133,12 @@ func TestSpacesAreLaidOutAndAnEmptyLineIsEmpty(t *testing.T) {
 }
 
 // A tab reaches the next stop: stops are 8 spaces apart from the line's
-// start, measured before advances are rounded, so the glyph after it
-// stands at the stop give or take the rounding of what precedes it.
+// start, as wide as the spaces are drawn, and the glyph after the tab
+// stands exactly at its stop.
 func TestATabReachesTheNextStopOfEightSpaces(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	for _, size := range sizes {
-		tab := 8 * f.Layout(" ", size, text.LineOptions{}).LayoutWidth
+		tab := 8 * f.Layout(" ", size, text.LineOptions{}).Width
 		for _, c := range []struct {
 			text  string
 			after int // the byte that follows the tabs
@@ -146,14 +146,14 @@ func TestATabReachesTheNextStopOfEightSpaces(t *testing.T) {
 			{"a\tb", 2}, {"\tx", 1}, {"abc\t\tdef", 5}, {"do-not-disturb\ton", 15},
 		} {
 			prefix := f.Layout(trimTabs(c.text[:c.after]), size, text.LineOptions{})
-			before, drift := prefix.LayoutWidth, prefix.Width-prefix.LayoutWidth
+			before := prefix.Width
 			stop := (float32(math.Floor(float64(before/tab))) + 1) * tab
 			if tabs := c.after - len(trimTabs(c.text[:c.after])); tabs == 2 {
 				stop += tab
 			}
 			line := f.Layout(c.text, size, text.LineOptions{})
 			for _, g := range line.Glyphs {
-				if g.Cluster == c.after && math.Abs(float64(g.X-drift-stop)) > 1 {
+				if g.Cluster == c.after && g.X != stop {
 					t.Errorf("@%g %q: %q at %g, want the stop at %g", size, c.text, c.text[c.after], g.X, stop)
 				}
 			}
@@ -203,7 +203,7 @@ func TestARightToLeftLineStartsAtItsRightEdge(t *testing.T) {
 		if !line.RTL {
 			t.Fatal("a line that starts in Hebrew is right to left")
 		}
-		right := float32(math.Round(float64(line.LayoutWidth)))
+		right := line.Width
 		if opt.Column {
 			right = opt.Width
 		}
@@ -242,8 +242,8 @@ func TestALeadingNumberInARightToLeftLineIsKept(t *testing.T) {
 	if len(digits) != 3 || !(hebrewRight < digits[0] && digits[0] < digits[1] && digits[1] < digits[2]) {
 		t.Fatalf("digits at %v, Hebrew up to %g: %+v", digits, hebrewRight, line.Glyphs)
 	}
-	if line.LayoutWidth < 50 {
-		t.Fatalf("the line is measured without its digits: %g", line.LayoutWidth)
+	if line.Width < 50 {
+		t.Fatalf("the line is measured without its digits: %g", line.Width)
 	}
 }
 
@@ -325,9 +325,7 @@ func TestAGraphemeOrALigatureIsShownAsOne(t *testing.T) {
 }
 
 // ASCII operators around a break opportunity ("->", "!=") keep their own
-// glyphs where the font has no ligature for them (none of the pinned fonts
-// has one, so joining them into one word for such a ligature is not
-// observable here).
+// glyphs where the font has no ligature for them.
 func TestOperatorsAroundABreakKeepTheirOwnGlyphs(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	s := "x -> y != z"
@@ -342,6 +340,40 @@ func TestOperatorsAroundABreakKeepTheirOwnGlyphs(t *testing.T) {
 	}
 }
 
+// ASCII operators around a break opportunity ("->", "!=") are one word
+// when the font ligates them, so the ligature shows: one glyph covering
+// both, in a column cut too. Synthetic-Operators.ttf ligates "->" to the
+// glyph of "~" and "!=" to that of "#".
+func TestOperatorsAFontLigatesAcrossABreakAreJoined(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("..", "shape", "testdata", "fonts", "Synthetic-Operators.ttf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := text.Isolated(rules, []string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := text.New(c, "sans-serif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(f.Close)
+	s := "x->y x -> y a!=b"
+	for _, opt := range []text.LineOptions{{}, {Column: true, Width: 1000, Ellipsis: true}} {
+		line := f.Layout(s, 16, opt)
+		got := map[[2]int]uint16{}
+		for _, g := range line.Glyphs {
+			got[[2]int{g.Cluster, g.End}] = g.ID
+		}
+		font := f.Font(line.Glyphs[0].Font)
+		for at, lig := range map[int]rune{1: '~', 7: '~', 13: '#'} {
+			if id, ok := got[[2]int{at, at + 2}]; !ok || id != font.GlyphIndex(lig) || len(line.Glyphs) != len(s)-3 {
+				t.Errorf("%+v: bytes %d..%d %q: glyphs %+v, want one ligature", opt, at, at+2, s[at:at+2], line.Glyphs)
+			}
+		}
+	}
+}
+
 // A line that fits its column is set as without one; a right to left one
 // is moved to the column's right edge.
 func TestALineThatFitsItsColumnIsSetAsWithoutOne(t *testing.T) {
@@ -352,7 +384,7 @@ func TestALineThatFitsItsColumnIsSetAsWithoutOne(t *testing.T) {
 			col := f.Layout(s, 16, text.LineOptions{Column: true, Width: 400, Ellipsis: ellipsis})
 			shift := float32(0)
 			if free.RTL {
-				shift = 400 - float32(math.Round(float64(free.LayoutWidth)))
+				shift = 400 - free.Width
 			}
 			if len(col.Glyphs) != len(free.Glyphs) || col.Width != free.Width {
 				t.Fatalf("%q: %d glyphs %g wide in the column, %d %g free", s, len(col.Glyphs), col.Width, len(free.Glyphs), free.Width)
@@ -371,44 +403,112 @@ func TestALineThatFitsItsColumnIsSetAsWithoutOne(t *testing.T) {
 // A line too wide for its column is cut: it ends in one "…" where the
 // reading stops (right in a left to right line, left in a right to left
 // one), whose empty byte range is the cut; what stays visible is the
-// text up to the cut in reading order, and the line is laid out within
-// the column. A column with no room for a glyph beside the ellipsis shows
-// the ellipsis alone.
+// text up to the cut in reading order. Every glyph is drawn within the
+// column, whole-pixel advances and the ellipsis included. A column with no
+// room for a glyph beside the ellipsis shows the ellipsis alone, cut at
+// the text's start; one narrower than the ellipsis shows nothing.
 func TestATooWideLineIsCutWithOneEllipsisWithinItsColumn(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	for _, size := range sizes {
 		dots := f.Layout("…", size, text.LineOptions{})
 		for _, s := range lines {
 			free := f.Layout(s, size, text.LineOptions{})
-			for w := float32(0); w < free.LayoutWidth; w += 9 {
-				line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true})
-				e, n := ellipsisOf(line)
-				if n != 1 || e.ID != dots.Glyphs[0].ID || e.Cluster != e.End {
-					t.Errorf("@%g %q in %g px: ellipsis %+v ×%d", size, s, w, e, n)
-					continue
+			for w := float32(0); w < free.Width; w += 4.7 {
+				for _, end := range []bool{false, true} {
+					line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true, AlignEnd: end})
+					cutLine(t, fmt.Sprintf("@%g %q in %g px (align end %v)", size, s, w, end), s, line, dots, w)
 				}
-				if w < dots.LayoutWidth && len(line.Glyphs) != 1 {
-					t.Errorf("@%g %q in %g px: %d glyphs beside the ellipsis", size, s, w, len(line.Glyphs)-1)
-				}
-				if len(line.Glyphs) == 1 {
-					continue // the ellipsis alone
-				}
-				if line.LayoutWidth > w {
-					t.Errorf("@%g %q in %g px: laid out %g wide", size, s, w, line.LayoutWidth)
-				}
-				shown := covered(line)
-				for i := range e.Cluster {
-					if !shown[i] {
-						t.Errorf("@%g %q in %g px: byte %d before the cut at %d is hidden", size, s, w, i, e.Cluster)
-						break
+			}
+		}
+	}
+}
+
+func cutLine(t *testing.T, at, s string, line, dots text.Line, w float32) {
+	t.Helper()
+	for _, g := range line.Glyphs {
+		if g.X < 0 || g.X+g.Advance > w {
+			t.Errorf("%s: glyph %+v is drawn outside the column", at, g)
+		}
+	}
+	if w < dots.Width {
+		if len(line.Glyphs) != 0 || line.Width != 0 {
+			t.Errorf("%s: narrower than the ellipsis, %d glyphs %g wide", at, len(line.Glyphs), line.Width)
+		}
+		return
+	}
+	e, n := ellipsisOf(line)
+	if n != 1 || e.ID != dots.Glyphs[0].ID || e.Cluster != e.End {
+		t.Errorf("%s: ellipsis %+v ×%d", at, e, n)
+		return
+	}
+	if len(line.Glyphs) == 1 {
+		if e.Cluster != 0 {
+			t.Errorf("%s: the ellipsis alone is cut at %d, want the start", at, e.Cluster)
+		}
+		return
+	}
+	shown := covered(line)
+	for i := range e.Cluster {
+		if !shown[i] {
+			t.Errorf("%s: byte %d before the cut at %d is hidden", at, i, e.Cluster)
+			break
+		}
+	}
+	if len(shown) != e.Cluster {
+		t.Errorf("%s: %d bytes shown, cut at %d", at, len(shown), e.Cluster)
+	}
+	// In a line of one direction the glyphs are in reading order.
+	if oneDirection(line) && !line.Glyphs[len(line.Glyphs)-1].Ellipsis {
+		t.Errorf("%s: the ellipsis at %g is not where reading stops", at, e.X)
+	}
+}
+
+// A cut line's ellipsis follows its last visible glyph, with no white
+// space before it: blanks (spaces, tabs, no-break spaces) where the cut
+// falls are dropped, in left to right, right to left and mixed lines, and
+// the cut is where the last visible non-blank text ends.
+func TestACutLinesEllipsisFollowsItsLastVisibleGlyph(t *testing.T) {
+	f := pinned(t, "sans-serif")
+	texts := []string{
+		"the rite of the long road", "The machine spirit wakes: 0123456789", "do-not-disturb\ton the vox",
+		"long\u00a0\u00a0word more", "a  b   c    d", "שלום עולם ומלואו", "שלום  עולם\tומלואו",
+		"abc שלום עולם def", "abc  שלום  עולם  def", "שלום abc def עולם", "שלום  abc  def  עולם",
+		"logis: שָׁלוֹם and مرحبا بالعالم (42) ok",
+	}
+	for _, size := range []float32{16, 20.8} {
+		for _, s := range texts {
+			free := f.Layout(s, size, text.LineOptions{})
+			for w := float32(0); w < free.Width; w++ {
+				for _, end := range []bool{false, true} {
+					line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true, AlignEnd: end})
+					e, n := ellipsisOf(line)
+					if n != 1 || len(line.Glyphs) == 1 {
+						continue // nothing, or the ellipsis alone
 					}
-				}
-				if len(shown) != e.Cluster {
-					t.Errorf("@%g %q in %g px: %d bytes shown, cut at %d", size, s, w, len(shown), e.Cluster)
-				}
-				// In a line of one direction the glyphs are in reading order.
-				if oneDirection(line) && !line.Glyphs[len(line.Glyphs)-1].Ellipsis {
-					t.Errorf("@%g %q in %g px: the ellipsis at %g is not where reading stops", size, s, w, e.X)
+					at := fmt.Sprintf("@%g %q in %g px (align end %v)", size, s, w, end)
+					if strings.TrimRightFunc(s[:e.Cluster], unicode.IsSpace) != s[:e.Cluster] {
+						t.Errorf("%s: cut at %d after %q, white space before the ellipsis", at, e.Cluster, s[:e.Cluster])
+					}
+					touching := false
+					for _, g := range line.Glyphs {
+						if g.Ellipsis {
+							continue
+						}
+						if strings.TrimSpace(s[g.Cluster:g.End]) == "" && g.End == e.Cluster {
+							t.Errorf("%s: a blank glyph %+v ends at the cut", at, g)
+						}
+						touching = touching || g.End == e.Cluster && (g.X+g.Advance == e.X || e.X+e.Advance == g.X)
+					}
+					if !touching {
+						t.Errorf("%s: no glyph of the text before the cut at %d touches the ellipsis at %g: %+v", at, e.Cluster, e.X, line.Glyphs)
+					}
+					var sum float32
+					for _, g := range line.Glyphs {
+						sum += g.Advance
+					}
+					if sum != line.Width {
+						t.Errorf("%s: width %g, advances %g", at, line.Width, sum)
+					}
 				}
 			}
 		}
@@ -422,16 +522,18 @@ func TestACutKeepsAsManyGlyphsAsFitBesideTheEllipsis(t *testing.T) {
 	s := "The machine spirit wakes: 0123456789"
 	for _, size := range sizes {
 		free := f.Layout(s, size, text.LineOptions{})
-		dots := f.Layout("…", size, text.LineOptions{}).LayoutWidth
-		for w := dots; w < free.LayoutWidth; w += 5 {
+		dots := f.Layout("…", size, text.LineOptions{}).Width
+		for w := dots; w < free.Width; w += 5 {
 			line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true})
 			e, _ := ellipsisOf(line)
-			if len(line.Glyphs) == 1 {
-				e.Cluster = 0 // the ellipsis alone
+			// One more character after the blanks the cut drops would not fit.
+			next := e.Cluster
+			for next < len(s) && s[next] == ' ' {
+				next++
 			}
-			kept := f.Layout(s[:e.Cluster], size, text.LineOptions{}).LayoutWidth
-			more := f.Layout(s[:e.Cluster+1], size, text.LineOptions{}).LayoutWidth
-			if kept+dots > w+0.01 || more+dots <= w {
+			kept := f.Layout(s[:e.Cluster], size, text.LineOptions{}).Width
+			more := f.Layout(s[:next+1], size, text.LineOptions{}).Width
+			if kept+dots > w || more+dots <= w {
 				t.Errorf("@%g in %g px: cut after %q (%g + %g)", size, w, s[:e.Cluster], kept, dots)
 			}
 		}

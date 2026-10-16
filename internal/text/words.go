@@ -61,7 +61,7 @@ func (s *setting) compatible(a, b int) bool {
 }
 
 // spans is cosmic-text's ShapeLine::build: bidi level runs, their words
-// shaped, tabs widened to the next stop.
+// shaped.
 func (s *setting) spans() []span {
 	runes := []rune(s.line)
 	levels, rtl := bidi.Resolve(runes)
@@ -78,22 +78,28 @@ func (s *setting) spans() []span {
 	if len(s.line) > 0 {
 		spans = append(spans, s.span(start, len(s.line), levels[len(levels)-1]))
 	}
-	// Tabs (shaped as spaces) reach the next stop of 8 spaces.
+	return spans
+}
+
+// tabStops widens each tab (shaped as a space) to the next stop at size:
+// stops are 8 drawn spaces apart from the line's start, so the glyph
+// after a tab stands exactly at its stop.
+func (s *setting) tabStops(spans []span, size float32) {
 	var x float32
 	for si := range spans {
 		for wi := range spans[si].words {
 			for gi := range spans[si].words[wi].glyphs {
 				g := &spans[si].words[wi].glyphs[gi]
 				if g.end == g.start+1 && s.line[g.start] == '\t' {
-					tab := 8 * g.xAdvance
-					stop := float32(math.Floor(float64(x/tab))+1) * tab
-					g.xAdvance = stop - x
+					if tab := 8 * g.width(size); tab > 0 {
+						stop := float32(math.Floor(float64(x/tab))+1) * tab
+						g.xAdvance = (stop - x) / size
+					}
 				}
-				x += g.xAdvance
+				x += g.width(size)
 			}
 		}
 	}
-	return spans
 }
 
 // span shapes line[start:end] at level into words.
@@ -195,7 +201,12 @@ func (s *setting) run(start, end int, rtl bool) []shapedGlyph {
 	if start >= end {
 		return nil
 	}
-	return s.f.shapeRun(s.line, start, end, rtl, s.f.face(s.faceAt(start)), s.opt.Tracking)
+	glyphs := s.f.shapeRun(s.line, start, end, rtl, s.f.face(s.faceAt(start)), s.opt.Tracking)
+	for i := range glyphs {
+		g := &glyphs[i]
+		g.blank = strings.TrimFunc(s.line[g.start:g.end], unicode.IsSpace) == ""
+	}
+	return glyphs
 }
 
 // ellipsis is the "…" a cut line ends with, in the face of its first byte

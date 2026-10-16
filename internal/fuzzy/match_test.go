@@ -1,6 +1,10 @@
 package fuzzy
 
-import "testing"
+import (
+	"slices"
+	"strings"
+	"testing"
+)
 
 // What a query matches: every word of it, each by its kind, ignoring case
 // and (unless the word types one) accents.
@@ -107,6 +111,44 @@ func TestCaseIsIgnoredOnBothSides(t *testing.T) {
 	matches(t, "σοφία", map[string]bool{"ΣΟΦΊΑ": true})
 	matches(t, "ΣΟΦΊΑ", map[string]bool{"σοφία": true})
 	matches(t, "'--foo", map[string]bool{"--FOO --foo": true, "--FOO": true})
+	// Unicode's case folding joins characters that are not each other's
+	// upper and lower case: ΐ U+1FD3 and U+0390, ΰ U+1FE3 and U+03B0, the
+	// ligatures ﬅ U+FB05 and ﬆ U+FB06. Each matches the other in every kind
+	// of word, also beside a typed accent (which keeps accents apart).
+	for _, pair := range [][2]string{{"\u1FD3", "\u0390"}, {"\u1FE3", "\u03B0"}, {"\uFB05", "\uFB06"}} {
+		for _, q := range []string{pair[0], pair[1]} {
+			for _, h := range []string{pair[0], pair[1]} {
+				for _, before := range []string{"x", "é"} {
+					for _, query := range []string{before + q, "'" + before + q, "^" + before + q + "$"} {
+						matches(t, query, map[string]bool{before + h: true})
+					}
+				}
+				matches(t, "!"+q, map[string]bool{"a" + h: false})
+			}
+		}
+	}
+	// A text scores and highlights the same whichever letter of a folding
+	// pair it holds, the lower-case ones that fold (final sigma, the long
+	// s) included, also when the word types an accent.
+	for _, tc := range []struct{ query, folds, same string }{
+		{"aéσ", "ς", "σ"}, {"aés", "ſ", "s"}, {"aé\u0390", "\u1FD3", "\u0390"},
+		{"aé\u03B0", "\u1FE3", "\u03B0"}, {"aé\uFB06", "\uFB05", "\uFB06"}, {"aσ", "ς", "σ"},
+	} {
+		for _, shape := range []string{"é%s", "a xé%s", "a-é%s x"} {
+			text := strings.ReplaceAll(shape, "%s", tc.folds)
+			same := strings.ReplaceAll(shape, "%s", tc.same)
+			query := tc.query
+			if shape == "é%s" {
+				query = query[1:]
+			}
+			s, ok := score(query, text)
+			ws, wok := score(query, same)
+			if s != ws || ok != wok || !slices.Equal(positions(query, text), positions(query, same)) {
+				t.Errorf("%q in %q: %d %v %v, in %q: %d %v %v", query, text, s, ok, positions(query, text),
+					same, ws, wok, positions(query, same))
+			}
+		}
+	}
 }
 
 // An unaccented word matches accented letters; a word that types an

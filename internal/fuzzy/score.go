@@ -55,9 +55,9 @@ func computeBonus(prev, cur class) uint16 {
 // other.
 type char interface{ ~byte | ~rune }
 
-// classAndFold is c's class and c as compared with the needle: case-folded
-// when it is upper case, or accent-folded too when the word allows it
-// (nucleo's char_class_and_normalize).
+// classAndFold is c's class and c as compared with the needle: case-folded,
+// and accent-folded too when the word allows it (nucleo's
+// char_class_and_normalize).
 func (m *Matcher) classAndFold(r rune) (rune, class) {
 	if r < 0x80 {
 		cls := asciiClass[r]
@@ -66,14 +66,7 @@ func (m *Matcher) classAndFold(r rune) (rune, class) {
 		}
 		return r, cls
 	}
-	cls := classOf(r)
-	switch {
-	case m.normalize:
-		r = normalizeFolded(fold(r))
-	case cls == classUpper:
-		r = fold(r)
-	}
-	return r, cls
+	return m.folded(r), classOf(r)
 }
 
 // folded is r as compared with the needle where nucleo ignores classes:

@@ -57,7 +57,7 @@ func (m *Matcher) fuzzy(t Text, a *atom) (uint16, bool) {
 		if n == 1 {
 			return m.substring1ASCII(t.ascii, byte(a.needle[0]))
 		}
-		start, greedyEnd, end, ok := prefilterASCII(t.ascii, a.needle, false)
+		start, greedyEnd, end, ok := prefilterASCII(t.ascii, a.needle)
 		if !ok {
 			return 0, false
 		}
@@ -84,9 +84,9 @@ func (m *Matcher) fuzzy(t Text, a *atom) (uint16, bool) {
 }
 
 // prefilterASCII finds the first place needle can start, where its greedy
-// match ends, and (unless onlyGreedy) where its last character last
-// occurs; ok is false when it cannot match.
-func prefilterASCII(hay []byte, needle []rune, onlyGreedy bool) (start, greedyEnd, end int, ok bool) {
+// match ends, and where its last character last occurs; ok is false when
+// it cannot match.
+func prefilterASCII(hay []byte, needle []rune) (start, greedyEnd, end int, ok bool) {
 	start = indexFolded(hay[:len(hay)-len(needle)+1], byte(needle[0]))
 	if start < 0 {
 		return 0, 0, 0, false
@@ -98,9 +98,6 @@ func prefilterASCII(hay []byte, needle []rune, onlyGreedy bool) (start, greedyEn
 			return 0, 0, 0, false
 		}
 		greedyEnd += i + 1
-	}
-	if onlyGreedy {
-		return start, greedyEnd, greedyEnd, true
 	}
 	return start, greedyEnd, greedyEnd + lastIndexFolded(hay[greedyEnd:], byte(needle[len(needle)-1])) + 1, true
 }
