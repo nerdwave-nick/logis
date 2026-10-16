@@ -17,6 +17,12 @@ contract" and logis(1)) is the public interface.
   passed it the socket and `restart the daemon: kill PID` otherwise; every
   caller prints the same line on stderr (exit status and stdout unchanged),
   and the daemon's log has it once. It never restarts itself.
+- **A small glitch burst on any key press** (the Go build; new beside Rust
+  v1): the event `key` in `effects.glitch.bursts.on`, with `key-ms` (its
+  length) and `key-strength` (its peak, 0 to 1). Any key press in the panel
+  fires it, a held key's repeats and a bare modifier do not, and a new press
+  starts it over; it never cuts short or weakens an open, tab or random burst
+  (the glitch takes the larger). Both bundled themes fire it: 120 ms at 0.3.
 
 ### Changed
 
@@ -51,12 +57,6 @@ same switch-over before its version was set: that build still calls itself
   is its strength; 0 is no pass, and `reduce-motion` turns it off. The
   bundled themes wear the owner's looks. The shader is logis's own
   clean-room `glitch.frag`.
-- **A small glitch burst on any key press** (the Go build; new beside Rust
-  v1): the event `key` in `effects.glitch.bursts.on`, with `key-ms` (its
-  length) and `key-strength` (its peak, 0 to 1). Any key press in the panel
-  fires it, a held key's repeats and a bare modifier do not, and a new press
-  starts it over; it never cuts short or weakens an open, tab or random burst
-  (the glitch takes the larger). Both bundled themes fire it: 120 ms at 0.3.
 - **A custom shader after the built-in effects** (the Go build; new beside
   Rust v1): a theme's `effects.custom-shader` or the config's
   `custom-shader` (which outranks it) names a GLSL ES 3.00 fragment shader
