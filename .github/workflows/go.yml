@@ -1,8 +1,14 @@
 name: Go
 
-# The Go rewrite on branch `go` (spec feat/logis-go §8 D6): this workflow runs
-# for the Go paths only; ci.yml runs for the Rust paths. The shared fixtures,
-# fonts and goldens under tests/ and the themes and schemas trigger both.
+# logis's only workflow since the switch-over from Rust (ADR 0004): gofmt,
+# vet and the tests with the race detector, the keyboard's differential
+# suite, and the E2E and latency suites in headless sway. It runs on every
+# push (main and any other branch) and on pull requests, for changes to
+# what the build and the tests read: the Go code, everything under tests/
+# (fixtures, pinned fonts, goldens), the themes and schemas, and the files
+# the packaging, completion and documentation tests check (contrib/,
+# packaging/, the man page, README.md's caller contract and custom-shader
+# example, CHANGELOG.md).
 on:
   push:
     paths:
@@ -11,11 +17,14 @@ on:
       - "**.go"
       - "cmd/**"
       - "internal/**"
-      - "tests/fixtures/**"
-      - "tests/fonts/**"
-      - "tests/goldens/**"
+      - "tests/**"
       - "themes/**"
       - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
       - ".github/workflows/go.yml"
   pull_request:
     paths:
@@ -24,11 +33,14 @@ on:
       - "**.go"
       - "cmd/**"
       - "internal/**"
-      - "tests/fixtures/**"
-      - "tests/fonts/**"
-      - "tests/goldens/**"
+      - "tests/**"
       - "themes/**"
       - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
       - ".github/workflows/go.yml"
 
 permissions:
