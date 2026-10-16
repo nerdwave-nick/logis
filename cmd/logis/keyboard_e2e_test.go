@@ -110,12 +110,14 @@ func count(events []trace.Event, what string) int {
 	return n
 }
 
-// checkDebugPanel captures until two consecutive captures agree, checks
-// the harness's opaque black backdrop around the panel, and compares the
-// panel cropped from the output with golden e2e/<name> (Rust e2e.rs
-// check_panel).
-func checkDebugPanel(t *testing.T, h *e2e.Harness, name string) {
+// checkDebugPanel waits until panel committed a frame drawn after its
+// latest change (a query, a selection), captures until two consecutive
+// captures agree, checks the harness's opaque black backdrop around the
+// panel, and compares the panel cropped from the output with golden
+// e2e/<name> (Rust e2e.rs check_panel).
+func checkDebugPanel(t *testing.T, h *e2e.Harness, panel *e2e.Traced, name string) {
 	t.Helper()
+	panel.WaitForDrawn()
 	capture := h.SettledCapture()
 	for _, at := range [][2]int{{0, 0}, {capture.Width - 1, capture.Height - 1}} {
 		if px := capture.Pixel(at[0], at[1]); px != [4]byte{0, 0, 0, 255} {
@@ -127,8 +129,8 @@ func checkDebugPanel(t *testing.T, h *e2e.Harness, name string) {
 	if !g.Update {
 		reference, _ = g.Load("e2e", name)
 	}
-	panel := e2e.CropCentred(capture, int(debugSize.W), int(debugSize.H), reference)
-	g.Assert(t, "e2e", name, panel, rendertest.Capture)
+	cropped := e2e.CropCentred(capture, int(debugSize.W), int(debugSize.H), reference)
+	g.Assert(t, "e2e", name, cropped, rendertest.Capture)
 }
 
 // The debug panel takes the keyboard, receives injected keys with real
@@ -138,7 +140,7 @@ func checkDebugPanel(t *testing.T, h *e2e.Harness, name string) {
 func TestE2ETheDebugPanelTakesFocusReceivesKeysAndShowsThem(t *testing.T) {
 	c := e2e.Start(t, e2e.Requested(t))
 	p := startTyping(t, c, nil)
-	checkDebugPanel(t, p.harness, "debug-panel")
+	checkDebugPanel(t, p.harness, p.panel, "debug-panel")
 
 	// A real Shift press plus its mask around the letter, as a user types.
 	p.typeText("A")
@@ -155,7 +157,7 @@ func TestE2ETheDebugPanelTakesFocusReceivesKeysAndShowsThem(t *testing.T) {
 		at := p.panel.WaitFor(row, e2e.Is(row))
 		p.panel.WaitForCommitAfter(at.NS)
 	}
-	checkDebugPanel(t, p.harness, "debug-panel-row-2")
+	checkDebugPanel(t, p.harness, p.panel, "debug-panel-row-2")
 
 	p.tap(e2e.KeyEsc)
 	p.endsWith("dismiss")
@@ -190,7 +192,7 @@ func TestE2EComposeLocksAndTheKeypadTypeWhatTheLayoutSays(t *testing.T) {
 	p.tap(e2e.KeyCompose)
 	p.typeText("lg")
 	p.wantQuery("öλ", "the harness's Compose table")
-	checkDebugPanel(t, p.harness, "debug-panel-query")
+	checkDebugPanel(t, p.harness, p.panel, "debug-panel-query")
 
 	// One grapheme of two code points; Backspace deletes it whole.
 	p.tap(e2e.KeyCompose)

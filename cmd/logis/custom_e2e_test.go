@@ -58,6 +58,7 @@ func TestE2EACustomShaderIsSkippedOnceWhenBrokenAndDrawsWhenMended(t *testing.T)
 	client := c.DmenuAll(dmenuItems)
 	c.Shown(3)
 	c.OpenSettled()
+	c.Daemon.WaitForDrawn()
 	capture := c.Harness.SettledCapture()
 	if px := capture.Pixel(capture.Width/2, capture.Height/2); px != [4]byte{204, 0, 0, 255} {
 		t.Errorf("the panel's centre is %v, not the shader's red", px)
@@ -74,8 +75,11 @@ func TestE2EACustomShaderIsSkippedOnceWhenBrokenAndDrawsWhenMended(t *testing.T)
 	c.Daemon.WaitFor("the amended config", e2e.Is("theme shaded"))
 	client = c.DmenuAll(dmenuItems)
 	c.Shown(3)
-	if frames := commitsFor(c, 500*time.Millisecond); frames < 10 {
-		t.Errorf("the custom pass let the window rest: %d frames in 0.5 s", frames)
+	time.Sleep(300 * time.Millisecond) // past the first frames
+	// Any steady drawing will do: a software renderer on a CI runner is
+	// slow (as in TestE2EContinuousEffectsKeepAWindowDrawingUntilMotionIsReduced).
+	if frames := commitsFor(c, time.Second); frames < 5 {
+		t.Errorf("the custom pass let the window rest: %d frames in 1 s", frames)
 	}
 	_ = client.Kill()
 	if strings.Count(c.Daemon.Stderr(), "the custom shader is heretical") != 1 {

@@ -166,13 +166,15 @@ func TestE2ETheListIsDrawnWithItsMatchesHighlighted(t *testing.T) {
 	}
 }
 
-// checkWindow waits until the shown window has opened, captures until two
-// consecutive captures agree, then compares the window cropped from the
-// output with golden e2e/<name>. Motions after the open (a selection's
-// glide) are the caller's to wait for.
+// checkWindow waits until the shown window has opened and has committed a
+// frame drawn after its latest change (a next stage, its items), captures
+// until two consecutive captures agree, then compares the window cropped
+// from the output with golden e2e/<name>. Motions after the open (a
+// selection's glide) are the caller's to wait for.
 func checkWindow(t *testing.T, c *e2e.Cogitator, name string, w, ht int) {
 	t.Helper()
 	c.OpenSettled()
+	c.Daemon.WaitForDrawn()
 	capture := c.Harness.SettledCapture()
 	g := rendertest.CheckedIn(t)
 	reference, _ := g.Load("e2e", name)
