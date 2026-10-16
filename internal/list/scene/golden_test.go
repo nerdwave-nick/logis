@@ -376,3 +376,54 @@ func TestGoldenColumnsAreMeasuredWithTheRowFont(t *testing.T) {
 		}
 	}
 }
+
+// Plain logis's tab strip (8cba2fc9, new beside Rust v1) in each bundled
+// theme, each tab lit in turn: the plates with their counts and the key
+// hint above the theme's own window, as the owner's references show it
+// (lab v6: Rites lit with its 7 rites, Applications with 22 apps). Go
+// goldens only: Rust v1 had no tabs.
+func TestGoldenTheTabStripWithEachTabLit(t *testing.T) {
+	apps := entries("kitty", "Abyssus", "Alacritty", "Alina of the Arena", "ALSA Scarlett Control Panel",
+		"Audacity", "Avahi SSH Server Browser", "Avahi VNC Server Browser", "Blender", "btop++", "Discord")
+	for lit, name := range []string{"tabs-applications", "tabs-rites"} {
+		o := list.DefaultOptions()
+		o.Placeholder = []string{"summon an application", "seek a rite"}[lit]
+		v := list.NewView(o)
+		v.Push([][]list.Entry{apps, windowRows()}[lit])
+		strip := scene.Strip{Tabs: [2]scene.Tab{{Label: "applications", Count: 22, Icon: scene.AppsIcon},
+			{Label: "rites", Count: 7, Icon: scene.RitesIcon}}, Active: lit}
+		checkTabbed(t, name, v, o, strip)
+	}
+}
+
+// checkTabbed is checkThemes for a panel under the tab strip st.
+func checkTabbed(t *testing.T, name string, view *list.View, o list.Options, st scene.Strip) {
+	t.Helper()
+	h := rendertest.Headless(t)
+	g := rendertest.CheckedIn(t)
+	g.Alpha = rendertest.Straight
+	for _, themeName := range theme.Bundled() {
+		th, err := theme.Themes{}.Load(themeName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logical, rows := scene.FitTabbed(o, &th, 0)
+		view.SetLines(rows)
+		h.SetFonts(rendertest.PinnedFonts(t))
+		if err := h.SetFaces(th.Faces); err != nil {
+			t.Fatal(err)
+		}
+		for _, s := range goldenScales {
+			l := view.Look()
+			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
+			band, banded := scene.TabbedBandTop(&l, logical, &th)
+			st.Measure = measureAt(h, s)
+			sc := scene.DrawTabbed(&l, st, logical, band, banded, scene.Style{Theme: &th}, nil)
+			img, err := h.Offscreen(sc, logical, s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			g.Assert(t, "themes/"+th.Name, name+"@"+rendertest.ScaleSuffix(s), img, bentGrain)
+		}
+	}
+}
