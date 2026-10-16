@@ -28,20 +28,18 @@ url='https://github.com/nerdwave-nick/logis'
 license=('MIT')
 # The binary links libwayland-client and libwayland-egl (wayland), libEGL and
 # libGLESv2 (libglvnd), libfontconfig, libfreetype and libc. libglvnd
-# dispatches to a vendor's EGL and OpenGL ES driver: mesa's (also llvmpipe,
-# where no GPU serves), or another vendor's beside it.
+# dispatches to a vendor's EGL and OpenGL ES driver, whichever package
+# provides opengl-driver: mesa (also llvmpipe, where no GPU serves),
+# nvidia-utils, or another vendor's.
 depends=(
   'fontconfig'
   'freetype2'
   'glibc'
   'libglvnd'
-  'mesa'
+  'opengl-driver'
   'wayland'
 )
 makedepends=('git' 'go' 'pkgconf')
-# None. Kept (empty) while the Rust reference lives on this branch: its
-# tests/packaging.rs reads the array.
-optdepends=()
 source=()
 sha256sums=()
 

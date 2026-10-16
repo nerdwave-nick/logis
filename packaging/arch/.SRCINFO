@@ -12,7 +12,7 @@ pkgbase = logis
 	depends = freetype2
 	depends = glibc
 	depends = libglvnd
-	depends = mesa
+	depends = opengl-driver
 	depends = wayland
 
 pkgname = logis
