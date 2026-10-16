@@ -21,12 +21,13 @@ import (
 
 // The caller-facing surface of Rust logis v1, held against the Go binary
 // argument by argument: for every case of the corpus below, exit status,
-// stdout and stderr must be Rust's byte for byte. Rust's answers are recorded
-// in testdata/parity.json (from the reference, Rust main 2ffdd02, built with
-// `cargo build --release`), so the comparison runs everywhere without the
-// Rust build. With LOGIS_RUST_LOGIS naming a Rust logis v1 binary the cases
-// also run against it live, and `-update-parity` rewrites the record from
-// its answers.
+// stdout and stderr must be Rust's byte for byte. testdata/parity.json is
+// the frozen v1 record: Rust's answers, recorded from a release build of
+// the last Rust commit (main 2ffdd02, in the history only since the
+// switch-over), so the comparison needs no Rust build. With
+// LOGIS_RUST_LOGIS naming a Rust logis v1 binary (built from that commit)
+// the cases also run against it live, and `-update-parity` rewrites the
+// record from its answers.
 //
 // Every case runs in a scratch directory of its own (its working directory,
 // HOME, XDG_RUNTIME_DIR=$DIR/run, XDG_CONFIG_HOME=$DIR/config), with no

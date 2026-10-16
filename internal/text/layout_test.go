@@ -13,7 +13,11 @@ import (
 	"github.com/nerdwave-nick/logis/internal/text"
 )
 
-// cosmicCase is one line cosmic-text laid out (testdata/cosmic-oracle).
+// cosmicCase is one line cosmic-text laid out: testdata/cosmic.json,
+// written by testdata/cosmic-oracle, the standalone Rust program that sets
+// lines with cosmic-text 0.19.0 as Rust logis v1 did. To regenerate (with
+// cargo, the crates in its cache): cd testdata/cosmic-oracle &&
+// cargo run --release --offline --locked > ../cosmic.json
 type cosmicCase struct {
 	Set          string   `json:"set"`
 	Scale        float32  `json:"scale"`
