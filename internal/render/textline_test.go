@@ -236,7 +236,14 @@ func TestALineMeasuresItsGlyphsAdvancesInLogicalPixels(t *testing.T) {
 	if width("", at(120)) != 0 {
 		t.Fatal("an empty line is 0 wide")
 	}
-	if doubled := width("rite of oil", at(240)); doubled-two > 1 || two-doubled > 1 {
+	// The advances as drawn: whole buffer pixels at each scale, so the
+	// measures of two scales differ by at most their rounding, half a
+	// buffer pixel a glyph.
+	doubled := width("rite of oil", at(240))
+	if f := at(120).Factor(); two*f != float32(math.Round(float64(two*f))) {
+		t.Fatalf("%g logical pixels are %g buffer pixels, not whole ones", two, two*f)
+	}
+	if slack := float32(len("rite of oil")) * (0.5/at(120).Factor() + 0.5/at(240).Factor()); doubled-two > slack || two-doubled > slack {
 		t.Fatalf("logical at any scale: %g and %g", two, doubled)
 	}
 }

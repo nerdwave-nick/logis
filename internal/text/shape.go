@@ -20,15 +20,13 @@ type Glyph struct {
 }
 
 // Line is a shaped line: its glyphs, its width (the sum of their
-// whole-pixel advances), LayoutWidth (the sum of the advances before
-// rounding, which the line is laid out and measured with: a column's
-// cut, its end alignment, a right to left line's start), the largest
-// ascent and descent of its glyphs' fonts, in pixels, and whether its
-// paragraph is right to left.
+// whole-pixel advances, which the line is laid out and measured with: a
+// column's cut, its end alignment, a right to left line's start), the
+// largest ascent and descent of its glyphs' fonts, in pixels, and whether
+// its paragraph is right to left.
 type Line struct {
 	Glyphs                 []Glyph
 	Width, Ascent, Descent float32
-	LayoutWidth            float32
 	RTL                    bool
 }
 
@@ -41,8 +39,10 @@ type FaceSpan struct {
 // LineOptions say how to set a line: its face (an index as for Face),
 // letter spacing in ems, other faces for some of its bytes (ascending, not
 // overlapping), and a column Width in pixels the line is confined to,
-// ended with "…" when it is too wide if Ellipsis, ending at the column's
-// end edge if AlignEnd.
+// ended with "…" when it is too wide if Ellipsis (cut so that every glyph,
+// the ellipsis too, is drawn within the column; nothing at all in a column
+// narrower than the ellipsis), ending at the column's end edge if
+// AlignEnd.
 type LineOptions struct {
 	Face     int
 	Tracking float32

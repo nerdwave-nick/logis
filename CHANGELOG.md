@@ -31,6 +31,15 @@ may still change it; each such change is listed here.
 - **`--select=TEXT` is equal ignoring case by Unicode's case folding**, like
   the matcher: `--select=ΟΔΟΣ` finds "οδος" (final sigma), and ﬅ finds ﬆ. It
   compared lower cases before, which keep those apart.
+- **A cut column never draws past its width.** A line is laid out and measured
+  in the whole-pixel advances it is drawn with, so a cut line's glyphs and its
+  `…` stay within the column (a mixed Hebrew/Arabic line drew 222 px in a
+  220 px column), a right-to-left line starts exactly at its right edge, and
+  columns fitted to their widest text are as wide as that text is drawn (a few
+  pixels wider than before at some scales). A column narrower than `…` shows
+  nothing; the ellipsis was drawn outside it.
+- **Tab stops are exact**: stops are 8 drawn spaces apart, and the text after a
+  tab starts exactly at its stop, where it could drift a pixel or two.
 
 ## [0.1.1] - 2026-10-16
 

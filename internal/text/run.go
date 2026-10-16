@@ -1,6 +1,7 @@
 package text
 
 import (
+	"math"
 	"slices"
 	"strings"
 
@@ -19,7 +20,11 @@ type shapedGlyph struct {
 	id               uint16
 }
 
-func (g *shapedGlyph) width(size float32) float32 { return size * g.xAdvance }
+// width is the glyph's advance at size pixels per em as it is drawn: a
+// whole pixel. A line is laid out and measured in these.
+func (g *shapedGlyph) width(size float32) float32 {
+	return float32(math.Round(float64(size * g.xAdvance)))
+}
 
 // shapeWith shapes line[start:end] with one font (cosmic-text's
 // shape_fallback): tabs as spaces, the glyphs in visual order, and the
