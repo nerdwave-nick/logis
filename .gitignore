@@ -1,4 +1,5 @@
-# Cargo build output (root package and the research prototypes)
+# Cargo build output of the two Rust oracle programs under internal/*/testdata
+# (cargo run regenerates their recorded JSON)
 target/
 
 # lit tracker session state (local, never committed)

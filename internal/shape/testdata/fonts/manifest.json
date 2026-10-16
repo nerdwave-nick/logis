@@ -1,0 +1,47 @@
+{
+ "AdwaitaMono-Subset.ttf": {
+  "bytes": 7432,
+  "source": "/usr/share/fonts/Adwaita/AdwaitaMono-Regular.ttf",
+  "source_sha256": "ffc549b7fc28057d624086111f1ba0b1f752d2d7ff7c5363dfa064e4dca17d47"
+ },
+ "AdwaitaSans-Subset.ttf": {
+  "bytes": 29020,
+  "source": "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
+  "source_sha256": "8381c33b9a44f066f2b99dba3d416a2342891e28c956a35dfd8d16ee2987e6d4"
+ },
+ "NotoColorEmoji-Subset.ttf": {
+  "bytes": 362280,
+  "source": "/usr/share/fonts/noto/NotoColorEmoji.ttf",
+  "source_sha256": "72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b"
+ },
+ "NotoNastaliqUrdu-Subset.ttf": {
+  "bytes": 63068,
+  "source": "/usr/share/fonts/noto/NotoNastaliqUrdu-Regular.ttf",
+  "source_sha256": "4d05b6821862ca1f3c80c47c80a352b47dd349ab73814f60e377eea311e0e42c"
+ },
+ "NotoSans-Full.ttf": {
+  "bytes": 36936,
+  "source": "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+  "source_sha256": "478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823"
+ },
+ "NotoSans-NoGPOS.ttf": {
+  "bytes": 6824,
+  "source": "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+  "source_sha256": "478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823"
+ },
+ "NotoSansArabic-Full.ttf": {
+  "bytes": 15892,
+  "source": "/usr/share/fonts/noto/NotoSansArabic-Regular.ttf",
+  "source_sha256": "bdff3e5659d67e67def05b33f749683b9376ae819d65d3dd62ac4640b3aaef48"
+ },
+ "NotoSansHebrew-Full.ttf": {
+  "bytes": 4152,
+  "source": "/usr/share/fonts/noto/NotoSansHebrew-Regular.ttf",
+  "source_sha256": "cdefaf8efd47045f6820928eba84db5bed7557539328952b5f828315485e02ee"
+ },
+ "NotoSansSyriac-Subset.ttf": {
+  "bytes": 6776,
+  "source": "/usr/share/fonts/noto/NotoSansSyriac-Regular.ttf",
+  "source_sha256": "4440929bf1a47bb50179e8d8495641d208c63d607355e451f29ea2d3e5343290"
+ }
+}

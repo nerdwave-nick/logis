@@ -8,9 +8,9 @@ external provider fills one window with one or more *stages* (lists),
 is told what the user chose, and can show *toasts*. It is a process, never a
 plugin (no ABI).
 
-The code is [`src/provider/`](../src/provider/): `wire.rs` (these messages),
-`stages.rs` (item ids to list rows), `process.rs` (spawning, reading, signals),
-`external.rs` (greeting and retirement rules). Built-in providers produce the same
+The code is [`internal/provider/`](../internal/provider/): `wire.go` (these
+messages), `stages.go` (item ids to list rows), `process.go` (spawning, reading,
+signals), `external.go` (greeting and retirement rules). Built-in providers produce the same
 messages: the dmenu provider in-process, servitor mode as a process of logis
 itself ([below](#servitor-mode-on-this-protocol)).
 
@@ -140,7 +140,8 @@ The `hello` lines carry the protocol version. New optional fields and new messag
 types keep the version (old peers ignore or skip them); a change in the meaning of
 an existing message bumps it, and logis then refuses providers of another version
 with a clear error. (The client ↔ daemon socket protocol has its own version,
-3 since provider sessions; see [`src/protocol/mod.rs`](../src/protocol/mod.rs).)
+4 since the Go rewrite; Rust v1 spoke 3, and the two refuse each other; see
+[`internal/protocol`](../internal/protocol/protocol.go).)
 
 ## Examples
 
@@ -192,7 +193,7 @@ done
 ## servitor mode on this protocol
 
 servitor mode (`logis --servitor`, spec §4.8; the code is
-[`src/servitor/`](../src/servitor/)) is a provider session whose provider is
+[`internal/servitor/`](../internal/servitor/)) is a provider session whose provider is
 logis itself: the client asks the daemon to run `logis provide servitor` (its
 own executable), which the daemon starts like any provider, as the caller
 would have: the caller's working directory and environment (so `servitor` is

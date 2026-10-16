@@ -1,0 +1,54 @@
+[
+  { "name": "Strength", "uniform": "u_strength", "min": 0, "max": 1, "step": 0.01, "default": 1, "unit": "", "description": "Master strength: scales the episode intensity E and the rest amounts; 0 turns the pass off." },
+  { "name": "Episode period", "uniform": "u_episode_period_s", "min": 0, "max": 60, "step": 0.5, "default": 9, "unit": "s", "description": "An ambient episode every this many seconds, at the end of each period; 0 leaves episodes to events only." },
+  { "name": "Episode duty", "uniform": "u_episode_duty", "min": 0, "max": 1, "step": 0.01, "default": 0.1, "unit": "", "description": "Share of each period an ambient episode lasts (a smooth bell)." },
+
+  { "name": "Wobble at rest", "uniform": "u_wobble_rest", "min": 0, "max": 4, "step": 0.05, "default": 0.7, "unit": "px", "description": "Largest sideways push of the signal bands outside episodes." },
+  { "name": "Wobble in episode", "uniform": "u_wobble_episode", "min": 0, "max": 80, "step": 0.5, "default": 24, "unit": "px", "description": "Largest sideways push of the signal bands at the peak of an episode." },
+  { "name": "Wobble band height", "uniform": "u_wobble_band_px", "min": 2, "max": 80, "step": 1, "default": 26, "unit": "px", "description": "Height of the tall wobble bands; a second layer of bands is about 0.3 of this." },
+  { "name": "Wobble speed", "uniform": "u_wobble_speed_hz", "min": 0, "max": 60, "step": 1, "default": 24, "unit": "Hz", "description": "How often the wobble bands are re-rolled." },
+
+  { "name": "Tracking kick", "uniform": "u_tracking_px", "min": 0, "max": 20, "step": 0.5, "default": 3, "unit": "px", "description": "Sideways kick of the two tracking lines (one left, one right)." },
+  { "name": "Tracking line height", "uniform": "u_tracking_height_px", "min": 0.5, "max": 12, "step": 0.5, "default": 3, "unit": "px", "description": "Half height of each tracking kink." },
+  { "name": "Tracking sweep A", "uniform": "u_tracking_a_hz", "min": 0, "max": 3, "step": 0.01, "default": 0.43, "unit": "Hz", "description": "Sweeps per second of the line that kicks left." },
+  { "name": "Tracking sweep B", "uniform": "u_tracking_b_hz", "min": 0, "max": 3, "step": 0.01, "default": 0.29, "unit": "Hz", "description": "Sweeps per second of the line that kicks right." },
+
+  { "name": "Colour fringe", "uniform": "u_fringe_px", "min": 0, "max": 4, "step": 0.05, "default": 0.5, "unit": "px", "description": "Constant offset of red and blue from green, in opposite directions." },
+  { "name": "Fringe growth", "uniform": "u_fringe_growth", "min": 0, "max": 0.5, "step": 0.01, "default": 0.12, "unit": "px/px", "description": "Extra fringe per pixel of local wobble, so torn bands show red and blue edges." },
+
+  { "name": "Slice tears at rest", "uniform": "u_slice_rest", "min": 0, "max": 1, "step": 0.01, "default": 0, "unit": "share", "description": "Share of slices torn sideways outside episodes." },
+  { "name": "Slice tears in episode", "uniform": "u_slice_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.12, "unit": "share", "description": "Share of slices torn sideways at the peak of an episode." },
+  { "name": "Slice height", "uniform": "u_slice_px", "min": 1, "max": 60, "step": 1, "default": 9, "unit": "px", "description": "Height of the horizontal slices (shared by slice tears and slice flashes)." },
+  { "name": "Slice displacement", "uniform": "u_slice_shift_px", "min": 0, "max": 120, "step": 1, "default": 40, "unit": "px", "description": "Largest sideways shift of a torn slice; groups share a smaller common offset." },
+  { "name": "Slice group", "uniform": "u_slice_group", "min": 1, "max": 16, "step": 1, "default": 5, "unit": "slices", "description": "Neighbouring slices per coarse chunk that shares a common offset." },
+  { "name": "Slice tear rate", "uniform": "u_slice_rate_hz", "min": 0, "max": 60, "step": 1, "default": 30, "unit": "Hz", "description": "How often the set of torn slices is re-picked." },
+
+  { "name": "Blocks at rest", "uniform": "u_block_rest", "min": 0, "max": 1, "step": 0.01, "default": 0, "unit": "", "description": "Amount of block corruption outside episodes." },
+  { "name": "Blocks in episode", "uniform": "u_block_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.45, "unit": "", "description": "Amount of block corruption at the peak of an episode." },
+  { "name": "Block size", "uniform": "u_block_size", "min": 0.2, "max": 4, "step": 0.05, "default": 1, "unit": "x", "description": "Scale of the block stripes (1: row stripes about 11 px, column stripes about 56 px)." },
+  { "name": "Block displacement", "uniform": "u_block_shift_px", "min": 0, "max": 120, "step": 1, "default": 26, "unit": "px", "description": "Largest sideways shift of the copy shown inside a block." },
+  { "name": "Block colour split", "uniform": "u_block_split_px", "min": 0, "max": 12, "step": 0.5, "default": 3, "unit": "px", "description": "Red and blue offset inside a block." },
+  { "name": "Block brightness", "uniform": "u_block_brightness", "min": 0, "max": 1, "step": 0.01, "default": 0.4, "unit": "", "description": "How much brighter a block is than the picture." },
+  { "name": "Block rate", "uniform": "u_block_rate_hz", "min": 0, "max": 60, "step": 1, "default": 30, "unit": "Hz", "description": "How often the blocks are re-rolled (they blink)." },
+
+  { "name": "Slice flashes at rest", "uniform": "u_flash_rest", "min": 0, "max": 1, "step": 0.01, "default": 0, "unit": "share", "description": "Share of slices flashing outside episodes." },
+  { "name": "Slice flashes in episode", "uniform": "u_flash_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.06, "unit": "share", "description": "Share of slices flashing at the peak of an episode." },
+  { "name": "Flash strength", "uniform": "u_flash_gain", "min": 0, "max": 2, "step": 0.01, "default": 0.33, "unit": "", "description": "Extra light in a flashing slice (0.33: a third more)." },
+  { "name": "Flash rate", "uniform": "u_flash_rate_hz", "min": 0, "max": 60, "step": 1, "default": 30, "unit": "Hz", "description": "How often the flashing slices are re-picked." },
+
+  { "name": "Noise band at rest", "uniform": "u_band_rest", "min": 0, "max": 1, "step": 0.01, "default": 0, "unit": "", "description": "Strength of the noise band outside episodes." },
+  { "name": "Noise band in episode", "uniform": "u_band_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.3, "unit": "", "description": "Strength of the noise band at the peak of an episode." },
+  { "name": "Noise band cell", "uniform": "u_band_cell_px", "min": 0.5, "max": 8, "step": 0.25, "default": 1, "unit": "px", "description": "Size of the noise band's blocky cells." },
+  { "name": "Noise band smallest", "uniform": "u_band_min", "min": 0, "max": 0.5, "step": 0.01, "default": 0.03, "unit": "of glass", "description": "Smallest band height, as a share of the glass height." },
+  { "name": "Noise band largest", "uniform": "u_band_max", "min": 0, "max": 0.5, "step": 0.01, "default": 0.1, "unit": "of glass", "description": "Largest band height, as a share of the glass height." },
+  { "name": "Noise band rate", "uniform": "u_band_rate_hz", "min": 0, "max": 60, "step": 1, "default": 30, "unit": "Hz", "description": "How often the band jumps to a new place and size." },
+
+  { "name": "Static at rest", "uniform": "u_static_rest", "min": 0, "max": 1, "step": 0.01, "default": 0.025, "unit": "", "description": "Per-pixel white noise outside episodes." },
+  { "name": "Static in episode", "uniform": "u_static_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.07, "unit": "", "description": "Per-pixel white noise at the peak of an episode." },
+  { "name": "Static rate", "uniform": "u_static_rate_hz", "min": 0, "max": 60, "step": 1, "default": 30, "unit": "Hz", "description": "How often the static is re-rolled." },
+
+  { "name": "Line pulse at rest", "uniform": "u_pulse_rest", "min": 0, "max": 1, "step": 0.01, "default": 0.03, "unit": "", "description": "Depth of the dense brightness ripple outside episodes." },
+  { "name": "Line pulse in episode", "uniform": "u_pulse_episode", "min": 0, "max": 1, "step": 0.01, "default": 0.12, "unit": "", "description": "Depth of the dense brightness ripple at the peak of an episode." },
+  { "name": "Line pulse pitch", "uniform": "u_pulse_pitch_px", "min": 1, "max": 8, "step": 0.05, "default": 2.3, "unit": "px", "description": "Distance between ripple crests." },
+  { "name": "Line pulse drift", "uniform": "u_pulse_drift_px_s", "min": -60, "max": 60, "step": 0.5, "default": 6, "unit": "px/s", "description": "Drift of the ripple; positive moves it up, negative down." }
+]

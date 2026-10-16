@@ -32,7 +32,7 @@
     "small": { "family": ["IBM Plex Mono", "monospace"], "size": 13, "weight": 400, "tracking": 0.06 },
     "badge": { "family": ["IBM Plex Mono", "monospace"], "size": 11, "weight": 400, "tracking": 0.12 }
   },
-  "window": { "width": 820, "height": 520, "rows": 9, "margin": 32 },
+  "window": { "width": 820, "rows": 11, "margin": 32 },
   "glow": { "color": "crimson/0.55", "radius": 26, "pulse": 0.15, "period-ms": 3000 },
   "border": {
     "width": 2,
@@ -92,15 +92,38 @@
     "fill": "soot.1/0.9",
     "uppercase": true
   },
+  // plain logis's tab plates (the rest of their look echoes the
+  // selection, the panel, the label and the badges)
+  "tab": { "radius": 9 },
   "pending": { "color": "ash", "opacity": 0.72, "shimmer": 0.3, "period-ms": 1600, "mark": "divining…" },
+  // The owner's look from the effects lab (2026-10-15): fine rolling
+  // scanlines, a faint dot mask, a soft glow, a hint of twitching
+  // aberration and a barely bent tube.
   "effects": {
-    "scanlines": 0.16,
-    "grain": 0.08,
-    "flicker": 0.015,
-    "vignette": 0.42,
-    "bloom": 0,
-    "curvature": 0,
-    "aberration": 0
+    "scanlines": { "strength": 0.38, "period": 2, "sharpness": 0.79, "roll": 0.5 },
+    "glow": { "strength": 0.26, "threshold": 0.25, "reach": 1.5, "bleed": 0.65, "dim-bright": 0.55 },
+    "aberration": { "amount": 0.06, "edges-only": 0.13, "wobble": 0.33, "wobble-rate": 1.65, "twitch": 0.29 },
+    "mask": { "strength": 0.04, "size": 2, "kind": "dots" },
+    "roundness": { "curvature": 0.02, "corners": 0, "vignette": 0.14 },
+    "grain": { "strength": 0.12, "rate": 24 },
+    "flicker": { "strength": 0.01, "frequency": 7.48 },
+    // The owner's glitch from the effects lab (2026-10-15): calm at rest,
+    // a breakup at the end of every 9 s, a burst on opening and on a
+    // switch of tab, and six random bursts a minute.
+    "glitch": {
+      "strength": 0.45,
+      "episodes": { "period-s": 9, "duty": 0.1 },
+      "wobble": { "rest": 0.2, "episode": 24, "band-px": 26, "speed-hz": 24 },
+      "tracking": { "px": 3, "height-px": 3, "a-hz": 0.43, "b-hz": 0.29 },
+      "fringe": { "px": 0.5, "growth": 0.12 },
+      "slices": { "rest": 0, "episode": 0.12, "px": 9, "shift-px": 40, "group": 5, "rate-hz": 30 },
+      "blocks": { "rest": 0, "episode": 0.45, "size": 1, "shift-px": 26, "split-px": 3, "brightness": 0.4, "rate-hz": 30 },
+      "flashes": { "rest": 0, "episode": 0.06, "gain": 0.33, "rate-hz": 30 },
+      "noise-band": { "rest": 0.02, "episode": 0.3, "cell-px": 1, "min": 0.03, "max": 0.1, "rate-hz": 30 },
+      "static": { "rest": 0.03, "episode": 0.07, "rate-hz": 30 },
+      "line-pulse": { "rest": 0.03, "episode": 0.12, "pitch-px": 2.3, "drift-px-s": 6 },
+      "bursts": { "open-ms": 420, "tab-ms": 240, "random-per-minute": 6, "random-ms": 300, "stutter": 0.28, "on": ["open", "tab"] }
+    }
   },
   "motion": { "open-ms": 150, "close-ms": 110, "select-ms": 90 }
 }

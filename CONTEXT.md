@@ -5,7 +5,9 @@ the Machine God. It serves scripts as a drop-in `dmenu`, launches desktop
 applications, and drives servitor through its CLI. This file records the words the
 code, the documentation and the tracker use, and what each one means. The shared
 specification is the description of the lit project `feat/logis`; the decisions
-behind it are in `docs/adr/`.
+behind it are in `docs/adr/`. logis is written in Go since the switch-over (ADR
+0004); the rewrite followed the lit project `feat/logis-go` and ADR 0003, and its
+own words are under "The Go rewrite" below.
 
 Flag names, code identifiers and protocol fields use the plain terms below. The
 grimdark flavour lives only in help, error and UI text (spec §4.6).
@@ -236,8 +238,9 @@ The window logis shows for a visible session, on the overlay layer, namespace
 `logis`.
 
 **Renderer**:
-logis's own small GPU renderer on wgpu: SDF primitives, glyph quads, an icon atlas
-and an optional post-processing pass. There is no CPU renderer. See ADR 0001.
+logis's own small GPU renderer on EGL + OpenGL ES 3 (ADR 0003): SDF primitives,
+glyph quads, an icon atlas and optional post-processing passes. There is no CPU
+renderer (ADR 0001, from Rust v1, which drew the same on wgpu).
 
 **Theme**:
 A named look in `themes/<name>.jsonc` (beside the config), selected by
@@ -253,12 +256,34 @@ The theme's three layers: the **palette** of named colours with alpha; the
 rule, row, selection, match, badge, pending), which name palette colours and font
 **roles**; and the **effects** of the post-processing pass over the body
 (scanlines, grain, flicker, vignette, bloom, curvature, chromatic aberration),
-each a strength where 0 is off, with the motion timings.
+each a strength where 0 is off, with the motion timings. In the Go build the
+effects are the **CRT pass**'s groups of settings (scanlines, glow,
+aberration, mask, roundness, grain, flicker), each with its strength, and
+the **glitch** before it.
+
+**Glitch / episode / burst**:
+The Go build's **glitch** is a pass before the CRT pass that breaks the
+glass up like a failing signal: calm at **rest**, hard in an **episode**.
+Episodes come from the ambient cycle (at the end of each period, counted
+from the panel's opening) and from **bursts**: short episodes logis fires
+when the panel opens, on a switch of tab and at random. Its strength scales
+all of it; 0 is no glitch. reduce-motion turns it off. Rust v1 had none.
+
+**Custom shader / custom pass**:
+The Go build's **custom pass** runs one shader of the user's after the
+built-in effects: a GLSL ES 3.00 fragment shader shaped as Shadertoy's
+(mainImage, iChannel0, iResolution, iTime, iFrame) with logis's iGlitch,
+named by the theme's `effects.custom-shader` or the config's
+`custom-shader`, which outranks it. **iTime** counts from the panel's
+opening; reduce-motion freezes it. One the driver refuses is skipped and
+said once in the log. Rust v1 had none.
 
 **Continuous effect**:
 What moves on its own while a window is visible: the glow's **pulse**, the
 **travelling highlight** round the border, the **flicker**, and a pending row's
-**shimmer**. They keep the window drawing; **reduce motion** (the config's
+**shimmer** (in the Go build also rolling scanlines, a wobbling aberration,
+changing grain, a glitch that moves at rest and a custom pass; the glitch's
+episodes and bursts move while they last). They keep the window drawing; **reduce motion** (the config's
 `reduce-motion`) stills them all.
 
 **Sigil**:
@@ -286,6 +311,124 @@ the config's `blur`; where the compositor does not offer it, there is none.
 The two bundled themes of v1 (`forge-crimson-brass`, the default, and
 `cogitator-phosphor`): the glowing brass-to-crimson panel of the research spike,
 and a green CRT with curved glass, bloom and an inverse selection.
+
+## The Go rewrite
+
+The words of the Go rewrite (lit project `feat/logis-go`, ADR 0003 and 0004).
+Everything above keeps its meaning there.
+
+**Rust reference** (also **Rust v1**):
+Rust logis v1, on `main` up to 2ffdd02 and in the history only since the
+switch-over. Its behaviour, tests, goldens, fixtures and documentation were what
+the Go build had to match. What remains of it in the tree is test data: the
+parity record (`cmd/logis/testdata/parity.json`), the v1 goldens a Go test still
+reads, and the recorded oracles. Comments that name a Rust file (`src/…`,
+`tests/….rs`) say which part of it a Go file ports.
+
+**Go branch**:
+The long-lived branch `go`, branched from `main` at 2ffdd02, where the Go
+implementation tickets integrated until the switch-over. One Go module at the
+repository root (`github.com/nerdwave-nick/logis`), the binary in `cmd/logis`,
+packages under `internal/`.
+
+**Switch-over**:
+The single merge of `go` into `main` that replaced the Rust code with the Go build
+(ADR 0004), once every E2E scenario carried over from `feat/logis` passed and the
+owner had installed and tried the Go package.
+
+**x package**:
+A package from a `golang.org/x` module, the only Go code logis uses beyond the
+standard library. Each is justified by the ticket that introduces it.
+
+**cgo set**:
+The C libraries the shipped binary links, through pkg-config, and nothing else:
+libwayland-client, libwayland-egl, libEGL, libGLESv2, libfontconfig and
+libfreetype. A test holds the binary to exactly this set.
+
+**Owner goroutine**:
+The one goroutine, pinned with `runtime.LockOSThread`, that owns a C object (the
+`wl_display` and its proxies, the EGL/GL context, the fontconfig config, an
+`FT_Library` or `FT_Face`). It releases what it owns explicitly; finalizers never
+do.
+
+**Protocol glue**:
+The C code `wayland-scanner` writes from a Wayland protocol's XML file on
+`go generate` (a client header and the interface tables), committed in
+`internal/wlproto`. The **Go-side wrappers** over it are generated from the same
+XML by logis's own generator.
+
+**EGL Wayland platform**:
+How the renderer presents: an EGL window surface on a `wl_egl_window` for the
+layer surface, shown with `eglSwapBuffers`.
+
+**Shaper**:
+logis's own OpenType shaping engine (GSUB, GPOS, normalisation, bidi, Arabic and
+Hebrew joining, grapheme clusters). It decides which glyphs go where; FreeType only
+draws them. `internal/ot` applies the lookups, `internal/shape` shapes one run as
+HarfBuzz does, and `text.Fonts.Layout` sets a line as cosmic-text did for the Rust
+reference (bidi runs, words, fallback, tabs, columns, the ellipsis).
+
+**Hinting**:
+Fitting glyph outlines to the pixel grid, done by FreeType (TrueType bytecode, the
+CFF hinter, the autohinter for unhinted fonts), the engine skrifa emulated for the
+Rust reference.
+
+**Client-side XKB**:
+logis's own pure-Go keyboard: it parses the compositor's keymap, tracks state from
+its modifier masks, and resolves keysyms, consumed modifiers, Compose and repeat.
+
+**Test-only oracle**:
+A library linked only into tests to check logis's own code against (libxkbcommon
+for the keyboard, `fc-match` for font resolution); never part of the shipped
+binary.
+
+**Differential suite**:
+The tests that run the same inputs through logis's own code and a test-only oracle
+and require the same answers.
+
+**Recorded oracle**:
+A reference library's answers over a fixed corpus, committed as test data next to
+the standalone program that produced them, where the library cannot be linked into
+Go tests: `internal/fuzzy/testdata/nucleo.json`, from nucleo-matcher 0.3.1 as the
+Rust reference configured it; `internal/shape/testdata/hb.json`, from the system
+libharfbuzz through Python ctypes (runs over the pinned fonts, subsets of system
+fonts and a synthetic layout font); `internal/text/testdata/cosmic.json`, from
+cosmic-text 0.19 laying out lines as Rust logis v1 does. The differential suites
+compare with them.
+
+**Divergence**:
+A case where the Go build deliberately answers differently from the Rust reference,
+pinned with its reason; for the matcher, the nucleo defects it fixes
+(`internal/fuzzy/testdata/divergences.json`; visible in the list's order when a
+row with a non-ASCII character ties with others, as in the theme window golden);
+for line layout, cosmic-text dropping the leading run of a right-to-left line that
+starts with digits, and cosmic-text setting the whole word in the match face when a
+match starts an ASCII word, where logis sets only the matched letters apart
+(`divergences` in `internal/text/layout_test.go`); for the window, the row fit;
+for plain logis, the tabbed launcher.
+
+**Row fit**:
+The Go build's window height (a divergence from Rust v1, whose theme also had a
+`window.height`): the prompt line, the rule, the row gaps and the theme's
+`window.rows` (or `--lines`) rows, exactly (`scene.FitIn`). The **room** is the
+logical height of the output the panel shows on (xdg-output and the output the
+compositor puts it on); where the rows do not fit in it, the panel takes the room
+and shows the rows that fit, the leftover **spread** evenly between them. An open
+panel keeps its size while the query narrows the list.
+
+**Tabbed launcher / tab / tab strip / plate**:
+The Go build's plain `logis` where `servitor` is on the caller's PATH (a
+divergence from Rust v1): one interactive app session whose open names its
+**rites** (servitor mode's provider, `logis provide servitor`), shown as two
+**tabs** of one window, the **applications** and the **rites**. The **tab
+strip** above the panel holds a **plate** per tab, fixed in place
+(applications left, rites right), each counting what the query matches; Tab,
+Shift+Tab or a click on a plate only moves which is lit, keeps the query and
+fires the glitch's tab burst. Each tab's answers go to its own feed. The tab an
+answer came from is the **remembered tab** (`$XDG_STATE_HOME/logis/tab`), which
+the next tabbed launcher opens on. `--apps` and `--servitor` stay single lists
+(Tab moves the selection) and leave it alone. The plates are screens of glass
+for the CRT and glitch passes (`render.Post.Regions`).
 
 ## Grimdark UI vocabulary
 

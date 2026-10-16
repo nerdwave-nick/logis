@@ -1,0 +1,248 @@
+name: Go
+
+# logis's only workflow since the switch-over from Rust (ADR 0004): gofmt,
+# vet and the tests with the race detector, the keyboard's differential
+# suite, and the E2E and latency suites in headless sway. It runs on every
+# push (main and any other branch) and on pull requests, for changes to
+# what the build and the tests read: the Go code, everything under tests/
+# (fixtures, pinned fonts, goldens), the themes and schemas, and the files
+# the packaging, completion and documentation tests check (contrib/,
+# packaging/, the man page, README.md's caller contract and custom-shader
+# example, CHANGELOG.md).
+on:
+  push:
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "**.go"
+      - "cmd/**"
+      - "internal/**"
+      - "tests/**"
+      - "themes/**"
+      - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/go.yml"
+  pull_request:
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "**.go"
+      - "cmd/**"
+      - "internal/**"
+      - "tests/**"
+      - "themes/**"
+      - "schema/**"
+      - "contrib/**"
+      - "packaging/**"
+      - "docs/man/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/go.yml"
+
+permissions:
+  contents: read
+
+# The jobs that render (check, headless) run in Arch Linux, the owner's
+# platform where the goldens are recorded, not on Ubuntu 24.04's own
+# libraries (owner decision, ticket 0cca1961). Ubuntu 24.04 ships FreeType
+# 2.13.2, whose TrueType interpreter scales CVT values with a rounding bug
+# (upstream 37580053, fixed by 1452355de in 2.13.3, FreeType issue #1005):
+# hinted Latin glyphs at 1.3 and 2.0 differ by up to 23-47 levels, and
+# the scene and text goldens fail. That is FreeType, not logis; no
+# tolerance can admit it honestly. Upstream 2.13.3 and later match the
+# goldens on the same Mesa.
+#
+# Pinned twice, so a rolling update can never shift the goldens unseen:
+# the image to a dated tag and its digest, and pacman to the Arch Linux
+# Archive snapshot of that date (what the image was built from). Bumping
+# them is a deliberate commit: change both dates together, rerun, and
+# review any golden that moves.
+env:
+  ARCH_SNAPSHOT: "2026/10/11"
+
+jobs:
+  check:
+    name: gofmt, vet, test -race
+    runs-on: ubuntu-24.04
+    container: archlinux:base-20261011.0.609700@sha256:3c64b538588416593f69a1aebd2f2ec0f2541b29159f32556fa7def2167147a0
+    timeout-minutes: 30
+    steps:
+      # cgo links exactly the libraries of spec §4 through pkg-config:
+      # wayland-client and wayland-egl (wayland), egl and glesv2
+      # (libglvnd), fontconfig and freetype2; the race detector and cgo
+      # need gcc, checkout needs git. Mesa brings EGL and llvmpipe: the GL
+      # tests draw on a surfaceless OpenGL ES 3 context, which a runner
+      # without a GPU gets from llvmpipe (spec: logis works on Mesa
+      # llvmpipe). One system font for the fontconfig tests that resolve
+      # the system configuration (the goldens use the pinned tests/fonts).
+      # The wayland-scanner glue is committed; with the snapshot's scanner
+      # (1.26.0) its freshness test runs here too.
+      - name: Install the toolchain and system libraries (Arch Linux Archive)
+        run: |
+          echo "Server = https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syu --noconfirm --needed git gcc pkgconf wayland libglvnd mesa \
+            fontconfig freetype2 ttf-dejavu
+          pacman -Q freetype2 mesa fontconfig wayland
+
+      - uses: actions/checkout@v5
+
+      # In a container job the workspace belongs to the runner's user while
+      # the job runs as root with HOME=/github/home, so git refuses the
+      # repository ("dubious ownership"). actions/checkout marks it safe
+      # only in a temporary HOME that it discards, so every later git call
+      # fails, among them go build's VCS stamping ("error obtaining VCS
+      # status", run 38809074802). Trust exactly this workspace, in the
+      # HOME the later steps use, rather than -buildvcs=false: the tests and
+      # the Build step then run the documented `go build` as a developer's
+      # checkout does (vcs.* stamped), and git works for any later step.
+      - name: Trust the workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would rewrite:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # Includes building cmd/logis and checking the C libraries it links.
+      - name: go test -race
+        run: go test -race ./...
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          LOGIS_REQUIRE_EGL: "1"
+          LOGIS_GOLDEN_FAILURES: ${{ runner.temp }}/golden-failures
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-go-check
+          path: ${{ runner.temp }}/golden-failures/
+          if-no-files-found: ignore
+
+      - name: Build (the documented one-line build)
+        run: |
+          go build -o logis ./cmd/logis
+          ./logis --version
+
+  # The keyboard's differential suite (spec §4 test-only oracles, §6):
+  # internal/xkb against cgo libxkbcommon, which builds only with -tags
+  # xkbref and is never linked into logis (the check job's link test
+  # still finds the six libraries of §4 alone). It runs on Arch Linux, as
+  # the owner's machine does: that libxkbcommon, xkeyboard-config (keymaps
+  # compiled from names) and libx11's Compose tables are the reference, and
+  # a newer libxkbcommon there is the drift this job exists to catch.
+  # Ubuntu 24.04's libxkbcommon 1.6 predates the keysym and case tables the
+  # generated code follows (1.13).
+  xkb-oracle:
+    name: keyboard differential suite (libxkbcommon)
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    timeout-minutes: 15
+    steps:
+      - name: Install the C toolchain, libxkbcommon and the X11 locale data
+        run: |
+          pacman -Syu --noconfirm --needed git gcc pkgconf libxkbcommon xkeyboard-config libx11
+          pkg-config --modversion xkbcommon
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      - name: go test -tags xkbref ./internal/xkb/...
+        run: go test -count=1 -tags xkbref -v ./internal/xkb/...
+
+  # End to end and latency in sway on wlroots' headless backend (spec §6),
+  # in the same pinned Arch image as the check job (see the top). internal/e2e
+  # starts sway itself (WLR_BACKENDS=headless, pixman renderer, no input
+  # devices, one 1280x720 output) in a scratch XDG_RUNTIME_DIR; logis draws
+  # on Mesa llvmpipe through the EGL Wayland platform. Locally the same
+  # tests run in a nested niri (LOGIS_E2E=niri).
+  headless:
+    name: headless E2E and latency (sway)
+    runs-on: ubuntu-24.04
+    container: archlinux:base-20261011.0.609700@sha256:3c64b538588416593f69a1aebd2f2ec0f2541b29159f32556fa7def2167147a0
+    timeout-minutes: 30
+    env:
+      LOGIS_E2E: sway
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      LOGIS_GOLDEN_FAILURES: ${{ github.workspace }}/golden-failures
+    steps:
+      # The check job's packages plus sway (with wlroots, libxkbcommon and
+      # xkeyboard-config, where the injector's keymap includes resolve). No
+      # swaybg: the harness covers the output with its own black backdrop.
+      # Arch's sway carries the file capability cap_sys_nice (realtime
+      # scheduling); a container's capability bounding set lacks it, so
+      # exec fails with EPERM until the capability is dropped.
+      - name: Install sway, Mesa and the system libraries (Arch Linux Archive)
+        run: |
+          echo "Server = https://archive.archlinux.org/repos/$ARCH_SNAPSHOT/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+          pacman -Syu --noconfirm --needed git gcc pkgconf wayland libglvnd mesa \
+            fontconfig freetype2 ttf-dejavu sway
+          setcap -r /usr/bin/sway
+          sway --version
+
+      - uses: actions/checkout@v5
+
+      # In a container job the workspace belongs to the runner's user while
+      # the job runs as root with HOME=/github/home, so git refuses the
+      # repository ("dubious ownership"). actions/checkout marks it safe
+      # only in a temporary HOME that it discards, so every later git call
+      # fails, among them go build's VCS stamping ("error obtaining VCS
+      # status", run 38809074802). Trust exactly this workspace, in the
+      # HOME the later steps use, rather than -buildvcs=false: the tests and
+      # the Build step then run the documented `go build` as a developer's
+      # checkout does (vcs.* stamped), and git works for any later step.
+      - name: Trust the workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      # The harness's own tests (guard, keyboard, pointer, capture,
+      # selection owner, watchdog) and every slice's E2E tests.
+      - name: E2E (go test -run E2E)
+        run: go test -count=1 -run E2E -v ./...
+
+      # Relative trend only: budgets are recorded, never enforced here
+      # (absolute budgets are checked on the owner's machine with
+      # LOGIS_LATENCY_BUDGETS=enforce). The table lands in the job summary.
+      - name: Latency (go test -run Latency)
+        env:
+          LOGIS_LATENCY_RUNS: "20"
+          LOGIS_LATENCY_REPORT: ${{ github.workspace }}/latency.jsonl
+        run: go test -count=1 -run Latency -v ./...
+
+      - name: Keep latency samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-go-${{ github.sha }}
+          path: latency.jsonl
+          if-no-files-found: ignore
+
+      - name: Keep golden mismatches
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures-go-headless
+          path: golden-failures/
+          if-no-files-found: ignore
