@@ -1,6 +1,8 @@
 package render
 
 import (
+	_ "embed" // the clean room's glitch.frag
+
 	"github.com/nerdwave-nick/logis/internal/gles"
 	"github.com/nerdwave-nick/logis/internal/scale"
 )
@@ -59,6 +61,43 @@ func (h *Headless) LegacyPostOver(frame *Image, s scale.Scale, post Post) (*Imag
 	if err := gles.Err(); err != nil {
 		return nil, err
 	}
+	out := &Image{Width: w, Height: ht, Pixels: make([]byte, len(read))}
+	for y := range ht {
+		copy(out.Pixels[y*row:(y+1)*row], read[(ht-1-y)*row:(ht-y)*row])
+	}
+	return out, nil
+}
+
+// cleanRoomGlitch is the clean room's glitch.frag as delivered (row 0 of
+// its frame is the top), for the glitch pass's compatibility test.
+//
+//go:embed testdata/glitch-cleanroom.frag
+var cleanRoomGlitch string
+
+// CleanRoomGlitchOver runs the delivered glitch shader over frame, an
+// image as Offscreen returns it (top-down), uploaded top-down as the
+// clean room's stills were, with post's geometry, glitch and moment, and
+// reads the result back as Offscreen does.
+func (h *Headless) CleanRoomGlitchOver(frame *Image, s scale.Scale, post Post) (*Image, error) {
+	pass, err := glitchPassOf(cleanRoomGlitch)
+	if err != nil {
+		return nil, err
+	}
+	defer pass.close()
+	w, ht := frame.Width, frame.Height
+	tex := gles.NewTexture(w, ht)
+	defer tex.Delete()
+	tex.Upload(0, 0, w, ht, frame.Pixels)
+	target := gles.NewTarget(w, ht)
+	defer target.Delete()
+	pass.draw(gles.Texture(tex), Target{FBO: target.FBO, Size: scale.Size{W: uint32(w), H: uint32(ht)}, Scale: s}, post)
+	gles.BindFramebuffer(target.FBO)
+	read := gles.ReadPixels(0, 0, w, ht)
+	gles.BindFramebuffer(0)
+	if err := gles.Err(); err != nil {
+		return nil, err
+	}
+	row := w * 4
 	out := &Image{Width: w, Height: ht, Pixels: make([]byte, len(read))}
 	for y := range ht {
 		copy(out.Pixels[y*row:(y+1)*row], read[(ht-1-y)*row:(ht-y)*row])

@@ -65,7 +65,9 @@ func resolve(name, dir string, d node) (Theme, error) {
 	}
 	t.Badge = r.badge(need[node](r, d, "badge", "badge"))
 	t.Pending = r.pending(need[node](r, d, "pending", "pending"))
-	t.Effects = r.effects(need[node](r, d, "effects", "effects"))
+	effects := need[node](r, d, "effects", "effects")
+	t.Effects = r.effects(effects)
+	t.Glitch = r.glitch(effects)
 	t.Motion = r.motion(need[node](r, d, "motion", "motion"))
 	errorRef, _ := parseColour("error")
 	t.Error = r.resolveColour(errorRef, "palette.error")

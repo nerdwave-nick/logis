@@ -27,6 +27,7 @@ const (
 	kEffects              // the effects: groups, and v1's keys moved into them
 	kGroup                // an effect's group, or a bare number: its strength
 	kMask                 // dots, grille or slot
+	kEvents               // an array of events: open, tab
 )
 
 // key is one key of a section.

@@ -91,6 +91,7 @@ func TestTheCRTPassDrawsV1sLookWithV1sStrengths(t *testing.T) {
 		for _, s := range []scale.Scale{scale.One, scale.From120ths(156), scale.FromInteger(2)} {
 			sc, logical := panelFrame(t, h, name, s)
 			post := sc.Post
+			post.Glitch = effects.Glitch{} // v1 had none
 			sc.Post = render.Post{}
 			frame, err := h.Offscreen(sc, logical, s)
 			if err != nil {

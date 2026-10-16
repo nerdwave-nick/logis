@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
@@ -30,7 +31,7 @@ func TestTheEffectsCoverTheBody(t *testing.T) {
 		t.Fatalf("%+v", post)
 	}
 	plain := *th
-	plain.Effects = theme.Effects{}
+	plain.Effects, plain.Glitch = theme.Effects{}, effects.Glitch{}
 	if p := Draw(look(3, 0), logical, still(&plain)).Post; p.Any() {
 		t.Fatalf("a theme without effects asks for the pass: %+v", p)
 	}
@@ -139,5 +140,22 @@ func TestAPersonalSigilIsAnImageBesideTheTheme(t *testing.T) {
 	DrawWith(look(1, 0), logical, still(th), &a)
 	if len(a) != 1 || a[0].name != "/usr/share/logis/eye.png" {
 		t.Fatalf("asked %v", a)
+	}
+}
+
+// The glitch covers the body with the theme's controls at the style's
+// moment (the window's glitch clock); off (reduce-motion), the scene asks
+// for nothing of it, whatever the moment.
+func TestTheGlitchTakesTheStylesMoment(t *testing.T) {
+	th := forge()
+	m := effects.Moment{Time: 2.5, Event: 0.75}
+	post := Draw(look(1, 0), sized(th), Style{Theme: th, Glitch: m}).Post
+	if post.Glitch != th.Glitch || post.Moment != m {
+		t.Fatalf("%+v %+v", post.Glitch, post.Moment)
+	}
+	s := th.Stilled()
+	still := Draw(look(1, 0), sized(&s), Style{Theme: &s, Glitch: m}).Post
+	if still.Glitch.On() || still.Moment != (effects.Moment{}) {
+		t.Errorf("stilled: %+v %+v", still.Glitch, still.Moment)
 	}
 }

@@ -57,7 +57,9 @@ type Theme struct {
 	Badge     Badge
 	Pending   Pending
 	Effects   Effects
-	Motion    Motion
+	// Glitch is the glitch pass's controls and bursts (effects.glitch).
+	Glitch effects.Glitch
+	Motion Motion
 	// Error is the palette's error, for error toasts.
 	Error render.Color
 }
@@ -277,13 +279,14 @@ type Motion struct {
 
 // IsContinuous reports whether the theme moves on its own (glow pulse,
 // travelling highlight, and effects that move: rolling scanlines, a
-// wobbling aberration, flicker, changing grain), so a visible window keeps
-// drawing. A pending row's shimmer counts only while one is shown
+// wobbling aberration, flicker, changing grain, a glitch that moves at
+// rest), so a visible window keeps drawing. The glitch's episodes and
+// bursts move only while they last (internal/glitch). A pending row's shimmer counts only while one is shown
 // (Shimmers).
 func (t Theme) IsContinuous() bool {
 	return t.Glow.Pulse > 0 && t.Glow.Period > 0 ||
 		t.Border.HasHighlight && t.Border.Highlight.Period > 0 ||
-		t.Effects.Moves()
+		t.Effects.Moves() || t.Glitch.Moves()
 }
 
 // Shimmers reports whether a shown pending row shimmers, so the window
@@ -293,11 +296,12 @@ func (t Theme) Shimmers() bool { return t.Pending.Shimmer > 0 && t.Pending.Perio
 // Stilled is the theme with every continuous effect stilled (the config's
 // reduce-motion): no pulse, no travelling highlight (it rests at the top),
 // no flicker, no shimmer; the scanlines stop rolling, the aberration
-// steady, the grain frozen (effects.CRT.Stilled).
+// steady, the grain frozen (effects.CRT.Stilled); the glitch is off.
 func (t Theme) Stilled() Theme {
 	t.Glow.Pulse = 0
 	t.Border.Highlight.Period = 0
 	t.Effects = t.Effects.Stilled()
+	t.Glitch = t.Glitch.Stilled()
 	t.Pending.Shimmer = 0
 	return t
 }

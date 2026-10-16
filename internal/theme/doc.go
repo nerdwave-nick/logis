@@ -184,6 +184,8 @@ func (r reader) value(v *jsonc.Value, k key) (any, error) {
 	case kMask:
 		i, err := r.word(v, effects.MaskWords)
 		return effects.MaskKind(i), err
+	case kEvents:
+		return r.events(v)
 	}
 	panic(fmt.Sprintf("theme: key %s of no kind", k.name))
 }

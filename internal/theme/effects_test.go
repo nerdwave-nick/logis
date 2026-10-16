@@ -111,7 +111,7 @@ func TestEffectsAreRefusedWithTheirPlace(t *testing.T) {
 		`{"effects": {"glow": {"strength": 0}, "bloom": 0.2}}`:         "1:45: `bloom` is v1's name of `glow.strength`: give it once",
 		`{"effects": {"bloom": 0.2, "glow": 0.2}}`:                     "1:33: `bloom` is v1's name of `glow.strength`: give it once",
 		`{"effects": {"glitter": 1}}`: "1:22: unknown field `glitter`, expected one of `scanlines`, `glow`, `aberration`, " +
-			"`mask`, `roundness`, `grain`, `flicker`, `vignette`, `bloom`, `curvature`",
+			"`mask`, `roundness`, `grain`, `flicker`, `glitch`, `vignette`, `bloom`, `curvature`",
 	} {
 		_, err := parseDoc([]byte(text))
 		var invalid *jsonc.Invalid

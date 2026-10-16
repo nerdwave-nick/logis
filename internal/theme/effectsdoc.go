@@ -25,7 +25,7 @@ var v1Moved = []struct{ name, group, key string }{
 }
 
 // effectsDoc is the effects section: the groups in effects.Controls'
-// order, then v1's moved keys. A group whose first control is no strength
+// order, the glitch (glitchdoc.go), then v1's moved keys. A group whose first control is no strength
 // (roundness) takes no bare number.
 var effectsDoc = func() *section {
 	s := sec("EffectsDoc")
@@ -46,6 +46,7 @@ var effectsDoc = func() *section {
 		}
 		s.keys = append(s.keys, key{name: group, kind: kind, sub: sub})
 	}
+	s.keys = append(s.keys, key{name: "glitch", kind: kGroup, sub: glitchDoc})
 	for _, m := range v1Moved {
 		s.keys = append(s.keys, flt(m.name))
 	}

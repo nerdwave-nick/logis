@@ -17,6 +17,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
@@ -30,6 +31,9 @@ type Style struct {
 	// At is the frame's time (CLOCK_MONOTONIC ns): the phase of the
 	// continuous effects.
 	At uint64
+	// Glitch is where the theme's glitch stands in this frame: the time
+	// since the panel opened and the burst (internal/glitch's clock).
+	Glitch effects.Moment
 }
 
 // phase is where a cycle of period stands at this moment, 0 to 1 (always
