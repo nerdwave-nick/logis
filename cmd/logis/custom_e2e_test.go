@@ -58,6 +58,7 @@ func TestE2EACustomShaderIsSkippedOnceWhenBrokenAndDrawsWhenMended(t *testing.T)
 	client := c.DmenuAll(dmenuItems)
 	c.Shown(3)
 	c.OpenSettled()
+	c.Daemon.WaitForDrawn()
 	capture := c.Harness.SettledCapture()
 	if px := capture.Pixel(capture.Width/2, capture.Height/2); px != [4]byte{204, 0, 0, 255} {
 		t.Errorf("the panel's centre is %v, not the shader's red", px)

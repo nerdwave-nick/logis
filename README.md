@@ -1090,7 +1090,8 @@ Test-only packages, imported by tests alone and never linked into logis:
   sway on wlroots' headless backend in CI (`LOGIS_E2E=sway`). `c.Logis(…)`
   is a `logis` command inside it (pinned fonts); `e2e.Spawn(t, cmd)` runs it
   with `LOGIS_TEST_TRACE=1` and follows its trace (`WaitForFocus`,
-  `WaitForCommit` …). Clients get a Compose table of the harness's own
+  `WaitForCommit` …; before a capture, `WaitForDrawn`: a frame committed
+  after the latest change the client reported). Clients get a Compose table of the harness's own
   (`XCOMPOSEFILE`, never anyone's `~/.XCompose`) and a scratch
   `XDG_CONFIG_HOME`; both compositors and the injector use the US layout
   with Menu as Compose (`compose:menu`). `e2e.Connect(t, c)` refuses any
