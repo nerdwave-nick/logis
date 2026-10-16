@@ -102,7 +102,7 @@ func (c *Clock) due(at uint64, g effects.Glitch) {
 }
 
 // At is the glitch's moment at at: the time since the panel opened
-// (wrapped, see wrap) and the burst intensity. A random burst whose
+// (wrapped, see since) and the burst intensity. A random burst whose
 // time has come fires first. Before the opening it is zero.
 func (c *Clock) At(at uint64, g effects.Glitch) effects.Moment {
 	if !c.open {
