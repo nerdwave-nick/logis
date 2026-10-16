@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nerdwave-nick/logis/internal/list"
 )
@@ -126,32 +127,197 @@ func TestDmenu0SeparatesLinesWithNul(t *testing.T) {
 	}
 }
 
+// A value a rune cannot bear, or none where it wants one, is an error
+// naming the rune (logis(1) RUNES): exit 2, empty stdout, and on stderr
+// the rune, the value as text (invalid bytes replaced) and what it wants.
 func TestBadValuesAreNamedWithTheirFlag(t *testing.T) {
+	noSession(t)
+	const (
+		prompt   = "the prompt's text"
+		nthWants = "a column number or a format with {N}, {N..M} or {N..}"
+		noColumn = "columns are counted from 1, and a range runs forwards"
+		seconds  = "a number of seconds (0 keeps the daemon resident)"
+		config   = "one path to a config file"
+		builtIn  = "the name of a built-in provider: servitor"
+	)
+	cannotBear := func(rune, value, wants string) string {
+		return "the rune " + rune + " cannot bear '" + value + "': it wants " + wants
+	}
+	standsEmpty := func(rune, wants string) string { return "the rune " + rune + " stands empty: it wants " + wants }
+	namesNoColumn := func(rune, value string) string {
+		return "the rune " + rune + " is refused: '" + value + "' names no column: it wants " + nthWants
+	}
+	isNoColumn := func(rune, value string) string {
+		return "the rune " + rune + " is refused: '" + value + "' is no column: " + noColumn
+	}
 	for _, c := range []struct {
 		args []string
 		want string
 	}{
-		{[]string{"--lines", "many"}, "the rune --lines cannot bear 'many': it wants a number of rows (0 or more)"},
-		{[]string{"--lines=-1"}, "the rune --lines cannot bear '-1': it wants a number of rows (0 or more)"},
-		{[]string{"--width=0"}, "the rune --width cannot bear '0': it wants a width in characters (1 or more)"},
-		{[]string{"--select-index=x"}, "the rune --select-index cannot bear 'x': it wants an item's index (0 or more)"},
-		{[]string{"--with-nth={0}"}, "the rune --with-nth is refused: "},
-		{[]string{"--nth-delimiter=ab"}, "the rune --nth-delimiter cannot bear 'ab': it wants one ASCII character"},
-		{[]string{"--nth-delimiter=é"}, "the rune --nth-delimiter cannot bear 'é': it wants one ASCII character"},
-		{[]string{"--prompt"}, "the rune --prompt stands empty: it wants the prompt's text"},
-		{[]string{"-p"}, "the rune --prompt stands empty: it wants the prompt's text"},
-		{[]string{"-l"}, "the rune --lines stands empty: it wants a number of rows (0 or more)"},
-		{[]string{"-w"}, "the rune --width stands empty: it wants a width in characters (1 or more)"},
-		{[]string{"--width", "+0"}, "the rune --width cannot bear '0': it wants a width in characters (1 or more)"},
-		{[]string{"-w", "000"}, "the rune --width cannot bear '0': it wants a width in characters (1 or more)"},
-		{[]string{"--lines", "\xff"}, "the rune --lines cannot bear '\uFFFD': it wants a number of rows (0 or more)"},
-		{[]string{"--nth-delimiter", "\xff"}, "the rune --nth-delimiter cannot bear '\uFFFD': it wants one ASCII character"},
-		{[]string{"--password=ab"}, "the rune --password cannot bear 'ab': it wants one character to show in place of each typed one"},
+		// Every dmenu rune that wants a value, without one; a short
+		// rune is named by its long name.
+		{[]string{"--prompt"}, standsEmpty("--prompt", prompt)},
+		{[]string{"-p"}, standsEmpty("--prompt", prompt)},
+		{[]string{"--prompt-only"}, standsEmpty("--prompt-only", prompt)},
+		{[]string{"--placeholder"}, standsEmpty("--placeholder", "the placeholder's text")},
+		{[]string{"--search"}, standsEmpty("--search", "the opening query")},
+		{[]string{"--select"}, standsEmpty("--select", "an item's text")},
+		{[]string{"--select-index"}, standsEmpty("--select-index", indexWant)},
+		{[]string{"--lines"}, standsEmpty("--lines", linesWant)},
+		{[]string{"-l"}, standsEmpty("--lines", linesWant)},
+		{[]string{"--width"}, standsEmpty("--width", widthWant)},
+		{[]string{"-w"}, standsEmpty("--width", widthWant)},
+		{[]string{"--with-nth"}, standsEmpty("--with-nth", nthWants)},
+		{[]string{"--accept-nth"}, standsEmpty("--accept-nth", nthWants)},
+		{[]string{"--match-nth"}, standsEmpty("--match-nth", nthWants)},
+		{[]string{"--nth-delimiter"}, standsEmpty("--nth-delimiter", delimiterWant)},
+		// --lines: rows, 0 or more, an unsigned decimal.
+		{[]string{"--lines", "many"}, cannotBear("--lines", "many", linesWant)},
+		{[]string{"--lines=x"}, cannotBear("--lines", "x", linesWant)},
+		{[]string{"--lines=-1"}, cannotBear("--lines", "-1", linesWant)},
+		{[]string{"--lines", ""}, cannotBear("--lines", "", linesWant)},
+		{[]string{"--lines", "1.5"}, cannotBear("--lines", "1.5", linesWant)},
+		{[]string{"--lines", " 3"}, cannotBear("--lines", " 3", linesWant)},
+		{[]string{"--lines", "0x3"}, cannotBear("--lines", "0x3", linesWant)},
+		{[]string{"--lines", "4294967296"}, cannotBear("--lines", "4294967296", linesWant)},
+		{[]string{"--lines", "\xff"}, cannotBear("--lines", "\uFFFD", linesWant)},
+		{[]string{"-l", "\xff"}, cannotBear("--lines", "\uFFFD", linesWant)},
+		// --width: characters, 1 or more; a zero is named as the number read.
+		{[]string{"--width=0"}, cannotBear("--width", "0", widthWant)},
+		{[]string{"--width", "+0"}, cannotBear("--width", "0", widthWant)},
+		{[]string{"-w", "000"}, cannotBear("--width", "0", widthWant)},
+		{[]string{"--width", "x"}, cannotBear("--width", "x", widthWant)},
+		{[]string{"--width", "-3"}, cannotBear("--width", "-3", widthWant)},
+		{[]string{"--width", "4294967296"}, cannotBear("--width", "4294967296", widthWant)},
+		// --select-index: an index from 0, and not beside --select.
+		{[]string{"--select-index=x"}, cannotBear("--select-index", "x", indexWant)},
+		{[]string{"--select-index", "-1"}, cannotBear("--select-index", "-1", indexWant)},
+		{[]string{"--select-index", "1.0"}, cannotBear("--select-index", "1.0", indexWant)},
+		{[]string{"--select", "a", "--select-index", "1"}, "the runes --select and --select-index cannot be borne together"},
+		{[]string{"--select-index", "1", "--select", "a"}, "the runes --select and --select-index cannot be borne together"},
+		// --password=C: exactly one character.
+		{[]string{"--password=ab"}, cannotBear("--password", "ab", passwordWant)},
+		{[]string{"--password=éé"}, cannotBear("--password", "éé", passwordWant)},
+		{[]string{"--password="}, cannotBear("--password", "", passwordWant)},
+		// --nth-delimiter: one ASCII character.
+		{[]string{"--nth-delimiter=ab"}, cannotBear("--nth-delimiter", "ab", delimiterWant)},
+		{[]string{"--nth-delimiter=é"}, cannotBear("--nth-delimiter", "é", delimiterWant)},
+		{[]string{"--nth-delimiter", ""}, cannotBear("--nth-delimiter", "", delimiterWant)},
+		{[]string{"--nth-delimiter="}, cannotBear("--nth-delimiter", "", delimiterWant)},
+		{[]string{"--nth-delimiter", "\xff"}, cannotBear("--nth-delimiter", "\uFFFD", delimiterWant)},
+		// A column format names a column, counted from 1, ranges forwards.
+		{[]string{"--with-nth={0}"}, isNoColumn("--with-nth", "{0}")},
+		{[]string{"--with-nth", "{2..1}"}, isNoColumn("--with-nth", "{2..1}")},
+		{[]string{"--accept-nth", "{0..}"}, isNoColumn("--accept-nth", "{0..}")},
+		{[]string{"--accept-nth", "{1..0}"}, isNoColumn("--accept-nth", "{1..0}")},
+		{[]string{"--with-nth", "x"}, namesNoColumn("--with-nth", "x")},
+		{[]string{"--with-nth", ""}, namesNoColumn("--with-nth", "")},
+		{[]string{"--with-nth", "-1"}, namesNoColumn("--with-nth", "-1")},
+		{[]string{"--with-nth", "{1"}, namesNoColumn("--with-nth", "{1")},
+		{[]string{"--with-nth", "0", "--accept-nth", "x"}, namesNoColumn("--accept-nth", "x")},
+		{[]string{"--match-nth", "{}"}, namesNoColumn("--match-nth", "{}")},
+		{[]string{"--match-nth", "free text"}, namesNoColumn("--match-nth", "free text")},
 	} {
-		_, err := parseRunes(c.args...)
-		if err == nil || !strings.HasPrefix(err.Error(), c.want) {
-			t.Fatalf("%v: %v, want %q", c.args, err, c.want)
+		args := append([]string{"--dmenu"}, c.args...)
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			code, stdout, stderr := runLogis(args...)
+			if want := "logis: " + c.want + "\n"; code != 2 || stdout != "" || stderr != want {
+				t.Errorf("exit %d, stdout %q, stderr %q; want 2 and %q", code, stdout, stderr, want)
+			}
+		})
+	}
+	// --config, the daemon's runes and the built-in providers alike.
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--config"}, standsEmpty("--config", config)},
+		{[]string{"--dmenu", "--config"}, standsEmpty("--config", config)},
+		{[]string{"--config="}, cannotBear("--config", "", config)},
+		{[]string{"--config", ""}, cannotBear("--config", "", config)},
+		{[]string{"--config", "a", "--config", "b"}, cannotBear("--config", "b", config)},
+		{[]string{"--config", "a", "--config", "\xff"}, cannotBear("--config", "\uFFFD", config)},
+		{[]string{"--provider"}, standsEmpty("--provider", "a program to run, then its arguments")},
+		{[]string{"daemon", "--config"}, standsEmpty("--config", config)},
+		{[]string{"daemon", "--config="}, cannotBear("--config", "", config)},
+		{[]string{"daemon", "--config", ""}, cannotBear("--config", "", config)},
+		{[]string{"daemon", "--config=a", "--config=b"}, cannotBear("--config", "b", config)},
+		{[]string{"daemon", "--idle-timeout"}, standsEmpty("--idle-timeout", seconds)},
+		{[]string{"daemon", "--idle-timeout="}, cannotBear("--idle-timeout", "", seconds)},
+		{[]string{"daemon", "--idle-timeout", "--config", "x"}, cannotBear("--idle-timeout", "--config", seconds)},
+		{[]string{"daemon", "--idle-timeout", "5", "--idle-timeout", "soon"}, cannotBear("--idle-timeout", "soon", seconds)},
+		{[]string{"daemon", "--config", "x", "--idle-timeout", "soon"}, cannotBear("--idle-timeout", "soon", seconds)},
+		{[]string{"provide"}, standsEmpty("provide", builtIn)},
+		{[]string{"provide", ""}, cannotBear("provide", "", builtIn)},
+		{[]string{"provide", "apps"}, cannotBear("provide", "apps", builtIn)},
+		{[]string{"provide", "--servitor"}, cannotBear("provide", "--servitor", builtIn)},
+		{[]string{"provide", "\xff"}, cannotBear("provide", "\uFFFD", builtIn)},
+	} {
+		t.Run(strings.Join(c.args, " "), func(t *testing.T) {
+			code, stdout, stderr := runLogis(c.args...)
+			if want := "logis: " + c.want + "\n"; code != 2 || stdout != "" || stderr != want {
+				t.Errorf("exit %d, stdout %q, stderr %q; want 2 and %q", code, stdout, stderr, want)
+			}
+		})
+	}
+	// An idle timeout is a number of seconds, 0 or more, finite, below
+	// 2^64 s.
+	for _, bad := range []string{"soon", "-1", "NaN", "nan", "inf", "-inf", "infinity", "", " 5", "5 ",
+		"1e400", "18446744073709551616", "0x10", "1_0", "１"} {
+		t.Run("daemon --idle-timeout "+bad, func(t *testing.T) {
+			code, stdout, stderr := runLogis("daemon", "--idle-timeout", bad)
+			if want := "logis: " + cannotBear("--idle-timeout", bad, seconds) + "\n"; code != 2 || stdout != "" || stderr != want {
+				t.Errorf("exit %d, stdout %q, stderr %q; want 2 and %q", code, stdout, stderr, want)
+			}
+		})
+	}
+}
+
+// Every value the docs name for a rune is borne: unsigned decimals with an
+// optional '+', a value spelled like a rune, an empty prompt, a column
+// beyond any line, free text around a column, the last of a repeated
+// rune, and idle timeouts in any decimal spelling of seconds.
+func TestTheValuesARuneCanBearAreBorne(t *testing.T) {
+	for _, c := range []struct {
+		args  []string
+		check func(dmenuOptions) bool
+	}{
+		{[]string{"--lines", "+3", "--width=+7"}, func(d dmenuOptions) bool { return *d.view.Lines == 3 && *d.view.Width == 7 }},
+		{[]string{"--lines", "0"}, func(d dmenuOptions) bool { return *d.view.Lines == 0 }},
+		{[]string{"--password=é"}, func(d dmenuOptions) bool { return d.view.Password == 'é' }},
+		{[]string{"--prompt", "-p"}, func(d dmenuOptions) bool { return d.view.Prompt == "-p" }},
+		{[]string{"--prompt", "--dmenu"}, func(d dmenuOptions) bool { return d.view.Prompt == "--dmenu" }},
+		{[]string{"--prompt="}, func(d dmenuOptions) bool { return d.view.Prompt == "" }},
+		{[]string{"--prompt-only", "pin: "}, func(d dmenuOptions) bool { return d.view.Prompt == "pin: " && !d.readStdin }},
+		{[]string{"--select", "a", "--select", "b"}, func(d dmenuOptions) bool { return d.view.Select.Text == "b" }},
+		{[]string{"--select-index", "1", "--select-index", "2"}, func(d dmenuOptions) bool { return d.view.Select.Index == 2 }},
+		{[]string{"--accept-nth", "4294967296"}, func(d dmenuOptions) bool {
+			return string(d.columns.Accept.Apply([]byte("a\tb"), '\t')) == ""
+		}},
+		{[]string{"--with-nth", "a{1}b{x}"}, func(d dmenuOptions) bool {
+			return string(d.columns.With.Apply([]byte("A\tB"), '\t')) == "aAb{x}"
+		}},
+		{[]string{"--with-nth", "{2} {1..}", "--accept-nth", "2", "--match-nth", "0", "--nth-delimiter", ","},
+			func(d dmenuOptions) bool {
+				return string(d.columns.With.Apply([]byte("a,b"), ',')) == "b a,b" && d.columns.Match == nil && d.columns.Delimiter == ','
+			}},
+	} {
+		args := append([]string{"--dmenu"}, c.args...)
+		got, err := parse(args)
+		if err != nil || got.kind != dmenuCommand || !c.check(got.dmenu) {
+			t.Errorf("%q: %+v, %v", args, got.dmenu, err)
 		}
+	}
+	for v, want := range map[string]time.Duration{
+		"0": 0, "-0": 0, "+5": 5 * time.Second, ".5": 500 * time.Millisecond, "5.": 5 * time.Second,
+		"1e3": 1000 * time.Second, "1E3": 1000 * time.Second, "0.25": 250 * time.Millisecond, "600": 600 * time.Second,
+	} {
+		if o, err := parseDaemon([]string{"--idle-timeout", v}); err != nil || o.IdleTimeout != want {
+			t.Errorf("--idle-timeout %q: %v, %v; want %v", v, o.IdleTimeout, err, want)
+		}
+	}
+	if o, err := parseDaemon([]string{"--idle-timeout", "0.0000000001"}); err != nil || o.IdleTimeout > time.Microsecond {
+		t.Errorf("a tiny idle timeout: %v, %v", o.IdleTimeout, err)
 	}
 }
 

@@ -105,17 +105,34 @@ func TestE2ETheOriginalBytesSurviveColumnsAndInvalidUTF8(t *testing.T) {
 	r.dmenuRun([]byte("\xff\xfe\t>pick\r\n"), "--with-nth=2").printed(t, "\xff\xfe\t>pick\r\n")
 }
 
+// -R, --no-run-if-empty: when stdin is empty, exit 1 at once with an empty
+// stdout, no window and no daemon (logis(1) RUNES), with --dmenu or
+// --dmenu0. A single empty line is an item, not an empty stdin.
 func TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon(t *testing.T) {
 	r := dmenuRig(t)
-	got := r.dmenuRun(nil, "--no-run-if-empty")
-	if got.code != 1 || got.stdout != "" {
-		t.Fatalf("%+v", got)
+	for _, args := range [][]string{{"--dmenu", "--no-run-if-empty"}, {"--dmenu", "-R"}, {"--dmenu0", "-R"}, {"-R", "--dmenu"}} {
+		got := r.runClient(r.logis(args...), nil)
+		if got.code != 1 || got.stdout != "" || got.stderr != "" {
+			t.Fatalf("%q: %+v", args, got)
+		}
+		if !gone(r.socket()) {
+			t.Fatalf("%q: a daemon was summoned", args)
+		}
 	}
-	if !gone(r.socket()) {
-		t.Fatal("a daemon was summoned")
+	// With input it runs as usual: a daemon is summoned and answers.
+	if got := r.dmenuRun([]byte("\n"), "-R"); got.code != 1 || gone(r.socket()) {
+		t.Fatalf("one empty line: %+v, or no daemon was summoned", got)
 	}
-	// With input it runs as usual.
 	r.dmenuRun([]byte(">x\n"), "-R").printed(t, ">x\n")
+}
+
+// The choice is printed with one newline after it, whether or not its
+// line ended with one in the input.
+func TestE2EAChoiceEndsWithOneNewlineWhateverItsLineEndedWith(t *testing.T) {
+	r := dmenuRig(t)
+	r.dmenuRun([]byte("a\n>last")).printed(t, ">last\n")
+	r.runClient(r.logis("--dmenu0"), []byte("a\x00>last")).printed(t, ">last\n")
+	r.dmenuRun([]byte(">first\n>second\n")).printed(t, ">first\n")
 }
 
 func TestE2EAnUnmarkedListIsDismissedWithExit1AndEmptyStdout(t *testing.T) {

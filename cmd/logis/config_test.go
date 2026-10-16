@@ -152,6 +152,62 @@ func TestCheckConfigFindsTheThemeItNames(t *testing.T) {
 	}
 }
 
+// JSON with comments and trailing commas is sound, and so is an empty
+// file or one of comments alone: the defaults stand.
+func TestCheckConfigAcceptsCommentsTrailingCommasAndEmptiness(t *testing.T) {
+	for _, text := range []string{
+		`{}`, ``, "// a comment, then nothing", "/* a block */ {}",
+		`{"theme": "forge-crimson-brass",}`,
+		`{"theme": "cogitator-phosphor", "idle-timeout": 30, "focus-loss": "keep"}`,
+	} {
+		home := scratchConfigHome(t)
+		path := filepath.Join(home, "logis", "logis.jsonc")
+		writeFile(t, path, text)
+		code, stdout, stderr := runLogis("--check-config")
+		if code != 0 || !strings.HasPrefix(stdout, "logis: the config at "+path+" is sound") || stderr != "" {
+			t.Errorf("%q: exit %d stdout %q stderr %q", text, code, stdout, stderr)
+		}
+	}
+}
+
+// Every heresy in the config is reported with its file, line and column
+// (logis(1) DIAGNOSTICS) and what is wrong there; exit 2, empty stdout.
+func TestCheckConfigLocatesEveryKindOfHeresy(t *testing.T) {
+	for _, c := range []struct {
+		text, at, says string
+	}{
+		{`[]`, ":1:1:", "the config must be a JSON object"},
+		{`{`, ":1:1:", "EOF while parsing an object"},
+		{`{"theme": "forge-crimson-brass" "terminal": "foot"}`, ":1:33:", "expected `,` or `}`"},
+		{`{"theme": "a", "theme": "b"}`, ":1:22:", "duplicate field `theme`"},
+		{`{"heresy": 1}`, ":1:9:", "unknown field `heresy`"},
+		{`{"theme": 3}`, ":1:11:", "`theme`"},
+		{`{"idle-timeout": -1}`, ":1:19:", "`idle-timeout`"},
+		{`{"focus-loss": "flee"}`, ":1:21:", "`focus-loss`"},
+	} {
+		home := scratchConfigHome(t)
+		path := filepath.Join(home, "logis", "logis.jsonc")
+		writeFile(t, path, c.text)
+		code, stdout, stderr := runLogis("--check-config")
+		if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "logis: the config is heretical: "+path+c.at) ||
+			!strings.Contains(stderr, c.says) {
+			t.Errorf("%s: exit %d stdout %q stderr %q; want %s%s ... %s", c.text, code, stdout, stderr, path, c.at, c.says)
+		}
+	}
+}
+
+// With neither XDG_CONFIG_HOME nor HOME there is no config to read: the
+// defaults stand, and --check-config says so and exits 0.
+func TestCheckConfigWithNowhereToLookAcceptsTheDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "")
+	code, stdout, stderr := runLogis("--check-config")
+	if code != 0 || !strings.Contains(stdout, "neither XDG_CONFIG_HOME nor HOME is set") ||
+		!strings.Contains(stdout, "the defaults stand") || stderr != "" {
+		t.Errorf("exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+}
+
 func TestCheckConfigWithAMissingNamedFileExits2(t *testing.T) {
 	scratchConfigHome(t)
 	path := filepath.Join(t.TempDir(), "nowhere.jsonc")
