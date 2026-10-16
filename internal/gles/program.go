@@ -118,3 +118,8 @@ func Uniform1i(loc int32, v int) { C.glUniform1i(C.GLint(loc), C.GLint(v)) }
 func Uniform4f(loc int32, x, y, z, w float32) {
 	C.glUniform4f(C.GLint(loc), C.GLfloat(x), C.GLfloat(y), C.GLfloat(z), C.GLfloat(w))
 }
+
+// Uniform3f sets a vec3 uniform of the current program.
+func Uniform3f(loc int32, x, y, z float32) {
+	C.glUniform3f(C.GLint(loc), C.GLfloat(x), C.GLfloat(y), C.GLfloat(z))
+}

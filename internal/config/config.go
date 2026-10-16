@@ -54,6 +54,10 @@ type Config struct {
 	// travelling highlight, flicker, shimmer, the CRT pass's motion) and
 	// turns the glitch off; transitions stay.
 	ReduceMotion bool
+	// CustomShader is the custom pass's shader file (absolute once
+	// loaded: a relative path starts beside the config); "" leaves the
+	// theme's, if it names one. It outranks the theme's.
+	CustomShader string
 }
 
 // Default is the config of an absent or empty file.
@@ -66,7 +70,7 @@ func (c Config) Equal(o Config) bool {
 	return c.Theme == o.Theme && c.IdleTimeout == o.IdleTimeout &&
 		(c.Terminal == nil) == (o.Terminal == nil) && slices.Equal(c.Terminal, o.Terminal) &&
 		c.IconTheme == o.IconTheme && c.FocusLoss == o.FocusLoss &&
-		c.Blur == o.Blur && c.ReduceMotion == o.ReduceMotion
+		c.Blur == o.Blur && c.ReduceMotion == o.ReduceMotion && c.CustomShader == o.CustomShader
 }
 
 // Parse reads a config text; only whitespace and comments mean the

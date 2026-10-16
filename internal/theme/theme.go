@@ -17,6 +17,7 @@ package theme
 import (
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/custom"
 	"github.com/nerdwave-nick/logis/internal/effects"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -59,6 +60,9 @@ type Theme struct {
 	Effects   Effects
 	// Glitch is the glitch pass's controls and bursts (effects.glitch).
 	Glitch effects.Glitch
+	// Custom is the custom pass's shader (effects.custom-shader, a path
+	// from the theme's file; the config's custom-shader outranks it).
+	Custom custom.Shader
 	Motion Motion
 	// Error is the palette's error, for error toasts.
 	Error render.Color
@@ -280,13 +284,14 @@ type Motion struct {
 // IsContinuous reports whether the theme moves on its own (glow pulse,
 // travelling highlight, and effects that move: rolling scanlines, a
 // wobbling aberration, flicker, changing grain, a glitch that moves at
-// rest), so a visible window keeps drawing. The glitch's episodes and
+// rest, a custom pass, which may use its time), so a visible window
+// keeps drawing. The glitch's episodes and
 // bursts move only while they last (internal/glitch). A pending row's shimmer counts only while one is shown
 // (Shimmers).
 func (t Theme) IsContinuous() bool {
 	return t.Glow.Pulse > 0 && t.Glow.Period > 0 ||
 		t.Border.HasHighlight && t.Border.Highlight.Period > 0 ||
-		t.Effects.Moves() || t.Glitch.Moves()
+		t.Effects.Moves() || t.Glitch.Moves() || t.Custom.Set() && !t.Custom.Frozen
 }
 
 // Shimmers reports whether a shown pending row shimmers, so the window
@@ -296,12 +301,14 @@ func (t Theme) Shimmers() bool { return t.Pending.Shimmer > 0 && t.Pending.Perio
 // Stilled is the theme with every continuous effect stilled (the config's
 // reduce-motion): no pulse, no travelling highlight (it rests at the top),
 // no flicker, no shimmer; the scanlines stop rolling, the aberration
-// steady, the grain frozen (effects.CRT.Stilled); the glitch is off.
+// steady, the grain frozen (effects.CRT.Stilled); the glitch is off; a
+// custom pass runs with its time frozen at 0.
 func (t Theme) Stilled() Theme {
 	t.Glow.Pulse = 0
 	t.Border.Highlight.Period = 0
 	t.Effects = t.Effects.Stilled()
 	t.Glitch = t.Glitch.Stilled()
+	t.Custom.Frozen = true
 	t.Pending.Shimmer = 0
 	return t
 }

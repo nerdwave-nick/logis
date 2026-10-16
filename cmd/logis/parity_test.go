@@ -39,6 +39,18 @@ var updateParity = flag.Bool("update-parity", false,
 
 const parityRecord = "testdata/parity.json"
 
+// divergences are the answers the Go binary gives unlike Rust's on
+// purpose, for features new beside v1: case key → Rust's recorded answer
+// as the Go binary gives it. The record stays Rust's.
+var divergences = map[string]func(answer) answer{
+	// a5e5f876: the config's custom-shader key is among the keys an
+	// unknown one is told of.
+	`[config/logis/logis.jsonc={"heresy": 1}] logis --check-config`: func(a answer) answer {
+		a.Stderr = strings.Replace(a.Stderr, "`reduce-motion`\n", "`reduce-motion`, `custom-shader`\n", 1)
+		return a
+	},
+}
+
 // parityCase is one invocation: its arguments ("hex:" marks an argument
 // given as hexadecimal bytes, for ones that are not UTF-8), stdin, extra
 // environment ("NAME=" unsets NAME), files written below $DIR first, and
@@ -248,6 +260,9 @@ func TestTheCallerFacingSurfaceIsRustsArgumentByArgument(t *testing.T) {
 			if live := runParity(t, rust, c); live != want {
 				t.Errorf("%s: Rust answers\n  %+v\nnot as recorded\n  %+v", c.key(), live, want)
 			}
+		}
+		if diverge, ok := divergences[c.key()]; ok {
+			want = diverge(want)
 		}
 		if got := runParity(t, bin, c); got != want {
 			t.Errorf("%s:\n  Go   %+v\n  Rust %+v", c.key(), got, want)

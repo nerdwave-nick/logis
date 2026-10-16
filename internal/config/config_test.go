@@ -118,7 +118,7 @@ func TestAnUnknownKeyIsNamedWithItsLineAndColumn(t *testing.T) {
 		t.Errorf("names the key and lists the known ones: %v", e)
 	}
 	want := "unknown field `thme`, expected one of `$schema`, `theme`, `idle-timeout`, " +
-		"`terminal`, `icon-theme`, `focus-loss`, `blur`, `reduce-motion`"
+		"`terminal`, `icon-theme`, `focus-loss`, `blur`, `reduce-motion`, `custom-shader`"
 	if e.Message != want {
 		t.Errorf("%q", e.Message)
 	}
