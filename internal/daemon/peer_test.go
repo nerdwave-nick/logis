@@ -25,7 +25,7 @@ func peerPair(t *testing.T) (*streamPeer, *os.File) {
 
 func TestRepliesReachAReadingClientWhole(t *testing.T) {
 	p, client := peerPair(t)
-	sent := []protocol.Reply{protocol.Welcome(42), protocol.Visible(), protocol.Error("heresy")}
+	sent := []protocol.Reply{protocol.Welcome(42, ""), protocol.Visible(), protocol.Error("heresy")}
 	for _, r := range sent {
 		p.send(r)
 	}

@@ -303,11 +303,13 @@ func (u *ui) toast(t daemon.Toast) {
 	if sh == nil || sh.lingering {
 		return
 	}
-	words := "the config is heretical: "
-	if t.Kind == daemon.ToastThemeRejected {
-		words = "the theme is heretical: "
+	n := &list.Notice{Text: "the config is heretical: " + t.Error, Level: list.Error}
+	switch t.Kind {
+	case daemon.ToastThemeRejected:
+		n.Text = "the theme is heretical: " + t.Error
+	case daemon.ToastStale:
+		n = &list.Notice{Text: t.Text, Level: list.Info}
 	}
-	n := &list.Notice{Text: words + t.Error, Level: list.Error}
 	u.emit("toast %s", trace.Quote(n.Text))
 	sh.toast = n
 	u.noticeUntil = u.now().Add(noticeFor)

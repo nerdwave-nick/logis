@@ -199,6 +199,26 @@ func TestADaemonsRefusalIsTheClientsError(t *testing.T) {
 	wantError(t, err, "restart the daemon")
 }
 
+// A daemon whose binary was replaced welcomes with a reminder: the client
+// keeps it for its caller's stderr and the session goes on.
+func TestADaemonsNoticeComesWithItsWelcome(t *testing.T) {
+	dir := scratch(t)
+	const notice = "logis updated — restart the daemon: kill 7"
+	listen(t, dir, func(c net.Conn) {
+		var hello map[string]any
+		_ = protocol.ReadFrame(c, &hello)
+		_ = protocol.WriteFrame(c, protocol.Welcome(7, notice))
+	})
+	conn, err := Connect(Options{RuntimeDir: dir, Exe: "/nonexistent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if conn.Daemon != 7 || conn.Notice != notice {
+		t.Errorf("daemon %d, notice %q", conn.Daemon, conn.Notice)
+	}
+}
+
 // A daemon leaving as the client arrives is retried, but not for ever.
 func TestADaemonThatKeepsHangingUpIsGivenUpOn(t *testing.T) {
 	dir := scratch(t)
@@ -237,7 +257,7 @@ func TestAwaitEndsWithTheOutcomeTheErrorOrTheSilence(t *testing.T) {
 			protocol.Result(protocol.Outcome{Kind: protocol.Dismissed})}, ""},
 		{"error", []protocol.Reply{protocol.Queued(), protocol.Error("the glass cracked")}, "the glass cracked"},
 		{"silence", []protocol.Reply{protocol.Visible()}, "the machine spirit fell silent before answering"},
-		{"welcome", []protocol.Reply{protocol.Welcome(1)}, "spoke out of turn: 'welcome'"},
+		{"welcome", []protocol.Reply{protocol.Welcome(1, "")}, "spoke out of turn: 'welcome'"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ours, theirs := net.Pipe()

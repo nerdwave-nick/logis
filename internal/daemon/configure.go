@@ -23,6 +23,9 @@ const (
 	// ToastThemeRejected: the theme the config names could not be worn;
 	// the last sound theme stays in force.
 	ToastThemeRejected
+	// ToastStale: the daemon's binary was replaced since it started; Text
+	// asks for a restart (stale.go).
+	ToastStale
 )
 
 // Toast is a short, themed notice for the user (CONTEXT.md: toast,
@@ -32,6 +35,8 @@ type Toast struct {
 	Kind ToastKind
 	// Error is what was refused and where: "PATH:LINE:COLUMN: why".
 	Error string
+	// Text is a notice's own words (ToastStale).
+	Text string
 }
 
 // Configurer is a Resolver that applies the config: the daemon calls
