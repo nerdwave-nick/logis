@@ -1,7 +1,6 @@
 package scene
 
 import (
-
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/render"
