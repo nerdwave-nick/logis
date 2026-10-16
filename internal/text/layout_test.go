@@ -373,7 +373,7 @@ func TestALineThatFitsItsColumnIsSetAsWithoutOne(t *testing.T) {
 // one), whose empty byte range is the cut; what stays visible is the
 // text up to the cut in reading order, and the line is laid out within
 // the column. A column with no room for a glyph beside the ellipsis shows
-// the ellipsis alone.
+// the ellipsis alone, cut at the text's start.
 func TestATooWideLineIsCutWithOneEllipsisWithinItsColumn(t *testing.T) {
 	f := pinned(t, "sans-serif")
 	for _, size := range sizes {
@@ -391,7 +391,10 @@ func TestATooWideLineIsCutWithOneEllipsisWithinItsColumn(t *testing.T) {
 					t.Errorf("@%g %q in %g px: %d glyphs beside the ellipsis", size, s, w, len(line.Glyphs)-1)
 				}
 				if len(line.Glyphs) == 1 {
-					continue // the ellipsis alone
+					if e.Cluster != 0 {
+						t.Errorf("@%g %q in %g px: the ellipsis alone is cut at %d, want the start", size, s, w, e.Cluster)
+					}
+					continue
 				}
 				if line.LayoutWidth > w {
 					t.Errorf("@%g %q in %g px: laid out %g wide", size, s, w, line.LayoutWidth)
@@ -426,9 +429,6 @@ func TestACutKeepsAsManyGlyphsAsFitBesideTheEllipsis(t *testing.T) {
 		for w := dots; w < free.LayoutWidth; w += 5 {
 			line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true})
 			e, _ := ellipsisOf(line)
-			if len(line.Glyphs) == 1 {
-				e.Cluster = 0 // the ellipsis alone
-			}
 			kept := f.Layout(s[:e.Cluster], size, text.LineOptions{}).LayoutWidth
 			more := f.Layout(s[:e.Cluster+1], size, text.LineOptions{}).LayoutWidth
 			if kept+dots > w+0.01 || more+dots <= w {

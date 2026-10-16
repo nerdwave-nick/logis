@@ -257,48 +257,20 @@ func alignEnd(x, lineWidth, w float32, rtl bool) float32 {
 }
 
 // elided is the byte offset an ellipsis stands for: where the visible
-// text before it ends, or where the text after it starts if none comes
-// before.
+// text before it (in logical order; the ellipsis is the last range) ends,
+// or the text's start when none is visible.
 func elided(spans []span, vl *visualLine) int {
 	if !vl.ellipsized {
 		return 0
 	}
-	at := -1
-	for i, r := range vl.ranges {
-		if r.span < 0 {
-			at = i
-		}
-	}
-	bounds := func(r vlRange) (int, int, bool) {
-		lo, hi, ok := math.MaxInt, 0, false
-		rangeGlyphs(spans[r.span].words, r, func(_ *word, g *shapedGlyph) {
-			lo, hi, ok = min(lo, g.start), max(hi, g.end), true
+	for i := len(vl.ranges) - 2; i >= 0; i-- {
+		end, ok := 0, false
+		rangeGlyphs(spans[vl.ranges[i].span].words, vl.ranges[i], func(_ *word, g *shapedGlyph) {
+			end, ok = max(end, g.end), true
 		})
-		return lo, hi, ok
-	}
-	before := 0
-	for i := at - 1; i >= 0; i-- {
-		if _, hi, ok := bounds(vl.ranges[i]); ok {
-			before = hi
-			break
+		if ok {
+			return end
 		}
 	}
-	if before != 0 {
-		return before
-	}
-	after := 0
-	for _, sp := range spans {
-		for _, w := range sp.words {
-			for _, g := range w.glyphs {
-				after = max(after, g.end)
-			}
-		}
-	}
-	for i := at + 1; i < len(vl.ranges); i++ {
-		if lo, _, ok := bounds(vl.ranges[i]); ok {
-			after = lo
-			break
-		}
-	}
-	return after
+	return 0
 }
