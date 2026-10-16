@@ -1,10 +1,13 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/logis/internal/custom"
+	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/render/rendertest"
 )
 
@@ -48,5 +51,23 @@ func TestCheckConfigCompilesTheCustomShader(t *testing.T) {
 	gone := filepath.Join(dir, "themes", "gone.frag")
 	if code != 2 || stderr != "logis: the custom shader is heretical: "+gone+": No such file or directory (os error 2)\n" {
 		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+}
+
+// The README's minimal shader compiles as it stands.
+func TestTheReadmesCustomShaderCompiles(t *testing.T) {
+	rendertest.HeadlessForStructure(t) // skips without EGL
+	readme, err := os.ReadFile(filepath.Join("..", "..", "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const start = "```glsl\n// ~/.config/logis/themes/shaders/amber.frag\n"
+	_, rest, found := strings.Cut(string(readme), start)
+	source, _, closed := strings.Cut(rest, "```")
+	if !found || !closed || !strings.Contains(source, "mainImage") {
+		t.Fatal("README.md has no amber.frag example")
+	}
+	if err := render.CheckCustom(custom.Shader{Path: "amber.frag", Source: source}); err != nil {
+		t.Error(err)
 	}
 }

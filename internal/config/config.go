@@ -51,8 +51,9 @@ type Config struct {
 	// ext-background-effect).
 	Blur bool
 	// ReduceMotion stills the theme's continuous effects (glow pulse,
-	// travelling highlight, flicker, shimmer, the CRT pass's motion) and
-	// turns the glitch off; transitions stay.
+	// travelling highlight, flicker, shimmer, the CRT pass's motion),
+	// turns the glitch off and freezes a custom shader's time; transitions
+	// stay.
 	ReduceMotion bool
 	// CustomShader is the custom pass's shader file (absolute once
 	// loaded: a relative path starts beside the config); "" leaves the
