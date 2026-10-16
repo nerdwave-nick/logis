@@ -18,9 +18,12 @@ import (
 // count its matches. Up, Down, Ctrl+N and Ctrl+P move the selection as
 // ever; Return answers the shown tab, and every answer says its tab. The
 // rites' first stage keeps the query and says "seek a rite" under the
-// theme's own label. With the test trace on it reports `tab <name>` when a
-// tabbed panel shows and on each switch, and the rites' steps as `rites
-// stage <session>`, `rites items <n>` and so on.
+// theme's own label. Silent rites (2aaad4b9: the caller found no
+// servitor) have no provider: their plate counts "—", their tab says why,
+// and Return there does nothing. With the test trace on it reports `tab
+// <name>` when a tabbed panel shows and on each switch, `rites silent`
+// when it shows with silent rites, and the rites' steps as `rites stage
+// <session>`, `rites items <n>` and so on.
 
 // pane is one list of a shown session: the only one, or a tab's.
 type pane struct {
@@ -34,6 +37,9 @@ type pane struct {
 	waiting bool
 	// staged: its provider's first stage came (the rites').
 	staged bool
+	// silent: it has no provider (rites whose caller found no servitor):
+	// it says why, and Return there does nothing.
+	silent bool
 }
 
 // tabNames are the tabs' names, by provider.Tab: the trace's and the
@@ -44,11 +50,11 @@ var tabNames = [2]string{"applications", "rites"}
 const ritesPlaceholder = "seek a rite"
 
 // openTabs makes sh plain logis's tabbed launcher, showing tab: the
-// rites' pane waits for its provider's first stage.
-func openTabs(sh *shown, tab provider.Tab) {
+// rites' pane waits for its provider's first stage, or is silent.
+func openTabs(sh *shown, tab provider.Tab, silent bool) {
 	o := list.DefaultOptions()
 	o.Placeholder, o.Lines = ritesPlaceholder, &sh.rows
-	sh.tabbed, sh.panes[1] = true, &pane{view: list.NewView(o)}
+	sh.tabbed, sh.panes[1] = true, &pane{view: list.NewView(o), silent: silent}
 	if int(tab) < len(sh.panes) {
 		sh.tab, sh.pane = tab, sh.panes[tab]
 	}
@@ -133,7 +139,7 @@ func (u *ui) stripOf(sh *shown) scene.Strip {
 	st := scene.Strip{Active: int(sh.tab)}
 	icons := [2]scene.TabIcon{scene.AppsIcon, scene.RitesIcon}
 	for i, p := range sh.panes {
-		st.Tabs[i] = scene.Tab{Label: tabNames[i], Count: p.view.Matched(), Icon: icons[i]}
+		st.Tabs[i] = scene.Tab{Label: tabNames[i], Count: p.view.Matched(), Icon: icons[i], Silent: p.silent}
 	}
 	st.Empty = sh.view.Matched() == 0 && (sh.view.Query() != "" || sh.view.Total() > 0)
 	return st
