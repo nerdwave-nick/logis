@@ -151,7 +151,7 @@
   },
   "WAYLAND_DISPLAY=wayland-nowhere logis --version": {
     "code": 0,
-    "stdout": "logis 1.0.0\n",
+    "stdout": "logis $VERSION\n",
     "stderr": ""
   },
   "WAYLAND_DISPLAY=wayland-nowhere logis daemon": {
@@ -452,7 +452,7 @@
   "[config/logis/logis.jsonc={\"heresy\": 1}] logis --check-config": {
     "code": 2,
     "stdout": "",
-    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:9: unknown field `heresy`, expected one of `$schema`, `theme`, `idle-timeout`, `terminal`, `icon-theme`, `focus-loss`, `blur`, `reduce-motion`\n"
+    "stderr": "logis: the config is heretical: $DIR/config/logis/logis.jsonc:1:9: unknown field `heresy`, expected one of `$schema`, `theme`, `idle-timeout`, `terminal`, `icon-theme`, `focus-loss`, `blur`, `reduce-motion`, `custom-shader`\n"
   },
   "[config/logis/logis.jsonc={\"heresy\": 1}] logis --dmenu": {
     "code": 2,
@@ -646,7 +646,7 @@
   },
   "logis --config x --version": {
     "code": 0,
-    "stdout": "logis 1.0.0\n",
+    "stdout": "logis $VERSION\n",
     "stderr": ""
   },
   "logis --config=": {
@@ -1326,12 +1326,12 @@
   },
   "logis --version": {
     "code": 0,
-    "stdout": "logis 1.0.0\n",
+    "stdout": "logis $VERSION\n",
     "stderr": ""
   },
   "logis --version --config x": {
     "code": 0,
-    "stdout": "logis 1.0.0\n",
+    "stdout": "logis $VERSION\n",
     "stderr": ""
   },
   "logis --version --dmenu": {
@@ -1371,7 +1371,7 @@
   },
   "logis -V": {
     "code": 0,
-    "stdout": "logis 1.0.0\n",
+    "stdout": "logis $VERSION\n",
     "stderr": ""
   },
   "logis -V --version": {

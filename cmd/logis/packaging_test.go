@@ -186,10 +186,8 @@ func TestThePackageBuildsTheGoBinaryWithCgo(t *testing.T) {
 			t.Errorf("the PKGBUILD lacks %s", word)
 		}
 	}
-	for _, word := range []string{"cargo", "CGO_ENABLED=0", "Cargo.toml"} {
-		if strings.Contains(code, word) {
-			t.Errorf("the PKGBUILD still uses %s", word)
-		}
+	if strings.Contains(code, "CGO_ENABLED=0") {
+		t.Error("the PKGBUILD turns cgo off")
 	}
 	if !strings.Contains(code, "internal/version/version.go") {
 		t.Error("prepare() does not check pkgver against internal/version")

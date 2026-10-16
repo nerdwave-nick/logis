@@ -96,7 +96,7 @@ check() {
   # machine or another GPU driver must not fail the install on them. They
   # are for CI and development; CI and a plain `go test ./...` run them.
   env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u LOGIS_E2E -u LOGIS_REQUIRE_EGL \
-    -u LOGIS_RUST_LOGIS -u LOGIS_LATENCY_BUDGETS \
+    -u LOGIS_LATENCY_BUDGETS \
     go test -short ./...
 }
 

@@ -1,15 +1,15 @@
 package main
 
-// parityCorpus is every rune of Rust logis v1 (src/cli/mod.rs,
-// src/cli/dmenu.rs) with good, bad, missing and inline values, their
-// orders and conflicts, and every way a session cannot be served.
-func parityCorpus() []parityCase {
-	var cases []parityCase
-	add := func(args ...string) { cases = append(cases, parityCase{args: args}) }
-	in := func(stdin string, args ...string) { cases = append(cases, parityCase{args: args, stdin: stdin}) }
-	with := func(env []string, args ...string) { cases = append(cases, parityCase{args: args, env: env}) }
+// answersCorpus is every rune of the command line (cli.go, dmenurunes.go,
+// daemon.go) with good, bad, missing and inline values, their orders and
+// conflicts, and every way a session cannot be served.
+func answersCorpus() []answerCase {
+	var cases []answerCase
+	add := func(args ...string) { cases = append(cases, answerCase{args: args}) }
+	in := func(stdin string, args ...string) { cases = append(cases, answerCase{args: args, stdin: stdin}) }
+	with := func(env []string, args ...string) { cases = append(cases, answerCase{args: args, env: env}) }
 	config := func(text string, args ...string) {
-		cases = append(cases, parityCase{args: args, files: map[string]string{"config/logis/logis.jsonc": text}})
+		cases = append(cases, answerCase{args: args, files: map[string]string{"config/logis/logis.jsonc": text}})
 	}
 
 	// Commands, and what is no command at all.
@@ -227,7 +227,7 @@ func parityCorpus() []parityCase {
 	for _, name := range []string{"no-layer-shell", "no-fractional-scale"} {
 		for _, env := range [][]string{nil, {"WAYLAND_DISPLAY=$DIR/run/wayland-test", "XDG_RUNTIME_DIR="}} {
 			for _, args := range commands {
-				cases = append(cases, parityCase{args: args, env: env, compositor: name})
+				cases = append(cases, answerCase{args: args, env: env, compositor: name})
 			}
 		}
 	}
@@ -235,7 +235,7 @@ func parityCorpus() []parityCase {
 	// first item whose shown text starts with '>', or dismisses) in a daemon
 	// the client starts and that idles out a second after.
 	scripted := func(stdin string, args ...string) {
-		cases = append(cases, parityCase{args: args, stdin: stdin, compositor: "everything",
+		cases = append(cases, answerCase{args: args, stdin: stdin, compositor: "everything",
 			env: []string{"LOGIS_RESOLVER=scripted"}, files: map[string]string{"config/logis/logis.jsonc": `{"idle-timeout": 1}`}})
 	}
 	scripted("a\n>b\nc\n", "--dmenu")
