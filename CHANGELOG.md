@@ -4,145 +4,13 @@ All notable changes to logis are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and logis keeps to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the caller contract
 (the runes, exit statuses, stdout and the provider protocol; README's "Caller
-contract" and logis(1)) is the public interface.
+contract" and logis(1)) is the public interface. Before 1.0.0 a minor version
+may still change it; each such change is listed here.
 
-## [Unreleased]
+## [0.1.1] - 2026-10-16
 
-### Added
-
-- **A daemon left running across an upgrade says so** (the Go build; new
-  beside Rust v1): once its binary was replaced since it started, it keeps
-  serving but every panel it shows carries the notice "logis updated —
-  …", naming `systemctl --user restart logis` when systemd
-  passed it the socket and `restart the daemon: kill PID` otherwise; every
-  caller prints the same line on stderr (exit status and stdout unchanged),
-  and the daemon's log has it once. It never restarts itself.
-- **A small glitch burst on any key press** (the Go build; new beside Rust
-  v1): the event `key` in `effects.glitch.bursts.on`, with `key-ms` (its
-  length) and `key-strength` (its peak, 0 to 1). Any key press in the panel
-  fires it, a held key's repeats and a bare modifier do not, and a new press
-  starts it over; it never cuts short or weakens an open, tab or random burst
-  (the glitch takes the larger). Both bundled themes fire it: 120 ms at 0.3.
-
-### Changed
-
-- **The daemon's socket protocol is version 5** (4 was the Go build's until
-  `open` carried the tabbed launcher's rites): a daemon of another version
-  left running refuses the new clients with its reason, exit 2, instead of
-  serving them silently stale (a daemon of 4 showed plain logis without its
-  tab strip, at its old row fit). Restart the daemon once after upgrading
-  (`systemctl --user restart logis` where the units are enabled; otherwise
-  end the old `logis daemon`).
-- **Plain logis always shows the tabs** (the Go build; a divergence from Rust
-  v1): without `servitor` on its PATH (a compositor keybind's PATH can differ
-  from the shell's), plain `logis` is the tabbed launcher all the same instead
-  of the app launcher alone. Its rites are silent: their plate counts "—",
-  their tab says "cannot find servitor — the rites are silent" and that a
-  keybind's PATH can differ from the shell's, and Return there does nothing.
-  The remembered tab works as ever. `--apps` and `--servitor` are unchanged.
-
-### Fixed
-
-- **A toast hides the row it covers**: with the panel's height following
-  its rows, a toast lay over the last row and that row's words, icon and
-  badges showed through it; the row is no longer drawn while a toast shows.
-
-## [1.1.1] - 2026-10-16
-
-The Go build replaces Rust logis v1 (ADR 0004). The tag `v1.1.0` marks the
-same switch-over before its version was set: that build still calls itself
-1.0.0.
-
-### Added
-
-- **A glitch before the CRT pass** (the Go build; new beside Rust v1): the
-  theme's `effects.glitch` breaks the glass up like a failing signal (wobble,
-  tracking, colour fringe, torn slices, blocks, flashes, a noise band,
-  static, a line pulse), calm at rest and hard in episodes: ambient ones at
-  the end of each period, counted from the panel's opening, and bursts when
-  the panel opens, on a switch of tab and at random (`bursts`). A bare number
-  is its strength; 0 is no pass, and `reduce-motion` turns it off. The
-  bundled themes wear the owner's looks. The shader is logis's own
-  clean-room `glitch.frag`.
-- **A custom shader after the built-in effects** (the Go build; new beside
-  Rust v1): a theme's `effects.custom-shader` or the config's
-  `custom-shader` (which outranks it) names a GLSL ES 3.00 fragment shader
-  shaped as Shadertoy's `mainImage`; logis gives it the frame after the
-  built-in effects (`iChannel0`), `iResolution`, `iTime` (seconds since the
-  panel opened, frozen by `reduce-motion`), `iFrame` and `iGlitch`. A shader
-  that cannot be read or compiled is skipped with one line in the log;
-  `--check-config` compiles it and reports errors at the shader's own lines.
-  The unknown-key error of the config now lists `custom-shader` too.
-
-- **Plain logis is a tabbed launcher where servitor is** (the Go build; a
-  divergence from Rust v1): with `servitor` on its PATH, plain `logis` shows
-  the applications and servitor mode's rites as two tabs under a strip of two
-  plates (Applications left, Rites right, fixed in place, each counting the
-  query's matches). Tab, Shift+Tab or a click on a plate switches tabs and
-  keeps the query; Return acts in the shown tab (exit 0 for a launched app or
-  an invoked rite). It opens on the tab last used, kept in
-  `$XDG_STATE_HOME/logis/tab`. `--apps` and `--servitor` are unchanged (Tab
-  still selects the next item). The theme gains `tab.radius`; the plates are
-  covered by the CRT and glitch passes, and a switch fires the tab burst.
-
-### Changed
-
-- **logis is written in Go** (ADR 0003, ADR 0004): the Go build replaces Rust
-  logis v1 on `main`; the Rust code stays in the history (up to 2ffdd02). The
-  caller contract (runes, exit statuses, stdout, the provider protocol) is
-  v1's, argument by argument, except where an entry here says otherwise.
-  Building needs Go 1.27 and a C compiler instead of Rust. What a user sees
-  differ from v1, besides the tabbed launcher, the row fit, the glitch and the
-  custom shader listed in their own entries:
-  - **Rendering** is OpenGL ES 3 through EGL (libglvnd) with the EGL Wayland
-    platform, on whichever vendor driver the system has; Vulkan and wgpu are
-    gone, and software rendering is Mesa's llvmpipe
-    (`LIBGL_ALWAYS_SOFTWARE=1`). The package depends on `opengl-driver`
-    instead of `mesa`, and the binary links only libwayland-client,
-    libwayland-egl, libEGL, libGLESv2, libfontconfig and libfreetype (no
-    libxkbcommon: the keyboard is logis's own XKB).
-  - **Text** is shaped by logis's own OpenType engine and hinted by the
-    system's FreeType, so glyphs can differ from v1's in their antialiasing.
-    In a matched row only the matched letters take the match face (v1 set the
-    whole ASCII word in it), and a right-to-left line that starts with digits
-    keeps them (v1 dropped that run).
-  - **Matching** fixes nucleo-matcher's defects that v1 inherited: every
-    Latin letter whose decomposition is an ASCII letter and marks folds (v1's
-    tables beyond U+036F were misgenerated and never folded upper-case Latin
-    Extended letters); a substring term (`'word`, `!word`) in non-ASCII text
-    is also found in its last possible place, scored by the character before
-    it, and ignores case when it starts with non-letters; an escaped space in
-    a non-ASCII word loses its backslash. Rows with non-ASCII characters can
-    therefore match or sort differently.
-  - **The CRT pass** is logis's own shader with a group of settings per
-    effect (scanlines, glow, aberration, mask, roundness, grain, flicker); a
-    bare number is still the group's strength and v1's `bloom`, `curvature`
-    and `vignette` still set their groups, so v1 themes stay valid and look as
-    they did. Curved glass bends the whole panel, border and glow included,
-    and leaves what the bend uncovers transparent.
-  - **`reduce-motion`** also stills the rolling scanlines, the wobbling colour
-    split and the changing grain.
-  - **The daemon's socket protocol** is version 4 (v1 spoke 3): a v1 daemon
-    left running refuses the new clients with its reason, exit 2. Restart
-    the daemon once after upgrading (`systemctl --user restart logis.service`
-    where the units are enabled; otherwise end the old `logis daemon`).
-- **The panel's height follows its rows** (the Go build; a divergence from
-  Rust v1): the theme's `window.rows` (now eleven in the bundled themes) or
-  `--lines` rows at `row.height`, the prompt line, rule and row gaps, exactly,
-  so no empty band stays below the last row. On an output too short for them
-  the panel shows the rows that fit, spread over the output's height (via
-  xdg-output and the output the panel lands on). `window.height` is
-  deprecated: still accepted and checked, so v1 themes load, but ignored.
-
-### Removed
-
-- **`LOGIS_GPU_BACKEND`** (the Go build has one backend, EGL with OpenGL ES 3;
-  `LIBGL_ALWAYS_SOFTWARE=1` selects llvmpipe) and the Rust build (`cargo`).
-
-## [1.0.0] - unreleased
-
-The first release: everything of the v1 specification. Not yet tagged; the tag
-`v1.0.0` waits for the owner's go-ahead.
+The first release: a grimdark Wayland launcher and dmenu-compatible picker
+for wlr-layer-shell compositors such as niri and sway, written in Go.
 
 ### Added
 
@@ -152,7 +20,16 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
   starts the daemon when none answers. Sessions: dmenu clients queue,
   interactive sessions (apps, servitor, providers) replace the visible one, and
   a client that leaves cancels its session. `--idle-timeout` (and the config's
-  `idle-timeout`) lets an idle daemon exit; it is off by default.
+  `idle-timeout`) lets an idle daemon exit; it is off by default. Client and
+  daemon speak socket protocol version 5: a daemon of another version refuses
+  a client with its reason, exit 2.
+- **A daemon left running across an upgrade says so**: once its binary was
+  replaced since it started, it keeps serving but every panel it shows
+  carries the notice "logis updated — …", naming
+  `systemctl --user restart logis` when systemd passed it the socket and
+  `restart the daemon: kill PID` otherwise; every caller prints the same line
+  on stderr (exit status and stdout unchanged), and the daemon's log has it
+  once. It never restarts itself.
 - **dmenu mode** (`logis --dmenu`, `--dmenu0`): a drop-in for
   `fuzzel --dmenu` with fuzzel's runes (`--prompt`, `--prompt-only`,
   `--placeholder`, `--password`, `--lines`, `--width`, `--counter`, `--search`,
@@ -161,8 +38,18 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
   input (the window opens before stdin ends; 100 000 lines stay responsive),
   the original bytes on stdout, and exit statuses 0 (chosen), 1 (dismissed) and
   2 (error).
-- **App launcher** (plain `logis`, or `--apps`): desktop entries from the XDG
-  data directories with the visibility rules (`NoDisplay`, `Hidden`,
+- **A tabbed launcher** (plain `logis`): the applications and servitor mode's
+  rites as two tabs under a strip of two plates (Applications left, Rites
+  right, fixed in place, each counting the query's matches). Tab, Shift+Tab or
+  a click on a plate switches tabs and keeps the query; Return acts in the
+  shown tab (exit 0 for a launched app or an invoked rite). It opens on the tab
+  last used, kept in `$XDG_STATE_HOME/logis/tab`. Without `servitor` on its
+  PATH (a compositor keybind's PATH can differ from the shell's) the rites are
+  silent: their plate counts "—", their tab says "cannot find servitor — the
+  rites are silent" and that a keybind's PATH can differ from the shell's, and
+  Return there does nothing.
+- **App launcher** (`logis --apps`): desktop entries from the XDG data
+  directories with the visibility rules (`NoDisplay`, `Hidden`,
   `OnlyShowIn`/`NotShowIn`, `TryExec`), icons from the icon theme (SVG and PNG),
   frecency in `$XDG_STATE_HOME/logis/`, desktop actions on Shift+Return,
   terminal apps through the configured terminal, and launches with an
@@ -175,49 +62,71 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
 - **Providers** (`logis --provider PROGRAM [ARG]...`): the provider protocol,
   version 1 (JSON lines; docs/provider-protocol.md), with pending items,
   badges, multi-stage flows and toasts.
-- **The look**: logis's own wgpu renderer (Vulkan, then GL, then Mesa's
-  lavapipe or llvmpipe) with SDF shapes, glyphs through glyphon and
-  fontconfig, an icon atlas and a post-processing pass (scanlines, grain,
-  flicker, vignette, bloom, curvature, chromatic aberration); crisp at
-  fractional scales; blur behind where the compositor offers
-  ext-background-effect.
+- **The look**: logis's own GPU renderer on OpenGL ES 3 through EGL
+  (libglvnd) and the EGL Wayland platform, on whichever vendor driver the
+  system has (`LIBGL_ALWAYS_SOFTWARE=1` selects Mesa's llvmpipe), with SDF
+  shapes, glyphs and icons from atlases, crisp at fractional scales, and blur
+  behind where the compositor offers ext-background-effect.
+  - **Text** is shaped by logis's own OpenType engine (bidi, Hebrew and
+    Arabic joining, emoji sequences), hinted and rasterised by the system's
+    FreeType, with families and fallbacks resolved by fontconfig in-process.
+  - **The CRT pass** has a group of settings per effect (scanlines, glow,
+    aberration, mask, roundness, grain, flicker); a bare number is the group's
+    strength, and `bloom`, `curvature` and `vignette` are accepted as older
+    names of `glow.strength`, `roundness.curvature` and `roundness.vignette`.
+    Curved glass bends the whole panel, border and glow included, and leaves
+    what the bend uncovers transparent.
+  - **A glitch before the CRT pass**: the theme's `effects.glitch` breaks the
+    glass up like a failing signal (wobble, tracking, colour fringe, torn
+    slices, blocks, flashes, a noise band, static, a line pulse), calm at rest
+    and hard in episodes: ambient ones at the end of each period, counted from
+    the panel's opening, and bursts when the panel opens, on a switch of tab,
+    on a key press (`key-ms`, `key-strength`; a held key's repeats and a bare
+    modifier do not fire it) and at random (`bursts`). A bare number is its
+    strength; 0 is no pass.
+  - **A custom shader after the built-in effects**: a theme's
+    `effects.custom-shader` or the config's `custom-shader` (which outranks
+    it) names a GLSL ES 3.00 fragment shader shaped as Shadertoy's
+    `mainImage`; logis gives it the frame after the built-in effects
+    (`iChannel0`), `iResolution`, `iTime` (seconds since the panel opened),
+    `iFrame` and `iGlitch`. A shader that cannot be read or compiled is
+    skipped with one line in the log; `--check-config` compiles it and reports
+    errors at the shader's own lines.
+- **The panel's height follows its rows**: the theme's `window.rows` (eleven
+  in the bundled themes) or `--lines` rows at `row.height`, the prompt line,
+  rule and row gaps, exactly. On an output too short for them the panel shows
+  the rows that fit, spread over the output's height. `window.height` is
+  accepted and checked but ignored. A toast hides the row it covers.
+- **Aligned columns**: list columns take their width from the rows, up to a
+  maximum and with an ellipsis, instead of starting at the next tab stop.
 - **Themes**: forge crimson & brass (the default) and cogitator phosphor,
   compiled in; user themes in `~/.config/logis/themes/<name>.jsonc` that may
   extend another theme, edited live, with a published JSON Schema
   (`schema/theme.schema.json`). A global `reduce-motion` stills every
-  continuous effect.
+  continuous effect (the rolling scanlines, the wobbling colour split, the
+  changing grain, the glitch and a custom shader's time).
 - **Configuration**: JSONC at `$XDG_CONFIG_HOME/logis/logis.jsonc` with a JSON
   Schema (`schema/logis.schema.json`), `--config`, `--check-config`, and live
   reload that keeps the last sound state and reports errors by file, line and
   column.
-- **Input**: libxkbcommon driven directly (Compose, key repeat, consumed
-  modifiers), fzf-like matching that ignores case and accents with highlighted
-  matches, grapheme-aware editing, the pointer (hover, click, scroll) and paste
-  from the clipboard and the primary selection.
+- **Input**: logis's own XKB keyboard (Compose, key repeat, consumed
+  modifiers, keymaps replaced mid-session); fzf-like matching on
+  nucleo-matcher 0.3.1's scoring that ignores case and accents (every Latin
+  letter whose decomposition is an ASCII letter and marks folds) with
+  highlighted matches; grapheme-aware editing; the pointer (hover, click,
+  scroll); paste from the clipboard and the primary selection.
 - **Motion**: open and close transitions and a gliding selection, paced by the
-  compositor's frame callbacks; an idle window draws nothing.
-- **Packaging**: a release profile (fat LTO, one codegen unit, stripped), the
-  man page logis(1), bash, zsh and fish completions, systemd user units
-  (`logis.socket`, `logis.service` with `KillMode=process`; shipped, not
-  enabled), and a PKGBUILD in `packaging/arch/` (no AUR package).
-- **Aligned columns**: list columns take their width from the rows, up to a
-  maximum and with an ellipsis, instead of starting at the next tab stop
-  (1b82eff9).
+  compositor's frame callbacks; an idle window draws nothing. Warm opens wait
+  on no compositor round trip before they are shown.
+- **Packaging**: the man page logis(1), bash, zsh and fish completions,
+  systemd user units (`logis.socket`, `logis.service` with `KillMode=process`;
+  shipped, not enabled), and a PKGBUILD in `packaging/arch/` (no AUR package)
+  that depends on `opengl-driver`. The binary links only libwayland-client,
+  libwayland-egl, libEGL, libGLESv2, libfontconfig and libfreetype.
+- **Versions from git tags**: a release is the tag `vX.Y.Z`. `logis
+  --version` reports the version Go records from the tags (or the one a
+  build stamps through `-ldflags -X`), and the package's version, binary and
+  man page all take theirs from `git describe` of the commit they build; no
+  file but this changelog names a number.
 
-### Fixed
-
-- **Warm opens no longer wait on the compositor before they are shown**
-  (d49bceee). Each window asked the GPU driver again what its surface offers;
-  Mesa's Wayland WSI answers that with about 30 round trips to the compositor
-  per open, so any compositor delay held the window back. The offer is now
-  negotiated once, with the daemon's first window. The ~2 s outliers seen in
-  the latency harness came from the nested test niri itself: a nested niri the
-  session does not draw gets frame callbacks about once a second and stops
-  answering meanwhile. The latency tests now run one at a time (the measured
-  window is the newest, in view), a watchdog on the test compositor names its
-  stalls, and with enforced budgets no warm open may take over 100 ms.
-
-[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.1.1...HEAD
-[1.1.1]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.1
-[1.1.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.0
-[1.0.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.0.0
+[0.1.1]: https://github.com/nerdwave-nick/logis/releases/tag/v0.1.1
