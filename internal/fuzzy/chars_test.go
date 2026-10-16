@@ -63,7 +63,7 @@ func TestCaseFoldingIsUnicodesSimpleCaseFolding(t *testing.T) {
 }
 
 // Accent folding takes every Latin letter whose canonical decomposition
-// is an ASCII letter and nonspacing marks to that letter, in either case.
+// is an ASCII letter and its accents to that letter, in either case.
 func TestAccentFoldingTakesLatinLettersToTheirASCIIBase(t *testing.T) {
 	n := 0
 	for r := rune(0x80); r <= unicode.MaxRune; r++ {
@@ -73,13 +73,6 @@ func TestAccentFoldingTakesLatinLettersToTheirASCIIBase(t *testing.T) {
 		var buf [utf8.UTFMax]byte
 		d := []rune(string(norm.NFD.Bytes(utf8.AppendRune(buf[:0], r))))
 		if len(d) < 2 || d[0] >= utf8.RuneSelf || !unicode.IsLetter(d[0]) {
-			continue
-		}
-		marks := true
-		for _, m := range d[1:] {
-			marks = marks && unicode.Is(unicode.Mn, m)
-		}
-		if !marks {
 			continue
 		}
 		n++

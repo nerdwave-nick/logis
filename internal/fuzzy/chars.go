@@ -136,14 +136,11 @@ func slowNormalize(r rune) rune {
 	}
 	var buf [utf8.UTFMax]byte
 	d := norm.NFD.Properties(utf8.AppendRune(buf[:0], r)).Decomposition()
-	if len(d) < 2 || d[0] >= utf8.RuneSelf || d[0] == ' ' {
+	if len(d) < 2 || d[0] >= utf8.RuneSelf {
 		return r
 	}
-	for _, m := range string(d[1:]) {
-		if !unicode.Is(unicode.Mn, m) {
-			return r
-		}
-	}
+	// An ASCII letter and accents (Unicode's canonical decompositions of
+	// Latin letters put only nonspacing marks after an ASCII letter).
 	return rune(d[0])
 }
 
