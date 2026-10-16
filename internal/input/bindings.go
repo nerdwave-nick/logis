@@ -34,16 +34,15 @@ func Binding(ks xkb.Keysym, m Mods) (Action, bool) {
 		return ActAccept, true
 	case (ks == xkb.KeyReturn || ks == xkb.KeyKPEnter) && shift:
 		return ActDescend, true
-	case (ks == xkb.KeyUp || ks == xkb.KeyKPUp) && plain,
-		// Shift+Tab is ISO_Left_Tab with Shift consumed on most layouts;
-		// where Shift is left unconsumed it is Tab or ISO_Left_Tab + Shift.
-		ks == xkb.KeyISOLeftTab && (plain || shift),
-		ks == xkb.KeyTab && shift,
-		(ks == 'p' || ks == 'P') && ctrl:
+	// Shift+Tab is ISO_Left_Tab with Shift consumed on most layouts;
+	// where Shift is left unconsumed it is Tab or ISO_Left_Tab + Shift.
+	case ks == xkb.KeyISOLeftTab && (plain || shift), ks == xkb.KeyTab && shift:
+		return ActTabPrevious, true
+	case ks == xkb.KeyTab && plain:
+		return ActTabNext, true
+	case (ks == xkb.KeyUp || ks == xkb.KeyKPUp) && plain, (ks == 'p' || ks == 'P') && ctrl:
 		return ActPrevious, true
-	case (ks == xkb.KeyDown || ks == xkb.KeyKPDown) && plain,
-		ks == xkb.KeyTab && plain,
-		(ks == 'n' || ks == 'N') && ctrl:
+	case (ks == xkb.KeyDown || ks == xkb.KeyKPDown) && plain, (ks == 'n' || ks == 'N') && ctrl:
 		return ActNext, true
 	case ks == xkb.KeyBackSpace && (plain || shift):
 		return edit(DeleteBack)

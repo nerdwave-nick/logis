@@ -56,15 +56,29 @@ func TestUpDownTabAndCtrlNPMove(t *testing.T) {
 	wantBinding(t, "KP_Up", None, ActPrevious)
 	wantBinding(t, "Down", None, ActNext)
 	wantBinding(t, "KP_Down", None, ActNext)
-	wantBinding(t, "Tab", None, ActNext)
-	wantBinding(t, "ISO_Left_Tab", None, ActPrevious)
-	wantBinding(t, "Tab", Shift, ActPrevious)
-	wantBinding(t, "ISO_Left_Tab", Shift, ActPrevious)
+	// Tab and Shift+Tab move too, marked as Tab's: plain logis's tabbed
+	// launcher switches tabs with them instead (8cba2fc9).
+	wantBinding(t, "Tab", None, ActTabNext)
+	wantBinding(t, "ISO_Left_Tab", None, ActTabPrevious)
+	wantBinding(t, "Tab", Shift, ActTabPrevious)
+	wantBinding(t, "ISO_Left_Tab", Shift, ActTabPrevious)
 	wantBinding(t, "n", Ctrl, ActNext)
 	wantBinding(t, "p", Ctrl, ActPrevious)
 	wantBinding(t, "N", Ctrl, ActNext) // Caps Lock on
 	wantBinding(t, "P", Ctrl, ActPrevious)
 	wantNone(t, "Tab", alt) // Alt+Tab is not ours
+}
+
+func TestTabsMovesAreMovesMarkedAsTabs(t *testing.T) {
+	if ActTabNext.Kind != Select || ActTabNext.Step != Next || !ActTabNext.ByTab {
+		t.Errorf("Tab: %+v", ActTabNext)
+	}
+	if ActTabPrevious.Kind != Select || ActTabPrevious.Step != Previous || !ActTabPrevious.ByTab {
+		t.Errorf("Shift+Tab: %+v", ActTabPrevious)
+	}
+	if ActNext.ByTab || ActPrevious.ByTab {
+		t.Error("Down and Up are marked as Tab's")
+	}
 }
 
 func TestEditingKeysEdit(t *testing.T) {

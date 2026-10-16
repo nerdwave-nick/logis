@@ -187,7 +187,7 @@ var refusals = []struct{ text, want string }{
 	{`{"prompt": {"label": 1}}`, "1:22: invalid type: integer `1`, expected a string"},
 	{`{"x": 1}`, "1:4: unknown field `x`, expected one of `$schema`, `extends`, `palette`, `fonts`, `window`, `glow`, " +
 		"`border`, `panel`, `decorations`, `prompt`, `query`, `counter`, `rule`, `row`, `selection`, `match`, `badge`, " +
-		"`pending`, `effects`, `motion`"},
+		"`tab`, `pending`, `effects`, `motion`"},
 	{`{"$schema": 1}`, "1:13: invalid type: integer `1`, expected a string"},
 	{`{"extends": 1}`, "1:13: invalid type: integer `1`, expected a string"},
 	{`{"glow": 1}`, "1:10: invalid type: integer `1`, expected struct GlowDoc"},

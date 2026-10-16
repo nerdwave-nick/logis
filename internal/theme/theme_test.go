@@ -170,7 +170,7 @@ func TestTheDefaultIsTheBundledForgeTheme(t *testing.T) {
 		"query.caret.width": d.Query.Caret.Width, "rule.thickness": d.Rule.Thickness, "rule.inset": d.Rule.Inset,
 		"rule.ornament.size": d.Rule.Ornament.Size, "row.height": d.Row.Height, "row.gap": d.Row.Gap,
 		"row.padding": d.Row.Padding, "row.column-gap": d.Row.ColumnGap, "row.column-max": d.Row.ColumnMax,
-		"selection.inset": d.Selection.Inset, "pending.opacity": d.Pending.Opacity, "pending.shimmer": d.Pending.Shimmer,
+		"selection.inset": d.Selection.Inset, "tab.radius": d.Tab.Radius, "pending.opacity": d.Pending.Opacity, "pending.shimmer": d.Pending.Shimmer,
 		"effects.scanlines.strength": d.Effects.Scanlines.Strength, "effects.grain.strength": d.Effects.Grain.Strength,
 		"effects.flicker.strength": d.Effects.Flicker.Strength, "effects.roundness.vignette": d.Effects.Roundness.Vignette,
 		"effects.scanlines.period": d.Effects.Scanlines.Period, "effects.glow.dim-bright": d.Effects.Glow.DimBright,

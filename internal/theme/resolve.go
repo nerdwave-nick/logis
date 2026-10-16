@@ -64,6 +64,7 @@ func resolve(name, dir string, d node) (Theme, error) {
 		Underline: need[bool](r, matched, "underline", "match.underline"),
 	}
 	t.Badge = r.badge(need[node](r, d, "badge", "badge"))
+	t.Tab = Tab{Radius: r.length(need[node](r, d, "tab", "tab"), "radius", "tab.radius")}
 	t.Pending = r.pending(need[node](r, d, "pending", "pending"))
 	effects := need[node](r, d, "effects", "effects")
 	t.Effects = r.effects(effects)

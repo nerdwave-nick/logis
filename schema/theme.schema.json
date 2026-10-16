@@ -728,6 +728,20 @@
         "uppercase": true
       }
     },
+    "tab": {
+      "description": "The plates of plain logis's tab strip (Applications and Rites, above the panel; new beside logis v1). The active plate echoes the selection (its band, edge, glow and columns), the others the panel's fill and the rule; labels are in the prompt's label font, counts in the badges' font (in brackets where the badges are brackets).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "radius": {
+          "description": "The plates' corner radius.",
+          "$ref": "#/$defs/length"
+        }
+      },
+      "default": {
+        "radius": 9
+      }
+    },
     "pending": {
       "description": "A row whose data has not settled.",
       "type": "object",
