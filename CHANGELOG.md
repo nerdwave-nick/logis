@@ -8,6 +8,12 @@ contract" and logis(1)) is the public interface.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-16
+
+The Go build replaces Rust logis v1 (ADR 0004). The tag `v1.1.0` marks the
+same switch-over before its version was set: that build still calls itself
+1.0.0.
+
 ### Added
 
 - **A glitch before the CRT pass** (the Go build; new beside Rust v1): the
@@ -172,5 +178,7 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
   window is the newest, in view), a watchdog on the test compositor names its
   stalls, and with enforced budgets no warm open may take over 100 ms.
 
-[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.1
+[1.1.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.0.0
