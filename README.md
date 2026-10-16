@@ -273,7 +273,7 @@ stated here (message wording, timings, the socket protocol) may change.
 
 | Status | stdout | When | Pinned by |
 |---|---|---|---|
-| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ETypingFiltersAndReturnPrintsTheChosenLine` |
+| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`, `cmd/logis/dmenu_e2e_test.go::TestE2EAChoiceEndsWithOneNewlineWhateverItsLineEndedWith`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ETypingFiltersAndReturnPrintsTheChosenLine` |
 | 0 | empty | `--provider`: the provider closed its flow | `cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose` |
 | 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`, `cmd/logis/servitor_window_e2e_test.go::TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation` |
 | 0 | empty | plain `logis` (or `--apps`): an app was launched; in its tabbed launcher also a rite invoked | `cmd/logis/apps_e2e_test.go::TestPlainLogisIsTheAppLauncher`, `cmd/logis/apps_e2e_test.go::TestTheChosenAppIsLaunchedWithItsTokenInAScopeAndCountsForFrecency`, `cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken` |
@@ -281,14 +281,16 @@ stated here (message wording, timings, the socket protocol) may change.
 | 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `cmd/logis/dmenu_e2e_test.go::TestE2EAnUnmarkedListIsDismissedWithExit1AndEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EEscapeDismissesWithEmptyStdoutAndExit1`, `cmd/logis/provider_window_e2e_test.go::TestE2EEscapeAfterAnActivationNeverKillsTheActionItStarted`, `cmd/logis/apps_window_e2e_test.go::TestE2EPlainLogisOpensTheLauncherAndEscapeExits1`, `internal/input/bindings_test.go::TestEscapeCtrlGAndCtrlBracketDismiss`, `internal/input/keyboard_test.go::TestFocusLossDismissesByDefaultAndKeepsOnRequest` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`, `cmd/logis/provider_e2e_test.go::TestAReplacedProviderCallerExits1WithEmptyStdout` |
 | 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `cmd/logis/dmenu_e2e_test.go::TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon` |
-| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `cmd/logis/contract_test.go::TestUnknownArgumentExits2NamingIt`, `cmd/logis/main_test.go::TestUnknownRunesAreNamedAndExit2`, `cmd/logis/cli_test.go::TestBadValuesAreNamedWithTheirFlag`, `cmd/logis/dmenu_e2e_test.go::TestE2EListRunesWithoutDmenuAreAnError`, and [below](#when-logis-cannot-serve) |
+| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `cmd/logis/contract_test.go::TestUnknownArgumentExits2NamingIt`, `cmd/logis/main_test.go::TestUnknownRunesAreNamedAndExit2`, `cmd/logis/main_test.go::TestARuneThatTakesNoValueRefusesOne`, `cmd/logis/cli_test.go::TestBadValuesAreNamedWithTheirFlag`, `cmd/logis/dmenu_e2e_test.go::TestE2EListRunesWithoutDmenuAreAnError`, and [below](#when-logis-cannot-serve) |
 
 Exit 1 does not tell a dismissal from a replacement; both mean "nothing was
 chosen". stdout carries nothing but the choice and its newline, also after
 `--dmenu0` (`cmd/logis/dmenu_e2e_test.go::TestE2EDmenu0ReadsNulSeparatedItemsWithNewlinesInside`).
 `--check-config` exits 0 or 2 likewise
 (`cmd/logis/config_test.go::TestCheckConfigAcceptsASoundConfigAndExits0`,
-`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`).
+`cmd/logis/config_test.go::TestCheckConfigAcceptsCommentsTrailingCommasAndEmptiness`,
+`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`,
+`cmd/logis/config_test.go::TestCheckConfigLocatesEveryKindOfHeresy`).
 
 ### dmenu input and output
 
@@ -312,7 +314,9 @@ chosen". stdout carries nothing but the choice and its newline, also after
 
 The runes, their defaults and their fuzzel semantics are in [dmenu](#dmenu)
 (`cmd/logis/cli_test.go::TestTheDmenuDefaultsAreFuzzels`,
-`cmd/logis/cli_test.go::TestValuesFollowTheirFlagOrAnEqualsSign`):
+`cmd/logis/cli_test.go::TestValuesFollowTheirFlagOrAnEqualsSign`,
+`cmd/logis/cli_test.go::TestTheValuesARuneCanBearAreBorne`; a switch given a value is
+refused: `cmd/logis/main_test.go::TestARuneThatTakesNoValueRefusesOne`):
 
 | Rune | Pinned by |
 |---|---|
@@ -462,8 +466,8 @@ status only. It does name the plain fact:
 | no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/dmenu_e2e_test.go::TestE2EADaemonThatCannotStartIsReportedWithExit2`, `internal/client/client_test.go::TestADaemonThatCannotStartIsReportedWithItsReason`, `cmd/logis/session_test.go::TestWithNonexistentWaylandSocketExits2NamingTheSocket` |
 | a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/session_test.go::TestOnCompositorWithoutLayerShellExits2NamingTheProtocol` |
 | a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `cmd/logis/session_test.go::TestOnCompositorWithoutFractionalScaleExits2NamingTheProtocol` |
-| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy` |
-| an invalid config stops the daemon starting | the file, line and column | `cmd/logis/config_e2e_test.go::TestE2EADaemonRefusesToStartOnAnInvalidConfigAndItsClientFails` |
+| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/session_test.go::TestWithoutXDGRuntimeDirExits2NamingIt` |
+| an invalid config stops the daemon starting | the file, line and column | `cmd/logis/config_e2e_test.go::TestE2EADaemonRefusesToStartOnAnInvalidConfigAndItsClientFails`, `cmd/logis/config_test.go::TestCheckConfigLocatesEveryKindOfHeresy` |
 | the daemon dies during the session (the compositor left) | that the daemon fell silent | `cmd/logis/contract_test.go::TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2` |
 | the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `cmd/logis/contract_test.go::TestACallerTheDaemonRefusesExits2WithTheDaemonsReason`, `internal/client/client_test.go::TestADaemonsRefusalIsTheClientsError`, `internal/daemon/serve_test.go::TestOverTheSocketAGreetingInAnotherVersionIsRefused`, `internal/daemon/core_test.go::TestAGreetingOfAnotherVersionIsRefused` |
 
@@ -1035,25 +1039,22 @@ libwayland the build machine has: bindings from a newer one need interfaces
 older libwayland lacks (`wl_fixes` since 1.24), and
 `internal/wlproto/floor_test.go` fails on them.
 
-`cmd/logis/answers_test.go` holds every rune's exit status, stdout and
-stderr to what `cmd/logis/testdata/answers.json` records, byte for byte: a
-corpus of 353 cases (`cmd/logis/answers_corpus_test.go`), each run in a
-scratch directory of its own with no Wayland session unless the case names
-one. The record was written by logis itself; after a deliberate change to an
-answer, rewrite it and review its diff:
-
-```sh
-go test ./cmd/logis -run TestEveryCallerFacingAnswerIsAsRecorded -update-answers
-```
-
-The version line is recorded as `$VERSION`, so a new version leaves the
-record as it is.
-
-Two recorded references hold logis to the libraries it follows:
-`internal/fuzzy/testdata/nucleo.json` holds nucleo-matcher 0.3.1's scores
-(the reviewed divergences in `divergences.json` beside it) and
-`internal/text/testdata/cosmic.json` cosmic-text 0.19's line layouts. Both
-were recorded once and are only read; no other toolchain is needed.
+Tests state logis's intended behaviour, each named after what it holds: the
+promises of the [Caller contract](#caller-contract) and logis(1), and the
+design this README and [`CONTEXT.md`](CONTEXT.md) describe. The Go code is the
+source of truth; no test holds logis to another program's output or to an
+unreviewed snapshot of its own. A deliberate change of behaviour changes its
+tests and its documentation in the same commit. Exact wording is asserted only
+where it is designed (the flavour text of a message, a documented constant);
+elsewhere a test asserts what matters (the exit status, the stream, the fact
+named). Differential checks exist only against the reference libraries of
+standards logis implements: libxkbcommon for XKB (above), HarfBuzz for
+OpenType shaping (`internal/shape/testdata/hb.json`, recorded by
+`hbshape.py`), GLib's D-Bus encoding for the wire format, and the Unicode
+Character Database's conformance files. Pixel goldens are reviewed images of
+logis's own renders, and the effects are held to the clean room's delivered
+control tables and shaders (`internal/effects/testdata`,
+`internal/render/testdata`), logis's own design.
 
 ### Versions and releases
 

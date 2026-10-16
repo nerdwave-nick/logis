@@ -2,7 +2,9 @@ package text
 
 import "testing"
 
-func TestTheMitchellKernelIsSwashs(t *testing.T) {
+// The filter is the Mitchell–Netravali cubic (B = C = 1/3) with its
+// negative lobes taken positive, as logis's emoji scaling defines it.
+func TestTheFilterIsTheMitchellCubicWithItsNegativeLobesFolded(t *testing.T) {
 	for _, tc := range []struct{ x, want float32 }{
 		{0, 16.0 / 18}, {0.5, 0.5347222}, {1, 1.0 / 18}, {-1, 1.0 / 18}, {1.5, 0.0347222}, {2, 0}, {3, 0},
 	} {
@@ -63,7 +65,9 @@ func TestTransparentPixelsLendNoColour(t *testing.T) {
 	}
 }
 
-func TestPremultipliedInputIsReadAsSwashReadsStraightInput(t *testing.T) {
+// FreeType's colour strikes are premultiplied; the resize reads them as
+// they are and returns straight colour.
+func TestPremultipliedInputComesOutStraight(t *testing.T) {
 	// Half-transparent red, premultiplied (128, 0, 0, 128), comes out
 	// straight: full red at half alpha.
 	out := resize(solid(8, 8, [4]byte{128, 0, 0, 128}), 8, 8, 4, 4)

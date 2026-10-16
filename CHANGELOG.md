@@ -7,6 +7,16 @@ All notable changes to logis are recorded here. The format follows
 contract" and logis(1)) is the public interface. Before 1.0.0 a minor version
 may still change it; each such change is listed here.
 
+## [Unreleased]
+
+### Fixed
+
+- **A dmenu switch given a value is refused**, as logis(1) promises ("a value a
+  rune cannot bear is an error naming it") and as fuzzel does:
+  `--counter=x`, `--index=x`, `--only-match=x` and `--no-run-if-empty=x` are
+  unknown runes, exit 2, like `--dmenu=x` and every other switch. They were
+  taken as the bare switch before.
+
 ## [0.1.1] - 2026-10-16
 
 The first release: a grimdark Wayland launcher and dmenu-compatible picker
@@ -129,4 +139,5 @@ for wlr-layer-shell compositors such as niri and sway, written in Go.
   man page all take theirs from `git describe` of the commit they build; no
   file but this changelog names a number.
 
+[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v0.1.1...HEAD
 [0.1.1]: https://github.com/nerdwave-nick/logis/releases/tag/v0.1.1

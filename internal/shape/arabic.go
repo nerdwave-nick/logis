@@ -79,7 +79,7 @@ func joiningType(info *ot.Info) ucd.JoiningType {
 }
 
 // setupArabicMasks gives each character the mask of its joining form.
-// Runs have no context outside themselves, as cosmic-text shapes them.
+// Runs have no context outside themselves, as logis's line layout cuts them.
 func (p *plan) setupArabicMasks(b *ot.Buffer) {
 	infos := b.Info
 	prev, state := -1, 0

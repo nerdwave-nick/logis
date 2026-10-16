@@ -1,6 +1,7 @@
 package fuzzy
 
-// nucleo's scoring constants (its score module, Config::DEFAULT).
+// The scoring constants of logis's matcher (nucleo's defaults, its score
+// module's Config::DEFAULT): a match scores scoreMatch plus its bonus.
 const (
 	scoreMatch        = 16
 	penaltyGapStart   = 3

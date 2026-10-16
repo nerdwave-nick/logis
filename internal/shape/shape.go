@@ -26,7 +26,7 @@ type Feature struct {
 }
 
 // Options shape a run: its direction, extra features, and the ppem at
-// which hinting device tables apply (0: none, as cosmic-text shapes).
+// which hinting device tables apply (0: none, as logis's line layout shapes).
 type Options struct {
 	RTL      bool
 	Features []Feature

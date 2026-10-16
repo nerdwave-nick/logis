@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Writes cases.json, the runs the HarfBuzz oracle shapes: the corpus as
-cosmic-text's runs see it, then runs aimed at each part of the shaper.
+"""Writes cases.json, the runs the HarfBuzz oracle shapes: the sample text
+of tests/fonts/corpus.txt cut into the runs logis's line layout shapes,
+then runs aimed at each part of the shaper.
 
     python3 -I internal/shape/testdata/cases.py
     python3 -I internal/shape/testdata/subset.py

@@ -65,7 +65,7 @@ func session(t *testing.T, globals []wltest.Global) string {
 // fails runs the built logis with args in the test's environment (without
 // LOGIS_RESOLVER: the daemon a client starts opens the window) and checks
 // the caller contract for "cannot serve": exit 2, empty stdout, every
-// wanted fragment on stderr.
+// wanted fragment on stderr, and no daemon left behind.
 func fails(t *testing.T, args []string, want ...string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
@@ -92,63 +92,92 @@ func fails(t *testing.T, args []string, want ...string) {
 			t.Errorf("%q: stderr %q lacks %q", args, stderr.String(), w)
 		}
 	}
+	if dir := os.Getenv("XDG_RUNTIME_DIR"); filepath.IsAbs(dir) {
+		socket := filepath.Join(dir, "logis.sock")
+		waitUntil(t, "no daemon's socket", func() bool { return gone(socket) })
+	}
 }
 
-// unusable are the commands that need a usable session: plain logis and
-// the debug panel.
-var unusable = []struct {
-	name string
-	args []string
-}{
-	{"plain", nil},
-	{"debug panel", []string{"daemon", "--debug-panel"}},
+// sessionCommand is an invocation that needs a usable Wayland session;
+// dwells says whether it needs the runtime directory for the daemon's
+// socket too (all but the debug panel, which serves no clients).
+type sessionCommand struct {
+	name   string
+	args   []string
+	dwells bool
 }
 
+// sessionCommands are every command that needs a session: each client
+// (whose daemon is started for it and fails), the daemon, and the debug
+// panel.
+var sessionCommands = []sessionCommand{
+	{"plain", nil, true},
+	{"apps", []string{"--apps"}, true},
+	{"dmenu", []string{"--dmenu"}, true},
+	{"dmenu0", []string{"--dmenu0"}, true},
+	{"servitor", []string{"--servitor"}, true},
+	{"provider", []string{"--provider", "true"}, true},
+	{"daemon", []string{"daemon"}, true},
+	{"detached daemon", []string{"daemon", "--detach"}, true},
+	{"debug panel", []string{"daemon", "--debug-panel"}, false},
+}
+
+// eachSessionCommand runs check for every command that needs a session,
+// each in an environment of its own made by setup.
+func eachSessionCommand(t *testing.T, setup func(t *testing.T) string, check func(t *testing.T, c sessionCommand, dir string)) {
+	t.Helper()
+	for _, c := range sessionCommands {
+		t.Run(c.name, func(t *testing.T) { check(t, c, setup(t)) })
+	}
+}
+
+// Without WAYLAND_DISPLAY nothing can serve, and the message says so in
+// the cogitator's words.
 func TestWithoutWaylandDisplayExits2WithFlavouredMessage(t *testing.T) {
-	for _, tc := range unusable {
-		t.Run(tc.name, func(t *testing.T) {
-			session(t, nil)
-			fails(t, tc.args, "noosphere is silent", "WAYLAND_DISPLAY is not set")
-		})
-	}
+	eachSessionCommand(t, func(t *testing.T) string { return session(t, nil) }, func(t *testing.T, c sessionCommand, _ string) {
+		fails(t, c.args, "noosphere is silent", "WAYLAND_DISPLAY is not set")
+	})
 }
 
+// An unreachable display is named by its socket's path, relative to
+// XDG_RUNTIME_DIR or absolute.
 func TestWithNonexistentWaylandSocketExits2NamingTheSocket(t *testing.T) {
-	for _, tc := range unusable {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := session(t, nil)
-			t.Setenv("WAYLAND_DISPLAY", "wayland-nowhere")
-			fails(t, tc.args, "noosphere is silent", filepath.Join(dir, "wayland-nowhere"))
-		})
-	}
+	eachSessionCommand(t, func(t *testing.T) string { return session(t, nil) }, func(t *testing.T, c sessionCommand, dir string) {
+		t.Setenv("WAYLAND_DISPLAY", "wayland-nowhere")
+		fails(t, c.args, "noosphere is silent", filepath.Join(dir, "wayland-nowhere"))
+		absolute := filepath.Join(t.TempDir(), "nowhere")
+		t.Setenv("WAYLAND_DISPLAY", absolute)
+		fails(t, c.args, "noosphere is silent", absolute)
+	})
 }
 
 func TestOnCompositorWithoutLayerShellExits2NamingTheProtocol(t *testing.T) {
-	for _, tc := range unusable {
-		t.Run(tc.name, func(t *testing.T) {
-			session(t, withoutLayerShell)
-			fails(t, tc.args, "zwlr_layer_shell_v1", "no altar")
-		})
-	}
+	eachSessionCommand(t, func(t *testing.T) string { return session(t, withoutLayerShell) }, func(t *testing.T, c sessionCommand, _ string) {
+		fails(t, c.args, "zwlr_layer_shell_v1", "no altar")
+	})
 }
 
 func TestOnCompositorWithoutFractionalScaleExits2NamingTheProtocol(t *testing.T) {
-	for _, tc := range unusable {
-		t.Run(tc.name, func(t *testing.T) {
-			session(t, withoutFractionalScale)
-			fails(t, tc.args, "wp_fractional_scale_manager_v1")
-		})
-	}
+	eachSessionCommand(t, func(t *testing.T) string { return session(t, withoutFractionalScale) }, func(t *testing.T, c sessionCommand, _ string) {
+		fails(t, c.args, "wp_fractional_scale_manager_v1")
+	})
 }
 
+// XDG_RUNTIME_DIR unset or not absolute is named: with a display relative
+// to it, no command can reach the compositor; with an absolute display, a
+// client and the daemon still have nowhere for the daemon's socket.
 func TestWithoutXDGRuntimeDirExits2NamingIt(t *testing.T) {
-	for _, tc := range unusable {
-		t.Run(tc.name, func(t *testing.T) {
-			session(t, withoutLayerShell)
-			t.Setenv("XDG_RUNTIME_DIR", "")
-			fails(t, tc.args, "XDG_RUNTIME_DIR is not set")
-		})
-	}
+	eachSessionCommand(t, func(t *testing.T) string { return session(t, withoutLayerShell) }, func(t *testing.T, c sessionCommand, dir string) {
+		for _, runtimeDir := range []string{"", "run"} {
+			t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
+			t.Setenv("WAYLAND_DISPLAY", "wayland-test")
+			fails(t, c.args, "XDG_RUNTIME_DIR", "not absolute")
+			if c.dwells {
+				t.Setenv("WAYLAND_DISPLAY", filepath.Join(dir, "wayland-test"))
+				fails(t, c.args, "the machine spirit has no dwelling: XDG_RUNTIME_DIR is not set or not absolute")
+			}
+		}
+	})
 }
 
 // --debug-panel belongs to the daemon: a daemon flag only.

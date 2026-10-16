@@ -237,15 +237,10 @@ func TestTheQueryInForceIsKept(t *testing.T) {
 	want(t, indices(f), []uint32{}, "x")
 }
 
-// A deliberate difference from nucleo-matcher 0.3.1 (feat/logis-go G20, the
-// theme window golden): nucleo scores "power-profile\t·\t…" 16 for "o" (its
-// first o, no bonus) where the same row with "-" for "·" scores 36 (the o
-// of "of" after a space), because its non-ASCII scan carries the class of
-// the last match instead of the character before (internal/fuzzy divergence
-// (a)). logis scores both 36, so the row keeps its input place among the
-// rows tied at 36 where nucleo's scores rank it below them: …,
-// power-profile, night-light, theme, vox here; …, night-light, theme,
-// power-profile, vox by nucleo's.
+// A character the match never touches changes nothing: the row
+// "power-profile\t·\t…" scores for "o" as its twin with "-" for "·" does
+// (the o of "of" after a space, a word start), so it keeps its input place
+// among the rows tied with it (the theme window golden shows this order).
 func TestARowWithANonASCIICharacterTiesAsItsASCIITwin(t *testing.T) {
 	f := filter(
 		"do-not-disturb\ton\tSilence the vox of the desktop",

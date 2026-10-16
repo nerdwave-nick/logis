@@ -98,6 +98,12 @@ func (r *dmenuRunes) apply(name, inline string, hasInline bool, value valueOf) e
 		*into, err = value(flag, wants)
 	}
 	switch name {
+	case "--counter", "--only-match", "--no-run-if-empty", "--index":
+		if hasInline { // a switch bears no value, as with every other rune
+			return unknownRune(name + "=" + inline)
+		}
+	}
+	switch name {
 	case "--prompt", "-p":
 		text("--prompt", "the prompt's text", &d.view.Prompt)
 	case "--prompt-only":
