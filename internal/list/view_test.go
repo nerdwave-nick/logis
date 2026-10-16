@@ -144,6 +144,12 @@ func TestSelectPreselectsTheFirstEqualItemIgnoringCaseWhenItArrives(t *testing.T
 	selected(t, v, 0)
 	v.Push(plain("second", "Second"))
 	selected(t, v, 1)
+	// Equal ignoring case by Unicode's case folding: final sigma and the
+	// ligatures ﬅ U+FB05 and ﬆ U+FB06 fold together.
+	for _, tc := range [][2]string{{"ΟΔΟΣ", "οδος"}, {"οδος", "ΟΔΟΣ"}, {"\uFB05", "\uFB06"}} {
+		v := viewOf(Options{Prompt: "> ", Select: &Preselect{Text: tc[0]}}, "first", tc[1])
+		selected(t, v, 1)
+	}
 }
 
 func TestSelectIndexPreselectsOnceItArrivesUnlessTheUserMovedFirst(t *testing.T) {

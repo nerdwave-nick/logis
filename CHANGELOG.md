@@ -21,6 +21,9 @@ may still change it; each such change is listed here.
   (U+FB06) match each other, which they did not, and a lower-case letter
   that folds to another (ς, ſ) matches it also in a word that types an
   accent.
+- **`--select=TEXT` is equal ignoring case by Unicode's case folding**, like
+  the matcher: `--select=ΟΔΟΣ` finds "οδος" (final sigma), and ﬅ finds ﬆ. It
+  compared lower cases before, which keep those apart.
 
 ## [0.1.1] - 2026-10-16
 
