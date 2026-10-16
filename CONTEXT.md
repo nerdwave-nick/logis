@@ -266,7 +266,8 @@ The Go build's **glitch** is a pass before the CRT pass that breaks the
 glass up like a failing signal: calm at **rest**, hard in an **episode**.
 Episodes come from the ambient cycle (at the end of each period, counted
 from the panel's opening) and from **bursts**: short episodes logis fires
-when the panel opens, on a switch of tab and at random. Its strength scales
+when the panel opens, on a switch of tab, on a key press (a small one, beside
+any other burst) and at random. Its strength scales
 all of it; 0 is no glitch. reduce-motion turns it off. Rust v1 had none.
 
 **Custom shader / custom pass**:
