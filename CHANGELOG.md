@@ -19,6 +19,15 @@ contract" and logis(1)) is the public interface.
   is its strength; 0 is no pass, and `reduce-motion` turns it off. The
   bundled themes wear the owner's looks. The shader is logis's own
   clean-room `glitch.frag`.
+- **A custom shader after the built-in effects** (the Go build; new beside
+  Rust v1): a theme's `effects.custom-shader` or the config's
+  `custom-shader` (which outranks it) names a GLSL ES 3.00 fragment shader
+  shaped as Shadertoy's `mainImage`; logis gives it the frame after the
+  built-in effects (`iChannel0`), `iResolution`, `iTime` (seconds since the
+  panel opened, frozen by `reduce-motion`), `iFrame` and `iGlitch`. A shader
+  that cannot be read or compiled is skipped with one line in the log;
+  `--check-config` compiles it and reports errors at the shader's own lines.
+  The unknown-key error of the config now lists `custom-shader` too.
 
 ### Changed
 

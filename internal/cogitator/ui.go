@@ -89,6 +89,8 @@ type shown struct {
 	// start the window last woke for.
 	glitch     *glitch.Clock
 	next, woke uint64
+	// frames is how many frames it has drawn (a custom pass's iFrame).
+	frames int
 }
 
 type ui struct {

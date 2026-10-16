@@ -114,7 +114,8 @@ func dot(cx, cy, radius float32, c render.Color) render.RoundedRect {
 // post is the theme's effects over the body. Their time is the frame's,
 // in seconds within the hour, while the theme moves on its own, and frozen
 // at 0 otherwise (motion reduced: the grain stands still). The glitch, when
-// on, stands at the style's moment.
+// on, stands at the style's moment; so does a custom pass, at the style's
+// frame.
 func post(body [4]float32, s Style) render.Post {
 	t := s.Theme
 	p := render.Post{Rect: body, Radius: t.Panel.Radius, Inset: t.Border.Width, CRT: t.Effects}
@@ -123,6 +124,9 @@ func post(body [4]float32, s Style) render.Post {
 	}
 	if t.Glitch.On() {
 		p.Glitch, p.Moment = t.Glitch, s.Glitch
+	}
+	if t.Custom.Set() {
+		p.Custom, p.Moment, p.Frame = t.Custom, s.Glitch, s.Frame
 	}
 	return p
 }

@@ -268,12 +268,21 @@ from the panel's opening) and from **bursts**: short episodes logis fires
 when the panel opens, on a switch of tab and at random. Its strength scales
 all of it; 0 is no glitch. reduce-motion turns it off. Rust v1 had none.
 
+**Custom shader / custom pass**:
+The Go build's **custom pass** runs one shader of the user's after the
+built-in effects: a GLSL ES 3.00 fragment shader shaped as Shadertoy's
+(mainImage, iChannel0, iResolution, iTime, iFrame) with logis's iGlitch,
+named by the theme's `effects.custom-shader` or the config's
+`custom-shader`, which outranks it. **iTime** counts from the panel's
+opening; reduce-motion freezes it. One the driver refuses is skipped and
+said once in the log. Rust v1 had none.
+
 **Continuous effect**:
 What moves on its own while a window is visible: the glow's **pulse**, the
 **travelling highlight** round the border, the **flicker**, and a pending row's
 **shimmer** (in the Go build also rolling scanlines, a wobbling aberration,
-changing grain and a glitch that moves at rest; its episodes and bursts move
-while they last). They keep the window drawing; **reduce motion** (the config's
+changing grain, a glitch that moves at rest and a custom pass; the glitch's
+episodes and bursts move while they last). They keep the window drawing; **reduce motion** (the config's
 `reduce-motion`) stills them all.
 
 **Sigil**:

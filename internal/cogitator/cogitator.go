@@ -102,6 +102,7 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		}
 		u.setFaces, u.clock = rend.SetFaces, trace.MonotonicNS
 		u.logf = func(message string) { _, _ = fmt.Fprintf(log, "logis: %s\n", message) }
+		rend.SetLog(u.logf) // a custom shader that is skipped
 		u.iconTheme = func(name string) {
 			cache := icons.NewCache(icons.LoadThemes(icons.FromEnv(), name))
 			u.icons = func(g window.Geometry) scene.Icons {

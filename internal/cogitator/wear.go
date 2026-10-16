@@ -167,7 +167,7 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 			if u.icons != nil {
 				icons = u.icons(f.Geometry)
 			}
-			style := scene.Style{Theme: u.theme, At: f.At, Glitch: moment}
+			style := scene.Style{Theme: u.theme, At: f.At, Glitch: moment, Frame: sh.frames}
 			var sc *render.Scene
 			if sh.tabbed {
 				st := u.stripOf(sh)
@@ -179,6 +179,7 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 			f.Pose.Apply(sc)
 			u.draw(sc, f.Geometry)
 		}
+		sh.frames++
 		body, radius := u.body(sh, f.Logical)
 		return window.Drawing{
 			Moving:   gliding || glitching || scene.Moving(&look, u.theme),

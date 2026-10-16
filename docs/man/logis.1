@@ -478,7 +478,7 @@ tabbed launcher, also: a rite was invoked).
 .B "logis daemon \-\-detach"
 when a daemon already answers.
 .BR \-\-check\-config :
-the configuration is sound (or absent).
+the configuration is sound (or absent), and a custom shader it names compiles.
 .BR \-\-version :
 the name and version are on stdout.
 .TP
@@ -613,6 +613,24 @@ period counted from the panel's opening, and bursts on opening, on a switch of
 tab and at random; a bare number is its strength, and 0 or
 .B reduce\-motion
 turns it off.
+Its
+.B effects.custom\-shader
+(new in the Go build) names a GLSL ES 3.00 fragment shader, a path from the
+theme's file, that runs after the built-in effects: it defines
+.BR mainImage ,
+as for Shadertoy, and reads
+.BR iChannel0 ,
+.BR iResolution ,
+.BR iTime ,
+.B iFrame
+and
+.BR iGlitch .
+The configuration's
+.B custom\-shader
+(a path from its directory) outranks it.
+A shader that cannot be read or compiled is skipped with one line in the log;
+.B \-\-check\-config
+compiles it and names the line at fault.
 .SH SEE ALSO
 .BR fuzzel (1),
 .BR dmenu (1)

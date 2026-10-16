@@ -52,10 +52,15 @@
       "examples": [true, false]
     },
     "reduce-motion": {
-      "description": "Stills the theme's continuous effects: the glow's pulse, the travelling highlight, the flicker and a pending row's shimmer; in the Go build also the rolling scanlines, the wobbling colour split and the changing grain, and it turns the glitch off. Opening, closing and the selection's glide stay (LOGIS_MOTION=off stills those too).",
+      "description": "Stills the theme's continuous effects: the glow's pulse, the travelling highlight, the flicker and a pending row's shimmer; in the Go build also the rolling scanlines, the wobbling colour split and the changing grain, and it turns the glitch off and holds a custom shader's iTime at 0. Opening, closing and the selection's glide stay (LOGIS_MOTION=off stills those too).",
       "type": "boolean",
       "default": false,
       "examples": [false, true]
+    },
+    "custom-shader": {
+      "description": "A custom post-processing pass after the theme's built-in effects (new beside logis v1): the path of a GLSL ES 3.00 fragment shader file, absolute or from this config's directory, written as for Shadertoy (mainImage). It outranks the theme's effects.custom-shader; \"\" leaves the theme's. logis reads it with the config and compiles it on the GPU: one that cannot be read or compiled is skipped with one line in the log, and --check-config compiles it and names the line at fault. With reduce-motion its iTime stands at 0.",
+      "type": "string",
+      "examples": ["shaders/amber-bleed.frag"]
     }
   }
 }

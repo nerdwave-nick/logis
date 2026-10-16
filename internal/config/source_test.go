@@ -148,7 +148,7 @@ func TestCheckNamesTheSoundConfigAndItsTheme(t *testing.T) {
 	verdict, err := Check(NewSource(path), func(dir, name string) error {
 		asked = [2]string{dir, name}
 		return nil
-	})
+	}, noShader)
 	want := "the config at " + path + " is sound; the theme 'cogitator-phosphor' is sound"
 	if err != nil || verdict != want {
 		t.Errorf("%q %v", verdict, err)
@@ -160,12 +160,12 @@ func TestCheckNamesTheSoundConfigAndItsTheme(t *testing.T) {
 
 func TestCheckWithoutAFileAcceptsTheDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
-	verdict, err := Check(Source{path: path}, soundTheme)
+	verdict, err := Check(Source{path: path}, soundTheme, noShader)
 	want := "no config at " + path + "; the defaults stand; the theme 'forge-crimson-brass' is sound"
 	if err != nil || verdict != want {
 		t.Errorf("%q %v", verdict, err)
 	}
-	verdict, err = Check(Source{}, soundTheme)
+	verdict, err = Check(Source{}, soundTheme, noShader)
 	want = "no config to be found (neither XDG_CONFIG_HOME nor HOME is set); the defaults stand; " +
 		"the theme 'forge-crimson-brass' is sound"
 	if err != nil || verdict != want {
@@ -176,14 +176,14 @@ func TestCheckWithoutAFileAcceptsTheDefaults(t *testing.T) {
 func TestCheckReportsAHereticalConfigOrTheme(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "logis.jsonc")
 	write(t, path, `{"thme": 1}`)
-	if _, err := Check(NewSource(path), soundTheme); err == nil ||
+	if _, err := Check(NewSource(path), soundTheme, noShader); err == nil ||
 		!strings.HasPrefix(err.Error(), "the config is heretical: "+path+":1:7: unknown field") {
 		t.Errorf("%v", err)
 	}
 	write(t, path, `{"theme": "purple"}`)
 	_, err := Check(NewSource(path), func(dir, name string) error {
 		return errors.New("theme '" + name + "': no such theme is bundled")
-	})
+	}, noShader)
 	want := "the theme is heretical: theme 'purple': no such theme is bundled"
 	if err == nil || err.Error() != want {
 		t.Errorf("%v", err)
@@ -202,3 +202,5 @@ func TestOnlyANamedConfigIsHandedToADaemonAClientStarts(t *testing.T) {
 
 // soundTheme stands for the theme engine's check: every theme is sound.
 func soundTheme(string, string) error { return nil }
+
+func noShader(string, Config) (string, error) { return "", nil }

@@ -92,7 +92,8 @@ func (s Source) Exists() bool {
 }
 
 // Load reads and parses the file; a missing default file means the
-// defaults. Its error is an *Error.
+// defaults. A relative custom-shader is made a path from the file's
+// directory. Its error is an *Error.
 func (s Source) Load() (Config, error) {
 	if s.path == "" {
 		return Default(), nil
@@ -116,6 +117,9 @@ func (s Source) Load() (Config, error) {
 	c, err := Parse(text)
 	if err != nil {
 		return Default(), &Error{Path: s.path, Problem: Invalid, Err: err}
+	}
+	if c.CustomShader != "" && !filepath.IsAbs(c.CustomShader) {
+		c.CustomShader = filepath.Join(filepath.Dir(s.path), c.CustomShader)
 	}
 	return c, nil
 }

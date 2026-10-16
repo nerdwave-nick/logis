@@ -32,8 +32,12 @@ type Style struct {
 	// continuous effects.
 	At uint64
 	// Glitch is where the theme's glitch stands in this frame: the time
-	// since the panel opened and the burst (internal/glitch's clock).
+	// since the panel opened and the burst (internal/glitch's clock); a
+	// custom pass takes its time too.
 	Glitch effects.Moment
+	// Frame is how many frames the panel drew before this one (a custom
+	// pass's iFrame).
+	Frame int
 }
 
 // phase is where a cycle of period stands at this moment, 0 to 1 (always

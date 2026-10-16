@@ -777,7 +777,7 @@
       }
     },
     "effects": {
-      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths. The glitch (a pass of its own, before the CRT pass) is new.",
+      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths. The glitch (a pass of its own, before the CRT pass) is new. A custom shader (custom-shader) may run after them all.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1390,6 +1390,13 @@
                 }
               }
             }
+          ]
+        },
+        "custom-shader": {
+          "description": "A custom post-processing pass after the built-in effects (new beside logis v1): the path of a GLSL ES 3.00 fragment shader file, absolute or from this theme's file, that defines mainImage(out vec4 fragColor, in vec2 fragCoord) as for Shadertoy. logis gives it iChannel0 (the frame after the built-in effects, premultiplied, rows bottom-up), iResolution, iTime (seconds since the panel opened; frozen at 0 by reduce-motion), iFrame and iGlitch (the glitch's intensity, 0 to 1). A panel with a custom pass keeps drawing while it is shown. A shader that cannot be read or compiled is skipped with one line in the log; --check-config compiles it. The config's custom-shader outranks it; \"\" is none.",
+          "type": "string",
+          "examples": [
+            "shaders/phosphor-bleed.frag"
           ]
         },
         "vignette": {
