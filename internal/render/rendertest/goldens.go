@@ -19,11 +19,15 @@ import (
 // capture) with a checked-in PNG under a Tolerance, or write it in update
 // mode.
 //
-//   - Files: tests/goldens/<set>/<name>.png are Rust's goldens, reference
-//     data the Go port never rewrites. Where the Go render differs from
-//     one beyond its tolerance, the Go golden tests/goldens/go/<set>/<name>.png
-//     stands in for it, reviewed once against the Rust one. Scaled
-//     variants are named <name>@<scale> (ScaleSuffix).
+//   - Files: tests/goldens/<set>/<name>.png are Rust logis v1's goldens,
+//     reference data the Go port never rewrites. At the switch-over only
+//     those a Go test still reads were kept (the debug panel's captures,
+//     the harness reference, the icons, the text, the forge window); the
+//     rest are in the history. Where the Go render differs from one beyond
+//     its tolerance, the Go golden tests/goldens/go/<set>/<name>.png stands
+//     in for it, reviewed once against the Rust one; where Rust has none,
+//     the Go golden is the only one. Scaled variants are named
+//     <name>@<scale> (ScaleSuffix).
 //   - Update mode: LOGIS_UPDATE_GOLDENS=1 go test … renders instead of
 //     comparing. An image within tolerance of the Rust golden needs no Go
 //     golden (a stale one is removed); any other image is written as the

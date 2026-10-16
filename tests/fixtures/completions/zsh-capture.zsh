@@ -5,7 +5,8 @@
 # zsh completes only inside its line editor, so this drives an interactive
 # `zsh -f -i` on a pseudo-terminal (zsh/zpty), presses Tab after the line,
 # and records each candidate as compadd receives it. The technique follows
-# Valodim's zsh-capture-completion (MIT); used by tests/completions.rs.
+# Valodim's zsh-capture-completion (MIT); used by
+# cmd/logis/completions_test.go.
 
 zmodload zsh/zpty || exit 3
 zpty z zsh -f -i

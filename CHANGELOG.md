@@ -42,6 +42,45 @@ contract" and logis(1)) is the public interface.
 
 ### Changed
 
+- **logis is written in Go** (ADR 0003, ADR 0004): the Go build replaces Rust
+  logis v1 on `main`; the Rust code stays in the history (up to 2ffdd02). The
+  caller contract (runes, exit statuses, stdout, the provider protocol) is
+  v1's, argument by argument, except where an entry here says otherwise.
+  Building needs Go 1.27 and a C compiler instead of Rust. What a user sees
+  differ from v1, besides the tabbed launcher, the row fit, the glitch and the
+  custom shader listed in their own entries:
+  - **Rendering** is OpenGL ES 3 through EGL (libglvnd) with the EGL Wayland
+    platform, on whichever vendor driver the system has; Vulkan and wgpu are
+    gone, and software rendering is Mesa's llvmpipe
+    (`LIBGL_ALWAYS_SOFTWARE=1`). The package depends on `opengl-driver`
+    instead of `mesa`, and the binary links only libwayland-client,
+    libwayland-egl, libEGL, libGLESv2, libfontconfig and libfreetype (no
+    libxkbcommon: the keyboard is logis's own XKB).
+  - **Text** is shaped by logis's own OpenType engine and hinted by the
+    system's FreeType, so glyphs can differ from v1's in their antialiasing.
+    In a matched row only the matched letters take the match face (v1 set the
+    whole ASCII word in it), and a right-to-left line that starts with digits
+    keeps them (v1 dropped that run).
+  - **Matching** fixes nucleo-matcher's defects that v1 inherited: every
+    Latin letter whose decomposition is an ASCII letter and marks folds (v1's
+    tables beyond U+036F were misgenerated and never folded upper-case Latin
+    Extended letters); a substring term (`'word`, `!word`) in non-ASCII text
+    is also found in its last possible place, scored by the character before
+    it, and ignores case when it starts with non-letters; an escaped space in
+    a non-ASCII word loses its backslash. Rows with non-ASCII characters can
+    therefore match or sort differently.
+  - **The CRT pass** is logis's own shader with a group of settings per
+    effect (scanlines, glow, aberration, mask, roundness, grain, flicker); a
+    bare number is still the group's strength and v1's `bloom`, `curvature`
+    and `vignette` still set their groups, so v1 themes stay valid and look as
+    they did. Curved glass bends the whole panel, border and glow included,
+    and leaves what the bend uncovers transparent.
+  - **`reduce-motion`** also stills the rolling scanlines, the wobbling colour
+    split and the changing grain.
+  - **The daemon's socket protocol** is version 4 (v1 spoke 3): a v1 daemon
+    left running refuses the new clients with its reason, exit 2. Restart
+    the daemon once after upgrading (`systemctl --user restart logis.service`
+    where the units are enabled; otherwise end the old `logis daemon`).
 - **The panel's height follows its rows** (the Go build; a divergence from
   Rust v1): the theme's `window.rows` (now eleven in the bundled themes) or
   `--lines` rows at `row.height`, the prompt line, rule and row gaps, exactly,
@@ -49,6 +88,11 @@ contract" and logis(1)) is the public interface.
   the panel shows the rows that fit, spread over the output's height (via
   xdg-output and the output the panel lands on). `window.height` is
   deprecated: still accepted and checked, so v1 themes load, but ignored.
+
+### Removed
+
+- **`LOGIS_GPU_BACKEND`** (the Go build has one backend, EGL with OpenGL ES 3;
+  `LIBGL_ALWAYS_SOFTWARE=1` selects llvmpipe) and the Rust build (`cargo`).
 
 ## [1.0.0] - unreleased
 

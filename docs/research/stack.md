@@ -3,7 +3,7 @@
 Date: 2026-10-11. Machine: Arch Linux, niri 26.04, Intel Arc (Meteor Lake) iGPU, Mesa 26.2.3, wayland 1.26.0, libxkbcommon 1.13.2. Toolchains: Rust 1.91.1, Go 1.27.1, gcc 15. eDP-1 runs at 60 Hz, scale 1.3.
 Tracker: lit project `feat/logis`, issue "Research: tech stack and foundations for logis". This research feeds the decision ticket "Decide: implementation route …".
 Companion: [`landscape.md`](landscape.md), a cited survey of 26 launchers and 6 terminals.
-Evidence code: `research/` (benchmarks in `research/bench/`, Rust prototypes and the spike in `research/proto-rust/`, screenshots in `research/evidence/`). It is disposable and not a foundation.
+Evidence code: `research/` (benchmarks in `research/bench/`, Rust prototypes and the spike in `research/proto-rust/` (removed at the switch-over to Go, ADR 0004; in the history up to `main` 2ffdd02), screenshots in `research/evidence/`). It is disposable and not a foundation.
 
 Source tags: **[m]** = measured here (method in §2). **[src]** = read in source at the stated version. **[land]** = `landscape.md` (cited there). *Inference* = my judgement, not a verified fact.
 

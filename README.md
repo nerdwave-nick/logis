@@ -63,7 +63,7 @@ install it, see [Installing](#installing). The binary does this much:
   the process.
 
 Client and daemon speak length-prefixed JSON frames, one session per connection;
-the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
+the protocol is described in [`internal/protocol`](internal/protocol/protocol.go). While a
 session is visible, a new dmenu session queues (each caller gets its own answer,
 in turn) and a new app, servitor or provider session replaces it.
 
@@ -258,81 +258,78 @@ that was sent a choice, nor anything it started) protect the invocation.
 What scripts, servitor and other callers of `logis --dmenu` and `logis
 --provider` can rely on. The man page says the same without the test names:
 [`docs/man/logis.1`](docs/man/logis.1) (`man -l docs/man/logis.1`). Every
-statement here is pinned by the tests named beside it as `file::test`
-(`tests/docs.rs` checks that they exist); those marked *E2E* run only in a test
-compositor (`LOGIS_E2E`), the rest in every `cargo test`. The Go build holds
-the same contract: `cmd/logis/docs_test.go` names the Go test or tests that
-pin each of these and checks that they exist, and its `TestE2E…` tests that
-need a compositor run in a nested niri (`LOGIS_E2E=niri`). Anything not stated
-here (message wording, timings, the socket protocol) may change.
+statement here is pinned by the Go tests named beside it as
+`<file>_test.go::Test…` (`cmd/logis/docs_test.go` checks that they exist).
+The `TestE2E…` tests run only in a test compositor (`LOGIS_E2E`: a nested niri
+locally, headless sway in CI), the rest in every `go test ./...`. Anything not
+stated here (message wording, timings, the socket protocol) may change.
 
 ### Exit status
 
 | Status | stdout | When | Pinned by |
 |---|---|---|---|
-| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
-| 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
-| 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
-| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
-| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers` |
-| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
-| 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
-| 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
-| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `tests/cli.rs::unknown_argument_exits_2_naming_it`, `src/cli/dmenu.rs::bad_values_are_named_with_their_flag`, `tests/dmenu_runes.rs::list_runes_without_dmenu_are_an_error`, and [below](#when-logis-cannot-serve) |
+| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ETypingFiltersAndReturnPrintsTheChosenLine` |
+| 0 | empty | `--provider`: the provider closed its flow | `cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose` |
+| 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`, `cmd/logis/servitor_window_e2e_test.go::TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation` |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `cmd/logis/apps_e2e_test.go::TestPlainLogisIsTheAppLauncher`, `cmd/logis/apps_e2e_test.go::TestTheChosenAppIsLaunchedWithItsTokenInAScopeAndCountsForFrecency`, `cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken` |
+| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `cmd/logis/contract_test.go::TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers`, `cmd/logis/daemon_e2e_test.go::TestE2EDaemonDetachOnlyEnsuresTheDaemon` |
+| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `cmd/logis/dmenu_e2e_test.go::TestE2EAnUnmarkedListIsDismissedWithExit1AndEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EEscapeDismissesWithEmptyStdoutAndExit1`, `cmd/logis/provider_window_e2e_test.go::TestE2EEscapeAfterAnActivationNeverKillsTheActionItStarted`, `cmd/logis/apps_window_e2e_test.go::TestE2EPlainLogisOpensTheLauncherAndEscapeExits1`, `internal/input/bindings_test.go::TestEscapeCtrlGAndCtrlBracketDismiss`, `internal/input/keyboard_test.go::TestFocusLossDismissesByDefaultAndKeepsOnRequest` |
+| 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`, `cmd/logis/provider_e2e_test.go::TestAReplacedProviderCallerExits1WithEmptyStdout` |
+| 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `cmd/logis/dmenu_e2e_test.go::TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon` |
+| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `cmd/logis/contract_test.go::TestUnknownArgumentExits2NamingIt`, `cmd/logis/main_test.go::TestUnknownRunesAreNamedAndExit2`, `cmd/logis/cli_test.go::TestBadValuesAreNamedWithTheirFlag`, `cmd/logis/dmenu_e2e_test.go::TestE2EListRunesWithoutDmenuAreAnError`, and [below](#when-logis-cannot-serve) |
 
 Exit 1 does not tell a dismissal from a replacement; both mean "nothing was
 chosen". stdout carries nothing but the choice and its newline, also after
-`--dmenu0` (`tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside`).
+`--dmenu0` (`cmd/logis/dmenu_e2e_test.go::TestE2EDmenu0ReadsNulSeparatedItemsWithNewlinesInside`).
 `--check-config` exits 0 or 2 likewise
-(`tests/config.rs::check_config_accepts_a_sound_config_and_exits_0`,
-`tests/config.rs::check_config_with_a_missing_named_file_exits_2`).
+(`cmd/logis/config_test.go::TestCheckConfigAcceptsASoundConfigAndExits0`,
+`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`).
 
 ### dmenu input and output
 
 - stdin is read as it arrives; the window opens before it ends, and logis may
   answer and exit before reading all of it, so a producer can meet a closed
-  pipe (`tests/dmenu.rs::the_window_opens_before_the_input_ends_and_takes_streamed_lines`
-  (E2E), `src/client/dmenu/stream.rs::lines_are_sent_as_they_arrive_then_end`).
+  pipe (`cmd/logis/dmenu_window_e2e_test.go::TestE2ETheWindowOpensBeforeTheInputEndsAndTakesStreamedLines`, `cmd/logis/dmenu_test.go::TestLinesAreSentAsTheyArriveThenEnd`).
 - A chosen item comes back as its original bytes, exactly as read, whatever
   their encoding and whatever `--with-nth` showed
-  (`tests/dmenu_runes.rs::the_original_bytes_survive_columns_and_invalid_utf8`,
-  `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`).
+  (`cmd/logis/dmenu_e2e_test.go::TestE2ETheOriginalBytesSurviveColumnsAndInvalidUTF8`,
+  `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`).
 - Return with no match prints the typed text as typed, unless `--only-match`
-  (`tests/dmenu.rs::return_without_a_match_prints_the_typed_text` (E2E),
-  `src/list/view.rs::return_without_a_match_accepts_the_typed_text_unless_only_match`,
-  `tests/dmenu.rs::only_match_refuses_free_text_until_a_match_is_chosen` (E2E)).
+  (`cmd/logis/dmenu_window_e2e_test.go::TestE2EReturnWithoutAMatchPrintsTheTypedText`,
+  `internal/list/view_test.go::TestReturnWithoutAMatchAcceptsTheTypedTextUnlessOnlyMatch`,
+  `cmd/logis/dmenu_window_e2e_test.go::TestE2EOnlyMatchRefusesFreeTextUntilAMatchIsChosen`).
 - Matching ignores case and accents and takes fzf's syntax
-  (`src/list/filter.rs::matching_ignores_case_and_accents`,
-  `src/list/filter.rs::fzf_syntax_applies`,
-  `src/list/filter.rs::fzf_suffix_and_exact_terms_apply`).
+  (`internal/list/filter_test.go::TestMatchingIgnoresCaseAndAccents`,
+  `internal/list/filter_test.go::TestFzfSyntaxApplies`,
+  `internal/list/filter_test.go::TestFzfSuffixAndExactTermsApply`).
 
 ### dmenu runes
 
 The runes, their defaults and their fuzzel semantics are in [dmenu](#dmenu)
-(`src/cli/dmenu.rs::the_defaults_are_fuzzels`,
-`src/cli/dmenu.rs::values_follow_their_flag_or_an_equals_sign`):
+(`cmd/logis/cli_test.go::TestTheDmenuDefaultsAreFuzzels`,
+`cmd/logis/cli_test.go::TestValuesFollowTheirFlagOrAnEqualsSign`):
 
 | Rune | Pinned by |
 |---|---|
-| `--dmenu`, `-d`, `--dmenu0` | `src/cli/mod.rs::dmenu_asks_for_a_dmenu_session`, `tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside` |
-| `--prompt`, `-p` | `src/list/scene/tests.rs::a_session_prompt_shows_and_the_default_one_gives_way_to_the_label` |
-| `--prompt-only` | `tests/dmenu_runes.rs::prompt_only_never_waits_for_stdin`, `src/cli/dmenu.rs::prompt_only_reads_nothing_and_shows_no_rows` |
-| `--placeholder` | `src/list/view.rs::an_empty_query_shows_the_placeholder_without_a_cursor` |
-| `--password[=C]` | `src/cli/dmenu.rs::password_takes_an_optional_character`, `src/list/view.rs::a_password_is_masked_per_character` |
-| `--lines`, `-l`, `--width`, `-w` | `src/list/scene/tests.rs::lines_and_width_in_the_options_size_the_window`, `src/list/scene/tests.rs::without_a_size_the_window_is_the_themes` |
-| `--counter` | `src/list/view.rs::the_counter_counts_matches_of_all` |
-| `--search` | `src/list/view.rs::search_opens_with_a_query` |
-| `--select` | `src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives` |
-| `--select-index` | `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`, `src/cli/dmenu.rs::preselection_is_by_text_or_by_index_not_both` |
+| `--dmenu`, `-d`, `--dmenu0` | `cmd/logis/cli_test.go::TestDmenuAsksForADmenuSession`, `cmd/logis/dmenu_e2e_test.go::TestE2EDmenu0ReadsNulSeparatedItemsWithNewlinesInside` |
+| `--prompt`, `-p` | `internal/list/scene/scene_test.go::TestASessionPromptShowsAndTheDefaultOneGivesWayToTheLabel` |
+| `--prompt-only` | `cmd/logis/dmenu_e2e_test.go::TestE2EPromptOnlyNeverWaitsForStdin`, `cmd/logis/cli_test.go::TestPromptOnlyReadsNothingAndShowsNoRows` |
+| `--placeholder` | `internal/list/view_test.go::TestAnEmptyQueryShowsThePlaceholderWithoutACursor` |
+| `--password[=C]` | `cmd/logis/cli_test.go::TestPasswordTakesAnOptionalCharacter`, `internal/list/view_test.go::TestAPasswordIsMaskedPerCharacter` |
+| `--lines`, `-l`, `--width`, `-w` | `internal/list/scene/scene_test.go::TestLinesAndWidthInTheOptionsSizeTheWindow`, `internal/list/scene/scene_test.go::TestWithoutASizeTheWindowIsTheThemes` |
+| `--counter` | `internal/list/view_test.go::TestTheCounterCountsMatchesOfAll` |
+| `--search` | `internal/list/view_test.go::TestSearchOpensWithAQuery` |
+| `--select` | `internal/list/view_test.go::TestSelectPreselectsTheFirstEqualItemIgnoringCaseWhenItArrives` |
+| `--select-index` | `internal/list/view_test.go::TestSelectIndexPreselectsOnceItArrivesUnlessTheUserMovedFirst`, `cmd/logis/cli_test.go::TestPreselectionIsByTextOrByIndexNotBoth` |
 | `--only-match` | see typed text above |
-| `--no-run-if-empty`, `-R` | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
-| `--index` | `tests/dmenu_runes.rs::index_prints_the_position_of_the_choice`, `tests/dmenu.rs::index_and_columns_print_what_was_asked` (E2E) |
-| `--with-nth` | `tests/dmenu_runes.rs::with_nth_shows_a_column_and_the_whole_line_comes_back` |
-| `--accept-nth`, `--nth-delimiter` | `tests/dmenu_runes.rs::accept_nth_prints_columns_split_at_the_nth_delimiter` |
-| `--match-nth` | `src/client/dmenu/stream.rs::with_nth_shapes_the_text_and_match_nth_the_match_text`, `src/list/view.rs::items_matched_by_another_text_are_not_highlighted` |
-| formats `{N}`, `{N..M}`, `{N..}`; `0` | `src/nth.rs::a_format_expands_columns_inside_free_text`, `src/nth.rs::ranges_join_their_columns_with_the_delimiter`, `src/nth.rs::zero_means_no_selection` |
-| `--config` | `tests/config.rs::a_client_hands_its_config_to_the_daemon_it_starts`, `tests/config.rs::a_running_daemon_keeps_its_config_whatever_a_caller_names` |
-| `-i` (ignored) | `src/cli/mod.rs::list_runes_go_with_dmenu_in_any_order` |
+| `--no-run-if-empty`, `-R` | `cmd/logis/dmenu_e2e_test.go::TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon` |
+| `--index` | `cmd/logis/dmenu_e2e_test.go::TestE2EIndexPrintsThePositionOfTheChoice`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EIndexAndColumnsPrintWhatWasAsked` |
+| `--with-nth` | `cmd/logis/dmenu_e2e_test.go::TestE2EWithNthShowsAColumnAndTheWholeLineComesBack` |
+| `--accept-nth`, `--nth-delimiter` | `cmd/logis/dmenu_e2e_test.go::TestE2EAcceptNthPrintsColumnsSplitAtTheNthDelimiter` |
+| `--match-nth` | `cmd/logis/dmenu_test.go::TestWithNthShapesTheTextAndMatchNthTheMatchText`, `internal/list/view_test.go::TestItemsMatchedByAnotherTextAreNotHighlighted` |
+| formats `{N}`, `{N..M}`, `{N..}`; `0` | `internal/nth/nth_test.go::TestAFormatExpandsColumnsInsideFreeText`, `internal/nth/nth_test.go::TestRangesJoinTheirColumnsWithTheDelimiter`, `internal/nth/nth_test.go::TestZeroMeansNoSelection` |
+| `--config` | `cmd/logis/config_e2e_test.go::TestE2EAClientHandsItsConfigToTheDaemonItStarts`, `cmd/logis/config_e2e_test.go::TestE2EARunningDaemonKeepsItsConfigWhateverACallerNames` |
+| `-i` (ignored) | `cmd/logis/cli_test.go::TestListRunesGoWithDmenuInAnyOrder` |
 
 `--config PATH` reaches only a daemon that this caller starts; a daemon
 already running keeps its own configuration.
@@ -344,67 +341,67 @@ Where fuzzel's documentation leaves a choice open, or logis differs on
 purpose:
 
 - typed text is printed as typed, even with `--index` or `--accept-nth`
-  (`src/client/dmenu/mod.rs::typed_text_prints_as_typed_whatever_the_output_runes`);
+  (`cmd/logis/dmenu_test.go::TestTypedTextPrintsAsTypedWhateverTheOutputRunes`);
 - `--select` picks the first item equal to its text ignoring case, not a
   prefix or fuzzy match, and applies when that item arrives, until the user
   moves the selection or edits the query
-  (`src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives`,
-  `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`,
-  `src/list/view.rs::typing_ends_a_preselection_still_waiting_for_its_item`);
+  (`internal/list/view_test.go::TestSelectPreselectsTheFirstEqualItemIgnoringCaseWhenItArrives`,
+  `internal/list/view_test.go::TestSelectIndexPreselectsOnceItArrivesUnlessTheUserMovedFirst`,
+  `internal/list/view_test.go::TestTypingEndsAPreselectionStillWaitingForItsItem`);
 - `--no-run-if-empty` exits 1 (nothing was chosen);
 - a format that names no column is an error, exit 2, not a constant output
-  (`src/nth.rs::column_zero_and_backward_ranges_are_refused`);
+  (`internal/nth/nth_test.go::TestColumnZeroAndBackwardRangesAreRefused`);
 - list runes without `--dmenu` are an error, exit 2;
 - errors exit 2, apart from a dismissal's 1, where fuzzel exits 1 (its
   `--check-config`, for one); logis's `--check-config` exits 2
-  (`tests/config.rs::check_config_with_a_missing_named_file_exits_2`);
+  (`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`);
 - Shift+Insert pastes the clipboard, not the primary selection; the middle
-  button pastes the primary (`src/input/bindings.rs::ctrl_v_and_shift_insert_paste_the_clipboard`,
-  `tests/pointer.rs::the_middle_button_pastes_the_primary_selection` (E2E)).
+  button pastes the primary (`internal/input/bindings_test.go::TestCtrlVAndShiftInsertPasteTheClipboard`,
+  `cmd/logis/pointer_e2e_test.go::TestE2ETheMiddleButtonPastesThePrimarySelection`, `internal/input/pointer_test.go::TestTheMiddleButtonPastesThePrimarySelectionOnPress`).
 
 ### Sessions
 
 Each caller holds one session on its own connection to the daemon, and the
 answer goes to that caller alone
-(`src/daemon/core.rs::the_result_goes_only_to_the_session_that_was_answered`).
+(`internal/daemon/core_test.go::TestTheResultGoesOnlyToTheSessionThatWasAnswered`).
 At most one session is visible:
 
 - **dmenu callers queue.** A dmenu session that arrives while another session
   (of any kind) is visible waits, and the queue is shown first in, first out;
   each caller gets its own answer
-  (`tests/daemon.rs::dmenu_sessions_queue_and_each_caller_gets_its_own_answer_in_order`,
-  `tests/daemon.rs::a_dmenu_caller_waits_in_the_queue_for_its_turn`,
-  `tests/dmenu.rs::queued_callers_each_get_their_own_answer_in_turn` (E2E),
-  `src/daemon/sessions.rs::a_dmenu_session_queues_behind_an_interactive_one`).
+  (`internal/daemon/serve_test.go::TestDmenuSessionsQueueAndEachCallerGetsItsOwnAnswerInOrder`,
+  `cmd/logis/contract_test.go::TestADmenuCallerWaitsInTheQueueForItsTurn`,
+  `cmd/logis/dmenu_window_e2e_test.go::TestE2EQueuedCallersEachGetTheirOwnAnswerInTurn`,
+  `internal/daemon/sessions_test.go::TestADmenuSessionQueuesBehindAnInteractiveOne`).
   A queued caller waits as long as the sessions ahead of it take; to bound
   that, run it under `timeout(1)`, since leaving cancels (below).
 - **Interactive sessions replace.** An app, servitor or provider session takes
   the visible session's place; that caller exits 1. Queued dmenu callers stay
   queued and are shown once the interactive session ends
-  (`tests/daemon.rs::an_interactive_session_replaces_the_visible_one`,
-  `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`,
-  `src/daemon/sessions.rs::an_interactive_session_replaces_the_visible_one_and_keeps_the_queue`).
+  (`internal/daemon/core_test.go::TestAnInteractiveSessionReplacesTheVisibleOne`,
+  `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`,
+  `internal/daemon/sessions_test.go::TestAnInteractiveSessionReplacesTheVisibleOneAndKeepsTheQueue`).
 - **Leaving cancels.** A caller that exits or is killed (`timeout(1)`, Ctrl+C)
   cancels its session: a visible one closes and the next queued one is shown,
   a queued one is dropped
-  (`tests/daemon.rs::a_client_disconnect_cancels_its_session_and_the_next_one_is_shown`,
-  `src/daemon/sessions.rs::closing_a_queued_session_drops_it_silently`). A
+  (`internal/daemon/serve_test.go::TestAClientDisconnectCancelsItsSessionAndTheNextOneIsShown`,
+  `internal/daemon/sessions_test.go::TestClosingAQueuedSessionDropsItSilently`). A
   provider is then sent `cancel`; one that was never sent a choice is ended,
   one that was is left to finish
-  (`tests/provider.rs::a_provider_that_never_acted_and_lingers_after_cancel_is_ended`,
-  `tests/provider.rs::a_dismissed_provider_that_acted_is_never_signalled_nor_its_action`).
+  (`cmd/logis/provider_e2e_test.go::TestAProviderThatNeverActedAndLingersAfterCancelIsEnded`,
+  `cmd/logis/provider_e2e_test.go::TestADismissedProviderThatActedIsNeverSignalledNorItsAction`).
 
 **Ordering caveat.** Connections are not ordered among themselves: the queue
 follows the order in which the daemon *receives* sessions, not the order in
 which callers were started, so two callers started a moment apart may be
 answered in either order. A session opened just after another caller left may
 wait in the queue until the daemon has handled that departure (the protocol
-notes in [`src/protocol/mod.rs`](src/protocol/mod.rs)). Callers that need an
+notes in [`internal/protocol`](internal/protocol/protocol.go)). Callers that need an
 order should run one after another.
 
 The daemon a caller starts outlives it and serves later callers
-(`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`,
-`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+(`internal/client/client_test.go::TestAClientStartsTheDaemonWhenNoneAnswersAndLaterClientsReuseIt`,
+`cmd/logis/contract_test.go::TestAnAutoStartedDaemonOutlivesItsStarterAndLogsToTheRuntimeDir`, `cmd/logis/daemon_e2e_test.go::TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir`).
 
 ### Providers
 
@@ -412,15 +409,14 @@ The daemon a caller starts outlives it and serves later callers
 [the provider protocol](docs/provider-protocol.md) (version 1: its messages,
 rules, signals and examples). The daemon runs it as this caller would have,
 in its working directory and with its environment
-(`tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close`), and shows
+(`cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose`), and shows
 its stages, pending rows and toasts in one window
-(`tests/provider_window.rs::a_two_stage_flow_with_a_pending_row_ends_in_a_toast`
-(E2E)). For the caller it is an interactive session: exit 0 when the provider
+(`cmd/logis/provider_window_e2e_test.go::TestE2EATwoStageFlowWithAPendingRowEndsInAToast`). For the caller it is an interactive session: exit 0 when the provider
 sends `close`, 1 when dismissed or replaced, 2 when the provider cannot start,
 breaks the protocol, shows no stage within 5 s or exits early
-(`tests/provider.rs::a_provider_that_cannot_start_is_an_error`,
-`tests/provider.rs::a_provider_that_breaks_the_protocol_or_departs_fails_its_session`,
-`tests/provider.rs::a_provider_that_shows_nothing_in_time_fails_its_session`).
+(`cmd/logis/provider_e2e_test.go::TestAProviderThatCannotStartIsAnError`,
+`cmd/logis/provider_e2e_test.go::TestAProviderThatBreaksTheProtocolOrDepartsFailsItsSession`,
+`cmd/logis/provider_e2e_test.go::TestAProviderThatShowsNothingInTimeFailsItsSession`).
 
 ### servitor mode
 
@@ -429,26 +425,26 @@ like a provider's, with the same exit statuses, and promises:
 
 - A rite whose auspex is still awaited is never chosen nor invoked, however
   long it takes; leaving ends the census
-  (`tests/servitor.rs::a_rite_that_never_settles_is_never_invoked_and_leaving_ends_the_census`,
-  `src/servitor/flow/tests.rs::a_pending_rite_is_never_taken`).
+  (`cmd/logis/servitor_e2e_test.go::TestARiteThatNeverSettlesIsNeverInvokedAndLeavingEndsTheCensus`,
+  `internal/servitor/flow_test.go::TestAPendingRiteIsNeverTaken`).
 - The current aspect is marked and selected only from a settled reading
-  (`src/servitor/flow/tests.rs::a_settled_rite_offers_its_aspects_with_the_current_marked_and_selected`,
-  `src/servitor/flow/tests.rs::a_stale_or_unknown_aspect_is_never_marked_or_selected`).
+  (`internal/servitor/flow_test.go::TestASettledRiteOffersItsAspectsWithTheCurrentMarkedAndSelected`,
+  `internal/servitor/flow_test.go::TestAStaleOrUnknownAspectIsNeverMarkedOrSelected`).
 - Inscriptions come from the rite's `canon`: the decree prefilled, a mandatory
   one filled before invoking; a cleared decree is passed as `--<key> ""`, an
   empty word without a decree is left out
-  (`src/servitor/flow/tests.rs::inscriptions_are_asked_in_written_order_from_the_canon`,
-  `src/servitor/flow/tests.rs::a_mandatory_inscription_must_be_filled_before_invoking`,
-  `src/servitor/flow/tests.rs::a_cleared_decree_is_passed_and_an_empty_word_without_one_is_left_out`,
-  `tests/servitor.rs::an_edict_is_invoked_without_an_aspect`).
+  (`internal/servitor/flow_test.go::TestInscriptionsAreAskedInWrittenOrderFromTheCanon`,
+  `internal/servitor/flow_test.go::TestAMandatoryInscriptionMustBeFilledBeforeInvoking`,
+  `internal/servitor/flow_test.go::TestAClearedDecreeIsPassedAndAnEmptyWordWithoutOneIsLeftOut`,
+  `cmd/logis/servitor_e2e_test.go::TestAnEdictIsInvokedWithoutAnAspect`).
 - `servitor invoke` runs detached: its own session and process group, stdio on
   `/dev/null`, the caller's environment and working directory, unawaited
-  (`tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`,
-  `src/servitor/invoke.rs::invoke_runs_in_a_session_of_its_own_with_stdio_on_dev_null_and_unawaited`).
+  (`cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`,
+  `internal/servitor/invoke_test.go::TestInvokeRunsInASessionOfItsOwnWithStdioOnDevNullAndUnawaited`).
 - logis shows no outcome
-  (`src/servitor/flow/tests.rs::nothing_the_flow_says_is_an_outcome_toast`), and
+  (`internal/servitor/flow_test.go::TestNothingTheFlowSaysIsAnOutcomeToast`), and
   neither dismissal nor the daemon's end aborts a running invocation
-  (`tests/servitor.rs::no_dismissal_or_departure_of_logis_aborts_a_running_invocation`).
+  (`cmd/logis/servitor_e2e_test.go::TestNoDismissalOrDepartureOfLogisAbortsARunningInvocation`).
 
 ### When logis cannot serve
 
@@ -458,27 +454,27 @@ status only. It does name the plain fact:
 
 | Case | stderr names | Pinned by |
 |---|---|---|
-| no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/daemon.rs::a_client_whose_daemon_cannot_start_exits_2_with_the_reason`, `tests/cli.rs::with_nonexistent_wayland_socket_exits_2_naming_the_socket` |
-| a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol` |
-| a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `tests/cli.rs::on_compositor_without_fractional_scale_exits_2_naming_the_protocol` |
-| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why` |
-| an invalid config stops the daemon starting | the file, line and column | `tests/config.rs::a_daemon_refuses_to_start_on_an_invalid_config_and_its_client_exits_2` |
-| the daemon dies during the session (the compositor left) | that the daemon fell silent | `tests/daemon.rs::a_dmenu_caller_whose_daemon_dies_exits_2_with_empty_stdout`, `tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero` |
-| the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `tests/daemon.rs::a_caller_the_daemon_refuses_exits_2_with_the_daemons_reason`, `tests/daemon.rs::a_greeting_in_another_protocol_version_is_refused` |
+| no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/dmenu_e2e_test.go::TestE2EADaemonThatCannotStartIsReportedWithExit2`, `internal/client/client_test.go::TestADaemonThatCannotStartIsReportedWithItsReason`, `cmd/logis/session_test.go::TestWithNonexistentWaylandSocketExits2NamingTheSocket` |
+| a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/session_test.go::TestOnCompositorWithoutLayerShellExits2NamingTheProtocol` |
+| a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `cmd/logis/session_test.go::TestOnCompositorWithoutFractionalScaleExits2NamingTheProtocol` |
+| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy` |
+| an invalid config stops the daemon starting | the file, line and column | `cmd/logis/config_e2e_test.go::TestE2EADaemonRefusesToStartOnAnInvalidConfigAndItsClientFails` |
+| the daemon dies during the session (the compositor left) | that the daemon fell silent | `cmd/logis/contract_test.go::TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2` |
+| the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `cmd/logis/contract_test.go::TestACallerTheDaemonRefusesExits2WithTheDaemonsReason`, `internal/client/client_test.go::TestADaemonsRefusalIsTheClientsError`, `internal/daemon/serve_test.go::TestOverTheSocketAGreetingInAnotherVersionIsRefused`, `internal/daemon/core_test.go::TestAGreetingOfAnotherVersionIsRefused` |
 
 A daemon that lost its compositor exits and removes its socket; the next
 caller starts a new one
-(`tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero`,
-`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`).
+(`cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2`,
+`internal/client/client_test.go::TestAClientStartsTheDaemonWhenNoneAnswersAndLaterClientsReuseIt`).
 Plain `logis` is the app launcher and opens a window. To use logis where it can
 serve and fall back elsewhere, let the dmenu caller's exit status decide:
 2 means logis cannot serve here, for each case above, its reason on stderr
-(`tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`,
-`tests/cli.rs::without_wayland_display_exits_2_with_flavoured_message`,
-`tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol`).
+(`cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`,
+`cmd/logis/session_test.go::TestWithoutWaylandDisplayExits2WithFlavouredMessage`,
+`cmd/logis/session_test.go::TestOnCompositorWithoutLayerShellExits2NamingTheProtocol`).
 To start a daemon ahead of time without a window, run `logis daemon --detach &`;
 it exits 0 at once if one already answers
-(`tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers`).
+(`cmd/logis/contract_test.go::TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers`, `cmd/logis/daemon_e2e_test.go::TestE2EDaemonDetachOnlyEnsuresTheDaemon`).
 
 ```sh
 items='rite of oil
@@ -496,47 +492,46 @@ esac
 What the man page adds, pinned as well:
 
 - Accept: Return, keypad Enter, a click on a row
-  (`src/input/bindings.rs::return_and_keypad_enter_accept`,
-  `tests/pointer.rs::hovering_selects_a_row_and_a_click_on_it_accepts_it` (E2E)).
+  (`internal/input/bindings_test.go::TestReturnAndKeypadEnterAcceptShiftReturnDescends`,
+  `cmd/logis/pointer_e2e_test.go::TestE2EHoveringSelectsARowAndAClickOnItAcceptsIt`).
   Dismiss: see [Exit status](#exit-status). Moving and editing, as in
-  [Keyboard](#keyboard): `src/input/bindings.rs::up_down_tab_and_ctrl_n_p_move`,
-  `src/input/bindings.rs::editing_keys_edit`,
-  `src/input/bindings.rs::left_right_home_and_end_move_the_cursor`,
-  `tests/e2e.rs::every_editing_and_selection_key_does_its_work` (E2E).
+  [Keyboard](#keyboard): `internal/input/bindings_test.go::TestUpDownTabAndCtrlNPMove`,
+  `internal/input/bindings_test.go::TestEditingKeysEdit`,
+  `cmd/logis/keyboard_e2e_test.go::TestE2EEveryEditingAndSelectionKeyDoesItsWork`.
   The Go build diverges in plain `logis` with servitor on the PATH, its tabbed
   launcher ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
   between the Applications and Rites tabs, keeping the query, and a click on a
   plate does the same
-  (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered` (E2E),
-  `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip` (E2E),
+  (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered`,
+  `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip`,
   `internal/cogitator/tabs_test.go::TestTabAndShiftTabSwitchTabsAndKeepTheQuery`);
   `--apps`, `--servitor` and every other session keep Tab as the next item
-  (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects` (E2E),
+  (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects`,
   `internal/cogitator/tabs_test.go::TestUntabbedTabStillMovesTheSelection`).
 - `logis daemon` checks the session and the config at start and exits 2 if
   either is unusable, or when the compositor goes away (see the table above);
   a second daemon finds the first listening and exits 0
-  (`tests/daemon.rs::a_second_daemon_defers_to_the_one_already_listening`).
+  (`internal/daemon/serve_test.go::TestASecondDaemonDefersToTheOneAlreadyListening`).
   `--idle-timeout SECONDS` ends it once no client has been connected for that
   long, off by default, `0` keeps it resident, and it outranks the config
-  (`tests/daemon.rs::with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected`,
-  `tests/daemon.rs::without_an_idle_timeout_the_daemon_stays`,
-  `tests/config.rs::the_idle_timeout_flag_outranks_the_config`). `--detach`
+  (`cmd/logis/daemon_e2e_test.go::TestE2EWithAnIdleTimeoutTheDaemonExitsOnceNoClientIsConnected`,
+  `internal/daemon/serve_test.go::TestWithoutAnIdleTimeoutTheDaemonStays`,
+  `internal/daemon/config_test.go::TestTheIdleTimeoutFlagOutranksTheConfig`). `--detach`
   (how clients start it) sends its later diagnostics to
   `$XDG_RUNTIME_DIR/logis.log`
-  (`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+  (`cmd/logis/contract_test.go::TestAnAutoStartedDaemonOutlivesItsStarterAndLogsToTheRuntimeDir`, `cmd/logis/daemon_e2e_test.go::TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir`).
 - `WAYLAND_DISPLAY` is the compositor's socket, relative to `XDG_RUNTIME_DIR`
   or absolute, with no fallback to `wayland-0`
-  (`src/wayland.rs::a_relative_display_is_joined_to_the_runtime_dir`,
-  `src/wayland.rs::an_absolute_display_is_used_as_is`,
-  `src/wayland.rs::an_unset_or_empty_display_means_no_session`). The daemon's
+  (`internal/window/connect_test.go::TestARelativeDisplayIsJoinedToTheRuntimeDir`,
+  `internal/window/connect_test.go::TestAnAbsoluteDisplayIsUsedAsIs`,
+  `internal/window/connect_test.go::TestAnUnsetOrEmptyDisplayMeansNoSession`). The daemon's
   socket is `$XDG_RUNTIME_DIR/logis.sock`, which must be absolute
-  (`src/protocol/mod.rs::the_socket_lives_in_an_absolute_runtime_dir`). The
+  (`internal/protocol/protocol_test.go::TestTheSocketLivesInAnAbsoluteRuntimeDir`). The
   config is `$XDG_CONFIG_HOME/logis/logis.jsonc`, `~/.config` by default
-  (`src/config/source.rs::the_default_lives_in_xdg_config_home`,
-  `src/config/source.rs::without_a_usable_xdg_config_home_the_default_is_under_home`).
+  (`internal/config/source_test.go::TestTheDefaultLivesInXDGConfigHome`,
+  `internal/config/source_test.go::TestWithoutAUsableXDGConfigHomeTheDefaultIsUnderHome`).
 - `logis --version` prints `logis` and its version, exit 0
-  (`tests/cli.rs::version_flag_prints_name_and_version_and_succeeds`).
+  (`cmd/logis/contract_test.go::TestVersionFlagPrintsNameAndVersionAndSucceeds`, `cmd/logis/main_test.go::TestVersionRunesPrintNameAndVersion`).
 
 ## Configuration
 
@@ -927,10 +922,11 @@ makepkg -si
 ```
 
 It builds the commit checked out in the repository (`HEAD`; uncommitted changes
-are not built). On the branch `go` that is the Go logis (`./cmd/logis`, with cgo,
-as Arch's Go package guidelines ask: makepkg's C flags, a PIE linked by the
-system linker, `-trimpath`); it needs `go`, `pkgconf` and `git` to build, and
-`wayland`, `libglvnd`, `mesa`, `fontconfig` and `freetype2` to run. `prepare()`
+are not built): `./cmd/logis` with cgo, as Arch's Go package guidelines ask
+(makepkg's C flags, a PIE linked by the system linker, `-trimpath`). It needs
+`go`, `pkgconf` and `git` to build, and `wayland`, `libglvnd`, an
+`opengl-driver` (Mesa's, NVIDIA's or another vendor's EGL and OpenGL ES
+driver), `fontconfig` and `freetype2` to run. `prepare()`
 downloads the `golang.org/x` modules `go.sum` names; `check()` runs `go test
 -short ./...` (no compositor needed: the E2E and latency tests skip, and so do
 the GL tests where no EGL display serves; `-short` leaves out the wall-clock
@@ -958,49 +954,33 @@ The package installs:
 
 Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
 instead of the checkout; its header says which two lines to change.
-`cmd/logis/packaging_test.go` (the Rust reference: `tests/packaging.rs`) keeps
-the PKGBUILD, its `.SRCINFO` (`makepkg --printsrcinfo > .SRCINFO` after editing),
-the man page and the changelog on the version logis reports
-(`internal/version`), and the package's `depends` on the libraries the binary
-links.
+`cmd/logis/packaging_test.go` keeps the PKGBUILD, its `.SRCINFO` (`makepkg
+--printsrcinfo > .SRCINFO` after editing), the man page and the changelog on the
+version logis reports (`internal/version`, its single source), the package's
+`depends` on the libraries the binary links and an `opengl-driver`, and the
+package without `optdepends`.
 
 The completions in [`contrib/completions/`](contrib/completions/) are written by
-hand; `cmd/logis/completions_test.go` (Rust: `tests/completions.rs`) checks that
+hand; `cmd/logis/completions_test.go` checks that
 each offers exactly the runes the parser accepts (asking bash, zsh and fish where they are installed). Without the
 package, source `logis.bash`, put `_logis` on zsh's `fpath`, or copy `logis.fish`
 to `~/.config/fish/completions/`.
 
 ## Building
 
-Requires Rust 1.91 or later, `pkg-config`, and the libwayland-client,
-libfontconfig and libxkbcommon development files (`wayland`, `fontconfig` and
-`libxkbcommon` on Arch; `libwayland-dev`, `libfontconfig-dev` and
-`libxkbcommon-dev` on Debian/Ubuntu). The keyboard's unit tests compile keymaps
-from xkeyboard-config (`xkeyboard-config` / `xkb-data`).
-
-```sh
-cargo build --release
-cargo test
-```
-
-`cargo test` renders offscreen and needs a GPU adapter (hardware, or Mesa lavapipe
-from `vulkan-swrast` / `mesa-vulkan-drivers`); without one, the render tests print
-`SKIPPED` unless their backend is listed in `LOGIS_TEST_REQUIRE_BACKENDS`
-(`auto,vulkan,gl,software`), as CI does.
-
-### The Go build (branch `go`)
-
-The Go rewrite (ADR 0003) lives beside the Rust code on the branch `go` until it
-replaces it. It needs Go 1.27 or later, a C compiler, `pkg-config`, and the
-development files of the six C libraries it links: libwayland-client (1.22 or
-later), libwayland-egl, libEGL, libGLESv2, libfontconfig and libfreetype
-(`wayland`, `libglvnd`, `fontconfig` and `freetype2` on Arch; `libwayland-dev`,
-`libegl-dev`, `libgles-dev`, `libfontconfig-dev` and `libfreetype-dev` on
-Debian/Ubuntu; Ubuntu 24.04's libwayland 1.22 is enough).
-From the repository root:
+logis is written in Go (ADR 0003, ADR 0004). It needs Go 1.27 or later, a C
+compiler, `pkg-config`, and the development files of the six C libraries it
+links: libwayland-client (1.22 or later), libwayland-egl, libEGL, libGLESv2,
+libfontconfig and libfreetype (`wayland`, `libglvnd`, `fontconfig` and
+`freetype2` on Arch; `libwayland-dev`, `libegl-dev`, `libgles-dev`,
+`libfontconfig-dev` and `libfreetype-dev` on Debian/Ubuntu; Ubuntu 24.04's
+libwayland 1.22 is enough). At run time libglvnd needs a vendor's EGL and
+OpenGL ES driver (see [GPU backends](#gpu-backends)). From the repository
+root:
 
 ```sh
 go build -o logis ./cmd/logis
+go test ./...
 ```
 
 `gofmt -l .`, `go vet ./...` and `go test -race ./...` are what CI checks.
@@ -1009,237 +989,224 @@ the PKGBUILD's `check()` runs them; hang guards (timeouts for what never
 happens) stay. So do the tests whose verdict rests on pixels the GPU drew
 (goldens and pixels read back through `rendertest.Headless`): GPUs and drivers
 round differently. Tests that use the GPU for sizes, errors or text measures
-(`rendertest.HeadlessForStructure`) run under `-short` too. A passing golden
-removes its earlier failure's `<name>.actual.png` and `<name>.diff.png`
-(under `$LOGIS_GOLDEN_FAILURES`, by default the temp dir's
-`logis-golden-failures`). The
-Wayland protocol glue under `internal/wlproto` is generated by `wayland-scanner`
-and committed; after changing a protocol XML file, run `go generate ./...`
-(`wayland-scanner` on `PATH`) and commit the result. The core protocol's
-`protocols/wayland.xml` stays libwayland 1.22.0's, whatever libwayland the
-build machine has: bindings from a newer one need interfaces older libwayland
-lacks (`wl_fixes` since 1.24), and `internal/wlproto/floor_test.go` fails on them.
+(`rendertest.HeadlessForStructure`) run under `-short` too. The GL tests draw
+on a surfaceless EGL context and skip where none serves, unless
+`LOGIS_REQUIRE_EGL` is set, as CI sets it; `LIBGL_ALWAYS_SOFTWARE=1` runs them
+on Mesa's llvmpipe, as CI does.
 
-The `TestE2E…` tests that need a compositor run in a nested niri started on
-the current session: `LOGIS_E2E=niri go test -count=1 -run E2E ./...`.
+The keyboard's differential suite checks the pure-Go XKB against
+libxkbcommon, a test-only oracle that builds only with a tag and is never
+linked into logis: `go test -tags xkbref ./internal/xkb/...` (needs
+libxkbcommon, xkeyboard-config and libx11's Compose tables).
+
+The Wayland protocol glue under `internal/wlproto` is generated by
+`wayland-scanner` and committed; after changing a protocol XML file, run
+`go generate ./...` (`wayland-scanner` on `PATH`) and commit the result. The
+core protocol's `protocols/wayland.xml` stays libwayland 1.22.0's, whatever
+libwayland the build machine has: bindings from a newer one need interfaces
+older libwayland lacks (`wl_fixes` since 1.24), and
+`internal/wlproto/floor_test.go` fails on them.
+
 `cmd/logis/parity_test.go` holds every rune's exit status, stdout and stderr
-to Rust v1's, recorded in `cmd/logis/testdata/parity.json`; with
-`LOGIS_RUST_LOGIS` naming a Rust logis binary it asks that binary too, and
-`-update-parity` records its answers anew. The Go build renders with EGL and
-OpenGL ES 3 only, so `LOGIS_GPU_BACKEND` ([GPU backends](#gpu-backends)) does
-not apply to it.
+to Rust logis v1's, recorded in `cmd/logis/testdata/parity.json` (the frozen
+v1 record, from the last Rust commit, `main` 2ffdd02); the deliberate
+differences are listed there with their reason. With `LOGIS_RUST_LOGIS`
+naming a Rust logis v1 binary built from that commit it asks that binary too,
+and `-update-parity` records its answers anew.
 
-### Fonts and text goldens
+Two recorded oracles are standalone Rust programs, kept beside the data they
+wrote because the libraries they ran cannot be linked into Go tests:
+`internal/fuzzy/testdata/oracle` (nucleo-matcher 0.3.1, the matcher of v1)
+and `internal/text/testdata/cosmic-oracle` (cosmic-text 0.19, v1's line
+layout). Only regenerating `nucleo.json` or `cosmic.json` needs cargo; the
+command is in each program's `Cargo.toml` and beside the Go test that reads
+it. Rust logis v1 itself is in the history only (`main` up to 2ffdd02).
+
+### Goldens and pinned fonts
 
 logis asks libfontconfig, in-process, for the theme's faces (each a list of
 families in order of preference at a weight, after the user's aliases; without
-a theme the default family `sans-serif`) and, per character, for the first font
-in fontconfig's fallback order that covers it; only those files are loaded. cosmic-text's full
-system scan (`FontSystem::new()`) is forbidden by `clippy.toml`. The daemon
-resolves its fonts (fontconfig's configuration and caches, the default face and
-the fallback order) on a thread of their own while it connects and wakes the GPU,
-so with thousands of installed faces they stay off the first frame's path.
+a theme the default family `sans-serif`) and, per character, for the first
+font in fontconfig's fallback order that covers it; only those files are
+loaded, never the whole system's fonts. The daemon resolves its fonts
+(fontconfig's configuration and caches, the default face and the fallback
+order) beside connecting and waking the GPU, so with thousands of installed
+faces they stay off the first frame's path.
 
-The text tests (`tests/text.rs`) pin their fonts: an isolated fontconfig setup that
-knows only the OFL subsets in `tests/fonts/` (regenerated by
-`tests/fonts/subset.sh`), so the goldens in `tests/goldens/text/` do not depend on
-installed fonts. A pixel matches when each channel is within 2 of the golden.
+The pixel tests pin their fonts (`rendertest.PinnedFonts`): an isolated
+fontconfig setup that knows only the OFL subsets in `tests/fonts/`
+(regenerated by `tests/fonts/subset.sh`), so the goldens do not depend on
+installed fonts.
+
+The goldens live in `tests/goldens/`. `tests/goldens/go/<set>/` holds the Go
+build's own; `tests/goldens/<set>/` holds the frozen goldens of Rust logis v1
+that a Go test still reads: the text corpus and faces and the icons (the Go
+renders are bounded against them), forge's window (the scene test's
+oracle for the row layout), the debug panel's captures and the golden
+harness's reference. The harness, `internal/render/rendertest`
+(`Goldens.Check`, `CheckScene`), compares an image with the Go golden where
+there is one and with v1's otherwise, each channel within a tolerance (an
+allowed fraction of outlier pixels for E2E captures); the icon and theme
+goldens store straight alpha, so a viewer shows the translucent glow in its
+colour, and are compared premultiplied. The theme goldens draw the same
+lists in each bundled theme at scales 1.0, 1.3 and 2.0 with the frame's time
+frozen (glow at full strength, the highlight at the top, grain, flicker and
+glitch at time 0), with the pinned Noto Sans Mono and Noto Serif standing in
+for the themes' own families.
+
 After a deliberate change, rewrite and review the goldens:
 
 ```sh
-LOGIS_UPDATE_GOLDENS=1 cargo test --test text
+LOGIS_UPDATE_GOLDENS=1 go test ./internal/render/ ./internal/list/scene/ ./internal/icons/
+LOGIS_E2E=niri LOGIS_UPDATE_GOLDENS=1 go test -count=1 -run E2E ./cmd/logis/
 ```
 
-A mismatch leaves the render and a difference image under
-`target/tmp/golden-failures/`.
-
-The themes have goldens of their own: `tests/list.rs` draws the same lists in
-each bundled theme at scales 1.0, 1.3 and 2.0 into `tests/goldens/themes/<theme>/`,
-the frame's time frozen (glow at full strength, the highlight at the top, grain
-and flicker at time 0), stored with straight alpha so that a viewer shows the
-translucent glow in its colour (compared on the premultiplied pixels), with the pinned Noto Sans Mono and Noto Serif standing in
-for the themes' own families; `tests/faces.rs`, `tests/primitives.rs` and
-`tests/post.rs` cover faces and carets, gradients and the highlight, and each
-post-processing effect. The post pass reads pixels with `textureLoad` and draws
-its noise from an integer hash, so its goldens hold on any GPU.
-`LOGIS_UPDATE_GOLDENS=1 cargo test --test list` rewrites them.
-
-`tests/icons.rs` compares icon renders with the PNG goldens in
-`tests/goldens/icons/` (straight alpha, each channel within 3);
-`LOGIS_UPDATE_GOLDENS=1 cargo test --test icons` rewrites them after an intended
-change.
+Update mode writes only Go goldens, never one of v1's: an image within
+tolerance of v1's golden needs none (a stale Go golden is removed), any other
+is written under `tests/goldens/go/` and the test log says how it differs
+from v1's. A mismatch leaves `<name>.actual.png` and `<name>.diff.png`
+(outliers magenta over the dimmed golden) under `$LOGIS_GOLDEN_FAILURES`
+(by default the temp dir's `logis-golden-failures`); a passing check removes
+an earlier failure's.
 
 ### Test infrastructure
 
-Shared helpers live in [`tests/support/`](tests/support/); a test crate adopts them
-with `mod support;`.
+Test-only packages, imported by tests alone and never linked into logis:
 
-- **Goldens** ([`golden.rs`](tests/support/golden.rs)): `golden::check(set, name,
-  &image)` compares an image with `tests/goldens/<set>/<name>.png` (each channel
-  within 2); `golden::check_scene(&gpu, set, name, &scene, logical, &scales)`
-  renders a scene through `render::render_offscreen` at each scale
-  (`<name>@1.3` …). `Goldens::checked_in()` takes another `Tolerance` (channel
-  difference plus an allowed fraction of outlier pixels) or `Alpha::Straight`.
-  `LOGIS_UPDATE_GOLDENS=1` rewrites goldens; mismatches leave
-  `<name>.actual.png` and `<name>.diff.png` under `target/tmp/golden-failures/`.
-- **End to end** ([`e2e/`](tests/support/e2e/)): `TestCompositor::start(kind)`
-  runs a compositor the harness owns, in a scratch `XDG_RUNTIME_DIR`: a nested
-  niri window locally (`LOGIS_E2E=niri`, its own generated config, scale 1, never
-  `--session`), sway on wlroots' headless backend in CI (`LOGIS_E2E=sway`).
-  `compositor.logis()` is a `logis` command inside it (pinned fonts);
-  `Traced::spawn(command)` runs it with `LOGIS_TEST_TRACE=1` and waits for its
-  trace (`wait_for_focus()`, `wait_for_commit()` …). Clients get a Compose table
-  of the harness's own (`XCOMPOSEFILE`, never anyone's `~/.XCompose`) and a
-  scratch `XDG_CONFIG_HOME`; both compositors and the injector use the US layout
-  with Menu as Compose (`compose:menu`) and a repeat of 30/s after 300 ms. `Harness::connect(&compositor)`
-  refuses any socket whose server is not that compositor process (peer
-  credentials), then offers `virtual_keyboard()`, `type_text`, `tap`, `hold`/
-  `release` (real modifier keys plus masks), `toggle` (Caps/Num Lock) — all
-  requiring the `Focused` proof from `wait_for_focus()` — and `capture()`
-  (wlr-screencopy, upright). `virtual_pointer()` (zwlr_virtual_pointer_v1) adds
-  `move_to`, `button`/`click`, `wheel` (notches) and `finger` (touchpad pixels);
-  a `Panel` maps output points onto a client's surface, calibrated from where
-  the client says the pointer entered it. `SelectionOwner::start(&compositor,
-  clipboard, primary)` owns the test compositor's clipboard and primary
-  selection (wlr-data-control, no `wl-copy`) and records which MIME types were
-  asked for; it connects through the same isolation guard
-  (`wire::connect_verified`). Without `LOGIS_E2E` these tests print `SKIPPED`.
-- **Latency** ([`tests/latency.rs`](tests/latency.rs),
-  [`latency.rs`](tests/support/latency.rs)): the research/bench `T0_NS` method:
-  the harness reads `CLOCK_MONOTONIC` just before starting the client, the
-  client stamps `commit` (and key) events with the same clock. Start → first
-  commit is measured with the pinned fonts and with the system's own, run by run
-  in turn. Each series is reported against its spec §4.10 budget; `LOGIS_LATENCY_REPORT=<file>` appends
-  JSON lines and `LOGIS_LATENCY_BUDGETS=enforce` fails a median over budget.
-  The dmenu series run a real daemon: warm open (`logis --dmenu` from exec to
-  the window's first committed frame, ≤ 15 ms) and keystroke → commit with 3
-  and with 100 000 items (one frame). With motion, "first committed frame" is
-  the first frame of the open transition, not its end; the end is a series of
-  its own (warm open → open settled). Each warm open starts 100 ms after the
-  previous window is gone (`faded`), not merely hidden: a nested niri that is
-  still drawing a closing window answers the new window's setup round trips
-  up to two parent frames late (a real niri does not). A warm open asks the
-  compositor nothing before it is shown: the surface's format, present mode
-  and alpha mode are negotiated with the daemon's first window and reused
-  (each query cost Mesa's WSI several round trips, 30 per open); the test
-  counts the daemon's `wl_display.sync` requests in its `WAYLAND_DEBUG` log.
-  The measurements run one at a time, so the nested niri measured is the
-  newest window of the session and drawn. A nested niri the session does not
-  draw (another workspace, out of view, screen off) gets frame callbacks about
-  once a second and blocks in its buffer swap meanwhile, answering no client
-  for up to two seconds.
-- **Motion** ([`tests/motion.rs`](tests/motion.rs)): the open and the band's
-  glide take several frames and then nothing is drawn, the caller has its
-  answer while the window still fades, a queued session does not wait for the
-  fade, blur follows the body where offered (not when the config says no), and
-  an idle window wakes no thread of the daemon (context switches unchanged).
-  `Cogitator::start_with(env, config)` starts the daemon with extra
-  environment (`LOGIS_MOTION`) or a config.
-- **dmenu** ([`tests/dmenu.rs`](tests/dmenu.rs),
-  [`cogitator.rs`](tests/support/e2e/cogitator.rs)): a traced `logis daemon` in
-  the test compositor and `logis --dmenu` clients with piped stdin and stdout:
-  select, dismiss, index and column output, `--only-match`, typed text, queued
-  callers, streamed input and the compositor's loss.
-  [`tests/dmenu_runes.rs`](tests/dmenu_runes.rs) checks the runes over a real
-  daemon with the scripted resolver (no window), and
-  [`tests/list.rs`](tests/list.rs) the list's goldens offscreen.
-- **Pointer and paste** ([`tests/pointer.rs`](tests/pointer.rs)): hover, click,
-  a press dragged off its row, wheel and finger scrolling, the cursor shape,
-  Ctrl+V and Shift+Insert, and the middle button's primary paste, against the
-  same daemon and `logis --dmenu` clients.
-- **Providers** ([`tests/provider.rs`](tests/provider.rs),
-  [`tests/provider_window.rs`](tests/provider_window.rs)): the fixture provider
-  [`forge.sh`](tests/fixtures/providers/forge.sh) (POSIX sh) through a real
-  daemon: with the scripted resolver (a two-stage flow, cancellation and the
-  signal rules, timeouts and protocol errors) and in the test compositor (a
-  pending row Return cannot take, a second stage in the same window, a toast the
-  window lingers on, Escape after an activation sparing the action).
-- **App launcher** ([`tests/launch.rs`](tests/launch.rs),
-  [`tests/apps.rs`](tests/apps.rs), [`tests/apps_window.rs`](tests/apps_window.rs)):
-  fixture desktop entries ([`tests/fixtures/apps/`](tests/fixtures/apps/)) and
-  the fixture program [`anoint`](tests/fixtures/apps/bin/anoint), which records
-  its arguments, environment, activation token and session, then waits. Launches
-  with a fake session bus ([`fake_bus.rs`](tests/support/fake_bus.rs): the user
-  manager's environment, the transient scope, D-Bus activation; the real bus is
-  never reached), through a real daemon with the scripted resolver (the launch,
-  frecency, an app installed while it runs), and in the test compositor (a real
-  activation token, the app outliving the killed daemon, desktop actions as a
-  second stage). The D-Bus messages logis writes are compared byte for byte with
-  GLib's ([`glib-reference.py`](tests/fixtures/dbus/glib-reference.py)). Test
-  daemons run without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so
-  they find no session bus.
-- **Themes** ([`tests/theme_window.rs`](tests/theme_window.rs)): in the test
-  compositor, an edited theme reaches the visible window (`theme <name>`), a
-  broken one keeps the last sound theme and shows its notice (`toast …`,
-  `untoast`), and a window keeps drawing only while the theme's continuous
-  effects move (it reports frames, wake-ups and CPU for both). Every other E2E
-  daemon runs with `reduce-motion` unless its test's config names it, so its
-  windows settle and screen captures agree.
-- **servitor mode** ([`tests/servitor.rs`](tests/servitor.rs),
-  [`tests/servitor_window.rs`](tests/servitor_window.rs)): a fake `servitor`
-  ([`tests/fixtures/servitor/servitor`](tests/fixtures/servitor/servitor), POSIX
-  sh) on the caller's `PATH` tells census lines recorded from the real servitor
-  ([`vigil.jsonl`](tests/fixtures/servitor/vigil.jsonl) and fixtures derived
-  from it, with timed and gated pending cases) and records how `servitor invoke`
-  was launched (argv, session and process group, stdio, environment, working
-  directory, when it started and ended). With the scripted resolver and in the
-  test compositor (pending rows, live settling, the current aspect, a prefilled
-  decree).
+- **Goldens** (`internal/render/rendertest`): headless renderers, PNG
+  reading and writing, comparison under a `Tolerance`, the golden harness
+  above and the pinned fonts.
+- **Fake compositor** (`internal/wltest`): just enough of the Wayland wire
+  protocol to offer chosen globals, so a test can hand logis a compositor
+  without layer shell or fractional scaling, or one that hangs up.
+- **Fake session bus** (`internal/dbus/dbustest`): the user manager's
+  environment, the transient scope and D-Bus activation for the launch
+  tests, recording every call; the real bus is never reached. The D-Bus
+  messages logis writes are compared byte for byte with GLib's
+  ([`glib-reference.py`](tests/fixtures/dbus/glib-reference.py)).
+- **End to end** (`internal/e2e`): `e2e.Start(t, kind)` runs a compositor the
+  harness owns, in a scratch `XDG_RUNTIME_DIR`: a nested niri window locally
+  (`LOGIS_E2E=niri`, its own generated config, scale 1, never `--session`),
+  sway on wlroots' headless backend in CI (`LOGIS_E2E=sway`). `c.Logis(…)`
+  is a `logis` command inside it (pinned fonts); `e2e.Spawn(t, cmd)` runs it
+  with `LOGIS_TEST_TRACE=1` and follows its trace (`WaitForFocus`,
+  `WaitForCommit` …). Clients get a Compose table of the harness's own
+  (`XCOMPOSEFILE`, never anyone's `~/.XCompose`) and a scratch
+  `XDG_CONFIG_HOME`; both compositors and the injector use the US layout
+  with Menu as Compose (`compose:menu`). `e2e.Connect(t, c)` refuses any
+  socket whose server is not that compositor process (peer credentials,
+  `ConnectVerified`), then offers `VirtualKeyboard()` (`Type`, `Tap`,
+  `Hold`/`Release` with real modifier keys, `Toggle` for Caps and Num Lock,
+  all requiring the `Focused` proof from `WaitForFocus`), `VirtualPointer()`
+  (`MoveTo`, `Button`/`Click`, `Wheel` in notches, `Finger` in touchpad
+  pixels; `Calibrate` maps output points onto a client's surface) and
+  `Capture()` (wlr-screencopy, upright). `e2e.OwnSelection` owns the test
+  compositor's clipboard and primary selection (wlr-data-control, no
+  `wl-copy`) through the same guard, and `e2e.StartWatchdog` makes a round
+  trip to the compositor every 10 ms to tell a stalled compositor from a slow
+  logis. `e2e.StartCogitator` runs a traced `logis daemon` in the compositor
+  with `logis --dmenu`, `--provider`, `--servitor` and `--apps` clients on
+  piped stdin and stdout. Without `LOGIS_E2E` these tests skip.
+- **Latency** (`internal/e2e/latency`): the research/bench `T0_NS` method:
+  the harness reads `CLOCK_MONOTONIC` just before it acts (starts a client,
+  injects a key) and the client stamps `commit` (and key) events with the
+  same clock. Each series is reported against its budget;
+  `LOGIS_LATENCY_REPORT=<file>` appends JSON lines, `LOGIS_LATENCY_RUNS`
+  sets the runs, and `LOGIS_LATENCY_BUDGETS=enforce` fails a median over
+  budget. The series run a real daemon: warm open (from exec to the window's
+  first committed frame, ≤ 15 ms; with motion that is the open's first frame,
+  and the settled open is a series of its own) and keystroke → commit with 3
+  and with 100 000 items, for dmenu, the app launcher and both themes. A warm
+  open asks the compositor nothing before it is shown; the test counts the
+  daemon's `wl_display.sync` requests in its `WAYLAND_DEBUG` log. Cold start
+  (exec to the first window of a fresh daemon) is not measured here.
 
-`LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr lines
-`logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
+The suites, in `cmd/logis/` unless named otherwise: the keyboard model and
+the debug panel (`keyboard_e2e_test.go`, `internal/e2e`), dmenu
+(`dmenu_window_e2e_test.go` in the compositor; `dmenu_e2e_test.go` and
+`contract_test.go` over a real daemon with the scripted resolver, no window),
+pointer and paste (`pointer_e2e_test.go`), motion and blur
+(`motion_e2e_test.go`), providers with the fixture provider
+[`forge.sh`](tests/fixtures/providers/forge.sh) (`provider_e2e_test.go`,
+`provider_window_e2e_test.go`), the app launcher with fixture desktop entries
+([`tests/fixtures/apps/`](tests/fixtures/apps/)) and the fixture program
+[`anoint`](tests/fixtures/apps/bin/anoint), which records its arguments,
+environment, activation token and session (`apps_e2e_test.go`,
+`apps_window_e2e_test.go`, `internal/launch`), the tabbed launcher
+(`tabs_e2e_test.go`), themes and their live edits (`theme_window_e2e_test.go`),
+the glitch and the custom shader (`glitch_e2e_test.go`, `custom_e2e_test.go`),
+the row fit (`rowfit_e2e_test.go`) and servitor mode with a fake `servitor`
+([`tests/fixtures/servitor/servitor`](tests/fixtures/servitor/servitor), POSIX
+sh) that tells census lines recorded from the real servitor
+([`vigil.jsonl`](tests/fixtures/servitor/vigil.jsonl) and fixtures derived
+from it) and records how `servitor invoke` was launched
+(`servitor_e2e_test.go`, `servitor_window_e2e_test.go`). Test daemons run
+without `DBUS_SESSION_BUS_ADDRESS` in a scratch runtime dir, so they find no
+session bus, and with `reduce-motion` unless their test's config names it, so
+their windows settle and screen captures agree. `cmd/logis/e2emap_test.go`
+keeps each of Rust v1's 55 E2E tests mapped to its Go port.
+
+`LOGIS_TEST_TRACE=1` is the test-only observable in the window code: stderr
+lines `logis-trace: <monotonic ns> <event>` for `keyboard-enter`/`keyboard-leave`,
 `keymap`, `repeat-info <rate> <delay>`, `key <evdev code>
 pressed|released|repeated`, `modifiers <depressed> <latched> <locked> <group>`,
 `pointer-enter <x> <y>`, `pointer-motion <x> <y>`, `pointer-leave`, `cursor
 default|unchanged`, `button <code> pressed|released`, `scroll wheel <120ths>|pixels
 <px>|stop`, `paste <selection> <MIME type>|none|unavailable`, `pasted <selection>
 <bytes>`, `commit` (a frame of the visible window), `commit closing` (a frame of
-one fading out), `settled` (the first frame after which nothing moves), `frame-done`,
-`presented` and `discarded` (the Go build: the compositor's frame callback and
-presentation feedback for a frame of the visible window), `faded` (a
-closed window is gone, at once without motion), `blur <rectangles>` (a blur region was set) and
-`blur-capable true|false` (the compositor's word), `acquire outdated` and `acquire
-failed <reason>` (no swapchain image came; the frame is tried again 4 ms later
-rather than at the next event), `cut` (a window still closing
-was dropped after the next window's first frame); the debug panel adds what each key did: `query <JSON string>`, `select
-<row>`, `accept <row>` and `dismiss`. The daemon's window reports its sessions:
-`show <session>`, `stage <session>` (a provider's next stage), `items <total>`,
-`update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`, `ready`,
-`query <JSON string>`, `select <item>` (or `select none`), `accept <item>`,
-`descend <item>` (Shift+Return), `typed <JSON string>`, `dismiss`, `token
-<session>` (an activation token came), `linger <session>`, `hide <session>` and
-`theme <name>` (the window put a theme on).
+one fading out), `settled` (the first frame after which nothing moves),
+`frame-done` and `presented`/`discarded` (the compositor's frame callback and
+presentation feedback for a frame of the visible window), `faded` (a closed
+window is gone, at once without motion), `blur <rectangles>` (a blur region
+was set) and `blur-capable true|false` (the compositor's word), `cut` (a
+window still closing was dropped after the next window's first frame); the
+debug panel adds what each key did: `query <JSON string>`, `select <row>`,
+`accept <row>` and `dismiss`. The daemon's window reports its sessions:
+`show <session>`, `stage <session>` (a provider's next stage), `items
+<total>`, `update <item>`, `remove <item>`, `toast <JSON string>`, `untoast`,
+`ready`, `query <JSON string>`, `select <item>` (or `select none`), `accept
+<item>`, `descend <item>` (Shift+Return), `typed <JSON string>`, `dismiss`,
+`token <session>` (an activation token came), `linger <session>`, `hide
+<session>`, `theme <name>` (the window put a theme on) and, in the tabbed
+launcher, `tab <name>` (the lit tab) and the rites tab's own feed as `rites
+<event>`.
 
-Locally (inside a running Wayland session; a nested niri window opens briefly):
+Locally (inside a running Wayland session; a nested niri window opens
+briefly):
 
 ```sh
-LOGIS_E2E=niri cargo test --test e2e --test dmenu --test pointer --test provider_window --test apps_window --test servitor_window --test motion --test theme_window
-LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce cargo test --release --test latency -- --nocapture
+LOGIS_E2E=niri go test -count=1 -run E2E ./...
+LOGIS_E2E=niri LOGIS_LATENCY_BUDGETS=enforce go test -count=1 -run Latency -v ./cmd/logis/
 ```
 
-A warm open slower than 100 ms prints `SLOW OPEN <ms>` with the window's trace
-between the client's start and its first frame, and whether the test
-compositor itself stopped answering meanwhile (a watchdog makes a round trip
-to it every 10 ms), so an outlier names its cause. With
-`LOGIS_LATENCY_BUDGETS=enforce` such an open fails the run; keep the nested
-niri window in view while it runs.
+A warm open slower than 100 ms prints `SLOW OPEN <ms>` with the window's
+trace between the client's start and its first frame, and whether the test
+compositor itself stopped answering meanwhile (the watchdog), so an outlier
+names its cause. With `LOGIS_LATENCY_BUDGETS=enforce` such an open fails the
+run; keep the nested niri window in view while it runs (a nested niri the
+session does not draw gets frame callbacks about once a second).
 
-CI runs the unit and golden tests in one job and the E2E and latency suites in
-headless sway in another, recording latency as a trend (job summary and a
+CI ([`.github/workflows/go.yml`](.github/workflows/go.yml)) runs gofmt, vet
+and the tests with the race detector on llvmpipe in one job, the keyboard's
+differential suite in another, and the E2E and latency suites in headless
+sway in a third, recording latency as a trend (job summary and a
 `latency.jsonl` artefact) without enforcing the budgets.
 
 ### GPU backends
 
-logis tries Vulkan hardware, then GL hardware, then lavapipe, then llvmpipe.
-`LOGIS_GPU_BACKEND=vulkan|gl|software` forces one; the render tests force each in
-turn. Manual check on a live session (each prints the adapter it woke):
+logis draws with OpenGL ES 3 through EGL, presented with the EGL Wayland
+platform; there is no Vulkan path and no CPU renderer. libglvnd dispatches to
+the vendor driver the system provides (the package depends on
+`opengl-driver`: Mesa, NVIDIA's or another). Without one that answers, the
+daemon exits 2 (`no machine spirit answers …`). Software rendering is Mesa's
+llvmpipe. Manual check on a live session:
 
 ```sh
-for b in vulkan gl software; do
-  LOGIS_GPU_BACKEND=$b timeout 3 logis daemon --debug-panel
-done
-# llvmpipe (GL software) instead of lavapipe:
-LIBGL_ALWAYS_SOFTWARE=1 LOGIS_GPU_BACKEND=gl timeout 3 logis daemon --debug-panel
+timeout 3 logis daemon --debug-panel
+# llvmpipe (software) instead of the GPU:
+LIBGL_ALWAYS_SOFTWARE=1 timeout 3 logis daemon --debug-panel
+# one EGL vendor of several (libglvnd), here Mesa's:
+__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json timeout 3 logis daemon --debug-panel
 ```
 
 logis targets the niri compositor; other compositors with wlr-layer-shell are best
@@ -1268,13 +1235,17 @@ and most session setups import.
 
 - [`CONTEXT.md`](CONTEXT.md): domain vocabulary, including the grimdark words used in
   help, error and UI text.
-- [`docs/adr/`](docs/adr/): architecture decisions: Rust on wgpu with logis's own
-  renderer (0001), a resident daemon and a thin client (0002).
-- [`docs/research/`](docs/research/): the stack research (`stack.md`) and the
-  launcher landscape (`landscape.md`) that the decisions rest on.
-- [`research/`](research/): disposable research code (benchmarks, Rust prototypes,
-  the GPU/daemon spike, screenshots). It is evidence, not a foundation, and is not
-  part of the build.
+- [`docs/adr/`](docs/adr/): architecture decisions: logis's own GPU renderer, no
+  CPU renderer (0001, written for Rust v1 on wgpu), a resident daemon and a thin
+  client (0002), the Go rewrite's stack (0003) and the switch-over from Rust to
+  Go (0004).
+- [`docs/research/`](docs/research/): the stack research (`stack.md`, for Rust
+  v1), the launcher landscape (`landscape.md`) and the Go rewrite's research
+  (`go-rendering.md`, `go-text-input.md`) that the decisions rest on.
+- [`research/`](research/): disposable research code (benchmarks and the
+  GPU/daemon spike's evidence and screenshots; the Rust prototypes it measured
+  are in the history). It is evidence, not a foundation, and is not part of
+  the build.
 
 ## Licence
 

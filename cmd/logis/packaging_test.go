@@ -10,13 +10,13 @@ import (
 	"github.com/nerdwave-nick/logis/internal/version"
 )
 
-// The release stays consistent (port of Rust tests/packaging.rs): the
+// The release stays consistent (Rust v1's tests/packaging.rs, ported): the
 // PKGBUILD (packaging/arch/), its .SRCINFO, the man page and the changelog
 // name the version logis reports, the package installs everything the
 // repository ships for it, and it never enables the systemd units (spec §3:
 // shipped, not enabled). The Go build adds: the PKGBUILD builds cmd/logis
 // with go and cgo, and depends on the package of every C library the binary
-// links (link_test.go's specLibraries).
+// links (link_test.go's specLibraries) and on an OpenGL driver.
 
 // readRepo reads a file relative to the repository root.
 func readRepo(t *testing.T, path string) string {
@@ -95,7 +95,7 @@ func TestThePackageAndItsSrcinfoCarryTheVersion(t *testing.T) {
 }
 
 func TestTheSrcinfoListsThePkgbuildDependencies(t *testing.T) {
-	for _, key := range []string{"depends", "makedepends", "optdepends"} {
+	for _, key := range []string{"depends", "makedepends"} {
 		pkgbuild, info := sorted(pkgbuildArray(t, key)), sorted(srcinfo(t, key))
 		if !slices.Equal(info, pkgbuild) {
 			t.Errorf("%s: .SRCINFO %q, PKGBUILD %q: regenerate .SRCINFO (makepkg --printsrcinfo > .SRCINFO)",
@@ -222,7 +222,7 @@ func TestThePackageCheckLeavesTheTimingTestsOut(t *testing.T) {
 
 // archLibraryPackages names the Arch package that ships each C library the
 // binary links (spec §4): libglvnd ships the libEGL and libGLESv2 the binary
-// links, which dispatch to Mesa's (or another vendor's) driver.
+// links, which dispatch to a vendor's driver.
 var archLibraryPackages = map[string]string{
 	"libEGL.so.1":            "libglvnd",
 	"libGLESv2.so.2":         "libglvnd",
@@ -233,10 +233,11 @@ var archLibraryPackages = map[string]string{
 }
 
 // The package depends on what the binary links, on glibc for libc and libm,
-// and on mesa, the EGL and OpenGL ES driver behind libglvnd (llvmpipe where
-// no GPU serves).
+// and on opengl-driver, the EGL and OpenGL ES driver behind libglvnd:
+// whichever vendor's package provides it (mesa, with llvmpipe where no GPU
+// serves, or nvidia-utils), never mesa by name.
 func TestThePackageDependsOnWhatTheBinaryLinks(t *testing.T) {
-	want := []string{"glibc", "mesa"}
+	want := []string{"glibc", "opengl-driver"}
 	for _, lib := range specLibraries {
 		pkg, ok := archLibraryPackages[lib]
 		if !ok {
@@ -248,5 +249,17 @@ func TestThePackageDependsOnWhatTheBinaryLinks(t *testing.T) {
 	}
 	if got := sorted(pkgbuildArray(t, "depends")); !slices.Equal(got, sorted(want)) {
 		t.Errorf("depends = %q, want %q", got, sorted(want))
+	}
+}
+
+// The package has no optional dependencies: nothing logis does needs a
+// package beyond depends (servitor is a caller, not a dependency). The
+// PKGBUILD writes no optdepends at all, and so its .SRCINFO lists none.
+func TestThePackageHasNoOptionalDependencies(t *testing.T) {
+	if strings.Contains(pkgbuildCode(t), "optdepends") {
+		t.Error("the PKGBUILD has an optdepends array")
+	}
+	if got := srcinfo(t, "optdepends"); len(got) > 0 {
+		t.Errorf(".SRCINFO optdepends = %q, want none", got)
 	}
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Reference D-Bus messages encoded by GLib (GDBusMessage), an implementation
-independent of logis's own (src/launch/wire.rs). Regenerate with
+independent of logis's own (internal/dbus). Regenerate with
     python3 tests/fixtures/dbus/glib-reference.py > tests/fixtures/dbus/glib-reference.hex
 One message per line, hex: StartTransientUnit, ActivateAction, Hello (calls,
 little-endian), a Get reply carrying an `as` (big-endian) and an error reply."""

@@ -8,7 +8,9 @@ import (
 )
 
 // oracle is testdata/nucleo.json: what nucleo-matcher 0.3.1, the matcher
-// of Rust logis v1, makes of a corpus (see testdata/oracle).
+// of Rust logis v1, makes of a corpus. testdata/oracle is the standalone
+// Rust program that wrote it; to regenerate (with cargo, the crates in its
+// cache): cd testdata/oracle && cargo run --release --offline > ../nucleo.json
 type oracle struct {
 	Items     []string     `json:"items"`
 	Queries   []string     `json:"queries"`
