@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/version"
 	"github.com/nerdwave-nick/logis/internal/wltest"
 )
 
@@ -43,6 +44,10 @@ const parityRecord = "testdata/parity.json"
 // divergences are the answers the Go binary gives unlike Rust's on
 // purpose, for features new beside v1: case key → Rust's recorded answer
 // as the Go binary gives it. The record stays Rust's.
+// v1Version is the version Rust logis v1 named itself in the record; the Go
+// build names its own (internal/version) wherever v1 named 1.0.0.
+const v1Version = "1.0.0"
+
 var divergences = map[string]func(answer) answer{
 	// a5e5f876: the config's custom-shader key is among the keys an
 	// unknown one is told of.
@@ -265,6 +270,7 @@ func TestTheCallerFacingSurfaceIsRustsArgumentByArgument(t *testing.T) {
 		if diverge, ok := divergences[c.key()]; ok {
 			want = diverge(want)
 		}
+		want.Stdout = strings.ReplaceAll(want.Stdout, "logis "+v1Version+"\n", "logis "+version.Version+"\n")
 		if got := runParity(t, bin, c); got != want {
 			t.Errorf("%s:\n  Go   %+v\n  Rust %+v", c.key(), got, want)
 		}

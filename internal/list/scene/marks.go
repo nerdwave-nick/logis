@@ -87,12 +87,24 @@ func badgeWords(words string, b theme.Badge) string {
 	return words
 }
 
+// toastInset is the toast strip's distance from the body's edges.
+const toastInset = 8
+
+// toastHeight is the toast strip's height in theme t.
+func toastHeight(t *theme.Theme) float32 { return t.Row.Font.Size*1.3 + 12 }
+
+// toastTop is the top of the toast strip across the bottom of body: rows
+// reaching below it are not drawn while a toast shows (rows).
+func toastTop(body [4]float32, t *theme.Theme) float32 {
+	return body[1] + body[3] - toastHeight(t) - toastInset
+}
+
 // toast draws a toast's strip across the bottom of body, and its words:
 // its edge in the colour of its level.
 func toast(sc *render.Scene, n list.Notice, body [4]float32, t *theme.Theme) {
 	font := t.Row.Font
-	height := font.Size*1.3 + 12
-	const inset = 8
+	height := toastHeight(t)
+	const inset = toastInset
 	edge := t.Prompt.Color
 	switch n.Level {
 	case list.Success:

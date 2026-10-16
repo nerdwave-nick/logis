@@ -47,6 +47,10 @@ type Conn struct {
 	r *bufio.Reader
 	// Daemon is the daemon's process ID, from its welcome.
 	Daemon int
+	// Notice is the daemon's word for the user from its welcome ("" for
+	// none), for the caller's stderr: a daemon whose binary was replaced
+	// asks to be restarted.
+	Notice string
 }
 
 // stream is a connection: a socket from unixsock, or a pipe in tests.
@@ -126,7 +130,7 @@ func greet(conn *Conn, deadline time.Time) (*Conn, error) {
 		return nil, outOfTurn(reply)
 	}
 	_ = conn.c.SetReadDeadline(time.Time{})
-	conn.Daemon = reply.PID
+	conn.Daemon, conn.Notice = reply.PID, reply.Notice
 	return conn, nil
 }
 

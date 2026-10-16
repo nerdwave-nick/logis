@@ -235,6 +235,44 @@ func TestAToastLiesOverTheBottomOfTheBodyInItsLevelsColour(t *testing.T) {
 	}
 }
 
+// Rows fill the panel to its bottom (the row fit), so a toast lies over
+// the last row: that row is not drawn while the toast shows, so its words,
+// icon and badges never show through the toast's.
+func TestARowUnderTheToastIsHiddenWhileTheToastShows(t *testing.T) {
+	th := forge()
+	logical := sized(th)
+	l := look(5, 4)
+	l.Glyphs = true
+	for i := range l.Rows {
+		l.Rows[i].Glyph = "§"
+		l.Rows[i].Badges = []string{"edict"}
+	}
+	l.Toast = &list.Notice{Text: "logis updated", Level: list.Info}
+	s := Draw(l, logical, still(th))
+	strip := s.Shapes[len(s.Shapes)-1].Rect
+	for _, x := range s.Texts {
+		if x.Text == l.Toast.Text {
+			continue
+		}
+		if x.Origin[1]+x.LineHeight > strip[1] {
+			t.Errorf("%q reaches into the toast: bottom %v, toast top %v", x.Text, x.Origin[1]+x.LineHeight, strip[1])
+		}
+	}
+	// The panel's chrome and the band may lie under it; a row's badge may
+	// not. The rows' shapes follow the chrome and the band (two shapes).
+	bare := look(0, -1)
+	chrome := len(Draw(bare, logical, still(th)).Shapes) + 2
+	for _, shape := range s.Shapes[chrome : len(s.Shapes)-1] {
+		if r := shape.Rect; r[1]+r[3] > strip[1] {
+			t.Errorf("a badge under the toast: %v", r)
+		}
+	}
+	find(t, s, "row 3")
+	without := *l
+	without.Toast = nil
+	find(t, Draw(&without, logical, still(th)), "row 4")
+}
+
 func TestAGlidingBandMovesAlone(t *testing.T) {
 	th := forge()
 	logical := sized(th)

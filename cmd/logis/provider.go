@@ -4,8 +4,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/nerdwave-nick/logis/internal/client"
-	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
 
@@ -20,10 +18,7 @@ import (
 // runProvider runs a provider session for argv; configPath goes to a
 // daemon this client has to start.
 func runProvider(configPath string, argv []string, stderr io.Writer) int {
-	conn, err := client.Connect(client.Options{
-		RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"),
-		DaemonArgs: config.NewSource(configPath).DaemonArgs(),
-	})
+	conn, err := connect(configPath, stderr)
 	if err != nil {
 		return fail(stderr, err.Error())
 	}

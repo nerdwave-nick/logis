@@ -27,11 +27,17 @@ import (
 	"path/filepath"
 )
 
-// Version is bumped whenever a message changes incompatibly. 1–3 were the
-// Rust daemon's; 4 is the Go rewrite's, with the shape of 3, versioned apart
-// so that a Rust daemon left running across the switch-over refuses a Go
-// client plainly.
-const Version uint32 = 4
+// Version is bumped whenever the message set changes, so that a daemon left
+// running across an upgrade refuses a client of another version plainly
+// ("restart the daemon", exit 2) instead of ignoring what it does not know:
+//
+//   - 1–3: the Rust daemon's.
+//   - 4: the Go rewrite's, with the shape of 3, versioned apart so that a
+//     Rust daemon left running across the switch-over refuses a Go client.
+//   - 5: open's rites (plain logis's tabbed launcher, feat/logis-go
+//     8cba2fc9), which a daemon of 4 ignored, serving the launcher alone;
+//     welcome's notice (a daemon whose binary was replaced, 750bed66).
+const Version uint32 = 5
 
 // SocketName is the socket's file name inside $XDG_RUNTIME_DIR.
 const SocketName = "logis.sock"

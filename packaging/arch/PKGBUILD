@@ -20,7 +20,7 @@
 # otherwise exports from the checkout afresh on every build.
 
 pkgname=logis
-pkgver=1.0.0
+pkgver=1.1.1
 pkgrel=1
 pkgdesc='A grimdark Wayland launcher and dmenu-compatible picker'
 arch=('x86_64')

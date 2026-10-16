@@ -462,6 +462,23 @@ status only. It does name the plain fact:
 | the daemon dies during the session (the compositor left) | that the daemon fell silent | `cmd/logis/contract_test.go::TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2` |
 | the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `cmd/logis/contract_test.go::TestACallerTheDaemonRefusesExits2WithTheDaemonsReason`, `internal/client/client_test.go::TestADaemonsRefusalIsTheClientsError`, `internal/daemon/serve_test.go::TestOverTheSocketAGreetingInAnotherVersionIsRefused`, `internal/daemon/core_test.go::TestAGreetingOfAnotherVersionIsRefused` |
 
+**A daemon left running across an upgrade** keeps serving, but once its binary
+was replaced since it started (an upgrade renames a new file over it) it asks
+to be restarted: every panel it shows carries the notice `logis updated —
+…`, naming `systemctl --user restart logis` when systemd passed it the
+socket and `restart the daemon: kill PID` otherwise; every caller prints
+the same line on stderr, with its exit status and stdout unchanged; the
+daemon's log has it once
+(`cmd/logis/stale_test.go::TestADaemonWhoseBinaryWasReplacedRemindsEveryCallerAndStillServes`,
+`cmd/logis/stale_test.go::TestASocketActivatedDaemonWhoseBinaryWasReplacedNamesItsUnit`,
+`cmd/logis/stale_window_e2e_test.go::TestE2EADaemonWhoseBinaryWasReplacedShowsTheReminderAndStillServes`,
+`internal/daemon/stale_test.go::TestTheDaemonsBinaryIsReplacedOnlyWhenAnotherFileTakesItsPlace`,
+`internal/daemon/stale_test.go::TestTheReminderSaysHowToRestartThisDaemon`).
+A daemon of another protocol version, whose messages differ, refuses instead
+(the last row above;
+`internal/daemon/stale_test.go::TestAClientOfTheVersionBeforeIsRefusedWithARestart`).
+It never restarts itself: a session may be open.
+
 A daemon that lost its compositor exits and removes its socket; the next
 caller starts a new one
 (`cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2`,
