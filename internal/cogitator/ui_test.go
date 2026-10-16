@@ -317,6 +317,19 @@ func TestAToastShowsOverTheVisibleListForAWhile(t *testing.T) {
 	}
 }
 
+// A daemon whose binary was replaced reminds the user in its own words, as
+// a notice, not an error (feat/logis-go 750bed66).
+func TestTheStaleDaemonsReminderIsToastedAsANotice(t *testing.T) {
+	r := newRig()
+	r.show(1, list.DefaultOptions(), "a")
+	const words = "a newer logis is installed — restart the daemon (kill 7)"
+	r.ui.toast(daemon.Toast{Kind: daemon.ToastStale, Text: words})
+	r.saw(t, `toast "`+words+`"`)
+	if l := r.ui.look(); l.Toast == nil || *l.Toast != (list.Notice{Text: words, Level: list.Info}) {
+		t.Fatalf("%+v", l.Toast)
+	}
+}
+
 func TestTheConfigsFocusLossReachesTheKeyboard(t *testing.T) {
 	r := newRig()
 	c := config.Default()

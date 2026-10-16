@@ -3,11 +3,8 @@ package main
 import (
 	"bufio"
 	"io"
-	"os"
 	"strconv"
 
-	"github.com/nerdwave-nick/logis/internal/client"
-	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/nth"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 )
@@ -43,7 +40,7 @@ func runDmenu(configPath string, d dmenuOptions, stdin io.Reader, stdout, stderr
 			}
 		}
 	}
-	outcome, err := dmenuSession(configPath, input, d)
+	outcome, err := dmenuSession(configPath, input, d, stderr)
 	if err != nil {
 		return fail(stderr, err.Error())
 	}
@@ -59,12 +56,8 @@ func runDmenu(configPath string, d dmenuOptions, stdin io.Reader, stdout, stderr
 
 // dmenuSession opens the session, streams input to it (or sends end at
 // once without), and waits for its outcome.
-func dmenuSession(configPath string, input *bufio.Reader, d dmenuOptions) (protocol.Outcome, error) {
-	source := config.NewSource(configPath)
-	conn, err := client.Connect(client.Options{
-		RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"),
-		DaemonArgs: source.DaemonArgs(),
-	})
+func dmenuSession(configPath string, input *bufio.Reader, d dmenuOptions, stderr io.Writer) (protocol.Outcome, error) {
+	conn, err := connect(configPath, stderr)
 	if err != nil {
 		return protocol.Outcome{}, err
 	}

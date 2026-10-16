@@ -51,13 +51,13 @@ func wantWire(t *testing.T, message any, want string) {
 
 // Ported from Rust src/protocol requests_have_a_stable_wire_shape.
 func TestRequestsHaveAStableWireShape(t *testing.T) {
-	wantWire(t, Hello(), `{"type":"hello","version":4}`)
+	wantWire(t, Hello(), `{"type":"hello","version":5}`)
 	wantWire(t, Open(ModeDmenu, nil), `{"type":"open","mode":"dmenu"}`)
 	wantWire(t, Open(ModeApps, json.RawMessage(`{"prompt":"> "}`)),
 		`{"type":"open","mode":"apps","options":{"prompt":"> "}}`)
 	wantWire(t, End(), `{"type":"end"}`)
 	wantWire(t, Cancel(), `{"type":"cancel"}`)
-	if Version != 4 {
+	if Version != 5 {
 		t.Errorf("Version %d: a changed protocol says so", Version)
 	}
 }
@@ -78,7 +78,9 @@ func TestAnItemCarriesItsRawBytesApartFromItsText(t *testing.T) {
 
 // Ported from replies_have_a_stable_wire_shape.
 func TestRepliesHaveAStableWireShape(t *testing.T) {
-	wantWire(t, Welcome(7), `{"type":"welcome","version":4,"pid":7}`)
+	wantWire(t, Welcome(7, ""), `{"type":"welcome","version":5,"pid":7}`)
+	wantWire(t, Welcome(7, "a newer logis is installed"),
+		`{"type":"welcome","version":5,"pid":7,"notice":"a newer logis is installed"}`)
 	wantWire(t, Queued(), `{"type":"queued"}`)
 	wantWire(t, Visible(), `{"type":"visible"}`)
 	wantWire(t, Error("heresy"), `{"type":"error","message":"heresy"}`)

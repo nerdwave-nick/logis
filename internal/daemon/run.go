@@ -62,6 +62,7 @@ func Run(ctx context.Context, o Options) int {
 		logf(message)
 		return exitError
 	}
+	exe := watchExe() // what runs now, before an upgrade can replace it
 	if _, err := protocol.SocketPath(o.RuntimeDir); err != nil {
 		return fail("the machine spirit has no dwelling: " + err.Error())
 	}
@@ -99,6 +100,8 @@ func Run(ctx context.Context, o Options) int {
 	}
 	l.core = newCore(resolver, os.Getpid())
 	l.core.providers.spawn, l.core.logf = l.spawner, logf
+	// systemd's socket: systemd starts the new binary once this one ends.
+	l.core.stale = staleness(exe, !socket.ownsPath, os.Getpid())
 	getenv := o.Getenv
 	if getenv == nil {
 		getenv = os.Getenv
