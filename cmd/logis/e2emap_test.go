@@ -71,7 +71,7 @@ var e2ePorts = map[string]e2ePort{
 	"tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token": {tests: []string{"cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken"}},
 	"tests/apps_window.rs::shift_return_opens_the_desktop_actions_as_a_second_stage":  {tests: []string{"cmd/logis/apps_window_e2e_test.go::TestE2EShiftReturnOpensTheDesktopActionsAsASecondStage"}},
 	"tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1": {tests: []string{"cmd/logis/apps_window_e2e_test.go::TestE2EPlainLogisOpensTheLauncherAndEscapeExits1"},
-		note: "its PATH has no servitor, and it checks that no tab strip shows: the Go build's plain logis is the tabbed launcher where servitor is on the PATH (a divergence from Rust v1; tabs_e2e_test.go)"},
+		note: "its PATH has no servitor, and it checks that the tab strip shows all the same, its rites silent: the Go build's plain logis is always the tabbed launcher (a divergence from Rust v1; tabs_e2e_test.go)"},
 
 	// tests/provider_window.rs
 	"tests/provider_window.rs::a_two_stage_flow_with_a_pending_row_ends_in_a_toast":          {tests: []string{"cmd/logis/provider_window_e2e_test.go::TestE2EATwoStageFlowWithAPendingRowEndsInAToast"}},

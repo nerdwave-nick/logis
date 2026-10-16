@@ -154,17 +154,19 @@ func TestE2EShiftReturnOpensTheDesktopActionsAsASecondStage(t *testing.T) {
 
 // Plain logis is the app launcher (as in fuzzel); dismissing it launches
 // nothing and exits 1 with an empty stdout. Without servitor on its PATH
-// (appsClientEnv's has none) it shows no tab strip (8cba2fc9; the tabbed
-// launcher is in tabs_e2e_test.go).
+// (appsClientEnv's has none) it is the tabbed launcher still, its rites
+// silent (2aaad4b9; the tabbed launcher is in tabs_e2e_test.go).
 func TestE2EPlainLogisOpensTheLauncherAndEscapeExits1(t *testing.T) {
 	dir := t.TempDir()
 	c := startApps(t, dir)
 	client := c.ClientWith(appsClientEnv(t, dir))
 	focused := c.Shown(2)
-	th := theme.Default()
-	size, _ := scene.Fit(list.DefaultOptions(), &th)
-	checkWindow(t, c, "apps", int(size.W), int(size.H))
-	noTabs(t, c)
+	if tab := shownTab(t, c); tab != "applications" {
+		t.Fatalf("opened on %s", tab)
+	}
+	sinceShow(t, c, "rites silent")
+	size := tabbedSize()
+	checkWindow(t, c, "tabs-applications-silent", int(size.W), int(size.H))
 	c.Tap(focused, e2e.KeyEsc)
 	c.Next("dismiss")
 	if ended := client.Ended(); ended.Code != 1 || len(ended.Stdout) != 0 {
