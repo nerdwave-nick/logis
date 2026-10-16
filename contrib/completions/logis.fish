@@ -1,6 +1,6 @@
 # fish completion for logis(1), the cogitator of the Machine God.
-# Maintained by hand; tests/completions.rs pins it to the runes the parser
-# (src/cli/) accepts. Installed as
+# Maintained by hand; cmd/logis/completions_test.go pins it to the runes the
+# parser (cmd/logis/cli.go) accepts. Installed as
 # /usr/share/fish/vendor_completions.d/logis.fish.
 
 # Whether the command line so far is `logis daemon ...`.

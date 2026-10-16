@@ -1,0 +1,18 @@
+# Differential oracle for internal/text's line layout: sets lines with
+# cosmic-text 0.19.0 exactly as Rust logis v1's src/render/text.rs shape()
+# did (Wrap::None, hinting, columns, ellipsis, end alignment, rich text,
+# fallback over the loaded faces only) and prints every laid-out glyph.
+# Standalone: its own workspace and Cargo.lock, versions as in Rust v1's
+# Cargo.lock (main 2ffdd02; Rust logis v1 is in the history only).
+#   cargo run --release --offline --locked > ../cosmic.json
+[package]
+name = "cosmic-oracle"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+cosmic-text = "=0.19.0"
+unicode-script = "0.5"
+
+[workspace]

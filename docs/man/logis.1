@@ -89,6 +89,32 @@ Typing filters them by name, generic name, keywords and program;
 launches the selected one and exits 0;
 .B Shift+Return
 opens its desktop actions in the same window.
+.PP
+With
+.B servitor
+on its
+.BR PATH ,
+plain
+.B logis
+is a tabbed launcher (the Go build; logis v1 had none): two plates above the
+panel,
+.B Applications
+and
+.B Rites
+(servitor mode's rites), each counting what the query matches.
+.B Tab
+or
+.BR Shift+Tab ,
+or a click on a plate, switches tabs; the query stays.
+.B Return
+acts in the shown tab: an application is launched, or a rite leads to
+servitor's invocation; either exits 0.
+It opens on the tab last used, kept in
+.IR $XDG_STATE_HOME/logis/tab .
+.B "logis \-\-apps"
+and
+.B "logis \-\-servitor"
+are the single lists as before and leave the remembered tab alone.
 Hidden are entries with
 .BR NoDisplay ,
 .BR Hidden ,
@@ -165,9 +191,17 @@ Shows each typed character as
 .BR * ).
 .TP
 .BR \-l ", " \-\-lines =\fIN\fP
-Rows shown at most, and so the window's height.
-Default: the theme's window (820x520 logical pixels, nine rows for the
-bundled themes).
+Rows shown, and so the window's height: the window is exactly as tall
+as its prompt line and
+.I N
+rows (on an output too short for them, as many as fit, spread over the
+output's height).
+Default: the theme's
+.B window.rows
+(eleven for the bundled themes, 820 logical pixels wide).
+Unlike logis v1 (Rust), a theme's
+.B window.height
+is ignored.
 .TP
 .BR \-w ", " \-\-width =\fIN\fP
 The window's width in characters of the theme's row font (1 or more; an
@@ -353,6 +387,14 @@ the default).
 .TP
 .B Up\fR, \fBShift+Tab\fR, \fBCtrl+P\fR / \fBDown\fR, \fBTab\fR, \fBCtrl+N
 Select the previous / next item.
+In plain
+.BR logis 's
+tabbed launcher (see
+.BR "APP LAUNCHER" ),
+.B Tab
+and
+.B Shift+Tab
+switch tabs instead.
 .TP
 .B Backspace\fR / \fBDelete
 Delete the character before / after the cursor.
@@ -430,11 +472,13 @@ Plain
 .B logis
 or
 .BR \-\-apps :
-an application was launched.
+an application was launched (in plain
+.BR logis 's
+tabbed launcher, also: a rite was invoked).
 .B "logis daemon \-\-detach"
 when a daemon already answers.
 .BR \-\-check\-config :
-the configuration is sound (or absent).
+the configuration is sound (or absent), and a custom shader it names compiles.
 .BR \-\-version :
 the name and version are on stdout.
 .TP
@@ -533,10 +577,60 @@ stderr behind.
 .I $XDG_STATE_HOME/logis/frecency.json
 How often and how lately each application was launched.
 .TP
+.I $XDG_STATE_HOME/logis/tab
+The tab plain
+.BR logis 's
+tabbed launcher was last used on:
+.B applications
+or
+.BR rites .
+.TP
 .I $XDG_CONFIG_HOME/logis/logis.jsonc
 The configuration (JSON with comments), unless
 .B \-\-config
 names another.
+.TP
+.I $XDG_CONFIG_HOME/logis/themes/NAME.jsonc
+A theme the configuration's
+.B theme
+names, described by
+.IR schema/theme.schema.json .
+Its
+.B effects
+are groups of settings for the CRT pass over the panel (scanlines, glow,
+aberration, mask, roundness, grain, flicker); a bare number is a group's
+strength, as logis v1's seven strengths were, and v1's
+.BR bloom ,
+.B curvature
+and
+.B vignette
+still set their groups' values.
+Its
+.B effects.glitch
+(new in the Go build) configures a glitch pass before the CRT pass: parts
+with an amount at rest and in an episode, ambient episodes at the end of each
+period counted from the panel's opening, and bursts on opening, on a switch of
+tab and at random; a bare number is its strength, and 0 or
+.B reduce\-motion
+turns it off.
+Its
+.B effects.custom\-shader
+(new in the Go build) names a GLSL ES 3.00 fragment shader, a path from the
+theme's file, that runs after the built-in effects: it defines
+.BR mainImage ,
+as for Shadertoy, and reads
+.BR iChannel0 ,
+.BR iResolution ,
+.BR iTime ,
+.B iFrame
+and
+.BR iGlitch .
+The configuration's
+.B custom\-shader
+(a path from its directory) outranks it.
+A shader that cannot be read or compiled is skipped with one line in the log;
+.B \-\-check\-config
+compiles it and names the line at fault.
 .SH SEE ALSO
 .BR fuzzel (1),
 .BR dmenu (1)

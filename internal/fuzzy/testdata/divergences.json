@@ -1,0 +1,503 @@
+[
+ {
+  "item": "Café Noir",
+  "query": "café\\ noir",
+  "score": 244,
+  "positions": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "why": "nucleo keeps the backslash of an escape in a non-ASCII word (and doubles one before another character)"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "a",
+  "score": 16,
+  "positions": [
+   3
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "e",
+  "score": 16,
+  "positions": [
+   5
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "ß",
+  "score": 36,
+  "positions": [
+   15
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "ẞ",
+  "score": 36,
+  "positions": [
+   15
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "é",
+  "score": 16,
+  "positions": [
+   5
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "straße STRASSE ẞ",
+  "query": "a a a",
+  "score": 48,
+  "positions": [
+   3
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "--FOO --foo",
+  "query": "'--foo",
+  "score": 128,
+  "positions": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "why": "nucleo searches a word that starts with two non-letters case-sensitively, and only near the text's start"
+ },
+ {
+  "item": "éab",
+  "query": "!ab",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "éab",
+  "query": "'ab",
+  "score": 36,
+  "positions": [
+   1,
+   2
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "café x canon nero",
+  "query": "n",
+  "score": 36,
+  "positions": [
+   13
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "ﬁle ligature",
+  "query": "l",
+  "score": 36,
+  "positions": [
+   4
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "Ññ ÇÇ Łódź Đorđe Œuvre æther þorn",
+  "query": "de",
+  "score": 47,
+  "positions": [
+   11,
+   15
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "Ññ ÇÇ Łódź Đorđe Œuvre æther þorn",
+  "query": "l",
+  "score": 36,
+  "positions": [
+   6
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "Ññ ÇÇ Łódź Đorđe Œuvre æther þorn",
+  "query": "lodz",
+  "score": 114,
+  "positions": [
+   6,
+   7,
+   8,
+   9
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "Ññ ÇÇ Łódź Đorđe Œuvre æther þorn",
+  "query": "dorde",
+  "score": 140,
+  "positions": [
+   11,
+   12,
+   13,
+   14,
+   15
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "Ññ ÇÇ Łódź Đorđe Œuvre æther þorn",
+  "query": "le",
+  "score": 42,
+  "positions": [
+   6,
+   15
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "ŁÓDŹ łódź",
+  "query": "l",
+  "score": 36,
+  "positions": [
+   0
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "ŁÓDŹ łódź",
+  "query": "z",
+  "score": 16,
+  "positions": [
+   3
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "ŁÓDŹ łódź",
+  "query": "zz",
+  "score": 26,
+  "positions": [
+   3,
+   8
+  ],
+  "why": "nucleo folds accents before case, so upper-case letters such as Ł, Đ and Ź never fold to ASCII"
+ },
+ {
+  "item": "É_-2Forgesø|riteΣé",
+  "query": "r",
+  "score": 34,
+  "positions": [
+   12
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "ς👍🏽x",
+  "query": "!👍🏽x",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "øéTé",
+  "query": "'ÉTé",
+  "score": 57,
+  "positions": [
+   1,
+   2,
+   3
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "界\\üs_'ςaς:2;",
+  "query": "\\ÜS_a",
+  "score": 116,
+  "positions": [
+   1,
+   2,
+   3,
+   4,
+   7
+  ],
+  "why": "nucleo keeps the backslash of an escape in a non-ASCII word (and doubles one before another character)"
+ },
+ {
+  "item": "ςΣжÉt",
+  "query": "'ΣжÉt",
+  "score": 89,
+  "positions": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "eForgeñ👍🏽ñcafe:$Cogitator",
+  "query": "'c",
+  "score": 32,
+  "positions": [
+   15
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "eForgeñ👍🏽ñcafe:$Cogitator",
+  "query": "N",
+  "score": 32,
+  "positions": [
+   8
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "9^ø:ø",
+  "query": "ø",
+  "score": 34,
+  "positions": [
+   4
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "_ü\t😀fooBarx\t\tx86_64/:",
+  "query": "6",
+  "score": 32,
+  "positions": [
+   17
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "👍🏽e$xÉßж$riteςx86_64a",
+  "query": "6",
+  "score": 32,
+  "positions": [
+   17
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "łßTmachineж  ée",
+  "query": " e",
+  "score": 36,
+  "positions": [
+   13
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "xt|😀:$étmachinec",
+  "query": "!ec",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "ésжł",
+  "query": "'sжł",
+  "score": 56,
+  "positions": [
+   1,
+   2,
+   3
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "fooBar\\Σς👍🏽",
+  "query": "!Σ👍🏽",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "fooBar\\Σς👍🏽",
+  "query": "'ς👍🏽",
+  "score": 40,
+  "positions": [
+   8,
+   9
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "e\\'ς界",
+  "query": "'ς界",
+  "score": 56,
+  "positions": [
+   3,
+   4
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "e\\'ς界",
+  "query": "\\界 e",
+  "score": 80,
+  "positions": [
+   0,
+   1,
+   4
+  ],
+  "why": "nucleo keeps the backslash of an escape in a non-ASCII word (and doubles one before another character)"
+ },
+ {
+  "item": "sbx86_64ß-/T界",
+  "query": "6",
+  "score": 32,
+  "positions": [
+   6
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "ø\tR;Σéς\tΣñ",
+  "query": "Σ",
+  "score": 36,
+  "positions": [
+   8
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "1éaжüc_😀2_$,ñ",
+  "query": "',ñ",
+  "score": 41,
+  "positions": [
+   11,
+   12
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "_ς界1x86_64bÉspiritax86_64é",
+  "query": "'6",
+  "score": 32,
+  "positions": [
+   8
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "ñжж2",
+  "query": "'ж2",
+  "score": 37,
+  "positions": [
+   2,
+   3
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "ø é2-;t$érite$Bж",
+  "query": "!$Bж",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "\tøoilΣł2é👍🏽łЖ",
+  "query": "ł",
+  "score": 32,
+  "positions": [
+   10
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "é^éR2",
+  "query": "!R2",
+  "score": null,
+  "positions": [],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "oil|σ;界你",
+  "query": "'界你",
+  "score": 59,
+  "positions": [
+   6,
+   7
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": "øx86_64A;Ał/b",
+  "query": "A",
+  "score": 34,
+  "positions": [
+   9
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "ßx|ñ\\",
+  "query": "'|Ñ\\",
+  "score": 66,
+  "positions": [
+   2,
+   3,
+   4
+  ],
+  "why": "nucleo's non-ASCII substring scan never tries the last place the word fits"
+ },
+ {
+  "item": ":BCogitator.ñ^^  ñmachineCogitator",
+  "query": "ñ mc",
+  "score": 65,
+  "positions": [
+   17,
+   18,
+   25
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": ":BCogitator.ñ^^  ñmachineCogitator",
+  "query": "ñ",
+  "score": 36,
+  "positions": [
+   17
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "λoilForge1rmachine-e9/rt",
+  "query": "e",
+  "score": 32,
+  "positions": [
+   19
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ },
+ {
+  "item": "λoilForge1rmachine-e9/rt",
+  "query": "R",
+  "score": 34,
+  "positions": [
+   22
+  ],
+  "why": "nucleo's non-ASCII substring scan scores each place with the class of the last match instead of the character before it; logis scores as its ASCII scan does"
+ }
+]

@@ -1,9 +1,0 @@
-# Font loading (spec §4.4): faces come only from libfontconfig resolution
-# (src/text). These calls scan every installed font (140 ms per launch,
-# measured in docs/research/stack.md) and must never be used.
-disallowed-methods = [
-    { path = "cosmic_text::FontSystem::new", reason = "full system font scan; resolve faces through logis::text::Fonts" },
-    { path = "cosmic_text::FontSystem::new_with_fonts", reason = "also scans every system font; use logis::text::Fonts" },
-    { path = "fontdb::Database::load_system_fonts", reason = "full system font scan; resolve faces through logis::text::Fonts" },
-    { path = "fontdb::Database::load_fonts_dir", reason = "loads unresolved fonts; resolve faces through logis::text::Fonts" },
-]

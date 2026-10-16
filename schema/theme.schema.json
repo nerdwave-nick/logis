@@ -116,7 +116,7 @@
       }
     },
     "window": {
-      "description": "The window when the session asks for no size of its own.",
+      "description": "The window when the session asks for no size of its own. Its height follows its rows: the prompt line, the rule, the row gaps and rows × row.height (on an output too short for them, as many rows as fit, spread over its height).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -125,11 +125,12 @@
           "$ref": "#/$defs/positive"
         },
         "height": {
-          "description": "The panel's height when no --lines is given.",
+          "description": "Deprecated and ignored: the panel's height follows its rows. Still accepted (and checked) so Rust v1 themes load.",
+          "deprecated": true,
           "$ref": "#/$defs/positive"
         },
         "rows": {
-          "description": "The most rows shown at once when no --lines is given.",
+          "description": "How many rows the panel shows, and so its height, when no --lines is given.",
           "type": "integer",
           "minimum": 1
         },
@@ -140,8 +141,7 @@
       },
       "default": {
         "width": 820,
-        "height": 520,
-        "rows": 9,
+        "rows": 11,
         "margin": 32
       }
     },
@@ -728,6 +728,20 @@
         "uppercase": true
       }
     },
+    "tab": {
+      "description": "The plates of plain logis's tab strip (Applications and Rites, above the panel; new beside logis v1). The active plate echoes the selection (its band, edge, glow and columns), the others the panel's fill and the rule; labels are in the prompt's label font, counts in the badges' font (in brackets where the badges are brackets).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "radius": {
+          "description": "The plates' corner radius.",
+          "$ref": "#/$defs/length"
+        }
+      },
+      "default": {
+        "radius": 9
+      }
+    },
     "pending": {
       "description": "A row whose data has not settled.",
       "type": "object",
@@ -763,47 +777,759 @@
       }
     },
     "effects": {
-      "description": "The post-processing pass over the body; each a strength, 0 is off. Flicker is a continuous effect; reduce-motion stills it.",
+      "description": "The CRT pass over the body: a group of settings per effect, each with its strength, where 0 is off. A bare number is the group's strength (the aberration's amount), so logis v1's themes stay valid; v1's bloom, curvature and vignette set glow.strength, roundness.curvature and roundness.vignette. Rolling scanlines, a wobbling aberration, changing grain and flicker move on their own; reduce-motion stills them. The groups diverge from logis v1's seven strengths. The glitch (a pass of its own, before the CRT pass) is new. A custom shader (custom-shader) may run after them all.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "scanlines": {
-          "description": "Dark lines every few pixels.",
-          "$ref": "#/$defs/strength"
+          "description": "Dark lines across the glass; a bare number is their strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How dark the lines get; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "period": {
+                  "description": "Logical pixels from one line to the next, counted from the body's top (v1: 3).",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16
+                },
+                "sharpness": {
+                  "description": "How thin and hard each line is: 0 a soft wave, 0.25 v1's profile, 1 a hard line one pixel thick.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "roll": {
+                  "description": "Drift in logical pixels per second, downwards when positive; 0 holds them still (v1). A continuous effect.",
+                  "type": "number",
+                  "minimum": -60,
+                  "maximum": 60
+                }
+              }
+            }
+          ]
+        },
+        "glow": {
+          "description": "Light from bright parts spreading to their surroundings (v1's bloom); a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How much light spreads; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "threshold": {
+                  "description": "Brightness per channel below which nothing glows (v1: 0.35).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "reach": {
+                  "description": "Radius of the outer sampling ring in logical pixels, the inner ring at 3/7 of it; beyond 9 more rings keep a wide halo soft (v1: 7).",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 32
+                },
+                "bleed": {
+                  "description": "How much of the source colour the light keeps: 0 a neutral halo, 1 the bright pixels' own colours (v1), above 1 more saturated.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "dim-bright": {
+                  "description": "0: every pixel takes the same glow (v1). Towards 1 dim pixels take up to 1.7 times as much and bright ones, or those inside filled bright bands, only 0.15 times: text gets a halo without washing out a highlighted row.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        },
+        "aberration": {
+          "description": "Red and blue sampled either side of green (chromatic aberration); a bare number is its amount.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "description": "The offset: 2 logical pixels at 1; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "edges-only": {
+                  "description": "0: the same horizontal offset everywhere (v1); 1: none at the centre, growing outwards and pointing away from it.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "wobble": {
+                  "description": "How much the offset varies over time; 0 keeps it steady (v1). A continuous effect.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "wobble-rate": {
+                  "description": "How fast the wobble runs, in Hz.",
+                  "type": "number",
+                  "minimum": 0.05,
+                  "maximum": 20
+                },
+                "twitch": {
+                  "description": "The wobble's character: 0 a smooth breathing, 1 calm with sudden short spikes at irregular moments.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        },
+        "mask": {
+          "description": "A CRT's phosphor structure over the picture; a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How much the structure darkens; 0 is off (v1).",
+                  "$ref": "#/$defs/strength"
+                },
+                "size": {
+                  "description": "Its pitch in logical pixels: one dot cell, or one red-green-blue triad.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 16
+                },
+                "kind": {
+                  "description": "dots: a soft round dot grid; grille: vertical red, green and blue stripes; slot: those stripes broken into slots, every other column shifted like brickwork.",
+                  "enum": [
+                    "dots",
+                    "grille",
+                    "slot"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "roundness": {
+          "description": "The curved tube face.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "curvature": {
+              "description": "How far the whole panel bows out as one tube face: border, glass and the glow around it bend together, the outline turns convex and every effect lies on the bent glass. 0 is flat. v1 bent only the picture behind a straight border.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "corners": {
+              "description": "Extra rounding of the visible glass's corners on the bent glass; beyond them the screen is black. 0 is off (v1).",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "vignette": {
+              "description": "Darkening towards the glass's corners; 0 is off.",
+              "$ref": "#/$defs/strength"
+            }
+          }
         },
         "grain": {
-          "description": "Film grain.",
-          "$ref": "#/$defs/strength"
+          "description": "Film grain; a bare number is its strength.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How strong the noise is; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "rate": {
+                  "description": "How many times a second it changes (v1: 24); 0 freezes it. Changing grain is a continuous effect.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 60
+                }
+              }
+            }
+          ]
         },
         "flicker": {
-          "description": "The brightness trembling (keep it subtle).",
-          "$ref": "#/$defs/strength"
+          "description": "The brightness trembling (keep it subtle); a bare number is its strength. A continuous effect.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "How deep the trembling is; 0 is off.",
+                  "$ref": "#/$defs/strength"
+                },
+                "frequency": {
+                  "description": "Its main rate in Hz, with a slower irregular modulation riding on it (v1: 7.4802823, 47 radians a second).",
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 30
+                }
+              }
+            }
+          ]
+        },
+        "glitch": {
+          "description": "The glitch pass before the CRT pass (new in the Go logis; v1 had none): the glass breaks up like a failing signal, gently at rest and hard in episodes (at the end of each ambient period) and bursts (on opening, a switch of tab, at random). A bare number is its strength. Most parts have an amount at rest and one in an episode. Lengths are logical pixels. reduce-motion turns it off.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/strength"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strength": {
+                  "description": "The master strength: it scales the episode intensity and every amount at rest; 0 turns the glitch off (no pass at all).",
+                  "$ref": "#/$defs/strength"
+                },
+                "episodes": {
+                  "description": "The ambient cycle: an episode at the end of every period, counted from the panel's opening.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "period-s": {
+                      "description": "An ambient episode every this many seconds, at the end of each period; 0 leaves episodes to events only.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    },
+                    "duty": {
+                      "description": "Share of each period an ambient episode lasts (a smooth bell).",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "wobble": {
+                  "description": "The signal's sideways jitter in bands: at rest every band jitters about its pixel; in an episode a few tear far.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Largest sideways push of the signal bands outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "episode": {
+                      "description": "Largest sideways push of the signal bands at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 80
+                    },
+                    "band-px": {
+                      "description": "Height of the tall wobble bands; a second layer of bands is about 0.3 of this.",
+                      "type": "number",
+                      "minimum": 2,
+                      "maximum": 80
+                    },
+                    "speed-hz": {
+                      "description": "How often the wobble bands are re-rolled.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "tracking": {
+                  "description": "Two thin kinks sweeping down the glass and kicking it sideways; scaled by the strength only, so they run at rest.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "px": {
+                      "description": "Sideways kick of the two tracking lines (one left, one right).",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 20
+                    },
+                    "height-px": {
+                      "description": "Half height of each tracking kink.",
+                      "type": "number",
+                      "minimum": 0.5,
+                      "maximum": 12
+                    },
+                    "a-hz": {
+                      "description": "Sweeps per second of the line that kicks left.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 3
+                    },
+                    "b-hz": {
+                      "description": "Sweeps per second of the line that kicks right.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 3
+                    }
+                  }
+                },
+                "fringe": {
+                  "description": "Red and blue split either side of green, growing with the wobble.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "px": {
+                      "description": "Constant offset of red and blue from green, in opposite directions.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "growth": {
+                      "description": "Extra fringe per pixel of local wobble, so torn bands show red and blue edges.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.5
+                    }
+                  }
+                },
+                "slices": {
+                  "description": "Horizontal slices torn sideways, finer cuts within coarse groups.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Share of slices torn sideways outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Share of slices torn sideways at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "px": {
+                      "description": "Height of the horizontal slices (shared by slice tears and slice flashes).",
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 60
+                    },
+                    "shift-px": {
+                      "description": "Largest sideways shift of a torn slice; groups share a smaller common offset.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 120
+                    },
+                    "group": {
+                      "description": "Neighbouring slices per coarse chunk that shares a common offset.",
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 16
+                    },
+                    "rate-hz": {
+                      "description": "How often the set of torn slices is re-picked.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "blocks": {
+                  "description": "Irregular rectangles of the picture shifted, colour-split and brightened.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Amount of block corruption outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Amount of block corruption at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "size": {
+                      "description": "Scale of the block stripes (1: row stripes about 11 px, column stripes about 56 px).",
+                      "type": "number",
+                      "minimum": 0.2,
+                      "maximum": 4
+                    },
+                    "shift-px": {
+                      "description": "Largest sideways shift of the copy shown inside a block.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 120
+                    },
+                    "split-px": {
+                      "description": "Red and blue offset inside a block.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 12
+                    },
+                    "brightness": {
+                      "description": "How much brighter a block is than the picture.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "rate-hz": {
+                      "description": "How often the blocks are re-rolled (they blink).",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "flashes": {
+                  "description": "A share of the slices lit up.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Share of slices flashing outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Share of slices flashing at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "gain": {
+                      "description": "Extra light in a flashing slice (0.33: a third more).",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2
+                    },
+                    "rate-hz": {
+                      "description": "How often the flashing slices are re-picked.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "noise-band": {
+                  "description": "One band of coarse near-binary noise at a random height, drawn anew at its rate.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Strength of the noise band outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Strength of the noise band at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "cell-px": {
+                      "description": "Size of the noise band's blocky cells.",
+                      "type": "number",
+                      "minimum": 0.5,
+                      "maximum": 8
+                    },
+                    "min": {
+                      "description": "Smallest band height, as a share of the glass height.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.5
+                    },
+                    "max": {
+                      "description": "Largest band height, as a share of the glass height.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.5
+                    },
+                    "rate-hz": {
+                      "description": "How often the band jumps to a new place and size.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "static": {
+                  "description": "Fine white noise.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Per-pixel white noise outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Per-pixel white noise at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "rate-hz": {
+                      "description": "How often the static is re-rolled.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "line-pulse": {
+                  "description": "A dense ripple of brightness near the pixel pitch, drifting; independent of the scanlines.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rest": {
+                      "description": "Depth of the dense brightness ripple outside episodes.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "episode": {
+                      "description": "Depth of the dense brightness ripple at the peak of an episode.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "pitch-px": {
+                      "description": "Distance between ripple crests.",
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 8
+                    },
+                    "drift-px-s": {
+                      "description": "Drift of the ripple; positive moves it up, negative down.",
+                      "type": "number",
+                      "minimum": -60,
+                      "maximum": 60
+                    }
+                  }
+                },
+                "bursts": {
+                  "description": "Short episodes logis fires: on events and at random. A burst rises and falls as sin(πt)^0.6 over its length; the glitch takes the larger of it and the ambient cycle.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "open-ms": {
+                      "description": "Length of the burst when the panel opens, in ms; 0 fires none.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1500
+                    },
+                    "tab-ms": {
+                      "description": "Length of the burst on a switch of tab, in ms; 0 fires none.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1500
+                    },
+                    "random-per-minute": {
+                      "description": "Random bursts a minute on average, at random (exponential) intervals from the opening; 0 fires none.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 30
+                    },
+                    "random-ms": {
+                      "description": "Length of a random burst, in ms.",
+                      "type": "number",
+                      "minimum": 50,
+                      "maximum": 1500
+                    },
+                    "stutter": {
+                      "description": "Share of a burst's 33 ms steps damped to a quarter, so it stutters.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "on": {
+                      "description": "The events that fire a burst: the panel opening, a switch of tab.",
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "open",
+                          "tab"
+                        ]
+                      },
+                      "uniqueItems": true
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "custom-shader": {
+          "description": "A custom post-processing pass after the built-in effects (new beside logis v1): the path of a GLSL ES 3.00 fragment shader file, absolute or from this theme's file, that defines mainImage(out vec4 fragColor, in vec2 fragCoord) as for Shadertoy. logis gives it iChannel0 (the frame after the built-in effects, premultiplied, rows bottom-up), iResolution, iTime (seconds since the panel opened; frozen at 0 by reduce-motion), iFrame and iGlitch (the glitch's intensity, 0 to 1). A panel with a custom pass keeps drawing while it is shown. A shader that cannot be read or compiled is skipped with one line in the log; --check-config compiles it. The config's custom-shader outranks it; \"\" is none.",
+          "type": "string",
+          "examples": [
+            "shaders/phosphor-bleed.frag"
+          ]
         },
         "vignette": {
-          "description": "Darkened edges.",
+          "description": "logis v1's name of roundness.vignette; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "bloom": {
-          "description": "Bright parts bleeding light.",
+          "description": "logis v1's name of glow.strength; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         },
         "curvature": {
-          "description": "Curved glass.",
-          "$ref": "#/$defs/strength"
-        },
-        "aberration": {
-          "description": "Red and blue fringes apart (chromatic aberration).",
+          "description": "logis v1's name of roundness.curvature; give one of the two.",
+          "deprecated": true,
           "$ref": "#/$defs/strength"
         }
       },
       "default": {
-        "scanlines": 0.16,
-        "grain": 0.08,
-        "flicker": 0.015,
-        "vignette": 0.42,
-        "bloom": 0,
-        "curvature": 0,
-        "aberration": 0
+        "scanlines": {
+          "strength": 0.38,
+          "period": 2,
+          "sharpness": 0.79,
+          "roll": 0.5
+        },
+        "glow": {
+          "strength": 0.26,
+          "threshold": 0.25,
+          "reach": 1.5,
+          "bleed": 0.65,
+          "dim-bright": 0.55
+        },
+        "aberration": {
+          "amount": 0.06,
+          "edges-only": 0.13,
+          "wobble": 0.33,
+          "wobble-rate": 1.65,
+          "twitch": 0.29
+        },
+        "mask": {
+          "strength": 0.04,
+          "size": 2,
+          "kind": "dots"
+        },
+        "roundness": {
+          "curvature": 0.02,
+          "corners": 0,
+          "vignette": 0.14
+        },
+        "grain": {
+          "strength": 0.12,
+          "rate": 24
+        },
+        "flicker": {
+          "strength": 0.01,
+          "frequency": 7.48
+        },
+        "glitch": {
+          "strength": 0.45,
+          "episodes": {
+            "period-s": 9,
+            "duty": 0.1
+          },
+          "wobble": {
+            "rest": 0.2,
+            "episode": 24,
+            "band-px": 26,
+            "speed-hz": 24
+          },
+          "tracking": {
+            "px": 3,
+            "height-px": 3,
+            "a-hz": 0.43,
+            "b-hz": 0.29
+          },
+          "fringe": {
+            "px": 0.5,
+            "growth": 0.12
+          },
+          "slices": {
+            "rest": 0,
+            "episode": 0.12,
+            "px": 9,
+            "shift-px": 40,
+            "group": 5,
+            "rate-hz": 30
+          },
+          "blocks": {
+            "rest": 0,
+            "episode": 0.45,
+            "size": 1,
+            "shift-px": 26,
+            "split-px": 3,
+            "brightness": 0.4,
+            "rate-hz": 30
+          },
+          "flashes": {
+            "rest": 0,
+            "episode": 0.06,
+            "gain": 0.33,
+            "rate-hz": 30
+          },
+          "noise-band": {
+            "rest": 0.02,
+            "episode": 0.3,
+            "cell-px": 1,
+            "min": 0.03,
+            "max": 0.1,
+            "rate-hz": 30
+          },
+          "static": {
+            "rest": 0.03,
+            "episode": 0.07,
+            "rate-hz": 30
+          },
+          "line-pulse": {
+            "rest": 0.03,
+            "episode": 0.12,
+            "pitch-px": 2.3,
+            "drift-px-s": 6
+          },
+          "bursts": {
+            "open-ms": 420,
+            "tab-ms": 240,
+            "random-per-minute": 6,
+            "random-ms": 300,
+            "stutter": 0.28,
+            "on": [
+              "open",
+              "tab"
+            ]
+          }
+        }
       }
     },
     "motion": {
@@ -974,7 +1700,6 @@
       },
       "window": {
         "width": 640,
-        "height": 400,
         "rows": 7
       }
     }
