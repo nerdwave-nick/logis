@@ -322,7 +322,7 @@ func TestAToastShowsOverTheVisibleListForAWhile(t *testing.T) {
 func TestTheStaleDaemonsReminderIsToastedAsANotice(t *testing.T) {
 	r := newRig()
 	r.show(1, list.DefaultOptions(), "a")
-	const words = "a newer logis is installed — restart the daemon (kill 7)"
+	const words = "logis updated — restart the daemon: kill 7"
 	r.ui.toast(daemon.Toast{Kind: daemon.ToastStale, Text: words})
 	r.saw(t, `toast "`+words+`"`)
 	if l := r.ui.look(); l.Toast == nil || *l.Toast != (list.Notice{Text: words, Level: list.Info}) {

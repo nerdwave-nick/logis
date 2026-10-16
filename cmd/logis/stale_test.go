@@ -50,8 +50,8 @@ func TestADaemonWhoseBinaryWasReplacedRemindsEveryCallerAndStillServes(t *testin
 	}
 
 	installCopy(t, r.bin, installed) // the upgrade
-	want := "logis: a newer logis is installed — restart the daemon (kill " +
-		strconv.Itoa(d.cmd.Process.Pid) + ")\n"
+	want := "logis: logis updated — restart the daemon: kill " +
+		strconv.Itoa(d.cmd.Process.Pid) + "\n"
 	for range 2 {
 		got := r.dmenuRun([]byte("rite\n>oil\n"))
 		got.printed(t, ">oil\n")
@@ -103,7 +103,7 @@ func TestASocketActivatedDaemonWhoseBinaryWasReplacedNamesItsUnit(t *testing.T) 
 	installCopy(t, r.bin, installed)
 	got := r.dmenuRun([]byte(">oil\n"))
 	got.printed(t, ">oil\n")
-	if want := "logis: a newer logis is installed — restart the daemon (systemctl --user restart logis)\n"; got.stderr != want {
+	if want := "logis: logis updated — systemctl --user restart logis\n"; got.stderr != want {
 		t.Fatalf("stderr %q, want %q", got.stderr, want)
 	}
 }

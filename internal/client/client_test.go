@@ -203,7 +203,7 @@ func TestADaemonsRefusalIsTheClientsError(t *testing.T) {
 // keeps it for its caller's stderr and the session goes on.
 func TestADaemonsNoticeComesWithItsWelcome(t *testing.T) {
 	dir := scratch(t)
-	const notice = "a newer logis is installed — restart the daemon (kill 7)"
+	const notice = "logis updated — restart the daemon: kill 7"
 	listen(t, dir, func(c net.Conn) {
 		var hello map[string]any
 		_ = protocol.ReadFrame(c, &hello)

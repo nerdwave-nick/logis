@@ -85,13 +85,14 @@ func (w *exeWatch) replaced() bool {
 
 // reminder asks for this daemon's restart: through systemd when it passed
 // the socket (the socket starts the new binary on the next connection),
-// else by ending this process (the next client starts the new one).
+// else by ending this process (the next client starts the new one). It is
+// one line of a toast, so it stays within the bundled themes' panels
+// (about 52 characters in cogitator-phosphor without VT323).
 func reminder(activated bool, pid int) string {
-	how := "kill " + strconv.Itoa(pid)
 	if activated {
-		how = "systemctl --user restart logis"
+		return "logis updated — systemctl --user restart logis"
 	}
-	return "a newer logis is installed — restart the daemon (" + how + ")"
+	return "logis updated — restart the daemon: kill " + strconv.Itoa(pid)
 }
 
 // staleness is the daemon's stale check: the reminder while its binary is

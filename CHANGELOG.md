@@ -42,9 +42,9 @@ contract" and logis(1)) is the public interface.
 
 - **A daemon left running across an upgrade says so** (the Go build; new
   beside Rust v1): once its binary was replaced since it started, it keeps
-  serving but every panel it shows carries the notice "a newer logis is
-  installed — restart the daemon (…)", naming `systemctl --user restart
-  logis` when systemd passed it the socket and `kill PID` otherwise; every
+  serving but every panel it shows carries the notice "logis updated —
+  …", naming `systemctl --user restart logis` when systemd
+  passed it the socket and `restart the daemon: kill PID` otherwise; every
   caller prints the same line on stderr (exit status and stdout unchanged),
   and the daemon's log has it once. It never restarts itself.
 
@@ -104,6 +104,12 @@ contract" and logis(1)) is the public interface.
 
 - **`LOGIS_GPU_BACKEND`** (the Go build has one backend, EGL with OpenGL ES 3;
   `LIBGL_ALWAYS_SOFTWARE=1` selects llvmpipe) and the Rust build (`cargo`).
+
+### Fixed
+
+- **A toast hides the row it covers**: with the panel's height following
+  its rows, a toast lay over the last row and that row's words, icon and
+  badges showed through it; the row is no longer drawn while a toast shows.
 
 ## [1.0.0] - unreleased
 

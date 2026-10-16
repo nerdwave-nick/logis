@@ -79,8 +79,8 @@ func TestAnItemCarriesItsRawBytesApartFromItsText(t *testing.T) {
 // Ported from replies_have_a_stable_wire_shape.
 func TestRepliesHaveAStableWireShape(t *testing.T) {
 	wantWire(t, Welcome(7, ""), `{"type":"welcome","version":5,"pid":7}`)
-	wantWire(t, Welcome(7, "a newer logis is installed"),
-		`{"type":"welcome","version":5,"pid":7,"notice":"a newer logis is installed"}`)
+	wantWire(t, Welcome(7, "logis updated"),
+		`{"type":"welcome","version":5,"pid":7,"notice":"logis updated"}`)
 	wantWire(t, Queued(), `{"type":"queued"}`)
 	wantWire(t, Visible(), `{"type":"visible"}`)
 	wantWire(t, Error("heresy"), `{"type":"error","message":"heresy"}`)

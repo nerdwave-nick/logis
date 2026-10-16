@@ -464,9 +464,9 @@ status only. It does name the plain fact:
 
 **A daemon left running across an upgrade** keeps serving, but once its binary
 was replaced since it started (an upgrade renames a new file over it) it asks
-to be restarted: every panel it shows carries the notice `a newer logis is
-installed — restart the daemon (…)`, naming `systemctl --user restart logis`
-when systemd passed it the socket and `kill PID` otherwise; every caller prints
+to be restarted: every panel it shows carries the notice `logis updated —
+…`, naming `systemctl --user restart logis` when systemd passed it the
+socket and `restart the daemon: kill PID` otherwise; every caller prints
 the same line on stderr, with its exit status and stdout unchanged; the
 daemon's log has it once
 (`cmd/logis/stale_test.go::TestADaemonWhoseBinaryWasReplacedRemindsEveryCallerAndStillServes`,

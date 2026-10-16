@@ -74,7 +74,7 @@ func TestE2EADaemonWhoseBinaryWasReplacedShowsTheReminderAndStillServes(t *testi
 	}
 
 	upgrade(t, e2e.Binary(t))
-	reminder := "a newer logis is installed — restart the daemon (kill " + strconv.Itoa(c.Daemon.PID()) + ")"
+	reminder := "logis updated — restart the daemon: kill " + strconv.Itoa(c.Daemon.PID())
 	want := "toast " + trace.Quote(reminder)
 	for range 2 { // every panel, not only the first
 		var tab string

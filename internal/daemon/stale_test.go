@@ -107,10 +107,10 @@ func TestTheRealStatSeesAFileRenamedOverThePath(t *testing.T) {
 }
 
 func TestTheReminderSaysHowToRestartThisDaemon(t *testing.T) {
-	if got := reminder(true, 4242); got != "a newer logis is installed — restart the daemon (systemctl --user restart logis)" {
+	if got := reminder(true, 4242); got != "logis updated — systemctl --user restart logis" {
 		t.Errorf("socket-activated: %q", got)
 	}
-	if got := reminder(false, 4242); got != "a newer logis is installed — restart the daemon (kill 4242)" {
+	if got := reminder(false, 4242); got != "logis updated — restart the daemon: kill 4242" {
 		t.Errorf("started by a client: %q", got)
 	}
 }
@@ -122,7 +122,7 @@ func staleCore(replaced *bool) (*core, *recorder, *[]string) {
 	c.logf = func(m string) { logged = append(logged, m) }
 	c.stale = func() string {
 		if *replaced {
-			return "a newer logis is installed — restart the daemon (kill 4242)"
+			return "logis updated — restart the daemon: kill 4242"
 		}
 		return ""
 	}
@@ -134,7 +134,7 @@ func TestAReplacedDaemonWelcomesWithTheReminderAndLogsItOnce(t *testing.T) {
 	c, _, logged := staleCore(&replaced)
 	greet(t, c, 1) // not yet: a plain welcome
 	replaced = true
-	const want = "a newer logis is installed — restart the daemon (kill 4242)"
+	const want = "logis updated — restart the daemon: kill 4242"
 	for id := SessionID(2); id <= 3; id++ {
 		w := &wire{}
 		c.connect(id, w)
@@ -159,7 +159,7 @@ func TestAReplacedDaemonToastsTheReminderOverEachSessionItShowsAndStillServesIt(
 	c.receive(1, protocol.End(), nil)
 	log := r.take()
 	if len(log) < 2 || !strings.HasPrefix(log[0], "show 1 dmenu") ||
-		log[1] != "toast stale a newer logis is installed — restart the daemon (kill 4242)" {
+		log[1] != "toast stale logis updated — restart the daemon: kill 4242" {
 		t.Fatalf("%q", log)
 	}
 	c.answered(1, Answer{Kind: AnswerItem, Index: 1})
@@ -173,7 +173,7 @@ func TestAReplacedDaemonToastsTheReminderOverEachSessionItShowsAndStillServesIt(
 	c.connect(2, &wire{})
 	c.receive(2, protocol.Hello(), nil)
 	c.receive(2, protocol.Open(protocol.ModeApps, nil), nil)
-	if log := r.take(); len(log) < 2 || log[1] != "toast stale a newer logis is installed — restart the daemon (kill 4242)" {
+	if log := r.take(); len(log) < 2 || log[1] != "toast stale logis updated — restart the daemon: kill 4242" {
 		t.Fatalf("%q", log)
 	}
 }
