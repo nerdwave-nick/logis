@@ -1,20 +1,19 @@
-// Package fuzzy is logis's fzf-like matcher: the scoring of nucleo-matcher
-// 0.3.1, case- and accent-insensitive, with fzf's query syntax and match
-// positions for highlighting.
+// Package fuzzy is logis's fzf-like matcher: fzf's query syntax, case-
+// and accent-insensitive matching, scores that rank a match at a word's
+// start above one inside a word and close characters above scattered
+// ones, and match positions (in graphemes) for highlighting. Its scoring
+// follows nucleo-matcher 0.3.1's design (score.go).
 //
-// Equivalence with nucleo is pinned by testdata/nucleo.json, the output of
-// the real crate over a corpus, recorded once. The deliberate
-// differences, each pinned in testdata/divergences.json, fix nucleo
-// defects:
-//   - accent folding (chars.go): nucleo's tables beyond U+036F are
-//     misgenerated and it never folds upper-case Latin Extended letters;
-//     logis folds every Latin letter whose canonical decomposition is an
-//     ASCII letter and marks, via golang.org/x/text/unicode/norm;
-//   - a substring search ('word, !word) in non-ASCII text skipped the last
-//     possible place and scored with the class of the last match instead of
-//     the previous character, and one whose first two characters are not
-//     letters was case-sensitive and missed places near the end;
-//   - an escaped space in a non-ASCII word kept its backslash.
+// Deliberate behaviours, each held by its test:
+//   - accent folding (chars.go) folds every Latin letter whose canonical
+//     decomposition is an ASCII letter and marks, in either case, via
+//     golang.org/x/text/unicode/norm, plus the Latin letters that do not
+//     decompose; other scripts are left alone;
+//   - a character the match never touches leaves the score as it is, in
+//     any text: a substring ('word, !word) is scored by the character
+//     before each place and found up to the last place it fits, ignoring
+//     case whatever its first characters are;
+//   - an escaped space in a word is a space, in any script.
 package fuzzy
 
 import (

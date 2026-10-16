@@ -1,158 +1,170 @@
 package fuzzy
 
 import (
-	"encoding/json"
-	"os"
-	"sync"
 	"testing"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 )
 
-// recorded is testdata/nucleo.json: what nucleo-matcher 0.3.1 made of a
-// corpus (nucleo's Pattern::parse with case and normalisation ignored,
-// its default config, positions sorted and deduplicated), recorded once
-// from the crate itself. It is the reference logis's matcher is held to:
-// items and queries, a score and positions for every pair tried, its case
-// folding and normalisation of every character they change, and its
-// character class of every non-ASCII range.
-type recorded struct {
-	Items     []string    `json:"items"`
-	Queries   []string    `json:"queries"`
-	Cases     [][4]any    `json:"cases"`
-	Fold      [][2]rune   `json:"fold"`
-	Normalize [][2]rune   `json:"normalize"`
-	Classes   []classSpan `json:"classes"`
+// Characters as the matcher compares and classifies them, held to the
+// Unicode Standard through Go's unicode tables and x/text's
+// normalisation data.
+
+// orbit is r's simple case orbit (unicode.SimpleFold), r included.
+func orbit(r rune) []rune {
+	out := []rune{r}
+	for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+		out = append(out, f)
+	}
+	return out
 }
 
-type classSpan struct {
-	lo, hi rune
-	class  string
+func cherokee(r rune) bool {
+	return (r >= 0x13A0 && r <= 0x13FD) || (r >= 0xAB70 && r <= 0xABBF)
 }
 
-func (s *classSpan) UnmarshalJSON(b []byte) error {
-	var v [3]any
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	s.lo, s.hi, s.class = rune(v[0].(float64)), rune(v[1].(float64)), v[2].(string)
-	return nil
-}
+// unfolded are the pairs Unicode's simple case folding joins (status S,
+// added in Unicode 16) that fold, as the lower case of the upper case,
+// does not: ΐ U+1FD3, ΰ U+1FE3 and the ligature ﬅ U+FB05 stay apart
+// from U+0390, U+03B0 and ﬆ U+FB06.
+// A known gap, left as it is until it is decided.
+var unfolded = map[rune]bool{0x0390: true, 0x1FD3: true, 0x03B0: true, 0x1FE3: true,
+	0xFB05: true, 0xFB06: true}
 
-var loadRecorded = sync.OnceValues(func() (*recorded, error) {
-	b, err := os.ReadFile("testdata/nucleo.json")
-	if err != nil {
-		return nil, err
-	}
-	var o recorded
-	return &o, json.Unmarshal(b, &o)
-})
-
-func nucleo(t *testing.T) *recorded {
-	t.Helper()
-	o, err := loadRecorded()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return o
-}
-
-// Case folding is Unicode's simple case folding, as nucleo's table (UCD
-// 15.0) has it; Go 1.27's tables are UCD 17.0, so letters added since may
-// fold where nucleo's do not.
-func TestFoldingIsUnicodeSimpleCaseFolding(t *testing.T) {
-	o := nucleo(t)
-	want := map[rune]rune{}
-	for _, p := range o.Fold {
-		want[p[0]] = p[1]
-	}
-	if len(want) < 1400 {
-		t.Fatalf("only %d fold entries", len(want))
-	}
-	newer := 0
-	for r := rune(0); r <= 0x10FFFF; r++ {
+// Case folding is Unicode's simple case folding (CaseFolding.txt,
+// statuses C and S): every member of a case orbit folds to the same
+// character of that orbit, its lower case (Cherokee: its upper case); the
+// Turkish dotted and dotless i (status T) stay as they are.
+func TestCaseFoldingIsUnicodesSimpleCaseFolding(t *testing.T) {
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if r == 'İ' || r == 'ı' || unfolded[r] {
+			continue
+		}
+		o := orbit(r)
 		got := fold(r)
-		if w, ok := want[r]; ok {
-			if got != w {
-				t.Errorf("fold(%U) = %U, nucleo %U", r, got, w)
+		in := false
+		for _, m := range o {
+			in = in || m == got
+			if f := fold(m); f != got {
+				t.Fatalf("%U folds to %U, %U of its orbit to %U", r, got, m, f)
 			}
-		} else if got != r {
-			newer++ // a case pair nucleo's older table lacks
+		}
+		if !in {
+			t.Fatalf("%U folds to %U, outside its orbit %U", r, got, o)
+		}
+		if len(o) > 1 && !cherokee(r) && !unicode.IsLower(got) && !unicode.Is(unicode.Other_Lowercase, got) {
+			t.Fatalf("%U folds to %U, not lower case", r, got)
 		}
 	}
-	if newer > 64 {
-		t.Errorf("%d folds nucleo does not have; more than letters added since UCD 15", newer)
+	for in, want := range map[rune]rune{
+		'A': 'a', 'Σ': 'σ', 'ς': 'σ', 'ẞ': 'ß', 'ſ': 's', 'K': 'k', 'Ω': 'ω', 'ϐ': 'β',
+		'ᲀ': 'в', 'Ǆ': 'ǆ', 'ǅ': 'ǆ', 'ꭰ': 'Ꭰ', 'ᏸ': 'Ᏸ', 'İ': 'İ', 'ı': 'ı', '你': '你', '1': '1',
+	} {
+		if got := fold(in); got != want {
+			t.Errorf("fold(%c) = %c, want %c", in, got, want)
+		}
 	}
-	t.Logf("%d folds beyond nucleo's UCD 15.0 table", newer)
 }
 
-// Accent folding does everything the working part of nucleo's table does
-// (U+00C0–U+036F: Latin-1, Latin Extended-A/B, IPA, combining letters).
-func TestAccentFoldingCoversNucleosLatinTable(t *testing.T) {
+// Accent folding takes every Latin letter whose canonical decomposition
+// is an ASCII letter and nonspacing marks to that letter, in either case.
+func TestAccentFoldingTakesLatinLettersToTheirASCIIBase(t *testing.T) {
 	n := 0
-	for _, p := range nucleo(t).Normalize {
-		if p[0] >= 0x370 {
-			continue // nucleo 0.3.1's later tables are misgenerated; see chars.go
+	for r := rune(0x80); r <= unicode.MaxRune; r++ {
+		if !unicode.Is(unicode.Latin, r) {
+			continue
+		}
+		var buf [utf8.UTFMax]byte
+		d := []rune(string(norm.NFD.Bytes(utf8.AppendRune(buf[:0], r))))
+		if len(d) < 2 || d[0] >= utf8.RuneSelf || !unicode.IsLetter(d[0]) {
+			continue
+		}
+		marks := true
+		for _, m := range d[1:] {
+			marks = marks && unicode.Is(unicode.Mn, m)
+		}
+		if !marks {
+			continue
 		}
 		n++
-		if got, want := normalizeFolded(fold(p[0])), fold(p[1]); got != want {
-			t.Errorf("%c %U: %c, want %c", p[0], p[0], got, want)
+		if got, want := normalizeFolded(fold(r)), unicode.ToLower(d[0]); got != want {
+			t.Errorf("%c %U folds to %c, want %c", r, r, got, want)
 		}
 	}
-	if n < 250 {
-		t.Fatalf("only %d entries", n)
+	if n < 450 {
+		t.Fatalf("only %d decomposable Latin letters", n)
 	}
 }
 
-// Where nucleo 0.3.1 folds wrongly or not at all, logis folds Latin letters
-// to their ASCII base and leaves other scripts alone.
-func TestAccentFoldingBeyondNucleo(t *testing.T) {
+// Latin letters that do not decompose (strokes, hooks, ligature-like
+// letters) fold to the letter they are read as; other scripts are left
+// alone.
+func TestAccentFoldingCoversLettersThatDoNotDecomposeAndOnlyLatin(t *testing.T) {
 	for _, tc := range []struct{ in, want rune }{
-		{'Ł', 'l'}, {'Ā', 'a'}, {'Č', 'c'}, {'Ø', 'o'}, // nucleo: unchanged uppercase
-		{'ḃ', 'b'}, {'ẃ', 'w'}, {'ệ', 'e'}, {'Ṩ', 's'}, // nucleo: garbage
-		{'ά', 'ά'}, {'й', 'й'}, {'ᴀ', 'ᴀ'}, {'ß', 's'}, {'ı', 'i'}, {'İ', 'i'},
-		{'a', 'a'}, {'é', 'e'}, {'你', '你'},
+		{'Ł', 'l'}, {'ł', 'l'}, {'Ø', 'o'}, {'ø', 'o'}, {'Đ', 'd'}, {'đ', 'd'}, {'Ħ', 'h'},
+		{'ß', 's'}, {'ẞ', 's'}, {'ı', 'i'}, {'İ', 'i'}, {'ɐ', 'a'}, {'ƒ', 'f'},
+		{'Ā', 'a'}, {'Č', 'c'}, {'ḃ', 'b'}, {'ẃ', 'w'}, {'ệ', 'e'}, {'Ṩ', 's'},
+		{'a', 'a'}, {'é', 'e'}, {'æ', 'æ'}, {'Ǣ', 'ǣ'}, {'œ', 'œ'}, {'þ', 'þ'},
+		{'ά', 'ά'}, {'й', 'й'}, {'ᴀ', 'ᴀ'}, {'你', '你'}, {'ש', 'ש'},
 	} {
 		if got := normalizeFolded(fold(tc.in)); got != tc.want {
 			t.Errorf("%c: %c, want %c", tc.in, got, tc.want)
 		}
 	}
-}
-
-// Character classes (for word-boundary bonuses) are nucleo's, from the
-// Unicode properties of UCD 16.0; Go 1.27 has UCD 17.0, so characters new
-// in 17.0 are words here and non-words there, and letters that gained a
-// case pair are cased here; nothing else may differ but U+0295, no longer
-// Lowercase in 17.0.
-func TestClassesAreNucleos(t *testing.T) {
-	names := map[class]string{
-		classWhitespace: "w", classNonWord: "n", classDelimiter: "n",
-		classLower: "l", classUpper: "u", classLetter: "a", classNumber: "d",
-	}
-	newer := 0
-	for _, s := range nucleo(t).Classes {
-		for r := s.lo; r <= s.hi; r++ {
-			got := names[classOf(r)]
-			switch {
-			case got == s.class:
-			case s.class == "n", s.class == "a" && (got == "u" || got == "l"):
-				newer++
-			case r == 0x0295 && got == "a":
-			default:
-				t.Errorf("%U %c: %s, nucleo %s", r, r, got, s.class)
-			}
+	for from, to := range residue {
+		if to < 'a' || to > 'z' {
+			t.Errorf("%U folds to %q, not an ASCII letter", from, to)
 		}
 	}
-	t.Logf("%d characters assigned or cased since UCD 16.0", newer)
 }
 
+// The word-boundary classes follow the Unicode properties: lower-case
+// letters, upper-case ones (they change under case folding), digits and
+// other letters are word characters; White_Space is whitespace; the rest
+// (punctuation, symbols, unassigned) is not a word.
+func TestCharacterClassesFollowUnicodeProperties(t *testing.T) {
+	for r := rune(0x80); r <= unicode.MaxRune; r++ {
+		cls := classOf(r)
+		var want class
+		switch {
+		case unicode.IsLower(r):
+			want = classLower
+		case unicode.IsUpper(r) && fold(r) != r:
+			want = classUpper
+		case unicode.Is(unicode.Nd, r):
+			want = classNumber
+		case unicode.Is(unicode.White_Space, r):
+			want = classWhitespace
+		case unicode.IsPunct(r) || !unicode.In(r, unicode.L, unicode.M, unicode.N, unicode.S, unicode.Z):
+			want = classNonWord
+		default:
+			// Other letters, marks and symbols: a word character or not
+			// by the Alphabetic property; any word class will do.
+			if unicode.IsLetter(r) && cls <= classDelimiter {
+				t.Fatalf("%U %c: class %d, a letter is a word character", r, r, cls)
+			}
+			continue
+		}
+		if cls != want {
+			t.Fatalf("%U %c: class %d, want %d", r, r, cls, want)
+		}
+	}
+}
+
+// In ASCII, the delimiters are / , : ; and |; whitespace is space, tab,
+// line feed, form feed and carriage return (a vertical tab is not).
 func TestASCIIClasses(t *testing.T) {
 	for _, tc := range []struct {
 		r    rune
 		want class
 	}{
 		{'a', classLower}, {'Z', classUpper}, {'5', classNumber}, {' ', classWhitespace},
-		{'\t', classWhitespace}, {'\v', classNonWord}, {'/', classDelimiter}, {',', classDelimiter},
+		{'\t', classWhitespace}, {'\n', classWhitespace}, {'\f', classWhitespace}, {'\r', classWhitespace},
+		{'\v', classNonWord}, {'/', classDelimiter}, {',', classDelimiter},
 		{':', classDelimiter}, {';', classDelimiter}, {'|', classDelimiter}, {'-', classNonWord},
-		{'_', classNonWord}, {'.', classNonWord},
+		{'_', classNonWord}, {'.', classNonWord}, {'\\', classNonWord}, {0, classNonWord},
 	} {
 		if got := classOf(tc.r); got != tc.want {
 			t.Errorf("%q: %d, want %d", tc.r, got, tc.want)

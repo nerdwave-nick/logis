@@ -19,8 +19,8 @@ func atoms(query string) []parsed {
 	return out
 }
 
-// fzf's syntax, as nucleo parses it: ^prefix, suffix$, 'substring,
-// ^exact$, !negation, words separated by spaces, backslash escapes.
+// fzf's syntax: ^prefix, suffix$, 'substring, ^exact$, !negation, words
+// separated by spaces, backslash escapes; words are case-folded.
 func TestQueriesParseAsFzfSyntax(t *testing.T) {
 	for _, tc := range []struct {
 		query string
@@ -51,8 +51,8 @@ func TestQueriesParseAsFzfSyntax(t *testing.T) {
 		{"Äxx", []parsed{{kindFuzzy, false, "äxx"}}},
 		{"Ⲽxx", []parsed{{kindFuzzy, false, "ⲽxx"}}},
 		{"étude", []parsed{{kindFuzzy, false, "etude"}}},
-		// nucleo keeps the backslash of an escaped space in a non-ASCII word
-		// (and doubles other backslashes); logis unescapes it as in ASCII.
+		// An escaped space is a space in any script; another backslash
+		// stays as it is.
 		{"café\\ noir", []parsed{{kindFuzzy, false, "café noir"}}},
 		{"é\\x", []parsed{{kindFuzzy, false, "é\\x"}}},
 	} {
