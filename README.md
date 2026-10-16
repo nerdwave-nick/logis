@@ -747,7 +747,7 @@ and logis declares everything else before it:
 |---|---|
 | `iChannel0` | the frame after the built-in effects (glitch, CRT): premultiplied alpha, read linearly and held at its edges |
 | `iResolution` | `vec3(width, height, 1.0)` in buffer pixels |
-| `iTime` | seconds since the panel opened; frozen at 0 by `reduce-motion` |
+| `iTime` | seconds since the panel opened (starting again near each hour); frozen at 0 by `reduce-motion` |
 | `iFrame` | frames the panel has drawn before this one |
 | `iGlitch` | the theme's glitch at this moment, 0 to 1 (episode or burst, times its strength; 0 without a glitch) |
 

@@ -85,7 +85,7 @@ func CheckCustom(s custom.Shader) error {
 	defer runtime.UnlockOSThread()
 	ctx, err := egl.NewSurfaceless()
 	if err != nil {
-		return errors.New("it cannot be tried here: " + err.Error())
+		return errors.New(s.Path + ": it cannot be tried here: " + err.Error())
 	}
 	defer ctx.Close()
 	prog, err := compileCustom(s)
