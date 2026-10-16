@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/nerdwave-nick/logis/internal/client"
-	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/servitor"
 )
@@ -58,10 +56,7 @@ func appsOpen(tabbed bool, lookPath func(string) (string, error), self string) p
 // daemon, as for every other client (caller contract: exit 2, the reason
 // on stderr).
 func runApps(configPath string, tabbed bool, stderr io.Writer) int {
-	conn, err := client.Connect(client.Options{
-		RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"),
-		DaemonArgs: config.NewSource(configPath).DaemonArgs(),
-	})
+	conn, err := connect(configPath, stderr)
 	if err != nil {
 		return fail(stderr, err.Error())
 	}

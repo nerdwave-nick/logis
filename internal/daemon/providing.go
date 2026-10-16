@@ -160,7 +160,7 @@ func (c *core) step(id SessionID, step provider.Step) {
 		c.resolver.Step(id, step)
 	case step.Kind == provider.StepStage && !l.shown:
 		l.shown, l.due = true, time.Time{}
-		c.resolver.Show(Session{ID: id, Mode: cn.mode, Options: step.Options, Entries: step.Entries})
+		c.reveal(Session{ID: id, Mode: cn.mode, Options: step.Options, Entries: step.Entries})
 	case step.Kind == provider.StepToast && !l.shown:
 		c.logf("a provider's toast before its window: " + step.Notice.Text)
 	case !l.shown:

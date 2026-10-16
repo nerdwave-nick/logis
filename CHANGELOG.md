@@ -8,8 +8,25 @@ contract" and logis(1)) is the public interface.
 
 ## [Unreleased]
 
+### Added
+
+- **A daemon left running across an upgrade says so** (the Go build; new
+  beside Rust v1): once its binary was replaced since it started, it keeps
+  serving but every panel it shows carries the notice "logis updated —
+  …", naming `systemctl --user restart logis` when systemd
+  passed it the socket and `restart the daemon: kill PID` otherwise; every
+  caller prints the same line on stderr (exit status and stdout unchanged),
+  and the daemon's log has it once. It never restarts itself.
+
 ### Changed
 
+- **The daemon's socket protocol is version 5** (4 was the Go build's until
+  `open` carried the tabbed launcher's rites): a daemon of another version
+  left running refuses the new clients with its reason, exit 2, instead of
+  serving them silently stale (a daemon of 4 showed plain logis without its
+  tab strip, at its old row fit). Restart the daemon once after upgrading
+  (`systemctl --user restart logis` where the units are enabled; otherwise
+  end the old `logis daemon`).
 - **Plain logis always shows the tabs** (the Go build; a divergence from Rust
   v1): without `servitor` on its PATH (a compositor keybind's PATH can differ
   from the shell's), plain `logis` is the tabbed launcher all the same instead
@@ -17,6 +34,12 @@ contract" and logis(1)) is the public interface.
   their tab says "cannot find servitor — the rites are silent" and that a
   keybind's PATH can differ from the shell's, and Return there does nothing.
   The remembered tab works as ever. `--apps` and `--servitor` are unchanged.
+
+### Fixed
+
+- **A toast hides the row it covers**: with the panel's height following
+  its rows, a toast lay over the last row and that row's words, icon and
+  badges showed through it; the row is no longer drawn while a toast shows.
 
 ## [1.1.1] - 2026-10-16
 

@@ -98,7 +98,7 @@ func (c *core) showApps(id SessionID, f *appsFeed, tabbed, silent bool) {
 	if tabbed {
 		s.Tab, s.RitesSilent = c.apps.tab, silent
 	}
-	c.resolver.Show(s)
+	c.reveal(s)
 }
 
 // indexed: a new index, kept, and shown by the visible session still

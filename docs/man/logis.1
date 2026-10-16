@@ -457,6 +457,17 @@ which stops writing to the starter's stdout and stderr once it listens.
 It checks the Wayland session and the configuration at start, and exits 2 when
 either is unusable or when the compositor goes away.
 A second daemon finds the first one listening and exits 0.
+.PP
+A daemon left running across an upgrade keeps serving, but once its binary was
+replaced since it started, every window it shows carries a notice that logis
+was updated and the daemon wants a restart, naming
+.B "systemctl \-\-user restart logis"
+when systemd passed it the socket, or
+.BI "kill " PID
+otherwise.
+Every client prints the same line on stderr (its exit status and stdout are
+unchanged), and the daemon's log has it once.
+The daemon never restarts itself.
 .TP
 .BI \-\-idle\-timeout " SECONDS"
 Exit once no client has been connected for that long; 0 keeps the daemon
@@ -533,9 +544,12 @@ A daemon that lost its compositor removes its socket, and the next client
 starts a new one.
 .TP
 the daemon refused the client
-A daemon of another version, left running across an upgrade, refuses the
-client with its reason: end that daemon, and the next client starts a new
-one.
+A daemon of another protocol version, left running across an upgrade, refuses
+the client with its reason: restart that daemon
+.RB ( "systemctl \-\-user restart logis"
+where
+.B logis.socket
+is enabled; otherwise end it, and the next client starts a new one).
 .PP
 Every client exits 2 in each case that stops a daemon starting, so a script
 can let the exit status decide and fall back to another picker:

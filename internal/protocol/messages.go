@@ -110,10 +110,17 @@ type Reply struct {
 	PID     int      `json:"pid,omitempty"`
 	Outcome *Outcome `json:"outcome,omitempty"`
 	Message string   `json:"message,omitempty"`
+	// Notice is welcome's word for the user, if any: a daemon whose binary
+	// was replaced since it started asks to be restarted (stale.go in
+	// internal/daemon). The client prints it on stderr.
+	Notice string `json:"notice,omitempty"`
 }
 
-// Welcome answers a hello of this version; pid is the daemon's.
-func Welcome(pid int) Reply { return Reply{Type: TypeWelcome, Version: Version, PID: pid} }
+// Welcome answers a hello of this version; pid is the daemon's, notice its
+// word for the user ("" for none).
+func Welcome(pid int, notice string) Reply {
+	return Reply{Type: TypeWelcome, Version: Version, PID: pid, Notice: notice}
+}
 
 // Queued: another session is visible; this one waits its turn.
 func Queued() Reply { return Reply{Type: TypeQueued} }
