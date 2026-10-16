@@ -16,6 +16,11 @@ may still change it; each such change is listed here.
   `--counter=x`, `--index=x`, `--only-match=x` and `--no-run-if-empty=x` are
   unknown runes, exit 2, like `--dmenu=x` and every other switch. They were
   taken as the bare switch before.
+- **Matching ignores case by Unicode's case folding throughout**: ΐ (U+1FD3)
+  and U+0390, ΰ (U+1FE3) and U+03B0, and the ligatures ﬅ (U+FB05) and ﬆ
+  (U+FB06) match each other, which they did not, and a lower-case letter
+  that folds to another (ς, ſ) matches it also in a word that types an
+  accent.
 
 ## [0.1.1] - 2026-10-16
 

@@ -25,21 +25,13 @@ func cherokee(r rune) bool {
 	return (r >= 0x13A0 && r <= 0x13FD) || (r >= 0xAB70 && r <= 0xABBF)
 }
 
-// unfolded are the pairs Unicode's simple case folding joins (status S,
-// added in Unicode 16) that fold, as the lower case of the upper case,
-// does not: ΐ U+1FD3, ΰ U+1FE3 and the ligature ﬅ U+FB05 stay apart
-// from U+0390, U+03B0 and ﬆ U+FB06.
-// A known gap, left as it is until it is decided.
-var unfolded = map[rune]bool{0x0390: true, 0x1FD3: true, 0x03B0: true, 0x1FE3: true,
-	0xFB05: true, 0xFB06: true}
-
 // Case folding is Unicode's simple case folding (CaseFolding.txt,
 // statuses C and S): every member of a case orbit folds to the same
 // character of that orbit, its lower case (Cherokee: its upper case); the
 // Turkish dotted and dotless i (status T) stay as they are.
 func TestCaseFoldingIsUnicodesSimpleCaseFolding(t *testing.T) {
 	for r := rune(0); r <= unicode.MaxRune; r++ {
-		if r == 'İ' || r == 'ı' || unfolded[r] {
+		if r == 'İ' || r == 'ı' {
 			continue
 		}
 		o := orbit(r)
@@ -61,6 +53,8 @@ func TestCaseFoldingIsUnicodesSimpleCaseFolding(t *testing.T) {
 	for in, want := range map[rune]rune{
 		'A': 'a', 'Σ': 'σ', 'ς': 'σ', 'ẞ': 'ß', 'ſ': 's', 'K': 'k', 'Ω': 'ω', 'ϐ': 'β',
 		'ᲀ': 'в', 'Ǆ': 'ǆ', 'ǅ': 'ǆ', 'ꭰ': 'Ꭰ', 'ᏸ': 'Ᏸ', 'İ': 'İ', 'ı': 'ı', '你': '你', '1': '1',
+		// Pairs that are not each other's upper and lower case (status S).
+		0x1FD3: 0x0390, 0x0390: 0x0390, 0x1FE3: 0x03B0, 0x03B0: 0x03B0, 0xFB05: 0xFB06, 0xFB06: 0xFB06,
 	} {
 		if got := fold(in); got != want {
 			t.Errorf("fold(%c) = %c, want %c", in, got, want)

@@ -61,7 +61,7 @@ func slowClass(r rune) class {
 	switch {
 	case unicode.IsLower(r) || unicode.Is(unicode.Other_Lowercase, r):
 		return classLower
-	case fold(r) != r:
+	case slowFold(r) != r:
 		return classUpper
 	case unicode.IsNumber(r):
 		return classNumber
@@ -75,7 +75,9 @@ func slowClass(r rune) class {
 
 // fold is Unicode's simple case folding (CaseFolding.txt, statuses C and
 // S), which Go does not export: the lower case of the upper case, but
-// Cherokee folds to upper case and the Turkish dotted/dotless i stay.
+// Cherokee folds to upper case, the Turkish dotted/dotless i stay, and
+// three pairs that are not each other's case fold together (ΐ U+1FD3 to
+// U+0390, ΰ U+1FE3 to U+03B0, ﬅ U+FB05 to ﬆ U+FB06).
 func fold(r rune) rune {
 	if r < utf8.RuneSelf {
 		if r >= 'A' && r <= 'Z' {
@@ -83,11 +85,24 @@ func fold(r rune) rune {
 		}
 		return r
 	}
+	if r < cachedRunes {
+		return cache[r].folded
+	}
+	return slowFold(r)
+}
+
+func slowFold(r rune) rune {
 	switch {
 	case r == 'İ' || r == 'ı' || (r >= 0x13A0 && r <= 0x13F5):
 		return r
 	case (r >= 0x13F8 && r <= 0x13FD) || (r >= 0xAB70 && r <= 0xABBF):
 		return unicode.ToUpper(r)
+	case r == 0x1FD3:
+		return 0x0390
+	case r == 0x1FE3:
+		return 0x03B0
+	case r == 0xFB05:
+		return 0xFB06
 	}
 	return unicode.ToLower(unicode.ToUpper(r))
 }
@@ -145,7 +160,7 @@ type runeInfo struct {
 var cache = func() []runeInfo {
 	t := make([]runeInfo, cachedRunes)
 	for r := range rune(cachedRunes) {
-		t[r] = runeInfo{slowClass(r), fold(r), slowNormalize(r)}
+		t[r] = runeInfo{slowClass(r), slowFold(r), slowNormalize(r)}
 	}
 	return t
 }()
