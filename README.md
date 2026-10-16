@@ -63,7 +63,7 @@ install it, see [Installing](#installing). The binary does this much:
   the process.
 
 Client and daemon speak length-prefixed JSON frames, one session per connection;
-the protocol is described in [`src/protocol/mod.rs`](src/protocol/mod.rs). While a
+the protocol is described in [`internal/protocol`](internal/protocol/protocol.go). While a
 session is visible, a new dmenu session queues (each caller gets its own answer,
 in turn) and a new app, servitor or provider session replaces it.
 
@@ -258,81 +258,78 @@ that was sent a choice, nor anything it started) protect the invocation.
 What scripts, servitor and other callers of `logis --dmenu` and `logis
 --provider` can rely on. The man page says the same without the test names:
 [`docs/man/logis.1`](docs/man/logis.1) (`man -l docs/man/logis.1`). Every
-statement here is pinned by the tests named beside it as `file::test`
-(`tests/docs.rs` checks that they exist); those marked *E2E* run only in a test
-compositor (`LOGIS_E2E`), the rest in every `cargo test`. The Go build holds
-the same contract: `cmd/logis/docs_test.go` names the Go test or tests that
-pin each of these and checks that they exist, and its `TestE2E…` tests that
-need a compositor run in a nested niri (`LOGIS_E2E=niri`). Anything not stated
-here (message wording, timings, the socket protocol) may change.
+statement here is pinned by the Go tests named beside it as
+`<file>_test.go::Test…` (`cmd/logis/docs_test.go` checks that they exist).
+The `TestE2E…` tests run only in a test compositor (`LOGIS_E2E`: a nested niri
+locally, headless sway in CI), the rest in every `go test ./...`. Anything not
+stated here (message wording, timings, the socket protocol) may change.
 
 ### Exit status
 
 | Status | stdout | When | Pinned by |
 |---|---|---|---|
-| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
-| 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
-| 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
-| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
-| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers` |
-| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
-| 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
-| 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
-| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `tests/cli.rs::unknown_argument_exits_2_naming_it`, `src/cli/dmenu.rs::bad_values_are_named_with_their_flag`, `tests/dmenu_runes.rs::list_runes_without_dmenu_are_an_error`, and [below](#when-logis-cannot-serve) |
+| 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ETypingFiltersAndReturnPrintsTheChosenLine` |
+| 0 | empty | `--provider`: the provider closed its flow | `cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose` |
+| 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`, `cmd/logis/servitor_window_e2e_test.go::TestE2ERitesWaitPendingSettleLiveAndLeadToADetachedInvocation` |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `cmd/logis/apps_e2e_test.go::TestPlainLogisIsTheAppLauncher`, `cmd/logis/apps_e2e_test.go::TestTheChosenAppIsLaunchedWithItsTokenInAScopeAndCountsForFrecency`, `cmd/logis/apps_window_e2e_test.go::TestE2EReturnLaunchesTheAppDetachedWithAnActivationToken` |
+| 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `cmd/logis/contract_test.go::TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers`, `cmd/logis/daemon_e2e_test.go::TestE2EDaemonDetachOnlyEnsuresTheDaemon` |
+| 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `cmd/logis/dmenu_e2e_test.go::TestE2EAnUnmarkedListIsDismissedWithExit1AndEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EEscapeDismissesWithEmptyStdoutAndExit1`, `cmd/logis/provider_window_e2e_test.go::TestE2EEscapeAfterAnActivationNeverKillsTheActionItStarted`, `cmd/logis/apps_window_e2e_test.go::TestE2EPlainLogisOpensTheLauncherAndEscapeExits1`, `internal/input/bindings_test.go::TestEscapeCtrlGAndCtrlBracketDismiss`, `internal/input/keyboard_test.go::TestFocusLossDismissesByDefaultAndKeepsOnRequest` |
+| 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`, `cmd/logis/provider_e2e_test.go::TestAReplacedProviderCallerExits1WithEmptyStdout` |
+| 1 | empty | `--no-run-if-empty` and stdin is empty (no window, no daemon) | `cmd/logis/dmenu_e2e_test.go::TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon` |
+| 2 | empty | any error, its message on stderr: bad runes, no usable session, the daemon cannot start, fails or refuses, the provider fails | `cmd/logis/contract_test.go::TestUnknownArgumentExits2NamingIt`, `cmd/logis/main_test.go::TestUnknownRunesAreNamedAndExit2`, `cmd/logis/cli_test.go::TestBadValuesAreNamedWithTheirFlag`, `cmd/logis/dmenu_e2e_test.go::TestE2EListRunesWithoutDmenuAreAnError`, and [below](#when-logis-cannot-serve) |
 
 Exit 1 does not tell a dismissal from a replacement; both mean "nothing was
 chosen". stdout carries nothing but the choice and its newline, also after
-`--dmenu0` (`tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside`).
+`--dmenu0` (`cmd/logis/dmenu_e2e_test.go::TestE2EDmenu0ReadsNulSeparatedItemsWithNewlinesInside`).
 `--check-config` exits 0 or 2 likewise
-(`tests/config.rs::check_config_accepts_a_sound_config_and_exits_0`,
-`tests/config.rs::check_config_with_a_missing_named_file_exits_2`).
+(`cmd/logis/config_test.go::TestCheckConfigAcceptsASoundConfigAndExits0`,
+`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`).
 
 ### dmenu input and output
 
 - stdin is read as it arrives; the window opens before it ends, and logis may
   answer and exit before reading all of it, so a producer can meet a closed
-  pipe (`tests/dmenu.rs::the_window_opens_before_the_input_ends_and_takes_streamed_lines`
-  (E2E), `src/client/dmenu/stream.rs::lines_are_sent_as_they_arrive_then_end`).
+  pipe (`cmd/logis/dmenu_window_e2e_test.go::TestE2ETheWindowOpensBeforeTheInputEndsAndTakesStreamedLines`, `cmd/logis/dmenu_test.go::TestLinesAreSentAsTheyArriveThenEnd`).
 - A chosen item comes back as its original bytes, exactly as read, whatever
   their encoding and whatever `--with-nth` showed
-  (`tests/dmenu_runes.rs::the_original_bytes_survive_columns_and_invalid_utf8`,
-  `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`).
+  (`cmd/logis/dmenu_e2e_test.go::TestE2ETheOriginalBytesSurviveColumnsAndInvalidUTF8`,
+  `cmd/logis/contract_test.go::TestTheOriginalBytesOfTheChosenItemAreReturnedExactly`).
 - Return with no match prints the typed text as typed, unless `--only-match`
-  (`tests/dmenu.rs::return_without_a_match_prints_the_typed_text` (E2E),
-  `src/list/view.rs::return_without_a_match_accepts_the_typed_text_unless_only_match`,
-  `tests/dmenu.rs::only_match_refuses_free_text_until_a_match_is_chosen` (E2E)).
+  (`cmd/logis/dmenu_window_e2e_test.go::TestE2EReturnWithoutAMatchPrintsTheTypedText`,
+  `internal/list/view_test.go::TestReturnWithoutAMatchAcceptsTheTypedTextUnlessOnlyMatch`,
+  `cmd/logis/dmenu_window_e2e_test.go::TestE2EOnlyMatchRefusesFreeTextUntilAMatchIsChosen`).
 - Matching ignores case and accents and takes fzf's syntax
-  (`src/list/filter.rs::matching_ignores_case_and_accents`,
-  `src/list/filter.rs::fzf_syntax_applies`,
-  `src/list/filter.rs::fzf_suffix_and_exact_terms_apply`).
+  (`internal/list/filter_test.go::TestMatchingIgnoresCaseAndAccents`,
+  `internal/list/filter_test.go::TestFzfSyntaxApplies`,
+  `internal/list/filter_test.go::TestFzfSuffixAndExactTermsApply`).
 
 ### dmenu runes
 
 The runes, their defaults and their fuzzel semantics are in [dmenu](#dmenu)
-(`src/cli/dmenu.rs::the_defaults_are_fuzzels`,
-`src/cli/dmenu.rs::values_follow_their_flag_or_an_equals_sign`):
+(`cmd/logis/cli_test.go::TestTheDmenuDefaultsAreFuzzels`,
+`cmd/logis/cli_test.go::TestValuesFollowTheirFlagOrAnEqualsSign`):
 
 | Rune | Pinned by |
 |---|---|
-| `--dmenu`, `-d`, `--dmenu0` | `src/cli/mod.rs::dmenu_asks_for_a_dmenu_session`, `tests/dmenu_runes.rs::dmenu0_reads_nul_separated_items_with_newlines_inside` |
-| `--prompt`, `-p` | `src/list/scene/tests.rs::a_session_prompt_shows_and_the_default_one_gives_way_to_the_label` |
-| `--prompt-only` | `tests/dmenu_runes.rs::prompt_only_never_waits_for_stdin`, `src/cli/dmenu.rs::prompt_only_reads_nothing_and_shows_no_rows` |
-| `--placeholder` | `src/list/view.rs::an_empty_query_shows_the_placeholder_without_a_cursor` |
-| `--password[=C]` | `src/cli/dmenu.rs::password_takes_an_optional_character`, `src/list/view.rs::a_password_is_masked_per_character` |
-| `--lines`, `-l`, `--width`, `-w` | `src/list/scene/tests.rs::lines_and_width_in_the_options_size_the_window`, `src/list/scene/tests.rs::without_a_size_the_window_is_the_themes` |
-| `--counter` | `src/list/view.rs::the_counter_counts_matches_of_all` |
-| `--search` | `src/list/view.rs::search_opens_with_a_query` |
-| `--select` | `src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives` |
-| `--select-index` | `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`, `src/cli/dmenu.rs::preselection_is_by_text_or_by_index_not_both` |
+| `--dmenu`, `-d`, `--dmenu0` | `cmd/logis/cli_test.go::TestDmenuAsksForADmenuSession`, `cmd/logis/dmenu_e2e_test.go::TestE2EDmenu0ReadsNulSeparatedItemsWithNewlinesInside` |
+| `--prompt`, `-p` | `internal/list/scene/scene_test.go::TestASessionPromptShowsAndTheDefaultOneGivesWayToTheLabel` |
+| `--prompt-only` | `cmd/logis/dmenu_e2e_test.go::TestE2EPromptOnlyNeverWaitsForStdin`, `cmd/logis/cli_test.go::TestPromptOnlyReadsNothingAndShowsNoRows` |
+| `--placeholder` | `internal/list/view_test.go::TestAnEmptyQueryShowsThePlaceholderWithoutACursor` |
+| `--password[=C]` | `cmd/logis/cli_test.go::TestPasswordTakesAnOptionalCharacter`, `internal/list/view_test.go::TestAPasswordIsMaskedPerCharacter` |
+| `--lines`, `-l`, `--width`, `-w` | `internal/list/scene/scene_test.go::TestLinesAndWidthInTheOptionsSizeTheWindow`, `internal/list/scene/scene_test.go::TestWithoutASizeTheWindowIsTheThemes` |
+| `--counter` | `internal/list/view_test.go::TestTheCounterCountsMatchesOfAll` |
+| `--search` | `internal/list/view_test.go::TestSearchOpensWithAQuery` |
+| `--select` | `internal/list/view_test.go::TestSelectPreselectsTheFirstEqualItemIgnoringCaseWhenItArrives` |
+| `--select-index` | `internal/list/view_test.go::TestSelectIndexPreselectsOnceItArrivesUnlessTheUserMovedFirst`, `cmd/logis/cli_test.go::TestPreselectionIsByTextOrByIndexNotBoth` |
 | `--only-match` | see typed text above |
-| `--no-run-if-empty`, `-R` | `tests/dmenu_runes.rs::no_run_if_empty_exits_1_at_once_without_a_daemon` |
-| `--index` | `tests/dmenu_runes.rs::index_prints_the_position_of_the_choice`, `tests/dmenu.rs::index_and_columns_print_what_was_asked` (E2E) |
-| `--with-nth` | `tests/dmenu_runes.rs::with_nth_shows_a_column_and_the_whole_line_comes_back` |
-| `--accept-nth`, `--nth-delimiter` | `tests/dmenu_runes.rs::accept_nth_prints_columns_split_at_the_nth_delimiter` |
-| `--match-nth` | `src/client/dmenu/stream.rs::with_nth_shapes_the_text_and_match_nth_the_match_text`, `src/list/view.rs::items_matched_by_another_text_are_not_highlighted` |
-| formats `{N}`, `{N..M}`, `{N..}`; `0` | `src/nth.rs::a_format_expands_columns_inside_free_text`, `src/nth.rs::ranges_join_their_columns_with_the_delimiter`, `src/nth.rs::zero_means_no_selection` |
-| `--config` | `tests/config.rs::a_client_hands_its_config_to_the_daemon_it_starts`, `tests/config.rs::a_running_daemon_keeps_its_config_whatever_a_caller_names` |
-| `-i` (ignored) | `src/cli/mod.rs::list_runes_go_with_dmenu_in_any_order` |
+| `--no-run-if-empty`, `-R` | `cmd/logis/dmenu_e2e_test.go::TestE2ENoRunIfEmptyExits1AtOnceWithoutADaemon` |
+| `--index` | `cmd/logis/dmenu_e2e_test.go::TestE2EIndexPrintsThePositionOfTheChoice`, `cmd/logis/dmenu_window_e2e_test.go::TestE2EIndexAndColumnsPrintWhatWasAsked` |
+| `--with-nth` | `cmd/logis/dmenu_e2e_test.go::TestE2EWithNthShowsAColumnAndTheWholeLineComesBack` |
+| `--accept-nth`, `--nth-delimiter` | `cmd/logis/dmenu_e2e_test.go::TestE2EAcceptNthPrintsColumnsSplitAtTheNthDelimiter` |
+| `--match-nth` | `cmd/logis/dmenu_test.go::TestWithNthShapesTheTextAndMatchNthTheMatchText`, `internal/list/view_test.go::TestItemsMatchedByAnotherTextAreNotHighlighted` |
+| formats `{N}`, `{N..M}`, `{N..}`; `0` | `internal/nth/nth_test.go::TestAFormatExpandsColumnsInsideFreeText`, `internal/nth/nth_test.go::TestRangesJoinTheirColumnsWithTheDelimiter`, `internal/nth/nth_test.go::TestZeroMeansNoSelection` |
+| `--config` | `cmd/logis/config_e2e_test.go::TestE2EAClientHandsItsConfigToTheDaemonItStarts`, `cmd/logis/config_e2e_test.go::TestE2EARunningDaemonKeepsItsConfigWhateverACallerNames` |
+| `-i` (ignored) | `cmd/logis/cli_test.go::TestListRunesGoWithDmenuInAnyOrder` |
 
 `--config PATH` reaches only a daemon that this caller starts; a daemon
 already running keeps its own configuration.
@@ -344,67 +341,67 @@ Where fuzzel's documentation leaves a choice open, or logis differs on
 purpose:
 
 - typed text is printed as typed, even with `--index` or `--accept-nth`
-  (`src/client/dmenu/mod.rs::typed_text_prints_as_typed_whatever_the_output_runes`);
+  (`cmd/logis/dmenu_test.go::TestTypedTextPrintsAsTypedWhateverTheOutputRunes`);
 - `--select` picks the first item equal to its text ignoring case, not a
   prefix or fuzzy match, and applies when that item arrives, until the user
   moves the selection or edits the query
-  (`src/list/view.rs::select_preselects_the_first_equal_item_ignoring_case_when_it_arrives`,
-  `src/list/view.rs::select_index_preselects_once_it_arrives_unless_the_user_moved_first`,
-  `src/list/view.rs::typing_ends_a_preselection_still_waiting_for_its_item`);
+  (`internal/list/view_test.go::TestSelectPreselectsTheFirstEqualItemIgnoringCaseWhenItArrives`,
+  `internal/list/view_test.go::TestSelectIndexPreselectsOnceItArrivesUnlessTheUserMovedFirst`,
+  `internal/list/view_test.go::TestTypingEndsAPreselectionStillWaitingForItsItem`);
 - `--no-run-if-empty` exits 1 (nothing was chosen);
 - a format that names no column is an error, exit 2, not a constant output
-  (`src/nth.rs::column_zero_and_backward_ranges_are_refused`);
+  (`internal/nth/nth_test.go::TestColumnZeroAndBackwardRangesAreRefused`);
 - list runes without `--dmenu` are an error, exit 2;
 - errors exit 2, apart from a dismissal's 1, where fuzzel exits 1 (its
   `--check-config`, for one); logis's `--check-config` exits 2
-  (`tests/config.rs::check_config_with_a_missing_named_file_exits_2`);
+  (`cmd/logis/config_test.go::TestCheckConfigWithAMissingNamedFileExits2`);
 - Shift+Insert pastes the clipboard, not the primary selection; the middle
-  button pastes the primary (`src/input/bindings.rs::ctrl_v_and_shift_insert_paste_the_clipboard`,
-  `tests/pointer.rs::the_middle_button_pastes_the_primary_selection` (E2E)).
+  button pastes the primary (`internal/input/bindings_test.go::TestCtrlVAndShiftInsertPasteTheClipboard`,
+  `cmd/logis/pointer_e2e_test.go::TestE2ETheMiddleButtonPastesThePrimarySelection`, `internal/input/pointer_test.go::TestTheMiddleButtonPastesThePrimarySelectionOnPress`).
 
 ### Sessions
 
 Each caller holds one session on its own connection to the daemon, and the
 answer goes to that caller alone
-(`src/daemon/core.rs::the_result_goes_only_to_the_session_that_was_answered`).
+(`internal/daemon/core_test.go::TestTheResultGoesOnlyToTheSessionThatWasAnswered`).
 At most one session is visible:
 
 - **dmenu callers queue.** A dmenu session that arrives while another session
   (of any kind) is visible waits, and the queue is shown first in, first out;
   each caller gets its own answer
-  (`tests/daemon.rs::dmenu_sessions_queue_and_each_caller_gets_its_own_answer_in_order`,
-  `tests/daemon.rs::a_dmenu_caller_waits_in_the_queue_for_its_turn`,
-  `tests/dmenu.rs::queued_callers_each_get_their_own_answer_in_turn` (E2E),
-  `src/daemon/sessions.rs::a_dmenu_session_queues_behind_an_interactive_one`).
+  (`internal/daemon/serve_test.go::TestDmenuSessionsQueueAndEachCallerGetsItsOwnAnswerInOrder`,
+  `cmd/logis/contract_test.go::TestADmenuCallerWaitsInTheQueueForItsTurn`,
+  `cmd/logis/dmenu_window_e2e_test.go::TestE2EQueuedCallersEachGetTheirOwnAnswerInTurn`,
+  `internal/daemon/sessions_test.go::TestADmenuSessionQueuesBehindAnInteractiveOne`).
   A queued caller waits as long as the sessions ahead of it take; to bound
   that, run it under `timeout(1)`, since leaving cancels (below).
 - **Interactive sessions replace.** An app, servitor or provider session takes
   the visible session's place; that caller exits 1. Queued dmenu callers stay
   queued and are shown once the interactive session ends
-  (`tests/daemon.rs::an_interactive_session_replaces_the_visible_one`,
-  `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`,
-  `src/daemon/sessions.rs::an_interactive_session_replaces_the_visible_one_and_keeps_the_queue`).
+  (`internal/daemon/core_test.go::TestAnInteractiveSessionReplacesTheVisibleOne`,
+  `cmd/logis/contract_test.go::TestAReplacedDmenuCallerExits1WithEmptyStdout`,
+  `internal/daemon/sessions_test.go::TestAnInteractiveSessionReplacesTheVisibleOneAndKeepsTheQueue`).
 - **Leaving cancels.** A caller that exits or is killed (`timeout(1)`, Ctrl+C)
   cancels its session: a visible one closes and the next queued one is shown,
   a queued one is dropped
-  (`tests/daemon.rs::a_client_disconnect_cancels_its_session_and_the_next_one_is_shown`,
-  `src/daemon/sessions.rs::closing_a_queued_session_drops_it_silently`). A
+  (`internal/daemon/serve_test.go::TestAClientDisconnectCancelsItsSessionAndTheNextOneIsShown`,
+  `internal/daemon/sessions_test.go::TestClosingAQueuedSessionDropsItSilently`). A
   provider is then sent `cancel`; one that was never sent a choice is ended,
   one that was is left to finish
-  (`tests/provider.rs::a_provider_that_never_acted_and_lingers_after_cancel_is_ended`,
-  `tests/provider.rs::a_dismissed_provider_that_acted_is_never_signalled_nor_its_action`).
+  (`cmd/logis/provider_e2e_test.go::TestAProviderThatNeverActedAndLingersAfterCancelIsEnded`,
+  `cmd/logis/provider_e2e_test.go::TestADismissedProviderThatActedIsNeverSignalledNorItsAction`).
 
 **Ordering caveat.** Connections are not ordered among themselves: the queue
 follows the order in which the daemon *receives* sessions, not the order in
 which callers were started, so two callers started a moment apart may be
 answered in either order. A session opened just after another caller left may
 wait in the queue until the daemon has handled that departure (the protocol
-notes in [`src/protocol/mod.rs`](src/protocol/mod.rs)). Callers that need an
+notes in [`internal/protocol`](internal/protocol/protocol.go)). Callers that need an
 order should run one after another.
 
 The daemon a caller starts outlives it and serves later callers
-(`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`,
-`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+(`internal/client/client_test.go::TestAClientStartsTheDaemonWhenNoneAnswersAndLaterClientsReuseIt`,
+`cmd/logis/contract_test.go::TestAnAutoStartedDaemonOutlivesItsStarterAndLogsToTheRuntimeDir`, `cmd/logis/daemon_e2e_test.go::TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir`).
 
 ### Providers
 
@@ -412,15 +409,14 @@ The daemon a caller starts outlives it and serves later callers
 [the provider protocol](docs/provider-protocol.md) (version 1: its messages,
 rules, signals and examples). The daemon runs it as this caller would have,
 in its working directory and with its environment
-(`tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close`), and shows
+(`cmd/logis/provider_e2e_test.go::TestATwoStageFlowRunsToTheProvidersClose`), and shows
 its stages, pending rows and toasts in one window
-(`tests/provider_window.rs::a_two_stage_flow_with_a_pending_row_ends_in_a_toast`
-(E2E)). For the caller it is an interactive session: exit 0 when the provider
+(`cmd/logis/provider_window_e2e_test.go::TestE2EATwoStageFlowWithAPendingRowEndsInAToast`). For the caller it is an interactive session: exit 0 when the provider
 sends `close`, 1 when dismissed or replaced, 2 when the provider cannot start,
 breaks the protocol, shows no stage within 5 s or exits early
-(`tests/provider.rs::a_provider_that_cannot_start_is_an_error`,
-`tests/provider.rs::a_provider_that_breaks_the_protocol_or_departs_fails_its_session`,
-`tests/provider.rs::a_provider_that_shows_nothing_in_time_fails_its_session`).
+(`cmd/logis/provider_e2e_test.go::TestAProviderThatCannotStartIsAnError`,
+`cmd/logis/provider_e2e_test.go::TestAProviderThatBreaksTheProtocolOrDepartsFailsItsSession`,
+`cmd/logis/provider_e2e_test.go::TestAProviderThatShowsNothingInTimeFailsItsSession`).
 
 ### servitor mode
 
@@ -429,26 +425,26 @@ like a provider's, with the same exit statuses, and promises:
 
 - A rite whose auspex is still awaited is never chosen nor invoked, however
   long it takes; leaving ends the census
-  (`tests/servitor.rs::a_rite_that_never_settles_is_never_invoked_and_leaving_ends_the_census`,
-  `src/servitor/flow/tests.rs::a_pending_rite_is_never_taken`).
+  (`cmd/logis/servitor_e2e_test.go::TestARiteThatNeverSettlesIsNeverInvokedAndLeavingEndsTheCensus`,
+  `internal/servitor/flow_test.go::TestAPendingRiteIsNeverTaken`).
 - The current aspect is marked and selected only from a settled reading
-  (`src/servitor/flow/tests.rs::a_settled_rite_offers_its_aspects_with_the_current_marked_and_selected`,
-  `src/servitor/flow/tests.rs::a_stale_or_unknown_aspect_is_never_marked_or_selected`).
+  (`internal/servitor/flow_test.go::TestASettledRiteOffersItsAspectsWithTheCurrentMarkedAndSelected`,
+  `internal/servitor/flow_test.go::TestAStaleOrUnknownAspectIsNeverMarkedOrSelected`).
 - Inscriptions come from the rite's `canon`: the decree prefilled, a mandatory
   one filled before invoking; a cleared decree is passed as `--<key> ""`, an
   empty word without a decree is left out
-  (`src/servitor/flow/tests.rs::inscriptions_are_asked_in_written_order_from_the_canon`,
-  `src/servitor/flow/tests.rs::a_mandatory_inscription_must_be_filled_before_invoking`,
-  `src/servitor/flow/tests.rs::a_cleared_decree_is_passed_and_an_empty_word_without_one_is_left_out`,
-  `tests/servitor.rs::an_edict_is_invoked_without_an_aspect`).
+  (`internal/servitor/flow_test.go::TestInscriptionsAreAskedInWrittenOrderFromTheCanon`,
+  `internal/servitor/flow_test.go::TestAMandatoryInscriptionMustBeFilledBeforeInvoking`,
+  `internal/servitor/flow_test.go::TestAClearedDecreeIsPassedAndAnEmptyWordWithoutOneIsLeftOut`,
+  `cmd/logis/servitor_e2e_test.go::TestAnEdictIsInvokedWithoutAnAspect`).
 - `servitor invoke` runs detached: its own session and process group, stdio on
   `/dev/null`, the caller's environment and working directory, unawaited
-  (`tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`,
-  `src/servitor/invoke.rs::invoke_runs_in_a_session_of_its_own_with_stdio_on_dev_null_and_unawaited`).
+  (`cmd/logis/servitor_e2e_test.go::TestServitorModeInvokesDetachedOnceSettledAndTheCallerDoesNotWait`,
+  `internal/servitor/invoke_test.go::TestInvokeRunsInASessionOfItsOwnWithStdioOnDevNullAndUnawaited`).
 - logis shows no outcome
-  (`src/servitor/flow/tests.rs::nothing_the_flow_says_is_an_outcome_toast`), and
+  (`internal/servitor/flow_test.go::TestNothingTheFlowSaysIsAnOutcomeToast`), and
   neither dismissal nor the daemon's end aborts a running invocation
-  (`tests/servitor.rs::no_dismissal_or_departure_of_logis_aborts_a_running_invocation`).
+  (`cmd/logis/servitor_e2e_test.go::TestNoDismissalOrDepartureOfLogisAbortsARunningInvocation`).
 
 ### When logis cannot serve
 
@@ -458,27 +454,27 @@ status only. It does name the plain fact:
 
 | Case | stderr names | Pinned by |
 |---|---|---|
-| no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/daemon.rs::a_client_whose_daemon_cannot_start_exits_2_with_the_reason`, `tests/cli.rs::with_nonexistent_wayland_socket_exits_2_naming_the_socket` |
-| a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`, `tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol` |
-| a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `tests/cli.rs::on_compositor_without_fractional_scale_exits_2_naming_the_protocol` |
-| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why` |
-| an invalid config stops the daemon starting | the file, line and column | `tests/config.rs::a_daemon_refuses_to_start_on_an_invalid_config_and_its_client_exits_2` |
-| the daemon dies during the session (the compositor left) | that the daemon fell silent | `tests/daemon.rs::a_dmenu_caller_whose_daemon_dies_exits_2_with_empty_stdout`, `tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero` |
-| the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `tests/daemon.rs::a_caller_the_daemon_refuses_exits_2_with_the_daemons_reason`, `tests/daemon.rs::a_greeting_in_another_protocol_version_is_refused` |
+| no Wayland session: `WAYLAND_DISPLAY` unset, or its socket unreachable | `WAYLAND_DISPLAY is not set` / the socket's path | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/dmenu_e2e_test.go::TestE2EADaemonThatCannotStartIsReportedWithExit2`, `internal/client/client_test.go::TestADaemonThatCannotStartIsReportedWithItsReason`, `cmd/logis/session_test.go::TestWithNonexistentWaylandSocketExits2NamingTheSocket` |
+| a compositor without layer shell (GNOME/Mutter) | `zwlr_layer_shell_v1` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`, `cmd/logis/session_test.go::TestOnCompositorWithoutLayerShellExits2NamingTheProtocol` |
+| a compositor without fractional scaling | `wp_fractional_scale_manager_v1` | `cmd/logis/session_test.go::TestOnCompositorWithoutFractionalScaleExits2NamingTheProtocol` |
+| no runtime directory for the daemon's socket | `XDG_RUNTIME_DIR` | `cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy` |
+| an invalid config stops the daemon starting | the file, line and column | `cmd/logis/config_e2e_test.go::TestE2EADaemonRefusesToStartOnAnInvalidConfigAndItsClientFails` |
+| the daemon dies during the session (the compositor left) | that the daemon fell silent | `cmd/logis/contract_test.go::TestADmenuCallerWhoseDaemonDiesExits2WithEmptyStdout`, `cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2` |
+| the daemon refuses the caller (another version, left running across an upgrade) | the daemon's reason: restart it | `cmd/logis/contract_test.go::TestACallerTheDaemonRefusesExits2WithTheDaemonsReason`, `internal/client/client_test.go::TestADaemonsRefusalIsTheClientsError`, `internal/daemon/serve_test.go::TestOverTheSocketAGreetingInAnotherVersionIsRefused`, `internal/daemon/core_test.go::TestAGreetingOfAnotherVersionIsRefused` |
 
 A daemon that lost its compositor exits and removes its socket; the next
 caller starts a new one
-(`tests/daemon.rs::losing_the_wayland_connection_makes_the_daemon_exit_non_zero`,
-`tests/daemon.rs::a_client_starts_the_daemon_when_none_answers_and_later_clients_reuse_it`).
+(`cmd/logis/dmenu_window_e2e_test.go::TestE2ELosingTheCompositorEndsTheDaemonWithExit2`, `cmd/logis/e2e_test.go::TestE2ELosingTheCompositorExits2`,
+`internal/client/client_test.go::TestAClientStartsTheDaemonWhenNoneAnswersAndLaterClientsReuseIt`).
 Plain `logis` is the app launcher and opens a window. To use logis where it can
 serve and fall back elsewhere, let the dmenu caller's exit status decide:
 2 means logis cannot serve here, for each case above, its reason on stderr
-(`tests/cli.rs::a_dmenu_caller_without_a_usable_session_exits_2_naming_why`,
-`tests/cli.rs::without_wayland_display_exits_2_with_flavoured_message`,
-`tests/cli.rs::on_compositor_without_layer_shell_exits_2_naming_the_protocol`).
+(`cmd/logis/dmenu_e2e_test.go::TestE2EADmenuCallerWithoutAUsableSessionExits2NamingWhy`,
+`cmd/logis/session_test.go::TestWithoutWaylandDisplayExits2WithFlavouredMessage`,
+`cmd/logis/session_test.go::TestOnCompositorWithoutLayerShellExits2NamingTheProtocol`).
 To start a daemon ahead of time without a window, run `logis daemon --detach &`;
 it exits 0 at once if one already answers
-(`tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers`).
+(`cmd/logis/contract_test.go::TestDaemonDetachExits0AtOnceWhenADaemonAlreadyAnswers`, `cmd/logis/daemon_e2e_test.go::TestE2EDaemonDetachOnlyEnsuresTheDaemon`).
 
 ```sh
 items='rite of oil
@@ -496,47 +492,46 @@ esac
 What the man page adds, pinned as well:
 
 - Accept: Return, keypad Enter, a click on a row
-  (`src/input/bindings.rs::return_and_keypad_enter_accept`,
-  `tests/pointer.rs::hovering_selects_a_row_and_a_click_on_it_accepts_it` (E2E)).
+  (`internal/input/bindings_test.go::TestReturnAndKeypadEnterAcceptShiftReturnDescends`,
+  `cmd/logis/pointer_e2e_test.go::TestE2EHoveringSelectsARowAndAClickOnItAcceptsIt`).
   Dismiss: see [Exit status](#exit-status). Moving and editing, as in
-  [Keyboard](#keyboard): `src/input/bindings.rs::up_down_tab_and_ctrl_n_p_move`,
-  `src/input/bindings.rs::editing_keys_edit`,
-  `src/input/bindings.rs::left_right_home_and_end_move_the_cursor`,
-  `tests/e2e.rs::every_editing_and_selection_key_does_its_work` (E2E).
+  [Keyboard](#keyboard): `internal/input/bindings_test.go::TestUpDownTabAndCtrlNPMove`,
+  `internal/input/bindings_test.go::TestEditingKeysEdit`,
+  `cmd/logis/keyboard_e2e_test.go::TestE2EEveryEditingAndSelectionKeyDoesItsWork`.
   The Go build diverges in plain `logis` with servitor on the PATH, its tabbed
   launcher ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
   between the Applications and Rites tabs, keeping the query, and a click on a
   plate does the same
-  (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered` (E2E),
-  `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip` (E2E),
+  (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered`,
+  `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip`,
   `internal/cogitator/tabs_test.go::TestTabAndShiftTabSwitchTabsAndKeepTheQuery`);
   `--apps`, `--servitor` and every other session keep Tab as the next item
-  (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects` (E2E),
+  (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects`,
   `internal/cogitator/tabs_test.go::TestUntabbedTabStillMovesTheSelection`).
 - `logis daemon` checks the session and the config at start and exits 2 if
   either is unusable, or when the compositor goes away (see the table above);
   a second daemon finds the first listening and exits 0
-  (`tests/daemon.rs::a_second_daemon_defers_to_the_one_already_listening`).
+  (`internal/daemon/serve_test.go::TestASecondDaemonDefersToTheOneAlreadyListening`).
   `--idle-timeout SECONDS` ends it once no client has been connected for that
   long, off by default, `0` keeps it resident, and it outranks the config
-  (`tests/daemon.rs::with_an_idle_timeout_the_daemon_exits_once_no_client_is_connected`,
-  `tests/daemon.rs::without_an_idle_timeout_the_daemon_stays`,
-  `tests/config.rs::the_idle_timeout_flag_outranks_the_config`). `--detach`
+  (`cmd/logis/daemon_e2e_test.go::TestE2EWithAnIdleTimeoutTheDaemonExitsOnceNoClientIsConnected`,
+  `internal/daemon/serve_test.go::TestWithoutAnIdleTimeoutTheDaemonStays`,
+  `internal/daemon/config_test.go::TestTheIdleTimeoutFlagOutranksTheConfig`). `--detach`
   (how clients start it) sends its later diagnostics to
   `$XDG_RUNTIME_DIR/logis.log`
-  (`tests/daemon.rs::an_auto_started_daemon_outlives_its_starter_and_logs_to_the_runtime_dir`).
+  (`cmd/logis/contract_test.go::TestAnAutoStartedDaemonOutlivesItsStarterAndLogsToTheRuntimeDir`, `cmd/logis/daemon_e2e_test.go::TestE2EADetachedDaemonLeavesItsStartersStdioAndLogsToTheRuntimeDir`).
 - `WAYLAND_DISPLAY` is the compositor's socket, relative to `XDG_RUNTIME_DIR`
   or absolute, with no fallback to `wayland-0`
-  (`src/wayland.rs::a_relative_display_is_joined_to_the_runtime_dir`,
-  `src/wayland.rs::an_absolute_display_is_used_as_is`,
-  `src/wayland.rs::an_unset_or_empty_display_means_no_session`). The daemon's
+  (`internal/window/connect_test.go::TestARelativeDisplayIsJoinedToTheRuntimeDir`,
+  `internal/window/connect_test.go::TestAnAbsoluteDisplayIsUsedAsIs`,
+  `internal/window/connect_test.go::TestAnUnsetOrEmptyDisplayMeansNoSession`). The daemon's
   socket is `$XDG_RUNTIME_DIR/logis.sock`, which must be absolute
-  (`src/protocol/mod.rs::the_socket_lives_in_an_absolute_runtime_dir`). The
+  (`internal/protocol/protocol_test.go::TestTheSocketLivesInAnAbsoluteRuntimeDir`). The
   config is `$XDG_CONFIG_HOME/logis/logis.jsonc`, `~/.config` by default
-  (`src/config/source.rs::the_default_lives_in_xdg_config_home`,
-  `src/config/source.rs::without_a_usable_xdg_config_home_the_default_is_under_home`).
+  (`internal/config/source_test.go::TestTheDefaultLivesInXDGConfigHome`,
+  `internal/config/source_test.go::TestWithoutAUsableXDGConfigHomeTheDefaultIsUnderHome`).
 - `logis --version` prints `logis` and its version, exit 0
-  (`tests/cli.rs::version_flag_prints_name_and_version_and_succeeds`).
+  (`cmd/logis/contract_test.go::TestVersionFlagPrintsNameAndVersionAndSucceeds`, `cmd/logis/main_test.go::TestVersionRunesPrintNameAndVersion`).
 
 ## Configuration
 
