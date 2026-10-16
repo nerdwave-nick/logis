@@ -5,8 +5,9 @@ the Machine God. It serves scripts as a drop-in `dmenu`, launches desktop
 applications, and drives servitor through its CLI. This file records the words the
 code, the documentation and the tracker use, and what each one means. The shared
 specification is the description of the lit project `feat/logis`; the decisions
-behind it are in `docs/adr/`. The Go rewrite on branch `go` follows the lit project
-`feat/logis-go` and ADR 0003; its own words are under "The Go rewrite" below.
+behind it are in `docs/adr/`. logis is written in Go since the switch-over (ADR
+0004); the rewrite followed the lit project `feat/logis-go` and ADR 0003, and its
+own words are under "The Go rewrite" below.
 
 Flag names, code identifiers and protocol fields use the plain terms below. The
 grimdark flavour lives only in help, error and UI text (spec §4.6).
@@ -237,9 +238,9 @@ The window logis shows for a visible session, on the overlay layer, namespace
 `logis`.
 
 **Renderer**:
-logis's own small GPU renderer on wgpu: SDF primitives, glyph quads, an icon atlas
-and an optional post-processing pass. There is no CPU renderer. See ADR 0001. The Go
-build draws the same on EGL + OpenGL ES 3 (ADR 0003).
+logis's own small GPU renderer on EGL + OpenGL ES 3 (ADR 0003): SDF primitives,
+glyph quads, an icon atlas and optional post-processing passes. There is no CPU
+renderer (ADR 0001, from Rust v1, which drew the same on wgpu).
 
 **Theme**:
 A named look in `themes/<name>.jsonc` (beside the config), selected by
@@ -313,23 +314,27 @@ and a green CRT with curved glass, bloom and an inverse selection.
 
 ## The Go rewrite
 
-The words of the Go build on branch `go` (lit project `feat/logis-go`, ADR 0003).
+The words of the Go rewrite (lit project `feat/logis-go`, ADR 0003 and 0004).
 Everything above keeps its meaning there.
 
-**Rust reference**:
-The Rust logis on `main` (2ffdd02 at the branch point). Its behaviour, tests,
-goldens, fixtures and documentation are what the Go build must match; Go work
-never edits it.
+**Rust reference** (also **Rust v1**):
+Rust logis v1, on `main` up to 2ffdd02 and in the history only since the
+switch-over. Its behaviour, tests, goldens, fixtures and documentation were what
+the Go build had to match. What remains of it in the tree is test data: the
+parity record (`cmd/logis/testdata/parity.json`), the v1 goldens a Go test still
+reads, and the recorded oracles. Comments that name a Rust file (`src/…`,
+`tests/….rs`) say which part of it a Go file ports.
 
 **Go branch**:
-The long-lived branch `go`, branched from `main`, where Go implementation tickets
-integrate. One Go module at the repository root (`github.com/nerdwave-nick/logis`),
-the binary in `cmd/logis`, packages under `internal/`.
+The long-lived branch `go`, branched from `main` at 2ffdd02, where the Go
+implementation tickets integrated until the switch-over. One Go module at the
+repository root (`github.com/nerdwave-nick/logis`), the binary in `cmd/logis`,
+packages under `internal/`.
 
 **Switch-over**:
-The single merge that replaces the Rust code on `main` with the Go build, once it
-passes the parity bar: every E2E scenario carried over from `feat/logis` and the
-performance budgets under the latency harness on a quiet machine.
+The single merge of `go` into `main` that replaced the Rust code with the Go build
+(ADR 0004), once every E2E scenario carried over from `feat/logis` passed and the
+owner had installed and tried the Go package.
 
 **x package**:
 A package from a `golang.org/x` module, the only Go code logis uses beyond the
@@ -360,12 +365,12 @@ layer surface, shown with `eglSwapBuffers`.
 logis's own OpenType shaping engine (GSUB, GPOS, normalisation, bidi, Arabic and
 Hebrew joining, grapheme clusters). It decides which glyphs go where; FreeType only
 draws them. `internal/ot` applies the lookups, `internal/shape` shapes one run as
-HarfBuzz does, and `text.Fonts.Layout` sets a line as cosmic-text does for the Rust
+HarfBuzz does, and `text.Fonts.Layout` sets a line as cosmic-text did for the Rust
 reference (bidi runs, words, fallback, tabs, columns, the ellipsis).
 
 **Hinting**:
 Fitting glyph outlines to the pixel grid, done by FreeType (TrueType bytecode, the
-CFF hinter, the autohinter for unhinted fonts), the engine skrifa emulates for the
+CFF hinter, the autohinter for unhinted fonts), the engine skrifa emulated for the
 Rust reference.
 
 **Client-side XKB**:
