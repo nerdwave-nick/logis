@@ -14,10 +14,10 @@ import (
 )
 
 // cosmicCase is one line cosmic-text laid out: testdata/cosmic.json,
-// written by testdata/cosmic-oracle, the standalone Rust program that sets
-// lines with cosmic-text 0.19.0 as Rust logis v1 did. To regenerate (with
-// cargo, the crates in its cache): cd testdata/cosmic-oracle &&
-// cargo run --release --offline --locked > ../cosmic.json
+// recorded once from cosmic-text 0.19.0 setting each line with the pinned
+// fonts (unwrapped, its rich text spans for colours and emphasis faces,
+// an ellipsis or clip in a column). It is the reference the Go line layout
+// is held to.
 type cosmicCase struct {
 	Set          string   `json:"set"`
 	Scale        float32  `json:"scale"`
@@ -61,14 +61,14 @@ var divergences = map[string]string{
 	// attributes of its first byte when every span set on the word agrees
 	// with them, and set_rich_text sets no span for pieces equal to the
 	// line's defaults; so the whole word ("of", "off") takes the emphasis
-	// face while a match inside a word ("proof") does not. Go sets only the
-	// matched letters in the emphasis face, as Rust's list rows describe
-	// matches (colours were per letter in both).
+	// face while a match inside a word ("proof") does not. logis sets only
+	// the matched letters in the emphasis face, as its list rows describe
+	// matches (the match colour is per letter in both).
 	"The tongue of the keys": "cosmic-text sets a word-start match's whole word in its face",
 	"off":                    "cosmic-text sets a word-start match's whole word in its face",
 }
 
-// The Go line layout equals cosmic-text 0.19's on every oracle case:
+// The Go line layout equals cosmic-text 0.19's on every recorded case:
 // fonts, glyphs, pen positions and whole-pixel advances, byte ranges,
 // direction, layout width and baseline.
 func TestLinesAreLaidOutLikeCosmicText(t *testing.T) {
@@ -88,13 +88,13 @@ func TestLinesAreLaidOutLikeCosmicText(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		f.Ensure("機🔥שم") // the oracle's load order
+		f.Ensure("機🔥שم") // the recorded load order
 		var names []string
 		for _, file := range f.Loaded() {
 			names = append(names, filepath.Base(file.Path))
 		}
 		if !slices.Equal(names, set.Files) {
-			t.Fatalf("%s: loaded %v, the oracle %v", set.Name, names, set.Files)
+			t.Fatalf("%s: loaded %v, recorded %v", set.Name, names, set.Files)
 		}
 		fonts[set.Name] = f
 	}
@@ -126,7 +126,7 @@ func TestLinesAreLaidOutLikeCosmicText(t *testing.T) {
 	}
 }
 
-// emphasisFaces are the oracle's emphasis ranges in their face.
+// emphasisFaces are a recorded case's emphasis ranges in their face.
 func emphasisFaces(c cosmicCase) []text.FaceSpan {
 	if c.EmphasisFace == nil {
 		return nil

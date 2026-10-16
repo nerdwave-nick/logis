@@ -1,10 +1,9 @@
 // Package fuzzy is logis's fzf-like matcher: the scoring of nucleo-matcher
-// 0.3.1 (what Rust logis v1 used, configured as v1's list did), case- and
-// accent-insensitive, with fzf's query syntax and match positions for
-// highlighting.
+// 0.3.1, case- and accent-insensitive, with fzf's query syntax and match
+// positions for highlighting.
 //
 // Equivalence with nucleo is pinned by testdata/nucleo.json, the output of
-// the real crate over a corpus (testdata/oracle). The deliberate
+// the real crate over a corpus, recorded once. The deliberate
 // differences, each pinned in testdata/divergences.json, fix nucleo
 // defects:
 //   - accent folding (chars.go): nucleo's tables beyond U+036F are

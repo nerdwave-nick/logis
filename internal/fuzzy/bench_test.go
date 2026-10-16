@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// BenchmarkScore scores path-like lines (Rust's latency many_lines) with
-// the queries of typing "rite": a single character, then the optimal
-// alignment over the line.
+// BenchmarkScore scores path-like lines (as the latency harness's many
+// lines) with the queries of typing "rite": a single character, then the
+// optimal alignment over the line.
 func BenchmarkScore(b *testing.B) {
 	words := []string{"rite", "aspect", "cogitator", "noosphere", "spirit", "litany", "forge"}
 	var texts []Text

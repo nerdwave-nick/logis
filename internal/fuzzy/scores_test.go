@@ -45,8 +45,8 @@ func show(score uint32, ok bool) string {
 	return fmt.Sprint(score)
 }
 
-// Every case of the corpus scores and highlights exactly as nucleo did in
-// Rust logis v1, but for the reviewed divergences.
+// Every case of the corpus scores and highlights exactly as nucleo did, but
+// for the reviewed divergences.
 func TestScoresAndPositionsAreNucleos(t *testing.T) {
 	o := nucleo(t)
 	div := divergences(t)
