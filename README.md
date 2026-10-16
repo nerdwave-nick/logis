@@ -954,11 +954,11 @@ The package installs:
 
 Once a version is tagged, the PKGBUILD can build the tagged GitHub tarball
 instead of the checkout; its header says which two lines to change.
-`cmd/logis/packaging_test.go` keeps
-the PKGBUILD, its `.SRCINFO` (`makepkg --printsrcinfo > .SRCINFO` after editing),
-the man page and the changelog on the version logis reports
-(`internal/version`), and the package's `depends` on the libraries the binary
-links.
+`cmd/logis/packaging_test.go` keeps the PKGBUILD, its `.SRCINFO` (`makepkg
+--printsrcinfo > .SRCINFO` after editing), the man page and the changelog on the
+version logis reports (`internal/version`, its single source), the package's
+`depends` on the libraries the binary links and an `opengl-driver`, and the
+package without `optdepends`.
 
 The completions in [`contrib/completions/`](contrib/completions/) are written by
 hand; `cmd/logis/completions_test.go` checks that
