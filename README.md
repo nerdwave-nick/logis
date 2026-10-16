@@ -526,7 +526,7 @@ the defaults.
   "icon-theme": "hicolor",         // freedesktop icon theme, falling back to hicolor
   "focus-loss": "dismiss",         // or "keep": what losing keyboard focus does
   "blur": true,                    // blur what lies behind the panel, where offered
-  "reduce-motion": false,          // true stills the theme's pulse, highlight, flicker
+  "reduce-motion": false,          // true stills the theme's pulse, highlight, flicker, glitch
 }
 ```
 
@@ -545,8 +545,9 @@ launcher `terminal`.
 pulses and a highlight travels round the border; the flicker is very subtle).
 Turned on, it stills every continuous effect of the theme (glow pulse, travelling
 highlight, flicker, a pending row's shimmer; the grain stops changing, the
-scanlines stop rolling and the colour split stops wobbling); the open, close and
-selection transitions stay (`LOGIS_MOTION=off` stills those).
+scanlines stop rolling and the colour split stops wobbling) and turns the glitch
+off; the open, close and selection transitions stay (`LOGIS_MOTION=off` stills
+those).
 
 ## Themes
 
@@ -564,8 +565,8 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
   `fonts`, the font roles they name;
 - **effects and motion**: the CRT pass over the body (`scanlines`, `glow`,
   `aberration`, `mask`, `roundness`, `grain`, `flicker`, each a group of settings
-  with a strength where 0 is off; see **Effects** below) and the transition
-  timings.
+  with a strength where 0 is off; see **Effects** below), the `glitch` before it
+  (see **Glitch**) and the transition timings.
 
 Colours are `#rrggbb`, `#rrggbbaa`, `transparent` or a palette name, each
 optionally with `/alpha` (`"crimson/0.55"`). Lengths are logical pixels: a theme
@@ -667,6 +668,44 @@ overrides it.
   (`effects.scanlines.period: 40 is out of range (1 to 16)`), as
   `logis --check-config` reports it. The bundled themes wear the looks chosen
   in the effects lab.
+- **Glitch** (the Go build; new, Rust v1 had none): a pass of its own before
+  the CRT pass (logis's clean-room `internal/render/glitch.frag`) breaks the
+  glass up like a failing signal, on the same screens. `effects.glitch` is a
+  group of parts; a bare number is its `strength` (0 to 1), which scales the
+  whole glitch, its calm included: 0 is no pass at all. Most parts have an
+  amount at `rest` and one in an `episode`:
+  - `episodes`: `period-s` (0–60) and `duty` (0–1): an ambient episode over
+    the last `duty` share of every period, counted from the panel's opening,
+    so a panel opens calm; a period of 0 leaves episodes to bursts;
+  - `wobble` (`rest`, `episode`, `band-px`, `speed-hz`): bands of the picture
+    jitter sideways, a few tearing far in an episode; `tracking` (`px`,
+    `height-px`, `a-hz`, `b-hz`): two thin kinks sweeping down the glass;
+    `fringe` (`px`, `growth`): red and blue split from green;
+  - `slices` (`rest`, `episode`, `px`, `shift-px`, `group`, `rate-hz`): torn
+    slices; `blocks` (`rest`, `episode`, `size`, `shift-px`, `split-px`,
+    `brightness`, `rate-hz`): shifted, split, brightened rectangles; `flashes`
+    (`rest`, `episode`, `gain`, `rate-hz`): lit slices;
+  - `noise-band` (`rest`, `episode`, `cell-px`, `min`, `max`, `rate-hz`): a
+    band of coarse noise; `static` (`rest`, `episode`, `rate-hz`): fine
+    noise; `line-pulse` (`rest`, `episode`, `pitch-px`, `drift-px-s`): a dense
+    drifting ripple;
+  - `bursts`: `open-ms` and `tab-ms` (0–1500) are the bursts on the events
+    named in `on` (`["open", "tab"]`: the panel opening, a switch of tab; no
+    panel has tabs yet, so today only the opening fires one);
+    `random-per-minute` (0–30) random bursts come at random intervals from
+    the opening, each `random-ms` (50–1500) long; a burst rises and falls as
+    sin(πt)^0.6 and `stutter` (0–1) damps that share of its 33 ms steps to a
+    quarter. The glitch takes the larger of a burst and the ambient episode.
+
+  Each part's range is in the schema; a value outside it is refused with its
+  key (`effects.glitch.wobble.episode: 81 is out of range (0 to 80)`). The
+  bundled themes wear the owner's looks: forge calm at rest, an episode at the
+  end of every 9 s, bursts on opening and tab, six random bursts a minute;
+  phosphor stronger with shorter episodes. A glitch that moves at rest (the
+  bundled looks: tracking, wobble, static, line pulse) keeps the window
+  drawing like any continuous effect; one that is calm at rest draws only
+  through its episodes and bursts and otherwise sleeps until the next one.
+  `reduce-motion` turns the glitch off.
 - **Curved glass** (`roundness.curvature`) bends the whole panel as one tube
   face: border, rivets, glass and the glow around it bend together, the
   outline turns convex, and every other effect lies on the bent glass; what the
@@ -675,7 +714,8 @@ overrides it.
   it uncovered (a ghost of the text over a light desktop); the Go build does
   neither.
 - **Continuous effects** (glow pulse, travelling highlight, flicker, rolling
-  scanlines, a wobbling colour split, changing grain, a pending row's shimmer)
+  scanlines, a wobbling colour split, changing grain, a glitch that moves at
+  rest, a pending row's shimmer)
   keep a visible window drawing at the output's refresh rate:
   measured on the owner's machine (Intel Arc, nested niri at 60 Hz, release
   build) a visible forge window draws 60 frames/s with about 70 daemon

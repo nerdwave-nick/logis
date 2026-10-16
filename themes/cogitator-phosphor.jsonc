@@ -72,6 +72,23 @@
     "mask": { "strength": 0.04, "size": 2, "kind": "dots" },
     "roundness": { "curvature": 0.06, "corners": 0, "vignette": 0.21 },
     "grain": { "strength": 0.55, "rate": 24 },
-    "flicker": { "strength": 0.06, "frequency": 3.49 }
+    "flicker": { "strength": 0.06, "frequency": 3.49 },
+    // The owner's glitch from the effects lab (2026-10-16): stronger,
+    // shorter episodes with flashing slices, longer bursts, fewer random
+    // ones.
+    "glitch": {
+      "strength": 0.73,
+      "episodes": { "period-s": 9, "duty": 0.05 },
+      "wobble": { "rest": 0.2, "episode": 24, "band-px": 26, "speed-hz": 24 },
+      "tracking": { "px": 3, "height-px": 3, "a-hz": 0.43, "b-hz": 0.29 },
+      "fringe": { "px": 0.5, "growth": 0.12 },
+      "slices": { "rest": 0, "episode": 0.24, "px": 9, "shift-px": 40, "group": 5, "rate-hz": 30 },
+      "blocks": { "rest": 0, "episode": 0.45, "size": 1, "shift-px": 26, "split-px": 3, "brightness": 0.4, "rate-hz": 30 },
+      "flashes": { "rest": 0.05, "episode": 0.52, "gain": 0.33, "rate-hz": 30 },
+      "noise-band": { "rest": 0.02, "episode": 0.43, "cell-px": 1, "min": 0.03, "max": 0.1, "rate-hz": 30 },
+      "static": { "rest": 0.03, "episode": 0.07, "rate-hz": 30 },
+      "line-pulse": { "rest": 0.09, "episode": 0.12, "pitch-px": 2.3, "drift-px-s": 6 },
+      "bursts": { "open-ms": 500, "tab-ms": 280, "random-per-minute": 3.5, "random-ms": 300, "stutter": 0.28, "on": ["open", "tab"] }
+    }
   }
 }

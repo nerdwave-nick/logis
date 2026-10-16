@@ -151,6 +151,23 @@ func TestGoldenTheThemesWindowWithTheRitesOfTheCanvas(t *testing.T) {
 	checkThemes(t, "window", v, o, nil, plainScene)
 }
 
+// The theme's window frozen mid-episode of its glitch (33cfcf44): a burst
+// at its peak, 5 s and half a 30 Hz step after the opening, so torn rows,
+// blocks, the noise band and the split colours show at the theme's
+// strength. The other goldens show the glitch at rest (time 0, no burst).
+func TestGoldenTheThemesWindowMidGlitch(t *testing.T) {
+	o := list.DefaultOptions()
+	o.Counter = true
+	v := list.NewView(o)
+	v.Push(windowRows())
+	v.Apply(input.Insert("o"))
+	midGlitch := func(_ *render.Headless, _ scale.Scale, l *list.Look, logical scale.Size, st scene.Style) *render.Scene {
+		st.Glitch = effects.Moment{Time: 5 + 0.5/30, Event: 1}
+		return scene.Draw(l, logical, st)
+	}
+	checkThemes(t, "glitch", v, o, nil, midGlitch)
+}
+
 // windowRows are the rows of the theme's window case.
 func windowRows() []list.Entry {
 	return []list.Entry{
@@ -185,7 +202,8 @@ func windowRows() []list.Entry {
 //
 // Since the CRT pass (cd816303) the bundled themes wear other effects than
 // Rust's goldens show: the comparison draws forge with its v1 strengths,
-// which the CRT pass draws byte for byte as v1 did. Phosphor's v1 look
+// which the CRT pass draws byte for byte as v1 did, and without the glitch
+// (33cfcf44), which v1 had not. Phosphor's v1 look
 // bent its picture behind a straight border, which the pass no longer
 // does, so its Rust golden is out of reach.
 func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T) {
@@ -203,6 +221,8 @@ func TestGoldenTheWindowDiffersFromRustsOnlyByItsPinnedDivergences(t *testing.T)
 		th.Effects = effects.Defaults()
 		th.Effects.Scanlines.Strength, th.Effects.Grain.Strength = 0.16, 0.08
 		th.Effects.Flicker.Strength, th.Effects.Roundness.Vignette = 0.015, 0.42
+		// v1 had no glitch (33cfcf44).
+		th.Glitch.Strength = 0
 		// Rust v1's window: 820×520 and nine rows (Go's height follows
 		// its rows: fit_test.go), so Rust's golden is the oracle.
 		logical, rows := scale.Size{W: 884, H: 584}, uint32(9)

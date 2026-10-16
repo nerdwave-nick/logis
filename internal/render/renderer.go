@@ -29,7 +29,8 @@ type Renderer struct {
 	packed            []float32 // this frame's instances, reused
 	images            *imagePass
 	glyphs            *glyphPass
-	// passes are the post-processing passes in order (the CRT pass);
+	// passes are the post-processing passes in order (the glitch pass,
+	// then the CRT pass);
 	// frames the intermediate frames they read.
 	passes []pass
 	frames frames
@@ -63,6 +64,12 @@ func New() (*Renderer, error) {
 		r.Close()
 		return nil, fmt.Errorf("glyphs: %w", err)
 	}
+	glitch, err := newGlitchPass()
+	if err != nil {
+		r.Close()
+		return nil, err
+	}
+	r.passes = append(r.passes, glitch)
 	crt, err := newCRTPass()
 	if err != nil {
 		r.Close()

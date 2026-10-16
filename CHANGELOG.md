@@ -8,6 +8,18 @@ contract" and logis(1)) is the public interface.
 
 ## [Unreleased]
 
+### Added
+
+- **A glitch before the CRT pass** (the Go build; new beside Rust v1): the
+  theme's `effects.glitch` breaks the glass up like a failing signal (wobble,
+  tracking, colour fringe, torn slices, blocks, flashes, a noise band,
+  static, a line pulse), calm at rest and hard in episodes: ambient ones at
+  the end of each period, counted from the panel's opening, and bursts when
+  the panel opens, on a switch of tab and at random (`bursts`). A bare number
+  is its strength; 0 is no pass, and `reduce-motion` turns it off. The
+  bundled themes wear the owner's looks. The shader is logis's own
+  clean-room `glitch.frag`.
+
 ### Changed
 
 - **The panel's height follows its rows** (the Go build; a divergence from
