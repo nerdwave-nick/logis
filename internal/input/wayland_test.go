@@ -166,6 +166,44 @@ func TestRepeatsDueReachTheSink(t *testing.T) {
 	}
 }
 
+// Each press of a key the panel reads reaches the press sink once (the
+// glitch's key burst, 8ad70fee): typing, Tab, Escape, a key bound to
+// nothing, the Compose key. A bare modifier, a release and a key's
+// repeats do not; nor does a key before any keymap.
+func TestEachKeyPressButNoRepeatReachesThePressSink(t *testing.T) {
+	const keyF5, keyDown = 63, 108
+	k := NewKeyboard(testCompose(t))
+	presses := 0
+	k.SetPressSink(func() { presses++ })
+	k.Key(0, 0, keyA, KeyPressed)
+	if presses != 0 {
+		t.Fatal("a press before any keymap")
+	}
+	fd, size := keymapFd(t, keymapText(t, "us"))
+	k.Keymap(KeymapXkbV1, fd, size)
+	t0 := time.Now()
+	k.SetClock(func() time.Time { return t0 })
+	k.RepeatInfo(25, 300)
+	for i, code := range []uint32{keyA, keyTab, keyEsc, keyF5, keyDown, keyCompose} {
+		tap(k, code)
+		if presses != i+1 {
+			t.Errorf("key %d: %d presses, want %d", code, presses, i+1)
+		}
+	}
+	presses = 0
+	k.Key(0, 0, keyShiftL, KeyPressed)
+	k.Modifiers(0, mShift, 0, 0, 0)
+	if presses != 0 {
+		t.Error("a bare modifier is a press")
+	}
+	k.Key(0, 0, keyA, KeyPressed)
+	k.Repeat(t0.Add(ms(345)))
+	k.Key(0, 0, keyA, KeyReleased)
+	if presses != 1 {
+		t.Errorf("Shift+A held through two repeats: %d presses, want 1", presses)
+	}
+}
+
 // harnessCompose is the E2E harness's XCOMPOSEFILE (internal/e2e).
 const harnessCompose = "<Multi_key> <o> <quotedbl> : \"ö\" odiaeresis\n" +
 	"<Multi_key> <l> <g> : \"λ\"\n" +

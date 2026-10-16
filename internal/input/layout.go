@@ -62,6 +62,10 @@ func (l *Layout) Key(code uint32) Key {
 	}
 }
 
+// Modifier says whether evdev key code is a modifier key (Shift, Control,
+// …) under the current state.
+func (l *Layout) Modifier(code uint32) bool { return l.state.OneSym(code + evdevOffset).IsModifier() }
+
 // Repeats says whether the keymap lets evdev key code repeat (modifiers
 // do not).
 func (l *Layout) Repeats(code uint32) bool { return l.km.Repeats(code + evdevOffset) }

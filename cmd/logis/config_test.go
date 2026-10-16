@@ -118,8 +118,23 @@ func TestCheckConfigJudgesTheThemesContents(t *testing.T) {
 	}
 	writeFile(t, mine, `{"effects": {"glitch": {"bursts": {"on": ["close"]}}}}`)
 	code, _, stderr = runLogis("--check-config")
-	if want := "logis: the theme is heretical: " + mine + ":1:49: unknown variant `close`, expected `open` or `tab`\n"; code != 2 || stderr != want {
+	if want := "logis: the theme is heretical: " + mine + ":1:49: unknown variant `close`, expected one of `open`, `tab`, `key`\n"; code != 2 || stderr != want {
 		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+	// The key burst (8ad70fee): its length and peak held to their ranges.
+	writeFile(t, mine, `{"effects": {"glitch": {"bursts": {"key-ms": 1600}}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ": effects.glitch.bursts.key-ms: 1600 is out of range (0 to 1500)\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+	writeFile(t, mine, `{"effects": {"glitch": {"bursts": {"key-strength": -0.5}}}}`)
+	code, _, stderr = runLogis("--check-config")
+	if want := "logis: the theme is heretical: " + mine + ": effects.glitch.bursts.key-strength: -0.5 is out of range (0 to 1)\n"; code != 2 || stderr != want {
+		t.Errorf("exit %d stderr %q", code, stderr)
+	}
+	writeFile(t, mine, `{"effects": {"glitch": {"bursts": {"on": ["key"], "key-ms": 200, "key-strength": 0.5}}}}`)
+	if code, stdout, stderr := runLogis("--check-config"); code != 0 || !strings.Contains(stdout, "'mine'") {
+		t.Errorf("a key burst: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 }
 
