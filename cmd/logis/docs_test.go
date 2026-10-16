@@ -291,3 +291,56 @@ func TestATestCountsOnlyAsATopLevelTestFunction(t *testing.T) {
 		}
 	}
 }
+
+// goReferences are the `path_test.go::TestName` written inside backticks,
+// in order, each once: promises of the Go build alone (its divergences
+// from Rust v1, such as plain logis's tabbed launcher), pinned by Go tests
+// directly.
+func goReferences(text string) []string {
+	var refs []string
+	spans := strings.Split(text, "`")
+	for i := 1; i < len(spans); i += 2 {
+		path, name, ok := strings.Cut(spans[i], "_test.go::")
+		if !ok || !referenceWord(path) || !referenceWord(name) || !strings.HasPrefix(name, "Test") {
+			continue
+		}
+		if ref := path + "_test.go::" + name; !slices.Contains(refs, ref) {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
+func TestGoReferencesAreReadFromCodeSpansOnly(t *testing.T) {
+	text := "see `cmd/logis/a_test.go::TestOne`, `internal/x/y_test.go::TestTwo` and b_test.go::TestThree; " +
+		"`tests/a.rs::one`, `cmd/logis/a_test.go::TestOne` again"
+	want := []string{"cmd/logis/a_test.go::TestOne", "internal/x/y_test.go::TestTwo"}
+	if got := goReferences(text); !slices.Equal(got, want) {
+		t.Errorf("goReferences %q, want %q", got, want)
+	}
+}
+
+// Every Go test the caller contract names for a promise of the Go build
+// alone exists.
+func TestEveryGoTestTheCallerContractNamesExists(t *testing.T) {
+	root := repoRoot(t)
+	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs := goReferences(contractSection(t, string(readme)))
+	if len(refs) == 0 {
+		t.Fatal("the caller contract names no Go test of the Go build's own promises")
+	}
+	for _, ref := range refs {
+		file, name, _ := strings.Cut(ref, "::")
+		source, err := os.ReadFile(filepath.Join(root, file))
+		if err != nil {
+			t.Errorf("%s: %v", ref, err)
+			continue
+		}
+		if !declaresTest(t, file, string(source), name) {
+			t.Errorf("no such Go test %s", ref)
+		}
+	}
+}

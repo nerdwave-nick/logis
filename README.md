@@ -140,6 +140,25 @@ window (the app itself first, then each action); Return there launches the one
 chosen. Apps you launch often and lately come first and rank higher when you
 type (frecency, kept in `$XDG_STATE_HOME/logis/frecency.json`).
 
+**Tabs (the Go build; a divergence from logis v1).** Plain `logis` with
+`servitor` on its PATH opens a tabbed launcher: two plates above the panel,
+**Applications** on the left and **Rites** (servitor mode's rites) on the right,
+each counting what the query matches, and a TAB/SWITCH hint at the strip's end.
+Tab or Shift+Tab, or a click on a plate, switches tabs; the plates stay in place
+and only the lit one changes. The query stays across the tabs; Up, Down, Ctrl+N
+and Ctrl+P move the selection. Return acts in the shown tab as `logis --apps` and
+`logis --servitor` do: an app is launched, a rite leads through its aspects and
+inscriptions to servitor's invocation; either way the client exits 0 (1 when
+dismissed). A tab with nothing for the query says how much the other has
+("nothing answers here · 3 among the rites — Tab"). It opens on the tab last
+used, kept in `$XDG_STATE_HOME/logis/tab`. `logis --apps` and `logis --servitor`
+stay the single lists they were (no plates; Tab selects the next item) and leave
+the remembered tab alone; without servitor on the PATH plain `logis` is the app
+launcher alone. The plates take their look from the theme (the lit one is the
+selection, an idle one the panel; their corners are its `tab.radius`), and the
+CRT and glitch passes cover them as they cover the panel; a switch fires the
+glitch's tab burst.
+
 - **Index:** desktop entries from `$XDG_DATA_HOME/applications`
   (`~/.local/share/applications`), then `applications` in each of
   `$XDG_DATA_DIRS`, read by logis's own implementation of the Desktop Entry
@@ -253,7 +272,7 @@ here (message wording, timings, the socket protocol) may change.
 | 0 | the choice, then `\n` | `--dmenu`: an item or typed text was accepted | `tests/daemon.rs::the_original_bytes_of_the_chosen_item_are_returned_exactly`, `tests/dmenu.rs::typing_filters_and_return_prints_the_chosen_line` (E2E) |
 | 0 | empty | `--provider`: the provider closed its flow | `tests/provider.rs::a_two_stage_flow_runs_to_the_providers_close` |
 | 0 | empty | `--servitor`: `servitor invoke …` was started (logis does not wait for it) | `tests/servitor.rs::servitor_mode_invokes_detached_once_settled_and_the_caller_does_not_wait`, `tests/servitor_window.rs::rites_wait_pending_settle_live_and_lead_to_a_detached_invocation` (E2E) |
-| 0 | empty | plain `logis` (or `--apps`): an app was launched | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
+| 0 | empty | plain `logis` (or `--apps`): an app was launched; in the Go build's tabbed launcher also a rite invoked | `tests/apps.rs::plain_logis_is_the_app_launcher`, `tests/apps.rs::the_chosen_app_is_launched_with_its_token_and_counts_for_frecency`, `tests/apps_window.rs::return_launches_the_app_detached_with_an_activation_token` (E2E) |
 | 0 | the daemon's readiness line | `logis daemon --detach` when a daemon already answers (it exits at once) | `tests/cli.rs::daemon_detach_exits_0_at_once_when_a_daemon_already_answers` |
 | 1 | empty | dismissed: Escape, Ctrl+G, Ctrl+[, focus loss (by default) | `tests/daemon.rs::a_dismissed_dmenu_session_exits_1_with_empty_stdout`, `tests/dmenu.rs::escape_dismisses_with_empty_stdout_and_exit_1` (E2E), `tests/provider_window.rs::escape_after_an_activation_never_kills_the_action_it_started` (E2E), `tests/apps_window.rs::plain_logis_opens_the_launcher_and_escape_exits_1` (E2E), `src/input/bindings.rs::escape_ctrl_g_and_ctrl_bracket_dismiss`, `src/input/keyboard.rs::focus_loss_dismisses_by_default_and_keeps_on_request` |
 | 1 | empty | replaced by an interactive session (see [Sessions](#sessions)) | `tests/daemon.rs::a_replaced_dmenu_caller_exits_1_with_empty_stdout`, `tests/provider.rs::a_replaced_provider_caller_exits_1_with_empty_stdout` |
@@ -483,6 +502,16 @@ What the man page adds, pinned as well:
   `src/input/bindings.rs::editing_keys_edit`,
   `src/input/bindings.rs::left_right_home_and_end_move_the_cursor`,
   `tests/e2e.rs::every_editing_and_selection_key_does_its_work` (E2E).
+  The Go build diverges in plain `logis` with servitor on the PATH, its tabbed
+  launcher ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
+  between the Applications and Rites tabs, keeping the query, and a click on a
+  plate does the same
+  (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered` (E2E),
+  `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip` (E2E),
+  `internal/cogitator/tabs_test.go::TestTabAndShiftTabSwitchTabsAndKeepTheQuery`);
+  `--apps`, `--servitor` and every other session keep Tab as the next item
+  (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects` (E2E),
+  `internal/cogitator/tabs_test.go::TestUntabbedTabStillMovesTheSelection`).
 - `logis daemon` checks the session and the config at start and exits 2 if
   either is unusable, or when the compositor goes away (see the table above);
   a second daemon finds the first listening and exits 0
@@ -561,7 +590,9 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
   `counter`, `rule`, `row` (font, height, colour per tab-separated column,
   `column-gap` between columns and `column-max`, the share of the row any
   column but the last may take),
-  `selection`, `match` (colour, weight, underline), `badge`, `pending` — and
+  `selection`, `match` (colour, weight, underline), `badge`, `tab` (the Go
+  build's: the corner radius of plain logis's tab plates, whose other looks
+  follow the selection, the panel, the label and the badges), `pending` — and
   `fonts`, the font roles they name;
 - **effects and motion**: the CRT pass over the body (`scanlines`, `glow`,
   `aberration`, `mask`, `roundness`, `grain`, `flicker`, each a group of settings
@@ -771,8 +802,8 @@ when the window code starts; edits need a restart).
 | Escape, Ctrl+G, Ctrl+[ | dismiss |
 | Return, keypad Enter | accept |
 | Shift+Return | open the selected app's desktop actions (elsewhere: accept) |
-| Up, Shift+Tab, Ctrl+P | select the previous item |
-| Down, Tab, Ctrl+N | select the next item |
+| Up, Shift+Tab, Ctrl+P | select the previous item (Shift+Tab in plain logis's tabbed launcher: switch tabs) |
+| Down, Tab, Ctrl+N | select the next item (Tab in plain logis's tabbed launcher: switch tabs) |
 | Backspace / Delete | delete the character (grapheme) before / after the cursor |
 | Ctrl+W | delete the word before the cursor |
 | Ctrl+U | clear the query |
