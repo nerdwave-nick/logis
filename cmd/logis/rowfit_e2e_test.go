@@ -42,6 +42,7 @@ func checkRowFit(t *testing.T, scaleText string) {
 	client := c.DmenuAll([]byte(input.String()), "--width="+strconv.Itoa(int(width)))
 	focused := c.Shown(60)
 	c.OpenSettled()
+	c.Daemon.WaitForDrawn()
 	capture := c.Harness.SettledCapture()
 	if dir := os.Getenv("LOGIS_E2E_SHOTS"); dir != "" {
 		_ = rendertest.WritePNG(filepath.Join(dir, "rowfit@"+scaleText+".png"), capture)

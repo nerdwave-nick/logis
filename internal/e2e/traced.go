@@ -191,6 +191,42 @@ func (p *Traced) WaitForCommitAfter(ns uint64) trace.Event {
 	return p.WaitFor("a frame commit", func(e trace.Event) bool { return e.What == "commit" && e.NS >= ns })
 }
 
+// changeWords are the reports of a change to what a window shows; the
+// window draws each change in a frame after reporting it. The other
+// reports (keys, focus, the pointer, frames and their feedback, blur,
+// tokens, accept, hide …) are input, or come after the frame they report,
+// or change nothing on screen by themselves.
+var changeWords = []string{"show", "stage", "items", "update", "remove", "toast", "untoast", "query", "select", "tab", "theme"}
+
+// changesTheWindow reports whether what reports a change to what the
+// window shows (a tabbed launcher's rites tab prefixes its own `rites`).
+func changesTheWindow(what string) bool {
+	what = strings.TrimPrefix(what, "rites ")
+	for _, word := range changeWords {
+		if Word(word)(trace.Event{What: what}) {
+			return true
+		}
+	}
+	return false
+}
+
+// WaitForDrawn waits until the client committed a frame stamped after the
+// latest change it reported so far, without moving the sequence cursor.
+// A screen capture taken before that frame shows the state before the
+// change, and two equal captures do not prove otherwise: a slow renderer
+// (llvmpipe on a CI runner) can take longer for the frame than the
+// harness takes for two captures.
+func (p *Traced) WaitForDrawn() trace.Event {
+	p.t.Helper()
+	var since uint64
+	for _, e := range p.Events() {
+		if changesTheWindow(e.What) {
+			since = e.NS
+		}
+	}
+	return p.WaitSeen("a frame drawn after the last change", func(e trace.Event) bool { return e.What == "commit" && e.NS > since })
+}
+
 // WaitExit waits for the process to exit within Patience and returns its
 // exit code.
 func (p *Traced) WaitExit() int {

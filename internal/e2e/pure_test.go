@@ -182,3 +182,38 @@ func TestWaitUntilWaitsForAStateTheEventsBuildUp(t *testing.T) {
 		t.Fatalf("%d ticks", n)
 	}
 }
+
+// A capture must wait for the frame that draws the latest change: a commit
+// stamped after it, not the one before it, and not input or frame feedback
+// that came after the change.
+func TestWaitForDrawnWaitsForACommitAfterTheLatestChange(t *testing.T) {
+	gate := filepath.Join(t.TempDir(), "gate")
+	script := `printf '%s\n' 'logis-trace: 10 show 1' 'logis-trace: 11 commit' 'logis-trace: 20 rites items 3' \
+		'logis-trace: 21 key 28 released' 'logis-trace: 22 presented' >&2
+while [ ! -e "$1" ]; do sleep 0.01; done
+printf '%s\n' 'logis-trace: 30 commit' >&2
+sleep 5`
+	p := Spawn(t, exec.Command("sh", "-c", script, "sh", gate))
+	p.WaitSeen("the feedback after the change", Is("presented"))
+	if err := os.WriteFile(gate, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if e := p.WaitForDrawn(); e.NS != 30 {
+		t.Errorf("WaitForDrawn returned %+v, want the commit at 30", e)
+	}
+}
+
+func TestOnlyReportsOfAChangeToTheWindowAreChanges(t *testing.T) {
+	for what, want := range map[string]bool{
+		"show 3": true, "stage 3": true, "items 12": true, "update 0": true, "remove 1": true,
+		`toast "the theme is heretical"`: true, "untoast": true, `query "o"`: true, "select 2": true,
+		"select none": true, "tab rites": true, "theme forge-crimson-brass": true, "rites items 4": true,
+		"commit": false, "commit closing": false, "settled": false, "frame-done": false, "presented": false,
+		"key 28 pressed": false, "modifiers 1 0 0 0": false, "keyboard-enter": false, "accept 0": false,
+		"hide 3": false, "blur 0 0 10 10": false, "token 3": false, "items": true, "itemsx": false,
+	} {
+		if got := changesTheWindow(what); got != want {
+			t.Errorf("changesTheWindow(%q) = %v, want %v", what, got, want)
+		}
+	}
+}
