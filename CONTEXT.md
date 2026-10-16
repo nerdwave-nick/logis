@@ -399,7 +399,8 @@ row with a non-ASCII character ties with others, as in the theme window golden);
 for line layout, cosmic-text dropping the leading run of a right-to-left line that
 starts with digits, and cosmic-text setting the whole word in the match face when a
 match starts an ASCII word, where logis sets only the matched letters apart
-(`divergences` in `internal/text/layout_test.go`); for the window, the row fit.
+(`divergences` in `internal/text/layout_test.go`); for the window, the row fit;
+for plain logis, the tabbed launcher.
 
 **Row fit**:
 The Go build's window height (a divergence from Rust v1, whose theme also had a
@@ -409,6 +410,20 @@ logical height of the output the panel shows on (xdg-output and the output the
 compositor puts it on); where the rows do not fit in it, the panel takes the room
 and shows the rows that fit, the leftover **spread** evenly between them. An open
 panel keeps its size while the query narrows the list.
+
+**Tabbed launcher / tab / tab strip / plate**:
+The Go build's plain `logis` where `servitor` is on the caller's PATH (a
+divergence from Rust v1): one interactive app session whose open names its
+**rites** (servitor mode's provider, `logis provide servitor`), shown as two
+**tabs** of one window, the **applications** and the **rites**. The **tab
+strip** above the panel holds a **plate** per tab, fixed in place
+(applications left, rites right), each counting what the query matches; Tab,
+Shift+Tab or a click on a plate only moves which is lit, keeps the query and
+fires the glitch's tab burst. Each tab's answers go to its own feed. The tab an
+answer came from is the **remembered tab** (`$XDG_STATE_HOME/logis/tab`), which
+the next tabbed launcher opens on. `--apps` and `--servitor` stay single lists
+(Tab moves the selection) and leave it alone. The plates are screens of glass
+for the CRT and glitch passes (`render.Post.Regions`).
 
 ## Grimdark UI vocabulary
 

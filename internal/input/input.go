@@ -87,6 +87,11 @@ type Action struct {
 	Edit      Edit      // for EditQuery
 	Selection Selection // for Paste
 	Point     Point     // for PointAt
+	// ByTab: a Select that Tab or Shift+Tab asked for. Plain logis's
+	// tabbed launcher switches tabs with it instead (feat/logis-go
+	// 8cba2fc9, a divergence from Rust v1); everywhere else it moves
+	// the selection as Down and Up do.
+	ByTab bool
 }
 
 // Actions as values, for bindings and tests.
@@ -96,6 +101,9 @@ var (
 	ActDescend  = Action{Kind: Descend}
 	ActPrevious = Action{Kind: Select, Step: Previous}
 	ActNext     = Action{Kind: Select, Step: Next}
+	// ActTabNext and ActTabPrevious are Tab's and Shift+Tab's.
+	ActTabNext     = Action{Kind: Select, Step: Next, ByTab: true}
+	ActTabPrevious = Action{Kind: Select, Step: Previous, ByTab: true}
 )
 
 // EditAction is the action applying e.

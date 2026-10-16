@@ -56,8 +56,10 @@ type Theme struct {
 	Selection Selection
 	Match     Match
 	Badge     Badge
-	Pending   Pending
-	Effects   Effects
+	// Tab is plain logis's tab plates' (8cba2fc9, new beside Rust v1).
+	Tab     Tab
+	Pending Pending
+	Effects Effects
 	// Glitch is the glitch pass's controls and bursts (effects.glitch).
 	Glitch effects.Glitch
 	// Custom is the custom pass's shader (effects.custom-shader, a path
@@ -117,6 +119,14 @@ type Panel struct {
 	// Blur behind the body, when the config allows it and the compositor
 	// offers it.
 	Blur bool
+}
+
+// Tab is the plates of plain logis's tab strip (feat/logis-go 8cba2fc9,
+// new beside Rust v1); the rest of their look echoes the selection, the
+// panel, the prompt's label and the badges (scene/strip.go).
+type Tab struct {
+	// Radius is their corners'.
+	Radius float32
 }
 
 // Rivets are bosses in the body's corners.

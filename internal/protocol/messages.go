@@ -30,6 +30,10 @@ type Request struct {
 	Provider *Launch `json:"provider,omitempty"`
 	// Env is an app session's client environment, NAME=VALUE each.
 	Env [][]byte `json:"env,omitempty"`
+	// Rites is what plain logis's app session runs as its rites tab
+	// (servitor mode's provider): the session is then the tabbed
+	// launcher (feat/logis-go 8cba2fc9).
+	Rites *Launch `json:"rites,omitempty"`
 	// Items is one batch of a dmenu session's rows.
 	Items []Item `json:"items,omitempty"`
 }

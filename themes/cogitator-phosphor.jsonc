@@ -61,6 +61,7 @@
     "fill": "transparent",
     "uppercase": true
   },
+  "tab": { "radius": 4 },
   "pending": { "color": "dim", "opacity": 1, "shimmer": 0.5, "period-ms": 1200, "mark": "▒▒▒ AUGURING" },
   // The owner's look from the effects lab (2026-10-16): heavy scanlines
   // rolling up, a strong phosphor glow, a breathing colour split, grain

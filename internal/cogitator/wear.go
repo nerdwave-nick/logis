@@ -6,6 +6,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list"
 	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/motion"
+	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/text"
 	"github.com/nerdwave-nick/logis/internal/theme"
@@ -45,8 +46,12 @@ func (u *ui) retheme(th *theme.Theme) {
 type roomer interface{ Room() uint32 }
 
 // fitIn is the surface and rows for options o in the theme worn now, on
-// the output the panel shows on as far as it is known.
-func (u *ui) fitIn(o list.Options) (scale.Size, uint32) {
+// the output the panel shows on as far as it is known; tabbed, under plain
+// logis's tab strip.
+func (u *ui) fitIn(o list.Options, tabbed bool) (scale.Size, uint32) {
+	if tabbed {
+		return scene.FitTabbed(o, u.theme, u.room)
+	}
 	return scene.FitIn(o, u.theme, u.room)
 }
 
@@ -71,8 +76,12 @@ func (u *ui) refit() {
 	}
 	asked := list.DefaultOptions()
 	asked.Lines, asked.Width = sh.asked[0], sh.asked[1]
-	size, rows := u.fitIn(asked)
-	sh.view.SetLines(rows)
+	size, rows := u.fitIn(asked, sh.tabbed)
+	for _, p := range sh.panes {
+		if p != nil {
+			p.view.SetLines(rows)
+		}
+	}
 	sh.rows = rows
 	if r, ok := u.surf.(resizer); ok {
 		r.Resize(size)
@@ -150,7 +159,7 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 			measure = u.measure(f.Geometry)
 		}
 		sh.columns.Fit(&look, u.theme, measure)
-		target, selected := scene.BandTop(&look, f.Logical, u.theme)
+		target, selected := u.bandTop(sh, &look, f.Logical)
 		band, banded, gliding := sh.glide.Toward(target, selected, f.At, f.Interval)
 		moment, glitching := u.glitchAt(sh, f.At)
 		if u.draw != nil {
@@ -159,12 +168,19 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 				icons = u.icons(f.Geometry)
 			}
 			style := scene.Style{Theme: u.theme, At: f.At, Glitch: moment, Frame: sh.frames}
-			sc := scene.DrawAt(&look, f.Logical, band, banded, style, icons)
+			var sc *render.Scene
+			if sh.tabbed {
+				st := u.stripOf(sh)
+				st.Measure = measure
+				sc = scene.DrawTabbed(&look, st, f.Logical, band, banded, style, icons)
+			} else {
+				sc = scene.DrawAt(&look, f.Logical, band, banded, style, icons)
+			}
 			f.Pose.Apply(sc)
 			u.draw(sc, f.Geometry)
 		}
 		sh.frames++
-		body, radius := scene.Body(f.Logical, u.theme)
+		body, radius := u.body(sh, f.Logical)
 		return window.Drawing{
 			Moving:   gliding || glitching || scene.Moving(&look, u.theme),
 			Backdrop: &window.Backdrop{Rect: body, Radius: radius},

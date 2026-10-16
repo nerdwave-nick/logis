@@ -92,6 +92,9 @@
     "fill": "soot.1/0.9",
     "uppercase": true
   },
+  // plain logis's tab plates (the rest of their look echoes the
+  // selection, the panel, the label and the badges)
+  "tab": { "radius": 9 },
   "pending": { "color": "ash", "opacity": 0.72, "shimmer": 0.3, "period-ms": 1600, "mark": "divining…" },
   // The owner's look from the effects lab (2026-10-15): fine rolling
   // scanlines, a faint dot mask, a soft glow, a hint of twitching

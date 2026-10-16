@@ -89,6 +89,32 @@ Typing filters them by name, generic name, keywords and program;
 launches the selected one and exits 0;
 .B Shift+Return
 opens its desktop actions in the same window.
+.PP
+With
+.B servitor
+on its
+.BR PATH ,
+plain
+.B logis
+is a tabbed launcher (the Go build; logis v1 had none): two plates above the
+panel,
+.B Applications
+and
+.B Rites
+(servitor mode's rites), each counting what the query matches.
+.B Tab
+or
+.BR Shift+Tab ,
+or a click on a plate, switches tabs; the query stays.
+.B Return
+acts in the shown tab: an application is launched, or a rite leads to
+servitor's invocation; either exits 0.
+It opens on the tab last used, kept in
+.IR $XDG_STATE_HOME/logis/tab .
+.B "logis \-\-apps"
+and
+.B "logis \-\-servitor"
+are the single lists as before and leave the remembered tab alone.
 Hidden are entries with
 .BR NoDisplay ,
 .BR Hidden ,
@@ -361,6 +387,14 @@ the default).
 .TP
 .B Up\fR, \fBShift+Tab\fR, \fBCtrl+P\fR / \fBDown\fR, \fBTab\fR, \fBCtrl+N
 Select the previous / next item.
+In plain
+.BR logis 's
+tabbed launcher (see
+.BR "APP LAUNCHER" ),
+.B Tab
+and
+.B Shift+Tab
+switch tabs instead.
 .TP
 .B Backspace\fR / \fBDelete
 Delete the character before / after the cursor.
@@ -438,7 +472,9 @@ Plain
 .B logis
 or
 .BR \-\-apps :
-an application was launched.
+an application was launched (in plain
+.BR logis 's
+tabbed launcher, also: a rite was invoked).
 .B "logis daemon \-\-detach"
 when a daemon already answers.
 .BR \-\-check\-config :
@@ -540,6 +576,14 @@ stderr behind.
 .TP
 .I $XDG_STATE_HOME/logis/frecency.json
 How often and how lately each application was launched.
+.TP
+.I $XDG_STATE_HOME/logis/tab
+The tab plain
+.BR logis 's
+tabbed launcher was last used on:
+.B applications
+or
+.BR rites .
 .TP
 .I $XDG_CONFIG_HOME/logis/logis.jsonc
 The configuration (JSON with comments), unless

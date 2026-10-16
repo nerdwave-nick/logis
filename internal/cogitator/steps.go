@@ -21,40 +21,50 @@ func (u *ui) step(id daemon.SessionID, step provider.Step) {
 	if sh == nil || sh.lingering {
 		return
 	}
+	p, emit := sh.paneOf(step.Tab), u.emit
+	if sh.tabbed && step.Tab == provider.TabRites {
+		emit = func(format string, args ...any) { u.emit("rites "+format, args...) }
+	}
 	changed := false
 	switch step.Kind {
 	case provider.StepStage:
 		o := step.Options
 		// The window keeps its size: the list scrolls within it.
 		o.Lines, o.Width = sh.asked[0], sh.asked[1]
-		_, rows := u.fitIn(o)
+		_, rows := u.fitIn(o, sh.tabbed)
 		o.Lines = &rows
-		sh.view, sh.columns, sh.rows, sh.count, sh.waiting = list.NewView(o), scene.Columns{}, rows, 0, false
-		sh.glide.Reset() // a new list: the band takes its row at once
-		u.emit("stage %d", id)
-		u.push(sh, step.Entries)
+		if sh.tabbed {
+			o = firstRites(sh, p, o)
+		}
+		p.view, p.columns, p.count, p.waiting = list.NewView(o), scene.Columns{}, 0, false
+		sh.rows = rows
+		if p == sh.pane {
+			sh.glide.Reset() // a new list: the band takes its row at once
+		}
+		emit("stage %d", id)
+		u.push(p, step.Entries, emit)
 		changed = true
 	case provider.StepAppend:
-		u.push(sh, step.Entries)
+		u.push(p, step.Entries, emit)
 	case provider.StepUpdate:
 		for _, c := range step.Updates {
-			u.emit("update %d", c.Index)
-			changed = sh.view.Update(c.Index, c.Entry) || changed
+			emit("update %d", c.Index)
+			changed = p.view.Update(c.Index, c.Entry) || changed
 		}
 	case provider.StepRemove:
 		for _, i := range step.Removed {
-			u.emit("remove %d", i)
-			changed = sh.view.Remove(i) || changed
+			emit("remove %d", i)
+			changed = p.view.Remove(i) || changed
 		}
 	case provider.StepPreselect:
-		changed = sh.view.Preselect(step.Index)
+		changed = p.view.Preselect(step.Index)
 	case provider.StepToast:
 		notice := step.Notice
-		u.emit("toast %s", trace.Quote(notice.Text))
+		emit("toast %s", trace.Quote(notice.Text))
 		sh.toast, changed = &notice, true
 	case provider.StepReady:
-		sh.waiting = false
-		u.emit("ready")
+		p.waiting = false
+		emit("ready")
 	}
 	if changed {
 		u.surf.RequestRedraw()

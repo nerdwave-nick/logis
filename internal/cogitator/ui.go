@@ -13,6 +13,7 @@ import (
 	"github.com/nerdwave-nick/logis/internal/list/scene"
 	"github.com/nerdwave-nick/logis/internal/motion"
 	"github.com/nerdwave-nick/logis/internal/protocol"
+	"github.com/nerdwave-nick/logis/internal/provider"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/scale"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -62,15 +63,15 @@ type focusPolicy interface{ SetFocusLoss(config.FocusLoss) }
 
 // shown is the session on screen.
 type shown struct {
-	id   daemon.SessionID
-	view *list.View
+	id daemon.SessionID
+	// pane is its list, the shown tab's in plain logis's tabbed launcher
+	// (tabs.go), whose panes, tab and strip are there too.
+	*pane
+	panes  [2]*pane
+	tabbed bool
+	tab    provider.Tab
 	// rows is how many rows its panel was sized for.
 	rows uint32
-	// count is how many items it has had.
-	count int
-	// columns are its list's columns as they grew; a new list (a
-	// provider's next stage) starts them afresh.
-	columns scene.Columns
 	// toast is a notice over the list: from the daemon, or the provider's.
 	toast *list.Notice
 	// asked are the first stage's lines and width (nil: the theme's): the
@@ -79,8 +80,6 @@ type shown struct {
 	// endsOnAnswer: a dmenu answer ends the session; the window goes at
 	// once.
 	endsOnAnswer bool
-	// waiting: an answer went out; Return waits for the provider.
-	waiting bool
 	// lingering: the session is over; its toast is left to read.
 	lingering bool
 	// glide moves the selection band to the selected row.
@@ -158,10 +157,14 @@ func (u *ui) show(s daemon.Session) {
 	if r, ok := u.surf.(roomer); ok && r.Room() > 0 {
 		u.room = r.Room()
 	}
-	size, rows := u.fitIn(o)
+	size, rows := u.fitIn(o, s.Tabbed)
 	o.Lines = &rows
-	sh := &shown{id: s.ID, view: list.NewView(o), rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu,
+	sh := &shown{id: s.ID, pane: &pane{view: list.NewView(o)}, rows: rows, asked: asked, endsOnAnswer: s.Mode == protocol.ModeDmenu,
 		glide: motion.NewGlide(u.motion().Selection), glitch: glitch.New(u.random)}
+	sh.panes[0] = sh.pane
+	if s.Tabbed {
+		openTabs(sh, s.Tab)
+	}
 	u.shown = nil
 	if err := u.present(size, sh); err != nil {
 		u.host.Fail(s.ID, err.Error())
@@ -169,15 +172,19 @@ func (u *ui) show(s daemon.Session) {
 	}
 	u.shown = sh
 	u.emit("show %d", s.ID)
-	u.push(sh, s.Entries)
+	if sh.tabbed {
+		u.emit("tab %s", tabNames[sh.tab])
+	}
+	u.push(sh.panes[0], s.Entries, u.emit)
 }
 
-func (u *ui) push(sh *shown, entries []list.Entry) {
-	sh.count += len(entries)
-	if sh.view.Push(entries) {
+// push adds entries to p's list; emit reports how many it has had.
+func (u *ui) push(p *pane, entries []list.Entry, emit func(string, ...any)) {
+	p.count += len(entries)
+	if p.view.Push(entries) {
 		u.surf.RequestRedraw()
 	}
-	u.emit("items %d", sh.count)
+	emit("items %d", p.count)
 }
 
 // hide takes session id away (answered, cancelled or replaced).
@@ -206,6 +213,9 @@ func (u *ui) act(a input.Action) {
 	if sh == nil || sh.lingering {
 		return
 	}
+	if sh.tabbed && u.tabAct(sh, a) {
+		return
+	}
 	var r list.Reaction
 	switch a.Kind {
 	case input.Paste:
@@ -216,13 +226,14 @@ func (u *ui) act(a input.Action) {
 		if !ok {
 			return
 		}
-		r = sh.view.Point(a.Point, scene.GridOf(size, sh.rows, u.theme))
+		r = sh.view.Point(a.Point, u.grid(sh, size))
 	default:
 		r = sh.view.Apply(a)
 	}
 	var answer daemon.Answer
 	switch {
 	case r.Kind == list.Changed:
+		mirrorQuery(sh)
 		u.emit("query %s", trace.Quote(sh.view.Query()))
 		if item, ok := sh.view.Selected(); ok {
 			u.emit("select %d", item)
@@ -249,6 +260,7 @@ func (u *ui) act(a input.Action) {
 	default:
 		return
 	}
+	answer.Tab = sh.tab
 	if !sh.endsOnAnswer && answer.Kind != daemon.AnswerDismissed {
 		sh.waiting = true
 		u.host.Answer(sh.id, answer)
@@ -267,7 +279,7 @@ func (u *ui) check() {
 	if sh := u.shown; sh != nil && !u.surf.Visible() {
 		u.shown = nil
 		if !sh.lingering {
-			u.host.Answer(sh.id, daemon.Answer{Kind: daemon.AnswerDismissed})
+			u.host.Answer(sh.id, daemon.Answer{Kind: daemon.AnswerDismissed, Tab: sh.tab})
 		}
 	}
 }

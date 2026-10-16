@@ -145,12 +145,18 @@ func (v *View) edit(e input.Edit) Reaction {
 	if !v.query.Apply(e) {
 		return Reaction{}
 	}
+	v.refilter()
+	return Reaction{Kind: Changed}
+}
+
+// refilter matches the items against the query, if it changed; the
+// selection starts again at the first match.
+func (v *View) refilter() {
 	if v.query.Text() != v.filter.Query() {
 		v.preselect, v.touched, v.following = nil, true, false
 		v.filter.SetQuery(v.query.Text())
 		v.selected, v.top = 0, 0
 	}
-	return Reaction{Kind: Changed}
 }
 
 // SetLines shows at most n rows from now on (the window was sized anew).
@@ -182,3 +188,22 @@ func (v *View) clamp() {
 		v.top = v.selected + 1 - lines
 	}
 }
+
+// SetQuery replaces the query with text, the cursor at its end, as if
+// typed afresh; false if it was already text. Plain logis's tabbed
+// launcher keeps one query across its tabs (feat/logis-go 8cba2fc9).
+func (v *View) SetQuery(text string) bool {
+	if text == v.query.Text() {
+		return false
+	}
+	v.query.Apply(input.Edit{Kind: input.Clear})
+	v.query.Apply(input.Edit{Kind: input.InsertText, Text: text})
+	v.refilter()
+	return true
+}
+
+// Matched is how many items the query matches.
+func (v *View) Matched() int { return v.matchedCount() }
+
+// Total is how many items the list has.
+func (v *View) Total() int { return v.filter.Len() }

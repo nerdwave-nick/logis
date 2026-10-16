@@ -29,6 +29,17 @@ contract" and logis(1)) is the public interface.
   `--check-config` compiles it and reports errors at the shader's own lines.
   The unknown-key error of the config now lists `custom-shader` too.
 
+- **Plain logis is a tabbed launcher where servitor is** (the Go build; a
+  divergence from Rust v1): with `servitor` on its PATH, plain `logis` shows
+  the applications and servitor mode's rites as two tabs under a strip of two
+  plates (Applications left, Rites right, fixed in place, each counting the
+  query's matches). Tab, Shift+Tab or a click on a plate switches tabs and
+  keeps the query; Return acts in the shown tab (exit 0 for a launched app or
+  an invoked rite). It opens on the tab last used, kept in
+  `$XDG_STATE_HOME/logis/tab`. `--apps` and `--servitor` are unchanged (Tab
+  still selects the next item). The theme gains `tab.radius`; the plates are
+  covered by the CRT and glitch passes, and a switch fires the tab burst.
+
 ### Changed
 
 - **The panel's height follows its rows** (the Go build; a divergence from

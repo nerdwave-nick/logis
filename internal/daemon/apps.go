@@ -49,6 +49,9 @@ type appsState struct {
 	bus string
 	// keep saves a frecency snapshot (the loop: off its goroutine).
 	keep func(f *apps.Frecency, path string)
+	// tab is plain logis's tab last used, kept in tabPath ("": not kept).
+	tab     provider.Tab
+	tabPath string
 }
 
 // appsFeed is one app session.
@@ -85,11 +88,16 @@ func (c *core) firstStage() (*provider.Apps, provider.Step) {
 	return provider.OpenApps(c.apps.index, c.apps.frecency, apps.Now())
 }
 
-// showApps: app session id became visible; its first stage.
-func (c *core) showApps(id SessionID, f *appsFeed) {
+// showApps: app session id became visible; its first stage, as plain
+// logis's tabbed launcher on the tab last used when tabbed.
+func (c *core) showApps(id SessionID, f *appsFeed, tabbed bool) {
 	var step provider.Step
 	f.stages, step = c.firstStage()
-	c.resolver.Show(Session{ID: id, Mode: protocol.ModeApps, Options: step.Options, Entries: step.Entries})
+	s := Session{ID: id, Mode: protocol.ModeApps, Options: step.Options, Entries: step.Entries, Tabbed: tabbed}
+	if tabbed {
+		s.Tab = c.apps.tab
+	}
+	c.resolver.Show(s)
 }
 
 // indexed: a new index, kept, and shown by the visible session still

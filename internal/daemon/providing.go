@@ -150,7 +150,14 @@ func (c *core) step(id SessionID, step provider.Step) {
 		return
 	}
 	l := cn.live
+	if cn.tabbed {
+		step.Tab = provider.TabRites
+	}
 	switch {
+	case step.Kind == provider.StepStage && !l.shown && cn.tabbed:
+		// The rites' first stage fills their tab; the window shows already.
+		l.shown, l.due = true, time.Time{}
+		c.resolver.Step(id, step)
 	case step.Kind == provider.StepStage && !l.shown:
 		l.shown, l.due = true, time.Time{}
 		c.resolver.Show(Session{ID: id, Mode: cn.mode, Options: step.Options, Entries: step.Entries})
