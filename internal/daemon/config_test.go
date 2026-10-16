@@ -217,6 +217,8 @@ func TestAnInvalidEditIsLoggedAndToastedAndTheLastSoundConfigStands(t *testing.T
 		!strings.HasSuffix(line, "; the last sound config stands") || !strings.Contains(line, "`idle-timeout`") {
 		t.Errorf("%q", line)
 	}
+	// The daemon logs the heresy before it toasts it.
+	waitUntil(t, "the toast", func() bool { _, _, toasts := c.seen(); return len(toasts) > 0 })
 	_, _, toasts := c.seen()
 	if len(toasts) != 1 || toasts[0].Kind != ToastConfigRejected || !strings.Contains(toasts[0].Error, place) {
 		t.Errorf("toasts %+v", toasts)

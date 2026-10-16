@@ -111,6 +111,8 @@ func TestAnEditedThemeIsWornAtOnceAndABrokenOneIsToasted(t *testing.T) {
 		!strings.HasSuffix(line, "; the last sound theme stands") {
 		t.Errorf("%q", line)
 	}
+	// The daemon logs the heresy before it toasts it.
+	waitUntil(t, "the toast", func() bool { _, _, toasts := th.seen(); return len(toasts) > 0 })
 	_, _, toasts := th.seen()
 	if len(toasts) != 1 || toasts[0].Kind != ToastThemeRejected || !strings.HasPrefix(toasts[0].Error, place) {
 		t.Errorf("toasts %+v", toasts)
