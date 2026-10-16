@@ -89,6 +89,16 @@ func (g Grid) RowPitch() float32 { return g.Pitch }
 
 var _ list.Rows = Grid{}
 
+// rowsAbove is how many of g's rows have their line (text of size, centred
+// in the row) end above y.
+func rowsAbove(g Grid, size, y float32) int {
+	n := 0
+	for n < g.Rows && g.Top(n)+g.Pitch/2+size*0.65 <= y {
+		n++
+	}
+	return n
+}
+
 // Top is the top of row i in view.
 func (g Grid) Top(i int) float32 { return g.First + float32(i)*g.Pitch }
 

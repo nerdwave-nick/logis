@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/nerdwave-nick/logis/internal/client"
-	"github.com/nerdwave-nick/logis/internal/config"
 	"github.com/nerdwave-nick/logis/internal/protocol"
 	"github.com/nerdwave-nick/logis/internal/servitor"
 )
@@ -17,10 +15,11 @@ import (
 // environment goes with it: the session environment for the launch when no
 // systemd user manager answers. Exit 0 when an app was launched, 1 when
 // the user dismissed the window (or another session replaced it), 2 on
-// error. Plain `logis` with servitor on the PATH is the tabbed launcher
-// (feat/logis-go 8cba2fc9, a divergence from Rust v1): the applications
-// and servitor mode's rites, Tab switching; exit 0 also when a rite was
-// invoked (its provider closed its flow).
+// error. Plain `logis` is the tabbed launcher (feat/logis-go 8cba2fc9, a
+// divergence from Rust v1): the applications and servitor mode's rites,
+// Tab switching; exit 0 also when a rite was invoked (its provider closed
+// its flow). Without servitor on the PATH its rites are silent: the tab
+// says so (2aaad4b9).
 
 // appsRune asks for the app launcher alone, never tabbed.
 const appsRune = "--apps"
@@ -29,17 +28,22 @@ const appsRune = "--apps"
 // Tabbed (plain logis) with servitor on the client's PATH, it names
 // servitor mode's provider, this body's `provide servitor`, as its rites:
 // the daemon shows the tabbed launcher (feat/logis-go 8cba2fc9, a
-// divergence from Rust v1). --apps, or no servitor (or no known body of
-// its own), is the launcher alone.
+// divergence from Rust v1). Without servitor its rites are silent: the
+// tabbed launcher still, its rites' tab saying why (2aaad4b9). --apps (or
+// no known body of its own) is the launcher alone.
 func appsOpen(tabbed bool, lookPath func(string) (string, error), self string) protocol.Request {
 	open := protocol.Open(protocol.ModeApps, nil)
 	for _, kv := range os.Environ() {
 		open.Env = append(open.Env, []byte(kv))
 	}
-	if !tabbed || self == "" {
+	if !tabbed {
 		return open
 	}
 	if _, err := lookPath(servitor.Program); err != nil {
+		open.RitesSilent = true
+		return open
+	}
+	if self == "" {
 		return open
 	}
 	rites := providerLaunch([]string{self, "provide", "servitor"})
@@ -52,10 +56,7 @@ func appsOpen(tabbed bool, lookPath func(string) (string, error), self string) p
 // daemon, as for every other client (caller contract: exit 2, the reason
 // on stderr).
 func runApps(configPath string, tabbed bool, stderr io.Writer) int {
-	conn, err := client.Connect(client.Options{
-		RuntimeDir: os.Getenv("XDG_RUNTIME_DIR"),
-		DaemonArgs: config.NewSource(configPath).DaemonArgs(),
-	})
+	conn, err := connect(configPath, stderr)
 	if err != nil {
 		return fail(stderr, err.Error())
 	}

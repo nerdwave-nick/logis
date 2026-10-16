@@ -10,6 +10,51 @@ contract" and logis(1)) is the public interface.
 
 ### Added
 
+- **A daemon left running across an upgrade says so** (the Go build; new
+  beside Rust v1): once its binary was replaced since it started, it keeps
+  serving but every panel it shows carries the notice "logis updated —
+  …", naming `systemctl --user restart logis` when systemd
+  passed it the socket and `restart the daemon: kill PID` otherwise; every
+  caller prints the same line on stderr (exit status and stdout unchanged),
+  and the daemon's log has it once. It never restarts itself.
+- **A small glitch burst on any key press** (the Go build; new beside Rust
+  v1): the event `key` in `effects.glitch.bursts.on`, with `key-ms` (its
+  length) and `key-strength` (its peak, 0 to 1). Any key press in the panel
+  fires it, a held key's repeats and a bare modifier do not, and a new press
+  starts it over; it never cuts short or weakens an open, tab or random burst
+  (the glitch takes the larger). Both bundled themes fire it: 120 ms at 0.3.
+
+### Changed
+
+- **The daemon's socket protocol is version 5** (4 was the Go build's until
+  `open` carried the tabbed launcher's rites): a daemon of another version
+  left running refuses the new clients with its reason, exit 2, instead of
+  serving them silently stale (a daemon of 4 showed plain logis without its
+  tab strip, at its old row fit). Restart the daemon once after upgrading
+  (`systemctl --user restart logis` where the units are enabled; otherwise
+  end the old `logis daemon`).
+- **Plain logis always shows the tabs** (the Go build; a divergence from Rust
+  v1): without `servitor` on its PATH (a compositor keybind's PATH can differ
+  from the shell's), plain `logis` is the tabbed launcher all the same instead
+  of the app launcher alone. Its rites are silent: their plate counts "—",
+  their tab says "cannot find servitor — the rites are silent" and that a
+  keybind's PATH can differ from the shell's, and Return there does nothing.
+  The remembered tab works as ever. `--apps` and `--servitor` are unchanged.
+
+### Fixed
+
+- **A toast hides the row it covers**: with the panel's height following
+  its rows, a toast lay over the last row and that row's words, icon and
+  badges showed through it; the row is no longer drawn while a toast shows.
+
+## [1.1.1] - 2026-10-16
+
+The Go build replaces Rust logis v1 (ADR 0004). The tag `v1.1.0` marks the
+same switch-over before its version was set: that build still calls itself
+1.0.0.
+
+### Added
+
 - **A glitch before the CRT pass** (the Go build; new beside Rust v1): the
   theme's `effects.glitch` breaks the glass up like a failing signal (wobble,
   tracking, colour fringe, torn slices, blocks, flashes, a noise band,
@@ -172,5 +217,7 @@ The first release: everything of the v1 specification. Not yet tagged; the tag
   window is the newest, in view), a watchdog on the test compositor names its
   stalls, and with enforced budgets no warm open may take over 100 ms.
 
-[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/nerdwave-nick/logis/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.1
+[1.1.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.1.0
 [1.0.0]: https://github.com/nerdwave-nick/logis/releases/tag/v1.0.0

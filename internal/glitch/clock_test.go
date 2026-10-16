@@ -223,3 +223,123 @@ func TestAClockNotYetOpenedStandsStill(t *testing.T) {
 		t.Errorf("%+v", m)
 	}
 }
+
+// keyed is a still glitch whose bursts fire on key presses only: 120 ms
+// long, peaking at 0.3 (8ad70fee).
+func keyed() effects.Glitch {
+	g := still()
+	g.Bursts.On, g.Bursts.KeyMS, g.Bursts.KeyStrength = effects.EventKey, 120, 0.3
+	return g
+}
+
+// envelope is a burst's intensity t ms into length ms, peaking at peak.
+func envelope(t, length, peak float64) float32 {
+	return float32(peak * math.Pow(math.Sin(math.Pi*t/length), 0.6))
+}
+
+// A key press fires a small burst: key-ms long, its peak key-strength.
+func TestAKeyBurstIsShortAndSmall(t *testing.T) {
+	g := keyed()
+	c := New(fixed(0.9))
+	c.Open(0, g)
+	if c.Moving(500*ms, g) {
+		t.Fatal("moving before a key")
+	}
+	c.Fire(effects.EventKey, 1000*ms, g)
+	for _, p := range []struct {
+		at   uint64
+		want float32
+	}{{0, 0}, {30, envelope(30, 120, 0.3)}, {60, 0.3}, {90, envelope(90, 120, 0.3)}, {120, 0}, {300, 0}} {
+		if m := c.At(1000*ms+p.at*ms, g); !near(m.Event, p.want) {
+			t.Errorf("%d ms: %v, want %v", p.at, m.Event, p.want)
+		}
+		if moving := c.Moving(1000*ms+p.at*ms, g); moving != (p.at < 120) {
+			t.Errorf("%d ms: moving %v", p.at, moving)
+		}
+	}
+	// Stutter damps its steps as any burst's.
+	g.Bursts.Stutter = 1
+	c.Fire(effects.EventKey, 2000*ms, g)
+	if m := c.At(2060*ms, g); !near(m.Event, 0.3*0.25) {
+		t.Errorf("a stuttered key step: %v", m.Event)
+	}
+}
+
+// A new press while a key burst runs starts it over.
+func TestANewKeyPressRestartsTheKeyBurst(t *testing.T) {
+	g := keyed()
+	c := New(fixed(0.9))
+	c.Open(0, g)
+	c.Fire(effects.EventKey, 1000*ms, g)
+	c.Fire(effects.EventKey, 1060*ms, g)
+	if m := c.At(1060*ms, g); m.Event != 0 {
+		t.Errorf("the restarted burst starts at 0: %v", m.Event)
+	}
+	if m := c.At(1120*ms, g); !near(m.Event, 0.3) {
+		t.Errorf("the restarted burst's peak: %v", m.Event)
+	}
+	if !c.Moving(1170*ms, g) || c.Moving(1180*ms, g) {
+		t.Error("the restarted burst does not last key-ms from the second press")
+	}
+}
+
+// A key burst never cuts short or weakens an open or tab burst: the
+// intensity is the larger of the two, and each lasts its own length.
+func TestAKeyBurstLeavesARunningBurstAlone(t *testing.T) {
+	g := keyed()
+	g.Bursts.On |= effects.EventOpen | effects.EventTab
+	g.Bursts.KeyStrength = 0.5
+	c := New(fixed(0.9))
+	c.Open(0, g) // the open burst: 420 ms
+	c.Fire(effects.EventKey, 100*ms, g)
+	for _, p := range []struct {
+		at   uint64
+		want float32
+	}{
+		{160, envelope(160, 420, 1)}, // the key's peak (0.5) under the open burst
+		{210, 1},                     // the open burst's peak, untouched
+		{230, envelope(230, 420, 1)}, // the key burst over, the open one on
+	} {
+		if m := c.At(p.at*ms, g); !near(m.Event, p.want) {
+			t.Errorf("%d ms: %v, want %v", p.at, m.Event, p.want)
+		}
+	}
+	// A key late in the open burst outlasts it, the larger of the two.
+	c.Fire(effects.EventKey, 380*ms, g)
+	if m := c.At(400*ms, g); !near(m.Event, max(envelope(400, 420, 1), envelope(20, 120, 0.5))) {
+		t.Errorf("400 ms: %v", m.Event)
+	}
+	if m := c.At(440*ms, g); !near(m.Event, 0.5) {
+		t.Errorf("the key burst after the open one: %v", m.Event)
+	}
+	if !c.Moving(480*ms, g) || c.Moving(500*ms, g) {
+		t.Error("the key burst does not run to its own end")
+	}
+	// A tab burst over a running key burst: the larger, the key's kept.
+	c.Fire(effects.EventKey, 1000*ms, g)
+	c.Fire(effects.EventTab, 1050*ms, g)
+	if m := c.At(1060*ms, g); !near(m.Event, max(envelope(60, 120, 0.5), envelope(10, 240, 1))) {
+		t.Errorf("a tab burst over a key burst: %v", m.Event)
+	}
+}
+
+// No key burst without "key" among the events, at a key strength of 0 or
+// with the glitch off.
+func TestAKeyBurstNeedsKeyAmongTheEventsAndAGlitch(t *testing.T) {
+	for name, set := range map[string]func(*effects.Glitch){
+		"not among the events": func(g *effects.Glitch) { g.Bursts.On = effects.EventOpen | effects.EventTab },
+		"key strength 0":       func(g *effects.Glitch) { g.Bursts.KeyStrength = 0 },
+		"key-ms 0":             func(g *effects.Glitch) { g.Bursts.KeyMS = 0 },
+		"glitch off":           func(g *effects.Glitch) { *g = g.Stilled() },
+	} {
+		g := keyed()
+		g.Bursts.OpenMS, g.Bursts.TabMS = 0, 0
+		set(&g)
+		c := New(fixed(0.9))
+		c.Open(0, g)
+		c.Fire(effects.EventKey, 1000*ms, g)
+		if m := c.At(1060*ms, g); m.Event != 0 || c.Moving(1060*ms, g) {
+			t.Errorf("%s: a key burst %v", name, m.Event)
+		}
+	}
+}

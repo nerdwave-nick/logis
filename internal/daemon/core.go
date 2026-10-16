@@ -43,9 +43,11 @@ type conn struct {
 	ended  bool
 	launch *protocol.Launch
 	live   *live
-	// tabbed: plain logis's tabbed launcher, its rites run by launch
-	// (tabs.go).
+	// tabbed: plain logis's tabbed launcher, its rites run by launch, or
+	// silent without one (tabs.go).
 	tabbed bool
+	// notice is the reminder it was welcomed with (stale.go).
+	notice string
 }
 
 // core is the daemon's protocol state machine: connections, their sessions,
@@ -63,11 +65,17 @@ type core struct {
 	now       func() time.Time
 	// logf writes one line to the daemon's log.
 	logf func(message string)
+	// stale is the reminder to restart a daemon whose binary was replaced
+	// since it started, "" while it was not; staleLogged: it was logged
+	// (stale.go).
+	stale       func() string
+	staleLogged bool
 }
 
 func newCore(resolver Resolver, pid int) *core {
 	return &core{resolver: resolver, conns: map[SessionID]*conn{}, pid: pid,
-		providers: providers{spawn: noSpawn}, apps: newAppsState(), now: time.Now, logf: func(string) {}}
+		providers: providers{spawn: noSpawn}, apps: newAppsState(), now: time.Now, logf: func(string) {},
+		stale: func() string { return "" }}
 }
 
 // idle: no client is connected and no provider is being ended.
@@ -95,8 +103,7 @@ func (c *core) receive(id SessionID, request protocol.Request, undecodable error
 				"restart the daemon so both speak the same", request.Version, protocol.Version))
 			return
 		}
-		cn.phase = ready
-		cn.peer.send(protocol.Welcome(c.pid))
+		c.welcome(cn)
 	case cn.phase == ready && request.Type == protocol.TypeOpen:
 		c.open(id, cn, request)
 	case cn.phase == opened && request.Type == protocol.TypeItems:
@@ -121,8 +128,11 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 	case request.Mode != protocol.ModeProvider && request.Provider != nil:
 		c.fail(id, "only a provider session names a provider")
 		return
-	case request.Mode != protocol.ModeApps && request.Rites != nil:
+	case request.Mode != protocol.ModeApps && (request.Rites != nil || request.RitesSilent):
 		c.fail(id, "only plain logis's app session names its rites")
+		return
+	case request.Rites != nil && request.RitesSilent:
+		c.fail(id, "silent rites name no provider")
 		return
 	}
 	if err := c.resolver.Accepts(request.Mode); err != nil {
@@ -134,7 +144,7 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 		cn.launch = request.Provider
 	case protocol.ModeApps:
 		cn.apps = &appsFeed{env: launch.EnvFromBytes(request.Env)}
-		cn.launch, cn.tabbed = request.Rites, request.Rites != nil
+		cn.launch, cn.tabbed = request.Rites, request.Rites != nil || request.RitesSilent
 	default:
 		o, err := protocol.DecodeOptions(request.Options)
 		if err != nil {
@@ -288,12 +298,12 @@ func (c *core) show(id SessionID) {
 	switch {
 	case cn.dmenu != nil:
 		stage := cn.dmenu.Show()
-		c.resolver.Show(Session{ID: id, Mode: cn.mode, Options: stage.Options, Entries: stage.Entries})
+		c.reveal(Session{ID: id, Mode: cn.mode, Options: stage.Options, Entries: stage.Entries})
 		if cn.ended {
 			c.resolver.End(id)
 		}
 	case cn.apps != nil:
-		c.showApps(id, cn.apps, cn.tabbed)
+		c.showApps(id, cn.apps, cn.tabbed, cn.launch == nil)
 		if cn.launch != nil {
 			c.start(id, cn) // the rites' tab
 		}

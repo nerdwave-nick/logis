@@ -2,7 +2,7 @@
 .\" View with: man -l docs/man/logis.1
 .\" The caller contract here matches README.md's "Caller contract" section,
 .\" which names the test that pins each statement. Change both together.
-.TH LOGIS 1 2026-10-12 "logis 1.0.0" "User Commands"
+.TH LOGIS 1 2026-10-16 "logis 1.1.1" "User Commands"
 .SH NAME
 logis \- a cogitator of the Machine God: Wayland launcher and dmenu\-compatible picker
 .SH SYNOPSIS
@@ -90,11 +90,7 @@ launches the selected one and exits 0;
 .B Shift+Return
 opens its desktop actions in the same window.
 .PP
-With
-.B servitor
-on its
-.BR PATH ,
-plain
+Plain
 .B logis
 is a tabbed launcher (the Go build; logis v1 had none): two plates above the
 panel,
@@ -115,6 +111,19 @@ It opens on the tab last used, kept in
 and
 .B "logis \-\-servitor"
 are the single lists as before and leave the remembered tab alone.
+Without
+.B servitor
+on the
+.B PATH
+of whatever started plain
+.B logis
+(a compositor keybind's
+.B PATH
+can differ from the shell's), the strip shows all the same and the rites are
+silent: their plate counts a dash instead of rites, their tab says that
+servitor cannot be found and why, and
+.B Return
+there does nothing.
 Hidden are entries with
 .BR NoDisplay ,
 .BR Hidden ,
@@ -448,6 +457,17 @@ which stops writing to the starter's stdout and stderr once it listens.
 It checks the Wayland session and the configuration at start, and exits 2 when
 either is unusable or when the compositor goes away.
 A second daemon finds the first one listening and exits 0.
+.PP
+A daemon left running across an upgrade keeps serving, but once its binary was
+replaced since it started, every window it shows carries a notice that logis
+was updated and the daemon wants a restart, naming
+.B "systemctl \-\-user restart logis"
+when systemd passed it the socket, or
+.BI "kill " PID
+otherwise.
+Every client prints the same line on stderr (its exit status and stdout are
+unchanged), and the daemon's log has it once.
+The daemon never restarts itself.
 .TP
 .BI \-\-idle\-timeout " SECONDS"
 Exit once no client has been connected for that long; 0 keeps the daemon
@@ -524,9 +544,12 @@ A daemon that lost its compositor removes its socket, and the next client
 starts a new one.
 .TP
 the daemon refused the client
-A daemon of another version, left running across an upgrade, refuses the
-client with its reason: end that daemon, and the next client starts a new
-one.
+A daemon of another protocol version, left running across an upgrade, refuses
+the client with its reason: restart that daemon
+.RB ( "systemctl \-\-user restart logis"
+where
+.B logis.socket
+is enabled; otherwise end it, and the next client starts a new one).
 .PP
 Every client exits 2 in each case that stops a daemon starting, so a script
 can let the exit status decide and fall back to another picker:
@@ -562,9 +585,12 @@ Where the configuration is looked for (default
 .B PATH
 Where
 .B \-\-servitor
-finds
+and plain
+.BR logis 's
+rites find
 .BR servitor ;
-the caller's, not the daemon's.
+the caller's, not the daemon's (from a compositor keybind, the
+compositor's).
 .SH FILES
 .TP
 .I $XDG_RUNTIME_DIR/logis.sock
@@ -610,7 +636,11 @@ Its
 (new in the Go build) configures a glitch pass before the CRT pass: parts
 with an amount at rest and in an episode, ambient episodes at the end of each
 period counted from the panel's opening, and bursts on opening, on a switch of
-tab and at random; a bare number is its strength, and 0 or
+tab, on a key press (a small one:
+.B key\-ms
+long, peaking at
+.BR key\-strength )
+and at random; a bare number is its strength, and 0 or
 .B reduce\-motion
 turns it off.
 Its

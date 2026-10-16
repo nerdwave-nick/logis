@@ -134,3 +134,37 @@ func TestReduceMotionLeavesNoGlitch(t *testing.T) {
 		t.Error("a wake for a glitch that is off")
 	}
 }
+
+// A key press fires the small key burst (8ad70fee) on the shown panel
+// and asks for a frame; the panel draws through it and rests again. A
+// lingering session takes no keys, so no burst.
+func TestAKeyPressFiresTheKeyBurst(t *testing.T) {
+	r := glitchRig(func(g *effects.Glitch) {
+		g.Bursts.OpenMS, g.Bursts.On, g.Bursts.KeyMS, g.Bursts.KeyStrength = 0, effects.EventKey, 120, 0.3
+	})
+	now := uint64(0)
+	r.ui.clock = func() uint64 { return now }
+	r.ui.keyPressed() // no panel: nothing to fire
+	r.show(1, list.DefaultOptions(), "alpha")
+	if _, d := r.frame(1000, motion.Rest); d.Moving {
+		t.Fatal("moving before a key")
+	}
+	redraws := r.surf.redraws
+	now = 2000 * msNS
+	r.ui.keyPressed()
+	if r.surf.redraws != redraws+1 {
+		t.Error("the key burst asked for no frame")
+	}
+	if sc, d := r.frame(2060, motion.Rest); sc.Post.Moment.Event != 0.3 || !d.Moving {
+		t.Errorf("mid key burst: %+v moving %v", sc.Post.Moment, d.Moving)
+	}
+	if sc, d := r.frame(2120, motion.Rest); sc.Post.Moment.Event != 0 || d.Moving {
+		t.Errorf("after the key burst: %+v moving %v", sc.Post.Moment, d.Moving)
+	}
+	r.ui.shown.lingering = true
+	now = 3000 * msNS
+	r.ui.keyPressed()
+	if sc, d := r.frame(3060, motion.Rest); sc.Post.Moment.Event != 0 || d.Moving {
+		t.Errorf("a lingering panel's key burst: %+v moving %v", sc.Post.Moment, d.Moving)
+	}
+}

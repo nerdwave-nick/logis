@@ -109,7 +109,8 @@
     "flicker": { "strength": 0.01, "frequency": 7.48 },
     // The owner's glitch from the effects lab (2026-10-15): calm at rest,
     // a breakup at the end of every 9 s, a burst on opening and on a
-    // switch of tab, and six random bursts a minute.
+    // switch of tab, and six random bursts a minute; a small one on each
+    // key press (key-ms, key-strength).
     "glitch": {
       "strength": 0.45,
       "episodes": { "period-s": 9, "duty": 0.1 },
@@ -122,7 +123,7 @@
       "noise-band": { "rest": 0.02, "episode": 0.3, "cell-px": 1, "min": 0.03, "max": 0.1, "rate-hz": 30 },
       "static": { "rest": 0.03, "episode": 0.07, "rate-hz": 30 },
       "line-pulse": { "rest": 0.03, "episode": 0.12, "pitch-px": 2.3, "drift-px-s": 6 },
-      "bursts": { "open-ms": 420, "tab-ms": 240, "random-per-minute": 6, "random-ms": 300, "stutter": 0.28, "on": ["open", "tab"] }
+      "bursts": { "open-ms": 420, "tab-ms": 240, "key-ms": 120, "key-strength": 0.3, "random-per-minute": 6, "random-ms": 300, "stutter": 0.28, "on": ["open", "tab", "key"] }
     }
   },
   "motion": { "open-ms": 150, "close-ms": 110, "select-ms": 90 }

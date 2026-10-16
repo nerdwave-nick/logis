@@ -71,6 +71,9 @@ func (r *recorder) Show(s Session) {
 	if s.Tabbed {
 		tabbed = []string{" tabbed applications", " tabbed rites"}[s.Tab]
 	}
+	if s.RitesSilent {
+		tabbed += " silent"
+	}
 	r.note("show %d %s%s%s [%s]", s.ID, s.Mode, tabbed, prompt, texts(s.Entries))
 }
 
@@ -99,6 +102,12 @@ func (r *recorder) Hide(id SessionID)    { r.note("hide %d", id) }
 func (r *recorder) Linger(id SessionID)  { r.note("linger %d", id) }
 func (r *recorder) Untoast(id SessionID) { r.note("untoast %d", id) }
 
+func (r *recorder) Toast(t Toast) {
+	if t.Kind == ToastStale {
+		r.note("toast stale %s", t.Text)
+	}
+}
+
 const pid = 4242
 
 func newTestCore() (*core, *recorder) {
@@ -120,7 +129,7 @@ func greet(t *testing.T, c *core, id SessionID) *wire {
 	w := &wire{}
 	c.connect(id, w)
 	c.receive(id, protocol.Hello(), nil)
-	if got := w.take(); !reflect.DeepEqual(got, []protocol.Reply{protocol.Welcome(pid)}) {
+	if got := w.take(); !reflect.DeepEqual(got, []protocol.Reply{protocol.Welcome(pid, "")}) {
 		t.Fatalf("greeting %d: %+v", id, got)
 	}
 	return w

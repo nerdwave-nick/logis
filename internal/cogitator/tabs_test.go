@@ -2,6 +2,7 @@ package cogitator
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/daemon"
@@ -184,4 +185,58 @@ func sceneTexts(sc *render.Scene) []string {
 		out = append(out, x.Text)
 	}
 	return out
+}
+
+// Silent rites (2aaad4b9): plain logis whose caller found no servitor
+// shows the strip all the same; the rites' plate counts "—", their tab
+// says why, Return there does nothing, and Tab still switches.
+func TestSilentRitesShowTheStripSayWhyAndTakeNoAnswer(t *testing.T) {
+	r := newMovingRig()
+	r.ui.show(daemon.Session{ID: 1, Mode: protocol.ModeApps, Options: provider.AppsOptions(),
+		Entries: entries(someApps...), Tabbed: true, Tab: provider.TabRites, RitesSilent: true})
+	r.saw(t, "show 1", "items 4", "tab rites", "rites silent")
+	if want, _ := scene.FitTabbed(provider.AppsOptions(), r.ui.theme, 0); r.surf.size != want {
+		t.Fatalf("size %v, want %v", r.surf.size, want)
+	}
+	st := r.ui.stripOf(r.ui.shown)
+	if !st.Tabs[1].Silent || st.Tabs[0].Silent || st.Tabs[0].Count != 4 || st.Active != 1 {
+		t.Fatalf("strip %+v", st)
+	}
+	if l := r.ui.look(); l.Input != "seek a rite" || len(l.Rows) != 0 {
+		t.Errorf("the rites: %+v", l)
+	}
+	sc, _ := r.frame(1000, motion.Rest)
+	if !hasText(sc, scene.SilentRites) || !hasText(sc, scene.SilentRitesWhy[0]) || !hasText(sc, "—") {
+		t.Fatalf("%v", sceneTexts(sc))
+	}
+	// Return, Shift+Return and a typed query's Return do nothing there.
+	r.events = nil
+	r.act(input.ActAccept, input.ActDescend, input.Insert("kit"), input.ActAccept)
+	if len(r.host.answers) != 0 {
+		t.Fatalf("silent rites answered %+v", r.host.answers)
+	}
+	for _, e := range r.events {
+		if strings.HasPrefix(e, "accept") || strings.HasPrefix(e, "typed") || strings.HasPrefix(e, "descend") {
+			t.Fatalf("%q", r.events)
+		}
+	}
+	// Tab still switches, the query with it, and the applications answer.
+	r.act(input.ActTabNext)
+	r.saw(t, "tab applications")
+	r.act(input.ActAccept)
+	if len(r.host.answers) != 1 || r.host.answers[0].answer.Tab != provider.TabApps || r.host.answers[0].answer.Kind != daemon.AnswerItem {
+		t.Fatalf("%+v", r.host.answers)
+	}
+}
+
+// A dismissal from silent rites says their tab, so it is remembered.
+func TestEscapeFromSilentRitesSaysTheirTab(t *testing.T) {
+	r := newRig()
+	r.ui.show(daemon.Session{ID: 1, Mode: protocol.ModeApps, Options: provider.AppsOptions(),
+		Entries: entries(someApps...), Tabbed: true, Tab: provider.TabRites, RitesSilent: true})
+	r.act(input.ActDismiss)
+	want := answered{1, daemon.Answer{Kind: daemon.AnswerDismissed, Tab: provider.TabRites}}
+	if len(r.host.answers) != 1 || r.host.answers[0] != want {
+		t.Fatalf("%+v", r.host.answers)
+	}
 }

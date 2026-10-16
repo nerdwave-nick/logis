@@ -11,7 +11,8 @@ import (
 // Plain logis's tabbed launcher on the client's side (feat/logis-go
 // 8cba2fc9, a divergence from Rust v1): plain logis with servitor on its
 // PATH opens the app launcher with servitor mode's provider as its rites'
-// tab; --apps, and plain logis without servitor, open the launcher alone.
+// tab; without servitor its rites are silent (2aaad4b9); --apps opens the
+// launcher alone.
 
 func TestOnlyPlainLogisIsTabbed(t *testing.T) {
 	for _, args := range [][]string{{}, {"--config", "/c"}} {
@@ -43,16 +44,25 @@ func TestATabbedOpenNamesServitorModesProviderAsItsRites(t *testing.T) {
 	if len(open.Env) == 0 || len(open.Rites.Env) == 0 {
 		t.Error("no environment goes with it")
 	}
-	if open := appsOpen(true, missing, "/usr/bin/logis"); open.Rites != nil {
-		t.Error("rites without servitor")
+	if open.RitesSilent {
+		t.Error("rites silent with servitor found")
 	}
-	if open := appsOpen(false, found, "/usr/bin/logis"); open.Rites != nil {
-		t.Error("rites for --apps")
+	// Without servitor plain logis is tabbed still, its rites silent
+	// (2aaad4b9), however the lookup failed.
+	for _, lookPath := range []func(string) (string, error){missing, func(string) (string, error) { return "", errors.New("odd") }} {
+		for _, self := range []string{"/usr/bin/logis", ""} {
+			if open := appsOpen(true, lookPath, self); open.Rites != nil || !open.RitesSilent || len(open.Env) == 0 {
+				t.Errorf("without servitor (self %q): rites %v, silent %v", self, open.Rites != nil, open.RitesSilent)
+			}
+		}
 	}
-	if open := appsOpen(true, func(string) (string, error) { return "", errors.New("odd") }, ""); open.Rites != nil {
-		t.Error("rites where servitor cannot be looked up")
+	if open := appsOpen(false, found, "/usr/bin/logis"); open.Rites != nil || open.RitesSilent {
+		t.Error("tabs for --apps")
 	}
-	if open := appsOpen(true, found, ""); open.Rites != nil {
+	if open := appsOpen(false, missing, "/usr/bin/logis"); open.RitesSilent {
+		t.Error("silent rites for --apps")
+	}
+	if open := appsOpen(true, found, ""); open.Rites != nil || open.RitesSilent {
 		t.Error("rites without a body of its own to run")
 	}
 }
