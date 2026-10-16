@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/trace"
@@ -215,5 +216,36 @@ func TestOnlyReportsOfAChangeToTheWindowAreChanges(t *testing.T) {
 		if got := changesTheWindow(what); got != want {
 			t.Errorf("changesTheWindow(%q) = %v, want %v", what, got, want)
 		}
+	}
+}
+
+// A compositor binds its socket before it listens on it: the harness's
+// first connection waits through "connection refused" until it listens,
+// as a nested niri under load can take a moment to.
+func TestTheFirstConnectionWaitsForTheSocketToListen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wayland-1")
+	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = syscall.Close(fd) }()
+	if err := syscall.Bind(fd, &syscall.SockaddrUnix{Name: path}); err != nil {
+		t.Fatal(err)
+	}
+	listening := make(chan error, 1)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		listening <- syscall.Listen(fd, 1)
+	}()
+	d, err := connectOnceListening(path, os.Getpid(), time.Now().Add(Patience))
+	if err != nil {
+		t.Fatalf("the socket that listened late was not reached: %v", err)
+	}
+	d.Close()
+	if err := <-listening; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connectOnceListening(filepath.Join(t.TempDir(), "none"), os.Getpid(), time.Now()); err == nil {
+		t.Error("a socket that does not exist was reached")
 	}
 }
