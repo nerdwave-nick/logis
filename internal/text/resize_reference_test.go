@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// The resize is a performance-tuned port of swash's; the differential test
-// holds it byte for byte to the straightforward port it replaced
-// (resizeReference, verbatim).
-func TestResizeEqualsTheReferencePortByteForByte(t *testing.T) {
+// The resize is tuned for speed; it answers byte for byte as the
+// straightforward version of the same algorithm it replaced
+// (resizeReference, kept verbatim here), logis's own code.
+func TestTheTunedResizeEqualsTheStraightforwardOneByteForByte(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 2))
 	for _, c := range [][4]int{{136, 128, 20, 18}, {136, 128, 26, 24}, {136, 128, 41, 38}, {7, 5, 13, 11}, {64, 64, 64, 64}, {3, 90, 2, 7}, {1, 1, 4, 4}} {
 		w, h, nw, nh := c[0], c[1], c[2], c[3]
@@ -26,7 +26,7 @@ func TestResizeEqualsTheReferencePortByteForByte(t *testing.T) {
 			img[i+3] = a
 		}
 		if got, want := resize(img, w, h, nw, nh), resizeReference(img, w, h, nw, nh); !bytes.Equal(got, want) {
-			t.Fatalf("%v: the resize differs from the reference port", c)
+			t.Fatalf("%v: the tuned resize differs from the straightforward one", c)
 		}
 	}
 }

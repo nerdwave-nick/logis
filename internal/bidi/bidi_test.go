@@ -92,9 +92,10 @@ func TestTheCorpusLineKeepsItsBracketsInTheArabicRun(t *testing.T) {
 	}
 }
 
-// cosmic-text resets whitespace before separators and at the end of the
-// line to the paragraph level, skipping (not resetting) explicit
-// formatting characters and boundary neutrals.
+// Rule L1, as logis applies it: white space before a segment separator
+// and at the end of the line takes the paragraph level, while explicit
+// formatting characters and boundary neutrals among it are skipped (keep
+// their level) instead of reset, a deliberate variation of UAX #9 L1.
 func TestTrailingWhitespaceTakesTheParagraphLevel(t *testing.T) {
 	levels, rtl := Resolve([]rune("שלום  "))
 	if !rtl || fmt.Sprint(levels) != "[1 1 1 1 1 1]" {

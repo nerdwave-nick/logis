@@ -20,10 +20,11 @@ type Glyph struct {
 }
 
 // Line is a shaped line: its glyphs, its width (the sum of their
-// whole-pixel advances), LayoutWidth (the unrounded width cosmic-text lays
-// the line out and measures it with), the largest ascent and descent of
-// its glyphs' fonts, in pixels, and whether its paragraph is right to
-// left.
+// whole-pixel advances), LayoutWidth (the sum of the advances before
+// rounding, which the line is laid out and measured with: a column's
+// cut, its end alignment, a right to left line's start), the largest
+// ascent and descent of its glyphs' fonts, in pixels, and whether its
+// paragraph is right to left.
 type Line struct {
 	Glyphs                 []Glyph
 	Width, Ascent, Descent float32
