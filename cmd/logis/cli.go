@@ -41,6 +41,9 @@ const (
 type command struct {
 	kind   commandKind
 	config string
+	// tabbed: plain logis (no command), the tabbed launcher where
+	// servitor answers (apps.go).
+	tabbed bool
 	dmenu  dmenuOptions
 	// argv is the provider's command line: everything after --provider.
 	argv []string
@@ -116,6 +119,7 @@ func parse(args []string) (command, error) {
 		}
 		started, c.kind = true, kind
 	}
+	c.tabbed = !started
 	if c.kind == dmenuCommand {
 		d, err := runes.finish(nul)
 		c.dmenu = d

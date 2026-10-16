@@ -55,8 +55,9 @@ func runWith(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	// Plain logis is the app launcher, as in fuzzel.
-	return runApps(c.config, stderr)
+	// Plain logis is the app launcher, as in fuzzel; with servitor on the
+	// PATH, tabbed with servitor mode's rites (a divergence from Rust v1).
+	return runApps(c.config, c.tabbed, stderr)
 }
 
 // eofReader is an empty stdin.
