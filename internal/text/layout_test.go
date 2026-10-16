@@ -5,7 +5,9 @@ import (
 	"math"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/nerdwave-nick/logis/internal/grapheme"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -461,6 +463,58 @@ func cutLine(t *testing.T, at, s string, line, dots text.Line, w float32) {
 	}
 }
 
+// A cut line's ellipsis follows its last visible glyph, with no white
+// space before it: blanks (spaces, tabs, no-break spaces) where the cut
+// falls are dropped, in left to right, right to left and mixed lines, and
+// the cut is where the last visible non-blank text ends.
+func TestACutLinesEllipsisFollowsItsLastVisibleGlyph(t *testing.T) {
+	f := pinned(t, "sans-serif")
+	texts := []string{
+		"the rite of the long road", "The machine spirit wakes: 0123456789", "do-not-disturb\ton the vox",
+		"long\u00a0\u00a0word more", "a  b   c    d", "שלום עולם ומלואו", "שלום  עולם\tומלואו",
+		"abc שלום עולם def", "abc  שלום  עולם  def", "שלום abc def עולם", "שלום  abc  def  עולם",
+		"logis: שָׁלוֹם and مرحبا بالعالم (42) ok",
+	}
+	for _, size := range []float32{16, 20.8} {
+		for _, s := range texts {
+			free := f.Layout(s, size, text.LineOptions{})
+			for w := float32(0); w < free.Width; w++ {
+				for _, end := range []bool{false, true} {
+					line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true, AlignEnd: end})
+					e, n := ellipsisOf(line)
+					if n != 1 || len(line.Glyphs) == 1 {
+						continue // nothing, or the ellipsis alone
+					}
+					at := fmt.Sprintf("@%g %q in %g px (align end %v)", size, s, w, end)
+					if strings.TrimRightFunc(s[:e.Cluster], unicode.IsSpace) != s[:e.Cluster] {
+						t.Errorf("%s: cut at %d after %q, white space before the ellipsis", at, e.Cluster, s[:e.Cluster])
+					}
+					touching := false
+					for _, g := range line.Glyphs {
+						if g.Ellipsis {
+							continue
+						}
+						if strings.TrimSpace(s[g.Cluster:g.End]) == "" && g.End == e.Cluster {
+							t.Errorf("%s: a blank glyph %+v ends at the cut", at, g)
+						}
+						touching = touching || g.End == e.Cluster && (g.X+g.Advance == e.X || e.X+e.Advance == g.X)
+					}
+					if !touching {
+						t.Errorf("%s: no glyph of the text before the cut at %d touches the ellipsis at %g: %+v", at, e.Cluster, e.X, line.Glyphs)
+					}
+					var sum float32
+					for _, g := range line.Glyphs {
+						sum += g.Advance
+					}
+					if sum != line.Width {
+						t.Errorf("%s: width %g, advances %g", at, line.Width, sum)
+					}
+				}
+			}
+		}
+	}
+}
+
 // A cut keeps every glyph that fits beside the ellipsis, inside a word
 // too: one more would not fit.
 func TestACutKeepsAsManyGlyphsAsFitBesideTheEllipsis(t *testing.T) {
@@ -472,8 +526,13 @@ func TestACutKeepsAsManyGlyphsAsFitBesideTheEllipsis(t *testing.T) {
 		for w := dots; w < free.Width; w += 5 {
 			line := f.Layout(s, size, text.LineOptions{Column: true, Width: w, Ellipsis: true})
 			e, _ := ellipsisOf(line)
+			// One more character after the blanks the cut drops would not fit.
+			next := e.Cluster
+			for next < len(s) && s[next] == ' ' {
+				next++
+			}
 			kept := f.Layout(s[:e.Cluster], size, text.LineOptions{}).Width
-			more := f.Layout(s[:e.Cluster+1], size, text.LineOptions{}).Width
+			more := f.Layout(s[:next+1], size, text.LineOptions{}).Width
 			if kept+dots > w || more+dots <= w {
 				t.Errorf("@%g in %g px: cut after %q (%g + %g)", size, w, s[:e.Cluster], kept, dots)
 			}

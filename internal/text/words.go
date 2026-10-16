@@ -201,7 +201,12 @@ func (s *setting) run(start, end int, rtl bool) []shapedGlyph {
 	if start >= end {
 		return nil
 	}
-	return s.f.shapeRun(s.line, start, end, rtl, s.f.face(s.faceAt(start)), s.opt.Tracking)
+	glyphs := s.f.shapeRun(s.line, start, end, rtl, s.f.face(s.faceAt(start)), s.opt.Tracking)
+	for i := range glyphs {
+		g := &glyphs[i]
+		g.blank = strings.TrimFunc(s.line[g.start:g.end], unicode.IsSpace) == ""
+	}
+	return glyphs
 }
 
 // ellipsis is the "…" a cut line ends with, in the face of its first byte

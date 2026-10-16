@@ -18,6 +18,9 @@ type shapedGlyph struct {
 	ascent, descent  float32
 	font             FontID
 	id               uint16
+	// blank: the glyph shows white space only (a space, a tab, a no-break
+	// space), which a cut line drops before its ellipsis.
+	blank bool
 }
 
 // width is the glyph's advance at size pixels per em as it is drawn: a

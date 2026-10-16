@@ -37,7 +37,9 @@ may still change it; each such change is listed here.
   220 px column), a right-to-left line starts exactly at its right edge, and
   columns fitted to their widest text are as wide as that text is drawn (a few
   pixels wider than before at some scales). A column narrower than `…` shows
-  nothing; the ellipsis was drawn outside it.
+  nothing; the ellipsis was drawn outside it. The `…` follows the last visible
+  character directly: spaces and tabs where the cut falls are dropped
+  ("the rite of the long…", not "the rite of the long …").
 - **Tab stops are exact**: stops are 8 drawn spaces apart, and the text after a
   tab starts exactly at its stop, where it could drift a pixel or two.
 

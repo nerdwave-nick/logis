@@ -81,7 +81,8 @@ matches `é`; a typed `é` means `é`), with fzf's syntax: `^prefix`, `suffix$`,
 brass. Tab-separated columns line up: each is as wide as the widest text that
 has stood in it in a row shown so far (measured with the row font, as drawn), at
 most the theme's share of the row (wider text is cut to end in `…` within the
-column; a column narrower than `…` shows nothing), and the last takes the rest.
+column, right after its last visible character; a column narrower than `…`
+shows nothing), and the last takes the rest.
 Widths only grow while the window is open, so filtering never makes the columns
 jump back; a wider row coming into view widens its column once. This is display
 only: Return still prints the line's original bytes.
