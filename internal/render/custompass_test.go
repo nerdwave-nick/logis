@@ -122,8 +122,8 @@ func TestABrokenCustomShaderIsSkippedWithOneLoggedError(t *testing.T) {
 		place string
 	}{
 		{"does not compile", shader(broken), "/test/custom.frag:3:"},
-		{"cannot be read", custom.Shader{Path: "/test/gone.frag", Problem: "No such file or directory (os error 2)"},
-			"/test/gone.frag: No such file or directory (os error 2)"},
+		{"cannot be read", custom.Shader{Path: "/test/gone.frag", Problem: "No such file or directory"},
+			"/test/gone.frag: No such file or directory"},
 		{"defines no mainImage", shader("float glow(float x) { return x; }\n"), "logis's main"},
 	} {
 		// No subtests: the context is the test goroutine's.

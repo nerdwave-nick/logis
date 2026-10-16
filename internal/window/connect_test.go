@@ -153,8 +153,8 @@ func TestPreflightWithANonexistentSocketNamesTheSocket(t *testing.T) {
 	if !errors.As(err, &none) || !strings.Contains(err.Error(), filepath.Join(dir, "wayland-nowhere")) {
 		t.Errorf("%v", err)
 	}
-	// The OS error reads "<description> (os error N)" (caller contract).
-	if want := "cannot reach " + filepath.Join(dir, "wayland-nowhere") + ": No such file or directory (os error 2)"; none == nil || none.Reason != want {
+	// The OS error reads as its description, as the C library words it.
+	if want := "cannot reach " + filepath.Join(dir, "wayland-nowhere") + ": No such file or directory"; none == nil || none.Reason != want {
 		t.Errorf("reason %q, want %q", none.Reason, want)
 	}
 }

@@ -49,7 +49,7 @@ func TestCheckConfigCompilesTheCustomShader(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "themes", "mine.jsonc"), `{"effects": {"custom-shader": "gone.frag"}}`)
 	code, _, stderr = runLogis("--check-config", "--config", path)
 	gone := filepath.Join(dir, "themes", "gone.frag")
-	if code != 2 || stderr != "logis: the custom shader is heretical: "+gone+": No such file or directory (os error 2)\n" {
+	if code != 2 || stderr != "logis: the custom shader is heretical: "+gone+": No such file or directory\n" {
 		t.Errorf("exit %d stderr %q", code, stderr)
 	}
 }

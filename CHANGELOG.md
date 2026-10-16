@@ -9,6 +9,13 @@ may still change it; each such change is listed here.
 
 ## [Unreleased]
 
+### Changed
+
+- **An operating-system error reads as its description alone**, without the
+  "(os error N)" the port from Rust left behind: "cannot reach
+  /run/user/1000/wayland-nowhere: No such file or directory", and the same
+  for a custom shader or theme file that cannot be read.
+
 ### Fixed
 
 - **A dmenu switch given a value is refused**, as logis(1) promises ("a value a

@@ -145,10 +145,10 @@ func TestLoadReadsTheFileOrSaysWhyNot(t *testing.T) {
 		t.Errorf("%+v", s)
 	}
 	missing := Load(filepath.Join(dir, "gone.frag"))
-	if !missing.Set() || missing.Source != "" || missing.Problem != "No such file or directory (os error 2)" {
+	if !missing.Set() || missing.Source != "" || missing.Problem != "No such file or directory" {
 		t.Errorf("%+v", missing)
 	}
-	if err := missing.Readable(); err == nil || err.Error() != filepath.Join(dir, "gone.frag")+": No such file or directory (os error 2)" {
+	if err := missing.Readable(); err == nil || err.Error() != filepath.Join(dir, "gone.frag")+": No such file or directory" {
 		t.Errorf("%v", err)
 	}
 	if (Shader{}).Set() {

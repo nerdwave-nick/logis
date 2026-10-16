@@ -63,7 +63,7 @@ func TestAnAbsolutePathOrNoneAtAll(t *testing.T) {
 func TestAShaderThatCannotBeReadLeavesTheThemeSound(t *testing.T) {
 	th, dir := themesDir(t, map[string]string{"mine": `{"effects": {"custom-shader": "gone.frag"}}`})
 	c := load(t, th, "mine").Custom
-	if c.Path != filepath.Join(dir, "gone.frag") || c.Problem != "No such file or directory (os error 2)" {
+	if c.Path != filepath.Join(dir, "gone.frag") || c.Problem != "No such file or directory" {
 		t.Errorf("%+v", c)
 	}
 }
