@@ -89,13 +89,14 @@ func (c *core) firstStage() (*provider.Apps, provider.Step) {
 }
 
 // showApps: app session id became visible; its first stage, as plain
-// logis's tabbed launcher on the tab last used when tabbed.
-func (c *core) showApps(id SessionID, f *appsFeed, tabbed bool) {
+// logis's tabbed launcher on the tab last used when tabbed, its rites
+// silent when it has none to run.
+func (c *core) showApps(id SessionID, f *appsFeed, tabbed, silent bool) {
 	var step provider.Step
 	f.stages, step = c.firstStage()
 	s := Session{ID: id, Mode: protocol.ModeApps, Options: step.Options, Entries: step.Entries, Tabbed: tabbed}
 	if tabbed {
-		s.Tab = c.apps.tab
+		s.Tab, s.RitesSilent = c.apps.tab, silent
 	}
 	c.reveal(s)
 }

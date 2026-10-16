@@ -2,6 +2,7 @@ package scene
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/nerdwave-nick/logis/internal/list"
@@ -153,4 +154,68 @@ func TestAnEmptyTabPointsToTheOther(t *testing.T) {
 	}
 	st.Tabs[1].Count = 0
 	find(t, DrawTabbed(l, st, size, 0, false, still(th), nil), "nothing answers here")
+}
+
+// Silent rites (2aaad4b9): plain logis whose caller has no servitor on its
+// PATH still shows the strip; the rites' plate counts "—", and their tab
+// says why in its first rows: servitor is not found, and a keybind's PATH
+// is not always the shell's.
+func TestSilentRitesCountNothingAndSayWhy(t *testing.T) {
+	th := forge()
+	size, _ := FitTabbed(list.DefaultOptions(), th, 0)
+	l := &list.Look{Prompt: "> ", Input: "seek a rite", Lines: 5}
+	st := strip(1)
+	st.Tabs[1].Count, st.Tabs[1].Silent = 0, true
+	sc := DrawTabbed(l, st, size, 0, false, still(th), nil)
+	find(t, sc, "—")
+	g := TabbedGrid(size, 5, th)
+	first := find(t, sc, SilentRites)
+	if first.Origin[1] < g.Top(0) || first.Origin[1] > g.Top(1) {
+		t.Errorf("at %v, not in the first row (%v)", first.Origin, g.Top(0))
+	}
+	for i, words := range SilentRitesWhy {
+		row := i + 1
+		if x := find(t, sc, words); x.Origin[1] < g.Top(row) || x.Origin[1] > g.Top(row+1) {
+			t.Errorf("%q at %v, not in row %d (%v)", words, x.Origin, row, g.Top(row))
+		}
+	}
+	why := strings.Join(SilentRitesWhy[:], " ")
+	for _, words := range []string{"cannot find servitor", "PATH", "keybind", "shell"} {
+		if !strings.Contains(SilentRites+" "+why, words) {
+			t.Errorf("the words never name %q", words)
+		}
+	}
+	// A query typed elsewhere changes nothing: the rites stay silent, not
+	// empty.
+	st.Empty = true
+	sc = DrawTabbed(l, st, size, 0, false, still(th), nil)
+	find(t, sc, SilentRites)
+	for _, x := range texts(sc) {
+		if strings.HasPrefix(x, "nothing answers here") {
+			t.Errorf("an empty tab's line: %q", x)
+		}
+	}
+	// The applications' empty line never points to silent rites, and
+	// says nothing of them.
+	st.Active, st.Tabs[0].Count = 0, 0
+	sc = DrawTabbed(l, st, size, 0, false, still(th), nil)
+	find(t, sc, "nothing answers here")
+	for _, x := range texts(sc) {
+		if x == SilentRites || x == SilentRitesWhy[0] {
+			t.Errorf("the applications say %q", x)
+		}
+	}
+	// phosphor brackets the count as its badges.
+	find(t, DrawTabbed(l, st, size, 0, false, still(phosphor(t)), nil), "[—]")
+	// A two-row panel keeps the first lines.
+	l.Lines = 2
+	st.Active = 1
+	sc = DrawTabbed(l, st, size, 0, false, still(th), nil)
+	find(t, sc, SilentRites)
+	find(t, sc, SilentRitesWhy[0])
+	for _, x := range texts(sc) {
+		if x == SilentRitesWhy[1] {
+			t.Error("a line below a two-row panel")
+		}
+	}
 }

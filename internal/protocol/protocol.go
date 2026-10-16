@@ -36,7 +36,8 @@ import (
 //     Rust daemon left running across the switch-over refuses a Go client.
 //   - 5: open's rites (plain logis's tabbed launcher, feat/logis-go
 //     8cba2fc9), which a daemon of 4 ignored, serving the launcher alone;
-//     welcome's notice (a daemon whose binary was replaced, 750bed66).
+//     welcome's notice (a daemon whose binary was replaced, 750bed66);
+//     open's rites_silent (plain logis without servitor, 2aaad4b9).
 const Version uint32 = 5
 
 // SocketName is the socket's file name inside $XDG_RUNTIME_DIR.

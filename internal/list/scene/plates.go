@@ -10,7 +10,7 @@ import (
 )
 
 // How the tab strip's parts are drawn (strip.go): the plates, the key
-// hint and the empty tab's line.
+// hint, the empty tab's line and silent rites' words.
 
 // plate draws one plate, lit or idle.
 func plate(sc *render.Scene, r render.Region, tab Tab, lit bool, font, countFont theme.Font, t *theme.Theme) {
@@ -50,7 +50,7 @@ func plate(sc *render.Scene, r render.Region, tab Tab, lit bool, font, countFont
 	if t.Prompt.HasSigil {
 		tabIcon(sc, tab.Icon, x+18, centre, icon)
 	}
-	words := countWords(tab.Count, t)
+	words := countWords(tab, t)
 	sc.Texts = append(sc.Texts, column(text(strings.ToUpper(tab.Label), left, centre, font, label), right-left, render.Clip))
 	n := column(text(words, left, centre, countFont, count), right-left, render.Clip)
 	n.AlignEnd = true
@@ -66,9 +66,13 @@ func labelLeft(x float32, t *theme.Theme) float32 {
 	return x + 14
 }
 
-// countWords is a plate's count as shown: bracketed where the badges are.
-func countWords(n int, t *theme.Theme) string {
-	words := strconv.Itoa(n)
+// countWords is a plate's count as shown, "—" for a silent tab:
+// bracketed where the badges are.
+func countWords(tab Tab, t *theme.Theme) string {
+	words := strconv.Itoa(tab.Count)
+	if tab.Silent {
+		words = "—"
+	}
 	if t.Badge.Style == theme.BadgeBracket {
 		words = "[" + words + "]"
 	}
@@ -100,7 +104,7 @@ func labelFonts(st Strip, r [4]float32, t *theme.Theme) (theme.Font, theme.Font)
 	countEm := advance(theme.Font{Size: 1, Tracking: count.Tracking})
 	fit := float32(1)
 	for _, tab := range st.Tabs {
-		need := width(strings.ToUpper(tab.Label), label, labelEm) + width(countWords(tab.Count, t), count, countEm)
+		need := width(strings.ToUpper(tab.Label), label, labelEm) + width(countWords(tab, t), count, countEm)
 		fit = min(fit, room/max(need, 1))
 	}
 	label.Size *= fit
@@ -195,4 +199,26 @@ func emptyTab(sc *render.Scene, st Strip, g Grid, t *theme.Theme) {
 	line := column(text(words, left, g.Top(0)+g.Pitch/2, t.Row.Font, t.Counter.Color), max(g.Right-t.Row.Padding-left, 1), render.Ellipsis)
 	line.Spans = spans
 	sc.Texts = append(sc.Texts, line)
+}
+
+// silentTab says in the first row that the lit tab is silent, and why in
+// the rows below it, as far as the panel has rows.
+func silentTab(sc *render.Scene, g Grid, lines uint32, t *theme.Theme) {
+	cause, _, _ := strings.Cut(SilentRites, " — ")
+	dash := " — "
+	spans := []render.Span{
+		{Start: 0, End: len(cause), Color: t.Counter.Color},
+		{Start: len(cause), End: len(cause) + len(dash), Color: t.Query.Placeholder},
+		{Start: len(cause) + len(dash), End: len(SilentRites), Color: colourAt(t.Row.Columns, 1)},
+	}
+	left := g.Left + t.Row.Padding
+	room := max(g.Right-t.Row.Padding-left, 1)
+	line := column(text(SilentRites, left, g.Top(0)+g.Pitch/2, t.Row.Font, t.Counter.Color), room, render.Ellipsis)
+	line.Spans = spans
+	sc.Texts = append(sc.Texts, line)
+	for i, words := range SilentRitesWhy {
+		if row := i + 1; uint32(row) < lines {
+			sc.Texts = append(sc.Texts, column(text(words, left, g.Top(row)+g.Pitch/2, t.Row.Font, t.Query.Placeholder), room, render.Ellipsis))
+		}
+	}
 }

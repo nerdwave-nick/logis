@@ -55,6 +55,12 @@ func TestRequestsHaveAStableWireShape(t *testing.T) {
 	wantWire(t, Open(ModeDmenu, nil), `{"type":"open","mode":"dmenu"}`)
 	wantWire(t, Open(ModeApps, json.RawMessage(`{"prompt":"> "}`)),
 		`{"type":"open","mode":"apps","options":{"prompt":"> "}}`)
+	silent := Open(ModeApps, nil)
+	silent.RitesSilent = true
+	wantWire(t, silent, `{"type":"open","mode":"apps","rites_silent":true}`)
+	if back := decodeRequest(t, wire(t, silent)); !back.RitesSilent || back.Rites != nil {
+		t.Errorf("round trip %+v", back)
+	}
 	wantWire(t, End(), `{"type":"end"}`)
 	wantWire(t, Cancel(), `{"type":"cancel"}`)
 	if Version != 5 {

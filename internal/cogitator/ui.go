@@ -163,7 +163,7 @@ func (u *ui) show(s daemon.Session) {
 		glide: motion.NewGlide(u.motion().Selection), glitch: glitch.New(u.random)}
 	sh.panes[0] = sh.pane
 	if s.Tabbed {
-		openTabs(sh, s.Tab)
+		openTabs(sh, s.Tab, s.RitesSilent)
 	}
 	u.shown = nil
 	if err := u.present(size, sh); err != nil {
@@ -174,6 +174,9 @@ func (u *ui) show(s daemon.Session) {
 	u.emit("show %d", s.ID)
 	if sh.tabbed {
 		u.emit("tab %s", tabNames[sh.tab])
+	}
+	if s.RitesSilent {
+		u.emit("rites silent")
 	}
 	u.push(sh.panes[0], s.Entries, u.emit)
 }
@@ -242,7 +245,7 @@ func (u *ui) act(a input.Action) {
 		}
 		u.surf.RequestRedraw()
 		return
-	case r.Kind == list.Accept && sh.waiting:
+	case r.Kind == list.Accept && (sh.waiting || sh.silent):
 		return
 	case r.Kind == list.Dismiss:
 		u.emit("dismiss")

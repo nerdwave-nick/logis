@@ -47,11 +47,24 @@ const (
 )
 
 // Tab is one plate: its name (shown in capitals; "the <name>" in the
-// empty tab's hint) and how many of its items the query matches.
+// empty tab's hint) and how many of its items the query matches. Silent:
+// the tab has no provider to ask (the rites where its caller found no
+// servitor): its plate counts "—", and the tab says why.
 type Tab struct {
-	Label string
-	Count int
-	Icon  TabIcon
+	Label  string
+	Count  int
+	Icon   TabIcon
+	Silent bool
+}
+
+// SilentRites is what silent rites' tab says in its first row, and
+// SilentRitesWhy in the rows below it: the cause, plainly enough to act
+// on (logis started from a keybind has the compositor's PATH).
+const SilentRites = "cannot find servitor — the rites are silent"
+
+var SilentRitesWhy = [2]string{
+	"no servitor on the PATH logis was summoned with",
+	"a keybind's PATH can differ from your shell's",
 }
 
 // Strip is the tab strip: the plates, left to right, the lit one, and
@@ -147,7 +160,11 @@ func DrawTabbed(l *list.Look, st Strip, logical scale.Size, band float32, banded
 	}
 	body, _ := TabbedBody(logical, t)
 	keyHint(sc, plates[1].Rect, body, t)
-	if st.Empty && l.Lines > 0 {
+	switch {
+	case l.Lines == 0:
+	case st.Tabs[st.Active].Silent:
+		silentTab(sc, TabbedGrid(logical, l.Lines, t), l.Lines, t)
+	case st.Empty:
 		emptyTab(sc, st, TabbedGrid(logical, l.Lines, t), t)
 	}
 	sc.Post.Regions = plates[:]

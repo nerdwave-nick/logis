@@ -396,6 +396,17 @@ func TestGoldenTheTabStripWithEachTabLit(t *testing.T) {
 	}
 }
 
+// Silent rites (2aaad4b9, new beside Rust v1) in each bundled theme: plain
+// logis whose caller has no servitor on its PATH, on its Rites tab; the
+// plate counts "—" and the tab says why.
+func TestGoldenSilentRites(t *testing.T) {
+	o := list.DefaultOptions()
+	o.Placeholder = "seek a rite"
+	strip := scene.Strip{Tabs: [2]scene.Tab{{Label: "applications", Count: 22, Icon: scene.AppsIcon},
+		{Label: "rites", Icon: scene.RitesIcon, Silent: true}}, Active: 1}
+	checkTabbed(t, "tabs-rites-silent", list.NewView(o), o, strip)
+}
+
 // checkTabbed is checkThemes for a panel under the tab strip st.
 func checkTabbed(t *testing.T, name string, view *list.View, o list.Options, st scene.Strip) {
 	t.Helper()

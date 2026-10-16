@@ -33,6 +33,13 @@ contract" and logis(1)) is the public interface.
   tab strip, at its old row fit). Restart the daemon once after upgrading
   (`systemctl --user restart logis` where the units are enabled; otherwise
   end the old `logis daemon`).
+- **Plain logis always shows the tabs** (the Go build; a divergence from Rust
+  v1): without `servitor` on its PATH (a compositor keybind's PATH can differ
+  from the shell's), plain `logis` is the tabbed launcher all the same instead
+  of the app launcher alone. Its rites are silent: their plate counts "—",
+  their tab says "cannot find servitor — the rites are silent" and that a
+  keybind's PATH can differ from the shell's, and Return there does nothing.
+  The remembered tab works as ever. `--apps` and `--servitor` are unchanged.
 
 ### Fixed
 

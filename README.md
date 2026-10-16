@@ -141,8 +141,8 @@ window (the app itself first, then each action); Return there launches the one
 chosen. Apps you launch often and lately come first and rank higher when you
 type (frecency, kept in `$XDG_STATE_HOME/logis/frecency.json`).
 
-**Tabs (the Go build; a divergence from logis v1).** Plain `logis` with
-`servitor` on its PATH opens a tabbed launcher: two plates above the panel,
+**Tabs (the Go build; a divergence from logis v1).** Plain `logis` always
+opens a tabbed launcher: two plates above the panel,
 **Applications** on the left and **Rites** (servitor mode's rites) on the right,
 each counting what the query matches, and a TAB/SWITCH hint at the strip's end.
 Tab or Shift+Tab, or a click on a plate, switches tabs; the plates stay in place
@@ -154,8 +154,13 @@ dismissed). A tab with nothing for the query says how much the other has
 ("nothing answers here · 3 among the rites — Tab"). It opens on the tab last
 used, kept in `$XDG_STATE_HOME/logis/tab`. `logis --apps` and `logis --servitor`
 stay the single lists they were (no plates; Tab selects the next item) and leave
-the remembered tab alone; without servitor on the PATH plain `logis` is the app
-launcher alone. The plates take their look from the theme (the lit one is the
+the remembered tab alone. Without `servitor` on the PATH of whatever started
+plain `logis` (a compositor keybind's PATH can differ from your shell's), the
+strip shows all the same and the rites are silent: their plate counts "—", their
+tab says "cannot find servitor — the rites are silent" and why, Return there does
+nothing, and Tab still switches
+(`cmd/logis/tabs_e2e_test.go::TestE2EWithoutServitorTheRitesSayWhyAndReturnDoesNothing`).
+The plates take their look from the theme (the lit one is the
 selection, an idle one the panel; their corners are its `tab.radius`), and the
 CRT and glitch passes cover them as they cover the panel; a switch fires the
 glitch's tab burst.
@@ -515,13 +520,16 @@ What the man page adds, pinned as well:
   [Keyboard](#keyboard): `internal/input/bindings_test.go::TestUpDownTabAndCtrlNPMove`,
   `internal/input/bindings_test.go::TestEditingKeysEdit`,
   `cmd/logis/keyboard_e2e_test.go::TestE2EEveryEditingAndSelectionKeyDoesItsWork`.
-  The Go build diverges in plain `logis` with servitor on the PATH, its tabbed
+  The Go build diverges in plain `logis`, always its tabbed
   launcher ([App launcher](#app-launcher)): there Tab and Shift+Tab switch
   between the Applications and Rites tabs, keeping the query, and a click on a
   plate does the same
   (`cmd/logis/tabs_e2e_test.go::TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered`,
   `cmd/logis/tabs_e2e_test.go::TestE2EAClickOnAPlateSelectsItAndRowsLieBelowTheStrip`,
-  `internal/cogitator/tabs_test.go::TestTabAndShiftTabSwitchTabsAndKeepTheQuery`);
+  `internal/cogitator/tabs_test.go::TestTabAndShiftTabSwitchTabsAndKeepTheQuery`),
+  servitor on its PATH or not, when Return in silent rites does nothing
+  (`cmd/logis/tabs_e2e_test.go::TestE2EWithoutServitorTheRitesSayWhyAndReturnDoesNothing`,
+  `internal/cogitator/tabs_test.go::TestSilentRitesShowTheStripSayWhyAndTakeNoAnswer`);
   `--apps`, `--servitor` and every other session keep Tab as the next item
   (`cmd/logis/tabs_e2e_test.go::TestE2EAppsIsTheLauncherAloneAndTabSelects`,
   `internal/cogitator/tabs_test.go::TestUntabbedTabStillMovesTheSelection`).

@@ -90,11 +90,7 @@ launches the selected one and exits 0;
 .B Shift+Return
 opens its desktop actions in the same window.
 .PP
-With
-.B servitor
-on its
-.BR PATH ,
-plain
+Plain
 .B logis
 is a tabbed launcher (the Go build; logis v1 had none): two plates above the
 panel,
@@ -115,6 +111,19 @@ It opens on the tab last used, kept in
 and
 .B "logis \-\-servitor"
 are the single lists as before and leave the remembered tab alone.
+Without
+.B servitor
+on the
+.B PATH
+of whatever started plain
+.B logis
+(a compositor keybind's
+.B PATH
+can differ from the shell's), the strip shows all the same and the rites are
+silent: their plate counts a dash instead of rites, their tab says that
+servitor cannot be found and why, and
+.B Return
+there does nothing.
 Hidden are entries with
 .BR NoDisplay ,
 .BR Hidden ,
@@ -576,9 +585,12 @@ Where the configuration is looked for (default
 .B PATH
 Where
 .B \-\-servitor
-finds
+and plain
+.BR logis 's
+rites find
 .BR servitor ;
-the caller's, not the daemon's.
+the caller's, not the daemon's (from a compositor keybind, the
+compositor's).
 .SH FILES
 .TP
 .I $XDG_RUNTIME_DIR/logis.sock

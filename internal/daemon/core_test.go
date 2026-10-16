@@ -71,6 +71,9 @@ func (r *recorder) Show(s Session) {
 	if s.Tabbed {
 		tabbed = []string{" tabbed applications", " tabbed rites"}[s.Tab]
 	}
+	if s.RitesSilent {
+		tabbed += " silent"
+	}
 	r.note("show %d %s%s%s [%s]", s.ID, s.Mode, tabbed, prompt, texts(s.Entries))
 }
 

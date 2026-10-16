@@ -50,16 +50,29 @@ func openTabbed(t *testing.T, c *e2e.Cogitator, env []string) (*e2e.Client, e2e.
 	t.Helper()
 	client := c.ClientWith(env)
 	focused := c.Shown(e2eApps)
-	// The tab is told with the show, before the focus Shown ends at.
+	tab := shownTab(t, c)
+	sinceShow(t, c, "rites items 3")
+	return client, focused, tab
+}
+
+// shownTab is the tab the panel Shown last waited for opened on. The tab
+// is told with the show, before the focus Shown ends at.
+func shownTab(t *testing.T, c *e2e.Cogitator) string {
+	t.Helper()
+	return strings.TrimPrefix(sinceShow(t, c, "tab ").What, "tab ")
+}
+
+// sinceShow waits for the first report starting with what since the
+// last show, without moving the sequence cursor.
+func sinceShow(t *testing.T, c *e2e.Cogitator, what string) trace.Event {
+	t.Helper()
 	var since uint64
 	for _, e := range c.Daemon.Events() {
 		if strings.HasPrefix(e.What, "show ") {
 			since = e.NS
 		}
 	}
-	tab := c.Daemon.WaitSeen("the tab", func(e trace.Event) bool { return e.NS >= since && strings.HasPrefix(e.What, "tab ") })
-	c.Daemon.WaitSeen("the rites", func(e trace.Event) bool { return e.NS >= since && e.What == "rites items 3" })
-	return client, focused, strings.TrimPrefix(tab.What, "tab ")
+	return c.Daemon.WaitSeen(what, func(e trace.Event) bool { return e.NS >= since && strings.HasPrefix(e.What, what) })
 }
 
 func TestE2ETabSwitchesTabsTheQueryStaysAndTheTabIsRemembered(t *testing.T) {
@@ -186,5 +199,58 @@ func noTabs(t *testing.T, c *e2e.Cogitator) {
 		if e.What == "tab applications" || e.What == "tab rites" || strings.HasPrefix(e.What, "rites ") {
 			t.Fatalf("tabs: %q", e.What)
 		}
+	}
+}
+
+// Silent rites (2aaad4b9): plain logis with no servitor on its PATH shows
+// the strip; Tab shows the rites' tab saying why, Return there does
+// nothing, Escape exits 1, and the next summons opens on the rites.
+func TestE2EWithoutServitorTheRitesSayWhyAndReturnDoesNothing(t *testing.T) {
+	dir := t.TempDir()
+	c := startApps(t, dir)
+	env := appsClientEnv(t, dir) // no servitor on its PATH
+	client := c.ClientWith(env)
+	focused := c.Shown(e2eApps)
+	if tab := shownTab(t, c); tab != "applications" {
+		t.Fatalf("opened on %s", tab)
+	}
+	sinceShow(t, c, "rites silent")
+	c.Tap(focused, e2e.KeyTab)
+	next(t, c, "tab", "rites")
+	size := tabbedSize()
+	checkWindow(t, c, "tabs-rites-silent", int(size.W), int(size.H))
+	// Return, then a key: the key is heard (Type waits for its query),
+	// and nothing was answered.
+	c.Tap(focused, e2e.KeyEnter)
+	c.Type(focused, "k")
+	c.Tap(focused, e2e.KeyEnter)
+	c.Tap(focused, e2e.KeyEsc)
+	c.Next("dismiss")
+	for _, e := range c.Daemon.Events() {
+		if w := strings.Fields(e.What); len(w) > 0 && (w[0] == "accept" || w[0] == "typed" || w[0] == "descend") {
+			t.Fatalf("silent rites answered: %q", e.What)
+		}
+	}
+	if ended := client.Ended(); ended.Code != 1 || len(ended.Stdout) != 0 {
+		t.Fatalf("%+v", ended)
+	}
+	remembered := filepath.Join(dir, "state/logis/tab")
+	waitUntil(t, "the tab to be kept", func() bool {
+		b, err := os.ReadFile(remembered)
+		return err == nil && string(b) == "rites\n"
+	})
+	client = c.ClientWith(env)
+	focused = c.Shown(e2eApps)
+	if tab := shownTab(t, c); tab != "rites" {
+		t.Fatalf("reopened on %s", tab)
+	}
+	sinceShow(t, c, "rites silent")
+	c.Tap(focused, e2e.KeyEsc)
+	c.Next("dismiss")
+	if ended := client.Ended(); ended.Code != 1 {
+		t.Fatalf("%+v", ended)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "record")); err == nil {
+		t.Error("something was launched")
 	}
 }

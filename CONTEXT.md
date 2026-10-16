@@ -418,9 +418,9 @@ and shows the rows that fit, the leftover **spread** evenly between them. An ope
 panel keeps its size while the query narrows the list.
 
 **Tabbed launcher / tab / tab strip / plate**:
-The Go build's plain `logis` where `servitor` is on the caller's PATH (a
-divergence from Rust v1): one interactive app session whose open names its
-**rites** (servitor mode's provider, `logis provide servitor`), shown as two
+The Go build's plain `logis` (a divergence from Rust v1): one interactive
+app session whose open names its **rites** (servitor mode's provider,
+`logis provide servitor`) where `servitor` is on the caller's PATH, shown as two
 **tabs** of one window, the **applications** and the **rites**. The **tab
 strip** above the panel holds a **plate** per tab, fixed in place
 (applications left, rites right), each counting what the query matches; Tab,
@@ -430,6 +430,13 @@ answer came from is the **remembered tab** (`$XDG_STATE_HOME/logis/tab`), which
 the next tabbed launcher opens on. `--apps` and `--servitor` stay single lists
 (Tab moves the selection) and leave it alone. The plates are screens of glass
 for the CRT and glitch passes (`render.Post.Regions`).
+
+**Silent rites**:
+The rites of a tabbed launcher whose caller found no `servitor` on its PATH
+(often a compositor keybind's, which can differ from the shell's): its open
+says so instead of naming a provider. No provider runs; the rites' plate counts
+"—", their tab says "cannot find servitor — the rites are silent" and why, and
+Return there does nothing.
 
 ## Grimdark UI vocabulary
 
