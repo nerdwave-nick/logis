@@ -1,7 +1,7 @@
 // Package glitch keeps the glitch's time for one panel (feat/logis-go
 // 33cfcf44, new beside Rust v1): the ambient clock counted from the
 // panel's opening, and the bursts that events (the opening, a switch of
-// tab) and chance fire, with the envelope the glitch pass reads as its
+// tab, a key press) and chance fire, with the envelope the glitch pass reads as its
 // burst intensity. It also says when the panel must keep drawing for the
 // glitch and when it must wake for the next episode or random burst.
 // The scheduling is the effects lab's, which the owner approved.
@@ -26,7 +26,9 @@ const damped = 0.25
 type Clock struct {
 	opened uint64
 	open   bool
-	burst  burst
+	// burst is the open, tab or random burst; key the key press's, a
+	// small one beside it (8ad70fee): the glitch takes the larger.
+	burst, key burst
 	// next is when the next random burst comes (valid while scheduled).
 	next      uint64
 	scheduled bool
@@ -34,9 +36,10 @@ type Clock struct {
 }
 
 // burst is the burst running (or the last one): its start and length
-// (ns) and its steps' gates, drawn as they are reached.
+// (ns), its peak and its steps' gates, drawn as they are reached.
 type burst struct {
 	start, length uint64
+	peak          float32
 	gates         []float32
 }
 
@@ -57,17 +60,27 @@ func (c *Clock) Open(at uint64, g effects.Glitch) {
 	c.schedule(at, g)
 }
 
-// Fire fires the burst of event e at at, if g's bursts fire one on e; it
-// replaces a burst that is running. A tab switch calls it with
-// effects.EventTab.
+// Fire fires the burst of event e at at, if g's bursts fire one on e. An
+// open or tab burst replaces the open, tab or random burst running; a
+// key burst (effects.EventKey) replaces only a running key burst, and the
+// glitch takes the larger of the two. A tab switch calls it with
+// effects.EventTab, a key press with effects.EventKey.
 func (c *Clock) Fire(e effects.Events, at uint64, g effects.Glitch) {
-	if l := g.Bursts.Length(e); l > 0 && g.On() {
-		c.start(at, l)
+	l := g.Bursts.Length(e)
+	if l <= 0 || !g.On() {
+		return
 	}
+	if e == effects.EventKey {
+		c.key = newBurst(at, l, g.Bursts.Peak(e))
+		return
+	}
+	c.start(at, l)
 }
 
-func (c *Clock) start(at uint64, lengthMS float32) {
-	c.burst = burst{start: at, length: uint64(float64(lengthMS) * 1e6)}
+func (c *Clock) start(at uint64, lengthMS float32) { c.burst = newBurst(at, lengthMS, 1) }
+
+func newBurst(at uint64, lengthMS, peak float32) burst {
+	return burst{start: at, length: uint64(float64(lengthMS) * 1e6), peak: peak}
 }
 
 // schedule draws when the next random burst comes after at (none
@@ -109,7 +122,7 @@ func (c *Clock) At(at uint64, g effects.Glitch) effects.Moment {
 		return effects.Moment{}
 	}
 	c.due(at, g)
-	return effects.Moment{Time: c.since(at, g), Event: c.envelope(at, g)}
+	return effects.Moment{Time: c.since(at, g), Event: max(c.envelope(&c.burst, at, g), c.envelope(&c.key, at, g))}
 }
 
 // since is the seconds since the opening, wrapped after a whole number of
@@ -124,11 +137,10 @@ func (c *Clock) since(at uint64, g effects.Glitch) float32 {
 	return float32(math.Mod(s, wrap))
 }
 
-// envelope is the running burst's intensity at at: sin(πt)^0.6 over its
-// length, its stuttered steps damped.
-func (c *Clock) envelope(at uint64, g effects.Glitch) float32 {
-	b := &c.burst
-	if b.length == 0 || at < b.start || at-b.start >= b.length {
+// envelope is burst b's intensity at at: sin(πt)^0.6 over its length
+// times its peak, its stuttered steps damped.
+func (c *Clock) envelope(b *burst, at uint64, g effects.Glitch) float32 {
+	if !b.running(at) {
 		return 0
 	}
 	t := float64(at-b.start) / float64(b.length)
@@ -140,7 +152,7 @@ func (c *Clock) envelope(at uint64, g effects.Glitch) float32 {
 		}
 		b.gates = append(b.gates, gate)
 	}
-	return float32(math.Pow(math.Sin(math.Pi*t), 0.6)) * b.gates[i]
+	return float32(math.Pow(math.Sin(math.Pi*t), 0.6)) * b.peak * b.gates[i]
 }
 
 // Moving reports whether the glitch moves at at, so the panel keeps
@@ -152,8 +164,9 @@ func (c *Clock) Moving(at uint64, g effects.Glitch) bool {
 	return g.Moves() || c.bursting(at) || c.inEpisode(at, g)
 }
 
-func (c *Clock) bursting(at uint64) bool {
-	b := c.burst
+func (c *Clock) bursting(at uint64) bool { return c.burst.running(at) || c.key.running(at) }
+
+func (b *burst) running(at uint64) bool {
 	return b.length > 0 && at >= b.start && at-b.start < b.length
 }
 

@@ -736,19 +736,26 @@ overrides it.
     band of coarse noise; `static` (`rest`, `episode`, `rate-hz`): fine
     noise; `line-pulse` (`rest`, `episode`, `pitch-px`, `drift-px-s`): a dense
     drifting ripple;
-  - `bursts`: `open-ms` and `tab-ms` (0–1500) are the bursts on the events
-    named in `on` (`["open", "tab"]`: the panel opening, a switch of tab; no
-    panel has tabs yet, so today only the opening fires one);
+  - `bursts`: `open-ms`, `tab-ms` and `key-ms` (0–1500) are the bursts on
+    the events named in `on` (`["open", "tab", "key"]`: the panel opening, a
+    switch of tab in plain logis's tabbed launcher, a key press);
     `random-per-minute` (0–30) random bursts come at random intervals from
     the opening, each `random-ms` (50–1500) long; a burst rises and falls as
     sin(πt)^0.6 and `stutter` (0–1) damps that share of its 33 ms steps to a
     quarter. The glitch takes the larger of a burst and the ambient episode.
+  - The key burst is a small one: it peaks at `key-strength` (0–1; 0 fires
+    none) where the others peak at 1. Any key press in the panel fires it
+    (typing, the arrows, Return, Escape, Tab; not a bare modifier, and not a
+    held key's repeats), and a new press starts it over. It runs beside an
+    open, tab or random burst and the glitch takes the larger, so it never
+    cuts one short or weakens it.
 
   Each part's range is in the schema; a value outside it is refused with its
   key (`effects.glitch.wobble.episode: 81 is out of range (0 to 80)`). The
   bundled themes wear the owner's looks: forge calm at rest, an episode at the
-  end of every 9 s, bursts on opening and tab, six random bursts a minute;
-  phosphor stronger with shorter episodes. A glitch that moves at rest (the
+  end of every 9 s, bursts on opening and tab, six random bursts a minute
+  and a small one (120 ms at 0.3) on each key press; phosphor stronger with
+  shorter episodes. A glitch that moves at rest (the
   bundled looks: tracking, wobble, static, line pulse) keeps the window
   drawing like any continuous effect; one that is calm at rest draws only
   through its episodes and bursts and otherwise sleeps until the next one.

@@ -72,17 +72,40 @@ func TestEachGlitchControlIsItsOwnField(t *testing.T) {
 	}
 }
 
-// The bursts default to the effects lab's: open 420 ms, tab 240 ms, no
-// random bursts (each 300 ms), stutter 0.28, on open and tab.
+// The bursts default to the effects lab's: open 420 ms, tab 240 ms, a
+// small key burst (120 ms at 0.3), no random bursts (each 300 ms),
+// stutter 0.28, on open and tab.
 func TestTheBurstsDefaultToTheLabs(t *testing.T) {
-	want := Bursts{OpenMS: 420, TabMS: 240, RandomPerMinute: 0, RandomMS: 300, Stutter: 0.28, On: EventOpen | EventTab}
+	want := Bursts{OpenMS: 420, TabMS: 240, KeyMS: 120, KeyStrength: 0.3, RandomPerMinute: 0, RandomMS: 300,
+		Stutter: 0.28, On: EventOpen | EventTab}
 	if got := GlitchDefaults().Bursts; got != want {
 		t.Errorf("%+v", got)
 	}
 	b := want
 	b.On = EventTab
-	if b.Length(EventOpen) != 0 || b.Length(EventTab) != 240 {
-		t.Errorf("open %v tab %v", b.Length(EventOpen), b.Length(EventTab))
+	if b.Length(EventOpen) != 0 || b.Length(EventTab) != 240 || b.Length(EventKey) != 0 {
+		t.Errorf("open %v tab %v key %v", b.Length(EventOpen), b.Length(EventTab), b.Length(EventKey))
+	}
+}
+
+// A key press fires a small burst of its own (8ad70fee): key-ms long,
+// peaking at key-strength where the other bursts peak at 1; none at a
+// strength of 0 or without "key" among the events.
+func TestAKeyBurstIsSmall(t *testing.T) {
+	b := GlitchDefaults().Bursts
+	b.On = EventKey
+	if b.Length(EventKey) != 120 || b.Peak(EventKey) != 0.3 {
+		t.Errorf("key: %v ms, peak %v", b.Length(EventKey), b.Peak(EventKey))
+	}
+	if b.Peak(EventOpen) != 1 || b.Peak(EventTab) != 1 {
+		t.Errorf("open and tab peak at %v and %v", b.Peak(EventOpen), b.Peak(EventTab))
+	}
+	b.KeyStrength = 0
+	if b.Length(EventKey) != 0 {
+		t.Errorf("a key burst of strength 0 lasts %v ms", b.Length(EventKey))
+	}
+	if strings.Join(EventWords, " ") != "open tab key" {
+		t.Errorf("the events' words: %v", EventWords)
 	}
 }
 

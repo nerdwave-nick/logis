@@ -20,6 +20,7 @@ type Keyboard struct {
 	repeat    *Repeat
 	focusLoss config.FocusLoss
 	sink      func(Action)
+	pressed   func()
 	log       io.Writer
 	now       func() time.Time
 }

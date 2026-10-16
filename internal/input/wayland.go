@@ -27,6 +27,10 @@ const (
 // SetSink sends every action the keyboard produces to sink.
 func (k *Keyboard) SetSink(sink func(Action)) { k.sink = sink }
 
+// SetPressSink calls pressed on each key press the panel reads: any key
+// but a bare modifier, once per press, never for its repeats.
+func (k *Keyboard) SetPressSink(pressed func()) { k.pressed = pressed }
+
 // SetLog reports refused keymaps to log.
 func (k *Keyboard) SetLog(log io.Writer) { k.log = log }
 
@@ -105,6 +109,9 @@ func (k *Keyboard) Leave(serial uint32) { k.emit(k.FocusOut()) }
 // Key is wl_keyboard.key.
 func (k *Keyboard) Key(serial, time, key, state uint32) {
 	if state == KeyPressed {
+		if k.pressed != nil && k.layout != nil && !k.layout.Modifier(key) {
+			k.pressed()
+		}
 		k.emit(k.Press(key, k.clock()))
 		return
 	}

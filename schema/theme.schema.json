@@ -1005,7 +1005,7 @@
           ]
         },
         "glitch": {
-          "description": "The glitch pass before the CRT pass (new in the Go logis; v1 had none): the glass breaks up like a failing signal, gently at rest and hard in episodes (at the end of each ambient period) and bursts (on opening, a switch of tab, at random). A bare number is its strength. Most parts have an amount at rest and one in an episode. Lengths are logical pixels. reduce-motion turns it off.",
+          "description": "The glitch pass before the CRT pass (new in the Go logis; v1 had none): the glass breaks up like a failing signal, gently at rest and hard in episodes (at the end of each ambient period) and bursts (on opening, a switch of tab, a key press, at random). A bare number is its strength. Most parts have an amount at rest and one in an episode. Lengths are logical pixels. reduce-motion turns it off.",
           "oneOf": [
             {
               "$ref": "#/$defs/strength"
@@ -1357,6 +1357,18 @@
                       "minimum": 0,
                       "maximum": 1500
                     },
+                    "key-ms": {
+                      "description": "Length of the small burst on a key press in the panel (not a key's repeats; a new press starts it over), in ms; 0 fires none.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1500
+                    },
+                    "key-strength": {
+                      "description": "Peak of a key press's burst (the other bursts peak at 1); 0 fires none. It never weakens or ends a running open, tab or random burst: the glitch takes the larger.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
                     "random-per-minute": {
                       "description": "Random bursts a minute on average, at random (exponential) intervals from the opening; 0 fires none.",
                       "type": "number",
@@ -1376,12 +1388,13 @@
                       "maximum": 1
                     },
                     "on": {
-                      "description": "The events that fire a burst: the panel opening, a switch of tab.",
+                      "description": "The events that fire a burst: the panel opening, a switch of tab, a key press.",
                       "type": "array",
                       "items": {
                         "enum": [
                           "open",
-                          "tab"
+                          "tab",
+                          "key"
                         ]
                       },
                       "uniqueItems": true
@@ -1521,12 +1534,15 @@
           "bursts": {
             "open-ms": 420,
             "tab-ms": 240,
+            "key-ms": 120,
+            "key-strength": 0.3,
             "random-per-minute": 6,
             "random-ms": 300,
             "stutter": 0.28,
             "on": [
               "open",
-              "tab"
+              "tab",
+              "key"
             ]
           }
         }

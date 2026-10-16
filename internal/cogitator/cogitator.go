@@ -79,12 +79,14 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		} else {
 			rend.SetFonts(f) // the renderer owns them now
 		}
-		// Keys, the pointer and pasted text share one queue, in order.
-		var actions []input.Action
-		sink := func(a input.Action) { actions = append(actions, a) }
+		// Keys, the pointer and pasted text share one queue, in order; a
+		// key press (not a repeat) also fires the glitch's key burst.
+		in := &inbox{}
+		sink := func(a input.Action) { in.actions = append(in.actions, a) }
 		kb := input.NewKeyboard(input.ComposeFromEnv())
 		kb.SetLog(log)
 		kb.SetSink(sink)
+		kb.SetPressSink(func() { in.pressed = true })
 		w.SetKeyboard(kb)
 		w.SetSink(sink)
 		u := newUI(host, w, &th, kb)
@@ -113,7 +115,7 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 		r.wake = w.Wake
 		r.mu.Unlock()
 		ready <- nil
-		err = r.run(w, u, &actions)
+		err = r.run(w, u, in)
 		host.Exit(2, "the noosphere fell silent: the Wayland connection was lost ("+reason(err)+
 			"). The machine spirit departs; the next summons will rouse it anew.")
 	}()
@@ -123,19 +125,31 @@ func Start(host daemon.Host, log io.Writer) (*Resolver, error) {
 	return r, nil
 }
 
+// inbox is what the window's input brought since the last turn: the
+// actions in order, and whether a key was pressed.
+type inbox struct {
+	actions []input.Action
+	pressed bool
+}
+
 // run serves commands, keys, the pointer and pastes until the compositor
 // is lost.
-func (r *Resolver) run(w *window.Window, u *ui, actions *[]input.Action) error {
+func (r *Resolver) run(w *window.Window, u *ui, in *inbox) error {
 	for {
 		busy := false
 		for _, command := range r.drain() {
 			command(u)
 			busy = true
 		}
-		for len(*actions) > 0 {
-			a := (*actions)[0]
-			*actions = (*actions)[1:]
+		for len(in.actions) > 0 {
+			a := in.actions[0]
+			in.actions = in.actions[1:]
 			u.act(a)
+			busy = true
+		}
+		if in.pressed {
+			in.pressed = false
+			u.keyPressed()
 			busy = true
 		}
 		u.expire()
