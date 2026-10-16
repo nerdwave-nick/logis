@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/nerdwave-nick/logis/internal/custom"
 	"github.com/nerdwave-nick/logis/internal/jsonc"
 	"github.com/nerdwave-nick/logis/internal/render"
 	"github.com/nerdwave-nick/logis/internal/text"
@@ -68,6 +69,9 @@ func resolve(name, dir string, d node) (Theme, error) {
 	effects := need[node](r, d, "effects", "effects")
 	t.Effects = r.effects(effects)
 	t.Glitch = r.glitch(effects)
+	if path, ok := effects["custom-shader"].(string); ok {
+		t.Custom = custom.Load(custom.Beside(dir, path))
+	}
 	t.Motion = r.motion(need[node](r, d, "motion", "motion"))
 	errorRef, _ := parseColour("error")
 	t.Error = r.resolveColour(errorRef, "palette.error")

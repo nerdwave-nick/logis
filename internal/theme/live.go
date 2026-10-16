@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/nerdwave-nick/logis/internal/config"
+	"github.com/nerdwave-nick/logis/internal/custom"
 )
 
 // Live is the theme in force while the daemon runs (Rust src/config/live.rs
@@ -56,11 +57,19 @@ func (l *Live) Reload(c config.Config) (config.Reload, error) {
 	return config.Unchanged, nil
 }
 
-// wornAs is t as the config c would have it worn.
+// wornAs is t as the config c would have it worn: with the config's
+// custom shader (read now) over the theme's, stilled when motion is
+// reduced.
 func wornAs(t *Theme, c config.Config) *Theme {
-	if c.ReduceMotion {
-		still := t.Stilled()
-		return &still
+	if c.CustomShader == "" && !c.ReduceMotion {
+		return t
 	}
-	return t
+	worn := *t
+	if c.CustomShader != "" {
+		worn.Custom = custom.Load(c.CustomShader)
+	}
+	if c.ReduceMotion {
+		worn = worn.Stilled()
+	}
+	return &worn
 }

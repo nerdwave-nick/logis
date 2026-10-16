@@ -1,6 +1,9 @@
 package render
 
-import "github.com/nerdwave-nick/logis/internal/effects"
+import (
+	"github.com/nerdwave-nick/logis/internal/custom"
+	"github.com/nerdwave-nick/logis/internal/effects"
+)
 
 // MaxRegions is the most screen regions a Post takes besides the body.
 const MaxRegions = 4
@@ -9,8 +12,9 @@ const MaxRegions = 4
 // (Glitch), then the CRT pass's effects (effects.CRT, every control the
 // theme sets), on the panel's body and on up to MaxRegions further screens
 // of glass (the tab strip's plates). Outside them the frame stays as drawn (the glow), bent with the
-// panel when it is curved. Rust v1 had seven strengths here; the named
-// controls diverge from it on purpose (cd816303).
+// panel when it is curved; then the custom pass (Custom) over the whole
+// frame. Rust v1 had seven strengths here; the named controls diverge from
+// it on purpose (cd816303), and the custom pass is new.
 type Post struct {
 	// Rect is the body the effects cover: left, top, width, height
 	// (logical); Radius its corner radius.
@@ -37,6 +41,13 @@ type Post struct {
 	// intensity takes Moment.Event (the burst) or Glitch.Intensity(Moment).
 	Glitch effects.Glitch
 	Moment effects.Moment
+	// Custom is the custom pass's shader (a5e5f876, new beside Rust v1):
+	// a theme's or the config's, run after the CRT pass over the whole
+	// frame; one the driver refuses is skipped (and said once). It takes
+	// Moment.Time as iTime (0 when Frozen), Frame as iFrame (frames drawn
+	// since the panel opened) and Glitch.Intensity(Moment) as iGlitch.
+	Custom custom.Shader
+	Frame  int
 }
 
 // Region is a rounded rectangle of glass: left, top, width, height and
@@ -47,4 +58,4 @@ type Region struct {
 }
 
 // Any reports whether any effect is on, so a pass runs at all.
-func (p Post) Any() bool { return p.CRT.Any() || p.Glitch.On() }
+func (p Post) Any() bool { return p.CRT.Any() || p.Glitch.On() || p.Custom.Set() }

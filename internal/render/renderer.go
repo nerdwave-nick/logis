@@ -30,10 +30,11 @@ type Renderer struct {
 	images            *imagePass
 	glyphs            *glyphPass
 	// passes are the post-processing passes in order (the glitch pass,
-	// then the CRT pass);
-	// frames the intermediate frames they read.
+	// the CRT pass, then the custom pass); frames the intermediate frames
+	// they read.
 	passes []pass
 	frames frames
+	custom *customPass
 }
 
 // New compiles the shaders and makes the buffers and the atlas, on the
@@ -76,12 +77,18 @@ func New() (*Renderer, error) {
 		return nil, err
 	}
 	r.passes = append(r.passes, crt)
+	r.custom = newCustomPass()
+	r.passes = append(r.passes, r.custom)
 	if err := gles.Err(); err != nil {
 		r.Close()
 		return nil, err
 	}
 	return r, nil
 }
+
+// SetLog says in the log, through logf, what goes wrong while drawing: a
+// custom shader that is skipped.
+func (r *Renderer) SetLog(logf func(string)) { r.custom.logf = logf }
 
 // Atlas is the image atlas the scene's ImageQuads refer to.
 func (r *Renderer) Atlas() *Atlas { return r.images.atlas }

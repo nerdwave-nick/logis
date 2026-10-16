@@ -59,6 +59,10 @@ var fields = []field{
 		c.ReduceMotion, err = r.flag("reduce-motion")
 		return err
 	}},
+	{"custom-shader", func(r reader, c *Config) (err error) {
+		c.CustomShader, err = r.text("`custom-shader` as the path of a GLSL ES 3.00 fragment shader file", nil)
+		return err
+	}},
 }
 
 // keys are the config's keys, in the order the schema lists them.

@@ -57,7 +57,7 @@ func TestTheGlitchPassRunsBeforeTheCRTPass(t *testing.T) {
 		t.Skipf("no surfaceless EGL here: %v", err)
 	}
 	defer h.Close()
-	if len(h.passes) != 2 {
+	if len(h.passes) != 3 {
 		t.Fatalf("%d passes", len(h.passes))
 	}
 	if _, ok := h.passes[0].(*glitchPass); !ok {
@@ -65,5 +65,9 @@ func TestTheGlitchPassRunsBeforeTheCRTPass(t *testing.T) {
 	}
 	if _, ok := h.passes[1].(*crtPass); !ok {
 		t.Errorf("then %T", h.passes[1])
+	}
+	// The custom pass (a5e5f876) comes last, after the built-in effects.
+	if _, ok := h.passes[2].(*customPass); !ok {
+		t.Errorf("last %T", h.passes[2])
 	}
 }

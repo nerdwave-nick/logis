@@ -158,10 +158,12 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 			if u.icons != nil {
 				icons = u.icons(f.Geometry)
 			}
-			sc := scene.DrawAt(&look, f.Logical, band, banded, scene.Style{Theme: u.theme, At: f.At, Glitch: moment}, icons)
+			style := scene.Style{Theme: u.theme, At: f.At, Glitch: moment, Frame: sh.frames}
+			sc := scene.DrawAt(&look, f.Logical, band, banded, style, icons)
 			f.Pose.Apply(sc)
 			u.draw(sc, f.Geometry)
 		}
+		sh.frames++
 		body, radius := scene.Body(f.Logical, u.theme)
 		return window.Drawing{
 			Moving:   gliding || glitching || scene.Moving(&look, u.theme),

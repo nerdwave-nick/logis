@@ -49,7 +49,8 @@ install it, see [Installing](#installing). The binary does this much:
 - `logis --check-config [--config PATH]` validates the configuration and the
   [theme](#themes) it names without touching Wayland or the daemon: exit 0 if
   they are sound (or absent), 2 with the error's file, line and column (or key)
-  on stderr.
+  on stderr. A [custom shader](#custom-shaders) they name is compiled on an
+  offscreen GPU context, its errors at the shader's own lines.
 - Every window wears a [theme](#themes): forge crimson & brass by default, or
   cogitator phosphor, or one of your own, edited live.
 - `logis daemon --debug-panel [--config PATH]` does not serve sessions: it shows a
@@ -527,6 +528,7 @@ the defaults.
   "focus-loss": "dismiss",         // or "keep": what losing keyboard focus does
   "blur": true,                    // blur what lies behind the panel, where offered
   "reduce-motion": false,          // true stills the theme's pulse, highlight, flicker, glitch
+  // "custom-shader": "shaders/amber.frag", // a pass after the theme's effects (Custom shaders)
 }
 ```
 
@@ -539,14 +541,15 @@ the daemon's log and, while a list is shown, to a themed notice over it (3 s).
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
 follows `focus-loss`, `blur`, `icon-theme`, `theme` and `reduce-motion`, the app
-launcher `terminal`.
+launcher `terminal`, and the window wears `custom-shader` over the theme's
+own (see [Custom shaders](#custom-shaders)).
 
 `reduce-motion` is off by default, as decided for the bundled themes (their glow
 pulses and a highlight travels round the border; the flicker is very subtle).
 Turned on, it stills every continuous effect of the theme (glow pulse, travelling
 highlight, flicker, a pending row's shimmer; the grain stops changing, the
-scanlines stop rolling and the colour split stops wobbling) and turns the glitch
-off; the open, close and selection transitions stay (`LOGIS_MOTION=off` stills
+scanlines stop rolling and the colour split stops wobbling), turns the glitch
+off and holds a custom shader's `iTime` at 0; the open, close and selection transitions stay (`LOGIS_MOTION=off` stills
 those).
 
 ## Themes
@@ -566,7 +569,8 @@ A theme is the cogitator's whole look (spec §4.9, the model decided on 6217c721
 - **effects and motion**: the CRT pass over the body (`scanlines`, `glow`,
   `aberration`, `mask`, `roundness`, `grain`, `flicker`, each a group of settings
   with a strength where 0 is off; see **Effects** below), the `glitch` before it
-  (see **Glitch**) and the transition timings.
+  (see **Glitch**), an optional `custom-shader` after them all (see
+  [Custom shaders](#custom-shaders)) and the transition timings.
 
 Colours are `#rrggbb`, `#rrggbbaa`, `transparent` or a palette name, each
 optionally with `/alpha` (`"crimson/0.55"`). Lengths are logical pixels: a theme
@@ -715,12 +719,89 @@ overrides it.
   neither.
 - **Continuous effects** (glow pulse, travelling highlight, flicker, rolling
   scanlines, a wobbling colour split, changing grain, a glitch that moves at
-  rest, a pending row's shimmer)
+  rest, a custom shader, a pending row's shimmer)
   keep a visible window drawing at the output's refresh rate:
   measured on the owner's machine (Intel Arc, nested niri at 60 Hz, release
   build) a visible forge window draws 60 frames/s with about 70 daemon
   wake-ups/s and 6 % of one CPU core; with `reduce-motion` it draws nothing and
   wakes nothing once settled, as any idle window.
+
+## Custom shaders
+
+The Go build (new beside Rust v1) can run one shader of your own after the
+theme's built-in effects, which stay as they are: a theme names it under
+`effects.custom-shader` (a path from the theme's file), or the config under
+`custom-shader` (a path from the config's directory), which outranks the
+theme's. `""` names none, so a theme that extends another can drop its shader.
+
+The shader is GLSL ES 3.00 (OpenGL ES 3, what logis draws with), written the
+way Shadertoy writes its image shaders: it defines
+
+```glsl
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+```
+
+and logis declares everything else before it:
+
+| Input | What it is |
+|---|---|
+| `iChannel0` | the frame after the built-in effects (glitch, CRT): premultiplied alpha, read linearly and held at its edges |
+| `iResolution` | `vec3(width, height, 1.0)` in buffer pixels |
+| `iTime` | seconds since the panel opened (starting again near each hour); frozen at 0 by `reduce-motion` |
+| `iFrame` | frames the panel has drawn before this one |
+| `iGlitch` | the theme's glitch at this moment, 0 to 1 (episode or burst, times its strength; 0 without a glitch) |
+
+`fragCoord` is the pixel's centre counted from the bottom-left corner, as on
+Shadertoy, so `texture(iChannel0, fragCoord / iResolution.xy)` is the pixel
+as the built-in effects left it. The frame and `fragColor` are
+**premultiplied**: keep `iChannel0`'s alpha (and keep the colour at or below
+it), or the panel's transparent margin turns opaque. A minimal shader, which
+warms the colours towards the bottom and dims every third row of pixels:
+
+```glsl
+// ~/.config/logis/themes/shaders/amber.frag
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = fragCoord / iResolution.xy;
+    vec4 c = texture(iChannel0, uv);
+    vec3 amber = c.rgb * mix(vec3(1.0, 0.82, 0.55), vec3(1.0), uv.y);
+    float row = mod(floor(fragCoord.y), 3.0) == 0.0 ? 0.75 : 1.0;
+    fragColor = vec4(amber * row, c.a);
+}
+```
+
+```jsonc
+// ~/.config/logis/themes/mine.jsonc
+{ "extends": "forge-crimson-brass", "effects": { "custom-shader": "shaders/amber.frag" } }
+```
+
+The pass runs over the whole surface, glow included, and a panel with a
+custom shader keeps drawing while it is shown (the shader may use its time);
+with `reduce-motion` its `iTime` stays 0 and the panel rests between changes.
+logis reads the file when it reads the theme or the config, so after editing
+the shader save the theme or the config again (or restart the daemon). A
+shader that cannot be read, compiled or linked is skipped with one line in the
+daemon's log; the built-in effects still draw. `logis --check-config` compiles
+it and names the line at fault in your file, not in logis's prelude
+(`the custom shader is heretical: …/amber.frag:6:24: error: …`). A
+`#version 300 es` line of your own is taken as logis's; any other version is
+refused.
+
+**Porting Ghostty or Shadertoy shaders.** Both use the same `mainImage`
+shape, so the body usually carries over; what differs:
+
+- Ghostty compiles its shaders as desktop GLSL behind a prelude of its own,
+  logis as GLSL ES 3.00 behind its prelude: leave out any `#version` line and
+  uniform declarations of the inputs, write float literals with a point (`2.0`,
+  not `2`, where a float is meant: ES converts no ints implicitly), use
+  `texture`, not `texture2D`, and give up desktop-only built-ins and `double`.
+- Only the inputs above exist: replace `iMouse`, `iDate`, `iTimeDelta`,
+  `iChannelResolution` (use `iResolution`) and Ghostty's cursor uniforms
+  (`iCurrentCursor`, `iPreviousCursor`, …), and drop `iChannel1` and up.
+- `iChannel0` is the panel, not a terminal, and it is premultiplied with a
+  transparent margin around the glow: a shader that writes `alpha = 1.0` or
+  brightens colour past alpha paints that margin.
+- Mind the licence of a shader you did not write before you share a theme
+  with it; logis ships no third-party shader.
 
 ## Motion and blur
 
