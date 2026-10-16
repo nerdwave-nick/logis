@@ -396,38 +396,25 @@ for the keyboard, `fc-match` for font resolution); never part of the shipped
 binary.
 
 **Differential suite**:
-The tests that run the same inputs through logis's own code and a test-only oracle
-and require the same answers.
+The tests that run the same inputs through logis's own code and the reference
+library of a standard logis implements (XKB, OpenType shaping, the D-Bus wire
+format) and require the same answers. logis's own behaviour is otherwise held by
+tests that state it, never by another program's output: the Go code is the source
+of truth.
 
 **Recorded oracle**:
-A reference library's answers over a fixed corpus, committed as test data,
-where the library cannot be linked into Go tests:
-`internal/fuzzy/testdata/nucleo.json`, from nucleo-matcher 0.3.1;
+A standard's reference library's answers over fixed inputs, committed as test
+data where the library cannot be linked into Go tests:
 `internal/shape/testdata/hb.json`, from the system libharfbuzz through Python
 ctypes (runs over the pinned fonts, subsets of system fonts and a synthetic
-layout font); `internal/text/testdata/cosmic.json`, from cosmic-text 0.19
-laying out lines. The differential suites compare with them.
-
-**Divergence**:
-A case where logis deliberately answers differently from a recorded oracle,
-pinned with its reason; for the matcher, the nucleo defects it fixes
-(`internal/fuzzy/testdata/divergences.json`; visible in the list's order when a
-row with a non-ASCII character ties with others, as in the theme window golden);
-for line layout, cosmic-text dropping the leading run of a right-to-left line that
-starts with digits, and cosmic-text setting the whole word in the match face when a
-match starts an ASCII word, where logis sets only the matched letters apart
-(`divergences` in `internal/text/layout_test.go`).
+layout font); `tests/fixtures/dbus/glib-reference.hex`, D-Bus messages encoded by
+GLib. The Unicode Character Database's own test files (`BidiCharacterTest.txt`,
+`GraphemeBreakTest.txt`, `LineBreakTest.txt`) are the standard itself.
 
 **Golden**:
 A checked-in PNG under `tests/goldens/<set>/` that a render or E2E test
 compares its output with, within a tolerance. `LOGIS_UPDATE_GOLDENS=1` keeps a
 golden the image still matches and rewrites any other.
-
-**Answers record**:
-`cmd/logis/testdata/answers.json`: the CLI's exit status, stdout and stderr for
-every case of a corpus of invocations, byte for byte, held by
-`cmd/logis/answers_test.go`. A deliberate change is recorded with
-`-update-answers` and reviewed in the record's diff.
 
 ## Grimdark UI vocabulary
 
