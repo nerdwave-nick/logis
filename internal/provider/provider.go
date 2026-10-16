@@ -46,7 +46,24 @@ type Step struct {
 	Index   uint32
 	Notice  list.Notice
 	Span    time.Duration
+	// Tab is the tab of plain logis's tabbed launcher the step is for
+	// (the daemon sets it; TabApps, the only list, everywhere else).
+	Tab Tab
 }
+
+// Tab names a tab of plain logis's tabbed launcher (feat/logis-go
+// 8cba2fc9, new beside Rust v1): which of its session's two feeds, the
+// app launcher or servitor mode's provider, a step is for and an answer
+// comes from.
+type Tab uint8
+
+const (
+	// TabApps is the applications, the left tab (and the only list of
+	// every other session).
+	TabApps Tab = iota
+	// TabRites is servitor mode's rites, the right tab.
+	TabRites
+)
 
 // Update is an item replaced in its place.
 type Update struct {
@@ -76,4 +93,6 @@ type Answer struct {
 	Kind  AnswerKind
 	Index int
 	Text  string
+	// Tab is the tab the answer comes from (a dismissal: the tab shown).
+	Tab Tab
 }

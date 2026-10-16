@@ -27,6 +27,9 @@ func (l *loop) startApps(getenv func(string) string) (stop func()) {
 			s.frecency = f
 		}
 	}
+	if s.tabPath = tabPath(s.frecencyPath); s.tabPath != "" {
+		s.tab = loadTab(s.tabPath)
+	}
 	s.keep = l.keeper.keep(l)
 	l.core.apps = s
 	stopIndexer := l.indexApps(getenv)

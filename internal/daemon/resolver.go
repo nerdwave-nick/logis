@@ -14,6 +14,11 @@ type Session struct {
 	Mode    protocol.Mode
 	Options list.Options
 	Entries []list.Entry
+	// Tabbed: plain logis's tabbed launcher (feat/logis-go 8cba2fc9),
+	// opening on Tab; Options and Entries are its applications', its
+	// rites come as Steps of their tab.
+	Tabbed bool
+	Tab    provider.Tab
 }
 
 // Resolver is the seam between the daemon's session bookkeeping and

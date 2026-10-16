@@ -43,6 +43,9 @@ type conn struct {
 	ended  bool
 	launch *protocol.Launch
 	live   *live
+	// tabbed: plain logis's tabbed launcher, its rites run by launch
+	// (tabs.go).
+	tabbed bool
 }
 
 // core is the daemon's protocol state machine: connections, their sessions,
@@ -118,6 +121,9 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 	case request.Mode != protocol.ModeProvider && request.Provider != nil:
 		c.fail(id, "only a provider session names a provider")
 		return
+	case request.Mode != protocol.ModeApps && request.Rites != nil:
+		c.fail(id, "only plain logis's app session names its rites")
+		return
 	}
 	if err := c.resolver.Accepts(request.Mode); err != nil {
 		c.fail(id, err.Error())
@@ -128,6 +134,7 @@ func (c *core) open(id SessionID, cn *conn, request protocol.Request) {
 		cn.launch = request.Provider
 	case protocol.ModeApps:
 		cn.apps = &appsFeed{env: launch.EnvFromBytes(request.Env)}
+		cn.launch, cn.tabbed = request.Rites, request.Rites != nil
 	default:
 		o, err := protocol.DecodeOptions(request.Options)
 		if err != nil {
@@ -178,6 +185,9 @@ func (c *core) answered(id SessionID, answer Answer) {
 	if visible, shown := c.sessions.visible(); !ok || !shown || visible != id {
 		return
 	}
+	if cn.tabbed {
+		c.rememberTab(answer.Tab)
+	}
 	switch {
 	case cn.mode == protocol.ModeDmenu:
 		if outcome := cn.dmenu.Outcome(answer); outcome.Kind != protocol.Dismissed || answer.Kind == AnswerDismissed {
@@ -185,10 +195,8 @@ func (c *core) answered(id SessionID, answer Answer) {
 		}
 	case answer.Kind == AnswerDismissed:
 		c.finish(id, protocol.Outcome{Kind: protocol.Dismissed})
-	case cn.live != nil:
-		if err := cn.live.external.Answer(answer); err != nil {
-			c.fail(id, "the provider was lost: "+err.Error())
-		}
+	case cn.tabbed && answer.Tab == provider.TabRites, cn.live != nil && !cn.tabbed:
+		c.answeredProvider(id, cn.live, answer)
 	case cn.apps != nil:
 		c.answeredApps(id, cn.apps, answer)
 	}
@@ -285,7 +293,10 @@ func (c *core) show(id SessionID) {
 			c.resolver.End(id)
 		}
 	case cn.apps != nil:
-		c.showApps(id, cn.apps)
+		c.showApps(id, cn.apps, cn.tabbed)
+		if cn.launch != nil {
+			c.start(id, cn) // the rites' tab
+		}
 	case cn.launch != nil:
 		c.start(id, cn)
 	}

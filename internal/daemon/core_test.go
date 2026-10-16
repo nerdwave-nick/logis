@@ -67,10 +67,17 @@ func (r *recorder) Show(s Session) {
 	if s.Options.Prompt != list.DefaultOptions().Prompt {
 		prompt = " '" + s.Options.Prompt + "'"
 	}
-	r.note("show %d %s%s [%s]", s.ID, s.Mode, prompt, texts(s.Entries))
+	tabbed := ""
+	if s.Tabbed {
+		tabbed = []string{" tabbed applications", " tabbed rites"}[s.Tab]
+	}
+	r.note("show %d %s%s%s [%s]", s.ID, s.Mode, tabbed, prompt, texts(s.Entries))
 }
 
 func (r *recorder) Step(id SessionID, step provider.Step) {
+	if step.Tab == provider.TabRites {
+		r.note("rites:")
+	}
 	switch step.Kind {
 	case provider.StepAppend:
 		r.note("append %d [%s]", id, texts(step.Entries))
