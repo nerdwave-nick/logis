@@ -2,6 +2,8 @@ package render
 
 import (
 	_ "embed" // the clean room's glitch.frag
+	"fmt"
+	"strings"
 
 	"github.com/nerdwave-nick/logis/internal/gles"
 	"github.com/nerdwave-nick/logis/internal/scale"
@@ -74,12 +76,49 @@ func (h *Headless) LegacyPostOver(frame *Image, s scale.Scale, post Post) (*Imag
 //go:embed testdata/glitch-cleanroom.frag
 var cleanRoomGlitch string
 
-// CleanRoomGlitchOver runs the delivered glitch shader over frame, an
-// image as Offscreen returns it (top-down), uploaded top-down as the
-// clean room's stills were, with post's geometry, glitch and moment, and
-// reads the result back as Offscreen does.
+// wholePixelGrids are logis's edits to the delivered glitch shader besides
+// the flip, old text to new: its hashed grids (the noise band's cells, the
+// slices, the blocks' cells) counted in whole device pixels from the
+// glass's rounded top left (ad8913d4). Nothing else differs.
+var wholePixelGrids = [][2]string{
+	{"float g_lo, g_hi;\n", "float g_lo, g_hi;\nvec2 g_grid;\n"},
+	{"uint cell(float x) { return uint(int(floor(x)) + 0x100000); }\n",
+		"uint cell(float x) { return uint(int(floor(x)) + 0x100000); }\n" +
+			"float whole_px(float px) { return max(floor(px + 0.5), 1.0); }\n"},
+	{"float slice = floor(y / max(u_slice_px * u_scale, 1.0));", "float slice = floor(y / whole_px(u_slice_px * u_scale));"},
+	{"uint gx = cell(q.x / (wx * 1.7)), gy = cell(q.y / (hy * 3.3));",
+		"uint gx = cell(g_grid.x / whole_px(wx * 1.7)), gy = cell(g_grid.y / whole_px(hy * 3.3));"},
+	{"float r = rnd(cell(q.y / (hy * 1.3)), gx ^ s, 56u);", "float r = rnd(cell(g_grid.y / whole_px(hy * 1.3)), gx ^ s, 56u);"},
+	{"vec2 c = q / max(u_band_cell_px * u_scale, 1.0);", "vec2 c = g_grid / whole_px(u_band_cell_px * u_scale);"},
+	{"vec2 q = p - (g_centre - g_half);\n", "vec2 q = p - (g_centre - g_half);\n\tg_grid = p - floor(g_centre - g_half + 0.5);\n"},
+	{"slice_tear(q.y, ", "slice_tear(g_grid.y, "},
+	{"float slice = floor(q.y / max(u_slice_px * u_scale, 1.0));", "float slice = floor(g_grid.y / whole_px(u_slice_px * u_scale));"},
+}
+
+// cleanRoomOnWholePixels is the delivered shader with wholePixelGrids, each
+// edit made exactly once.
+func cleanRoomOnWholePixels() (string, error) {
+	src := cleanRoomGlitch
+	for _, e := range wholePixelGrids {
+		if n := strings.Count(src, e[0]); n != 1 {
+			return "", fmt.Errorf("the delivered glitch shader has %q %d times, not once", e[0], n)
+		}
+		src = strings.Replace(src, e[0], e[1], 1)
+	}
+	return src, nil
+}
+
+// CleanRoomGlitchOver runs the delivered glitch shader, its grids on whole
+// device pixels (wholePixelGrids), over frame, an image as Offscreen
+// returns it (top-down), uploaded top-down as the clean room's stills
+// were, with post's geometry, glitch and moment, and reads the result back
+// as Offscreen does.
 func (h *Headless) CleanRoomGlitchOver(frame *Image, s scale.Scale, post Post) (*Image, error) {
-	pass, err := glitchPassOf(cleanRoomGlitch)
+	src, err := cleanRoomOnWholePixels()
+	if err != nil {
+		return nil, err
+	}
+	pass, err := glitchPassOf(src)
 	if err != nil {
 		return nil, err
 	}
