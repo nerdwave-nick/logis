@@ -11,7 +11,9 @@ import (
 
 // glitchFragment is the glitch pass's fragment shader: the clean-room
 // glitch.frag (MIT, the logis project; see its header), integrated with
-// logis's bottom-up frames (load flips; nothing else changed).
+// logis's bottom-up frames (load flips), its hashed grids on whole device
+// pixels so that every driver draws the same cells at a fractional scale;
+// nothing else changed.
 //
 //go:embed glitch.frag
 var glitchFragment string

@@ -19,7 +19,9 @@ import (
 // peak and in a blink of an episode, logis's pass (the shader reading
 // GL's bottom-up frames) draws byte for byte what the delivered shader
 // draws over the same frame given top-down, as the clean room rendered
-// its stills. The only change is the flip.
+// its stills. The only changes are the flip and the hashed grids on whole
+// device pixels (ad8913d4): the reference is the delivered shader with
+// that edit alone (wholePixelGrids).
 
 var glitchMoments = map[string]effects.Moment{
 	"rest": {Time: 1}, "episode": {Time: 1, Event: 1}, "ambient-peak": {Time: 8.55}, "blink": {Time: 5 + 0.5/30, Event: 1},

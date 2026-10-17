@@ -15,7 +15,13 @@
 // screen coordinates, and displaced reads stay inside their own region.
 // Lengths in the controls are logical pixels (times u_scale here). Every
 // random term is an integer hash of integer cells and time steps, so a frozen
-// u_time gives the same image on any GPU. Premultiplied in and out.
+// u_time gives the same image on any GPU. The hashed grids (the noise band's
+// cells, the slices, the blocks' cells) are whole device pixels from the
+// glass's top left rounded to a device pixel, so no cell edge meets a pixel
+// centre. (The clean-room delivery scaled them from logical pixels: at a
+// fractional scale an edge fell exactly on a pixel centre, and the driver's
+// rounding chose the cell; llvmpipe and Intel drew different noise rows.)
+// Premultiplied in and out.
 //
 // Most parts have a rest and an episode amount: the effective amount is
 // mix(rest × strength, episode, E), with
@@ -56,6 +62,10 @@ out vec4 o_color;
 vec2 g_centre, g_half;
 float g_span_top, g_span_h;
 float g_lo, g_hi;
+// The pixel centre in whole device pixels from the glass's top left,
+// rounded to a device pixel (half-integers, exact): where the hashed grids
+// are counted from.
+vec2 g_grid;
 
 float sd_round_box(vec2 p, vec2 hs, float r) {
 	vec2 q = abs(p) - hs + vec2(r);
@@ -80,6 +90,9 @@ float rnd(uint a, uint b, uint c) {
 }
 // Cells and steps are non-negative in practice; the bias keeps them so.
 uint cell(float x) { return uint(int(floor(x)) + 0x100000); }
+// A hashed grid's cell size in whole device pixels (at least one) for px
+// device pixels: g_grid over it is never within rounding of a cell edge.
+float whole_px(float px) { return max(floor(px + 0.5), 1.0); }
 uint step_of(float hz) { return cell(u_time * max(hz, 0.0)); }
 
 // Value noise along one axis: a random value per unit cell, eased between.
@@ -171,7 +184,7 @@ float tracking(float y, float hz, float phase, uint seed) {
 float slice_tear(float y, float share) {
 	if (share <= 0.0) return 0.0;
 	uint s = step_of(u_slice_rate_hz);
-	float slice = floor(y / max(u_slice_px * u_scale, 1.0));
+	float slice = floor(y / whole_px(u_slice_px * u_scale));
 	float group = floor(slice / max(floor(u_slice_group), 1.0));
 	float max_px = u_slice_shift_px * u_scale;
 	float off = 0.0;
@@ -194,13 +207,13 @@ float block_shift(vec2 q, float a) {
 	float hy = 11.0 * size, wx = 56.0 * size;
 	// Column stripes are drawn anew for each coarse row group, so blocks
 	// do not line up down the whole glass.
-	uint gx = cell(q.x / (wx * 1.7)), gy = cell(q.y / (hy * 3.3));
+	uint gx = cell(g_grid.x / whole_px(wx * 1.7)), gy = cell(g_grid.y / whole_px(hy * 3.3));
 	uint sy = s ^ (gy * 0x9e37u);
 	float ny = 0.65 * vnoise(q.y / hy, s, 51u) + 0.35 * vnoise(q.y / (hy * 0.41), s, 52u);
 	float nx = 0.65 * vnoise(q.x / wx, sy, 53u) + 0.35 * vnoise(q.x / (wx * 0.37), sy, 54u);
 	if (ny < 1.0 - 0.55 * a || nx < 0.9 - 0.5 * a) return 0.0;
 	if (rnd(gx, gy ^ s, 55u) > 0.3 + 0.7 * a) return 0.0;
-	float r = rnd(cell(q.y / (hy * 1.3)), gx ^ s, 56u);
+	float r = rnd(cell(g_grid.y / whole_px(hy * 1.3)), gx ^ s, 56u);
 	return (r < 0.5 ? -1.0 : 1.0) * mix(0.4, 1.0, fract(r * 2.0)) * u_block_shift_px * u_scale;
 }
 
@@ -218,7 +231,7 @@ vec2 noise_band(vec2 q) {
 		y = q.y - rnd(s, 62u, 0u) * (2.0 * g_half.y - h);
 	if (y < 0.0 || y > h) return vec2(0.0);
 	float edge = smoothstep(0.0, 2.0 * u_scale, min(y, h - y));
-	vec2 c = q / max(u_band_cell_px * u_scale, 1.0);
+	vec2 c = g_grid / whole_px(u_band_cell_px * u_scale);
 	float n = rnd(cell(c.x), cell(c.y), s ^ 63u);
 	float row = 0.55 + 0.45 * rnd(cell(c.y), s, 64u); // rows of uneven gain
 	return vec2(smoothstep(0.25, 0.75, n) * row, edge);
@@ -293,11 +306,12 @@ void main() {
 	// Shared screen coordinates, relative to the glass's top left (negative
 	// above it), so regions follow the glass's rows.
 	vec2 q = p - (g_centre - g_half);
+	g_grid = p - floor(g_centre - g_half + 0.5);
 
 	float dx = wobble(q.y, amount(u_wobble_rest, u_wobble_episode, master, e), e);
 	float wob = abs(dx);
 	dx += master * (tracking(p.y, u_tracking_b_hz, 0.61, 72u) - tracking(p.y, u_tracking_a_hz, 0.13, 71u));
-	dx += slice_tear(q.y, amount(u_slice_rest, u_slice_episode, master, e));
+	dx += slice_tear(g_grid.y, amount(u_slice_rest, u_slice_episode, master, e));
 
 	float shift = block_shift(q, amount(u_block_rest, u_block_episode, master, e));
 	vec4 c;
@@ -313,7 +327,7 @@ void main() {
 	// Slice flashes: a small share of slices a third (u_flash_gain) brighter.
 	float flash = amount(u_flash_rest, u_flash_episode, master, e);
 	if (flash > 0.0) {
-		float slice = floor(q.y / max(u_slice_px * u_scale, 1.0));
+		float slice = floor(g_grid.y / whole_px(u_slice_px * u_scale));
 		if (rnd(cell(slice), step_of(u_flash_rate_hz), 81u) < flash)
 			c = vec4(c.rgb * (1.0 + u_flash_gain), c.a);
 	}

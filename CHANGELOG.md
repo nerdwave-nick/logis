@@ -37,6 +37,14 @@ may still change it; each such change is listed here.
   `seconds` included.
 - **A failed launch's error toast goes after its time** (5 s, or as long as it
   takes to read); it stayed over the list until the session ended.
+- **The glitch looks the same on every GPU at a fractional scale.** Its noise
+  band's cells, its slices (tears and flashes) and its blocks' cells are whole
+  device pixels from the glass's corner. Scaled from logical pixels, at 1.3 a
+  cell's edge fell exactly on a pixel's centre every few rows, and the
+  driver's rounding chose the cell: Mesa's llvmpipe drew other noise rows than
+  Intel's driver. At 1.3 the cells and slices are now whole pixels (a slice is
+  12 px, not 11.7); at 1.0 and 2.0 only the blocks change, by under a pixel per
+  cell.
 
 - **A dmenu switch given a value is refused**, as logis(1) promises ("a value a
   rune cannot bear is an error naming it") and as fuzzel does:
