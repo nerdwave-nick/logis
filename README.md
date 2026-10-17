@@ -603,7 +603,8 @@ Unknown keys and values of the wrong kind are errors naming the key, its line an
 its column. The daemon watches the file (and its directory, so editors that save by
 replacing the file are seen too) and applies a sound edit at once. An invalid edit
 changes nothing: the last sound configuration stays in force, and the error goes to
-the daemon's log and, while a list is shown, to a themed notice over it (3 s).
+the daemon's log and, while a list is shown, to a themed notice over it (3 s, or
+as long as a long one takes to read).
 
 `--config PATH` given to a client reaches the daemon only when that client starts
 it; a daemon already running keeps the file it was started with. The window
@@ -894,6 +895,17 @@ settled it draws nothing until the next change.
   new list's row at once. A toast is drawn inside the panel, so it opens, moves
   and fades with it; a window lingering on its toast after the session ends
   closes with the same close transition when the daemon takes it away.
+- **Toasts** show their whole text: one too long for a line wraps at the
+  places a line may break (and at its own line breaks) onto as many lines as it
+  needs, at most four, the fourth ending in `…` if even that is not enough; its
+  strip grows upward from the panel's foot, never above the rule under the
+  prompt, and the rows it covers are not drawn while it shows. The lines are
+  measured with the panel's fonts once per text and width, not every frame. A
+  toast stays as long as it is asked to (3 s for the daemon's own, 5 s for a
+  failed launch, a provider's `seconds`), or as long as its words take to read
+  if that is longer: a second, and a second for every fifteen characters, at
+  most ten (`internal/list/scene/toast_test.go`,
+  `internal/list/notice_test.go`).
 - **Icons** move and fade with the panel like everything else in it.
 - **Launching an app:** the activation token is asked for while the panel is
   still shown and focused; the launch happens once it comes, then the panel

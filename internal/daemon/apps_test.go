@@ -158,7 +158,8 @@ func TestWithoutATokenInTimeTheLaunchGoesAhead(t *testing.T) {
 	if log := r.take(); !hasPrefix(log, 0, "toast 1 ") {
 		t.Errorf("it launched (and failed): %q", log)
 	}
-	if _, ok := c.deadline(); ok {
+	// What is due next is only its toast's end.
+	if next, ok := c.deadline(); ok && !next.After(at) {
 		t.Error("still waiting")
 	}
 }
@@ -312,6 +313,33 @@ func TestWithoutAnyTerminalTheToastAndTheLogSayHowToNameOne(t *testing.T) {
 	}
 	if !slices.Contains(logged, want) {
 		t.Errorf("logged %q", logged)
+	}
+}
+
+// A failed launch's toast goes once it has shown for its span, or for as
+// long as its words take to read.
+func TestAFailedLaunchsToastGoesOnceRead(t *testing.T) {
+	c, r := newTestCore()
+	now := time.Unix(1_000_000, 0)
+	c.now = func() time.Time { return now }
+	c.indexed(appIndex(t))
+	openApps(t, c, 1, "HOME=/", "PATH="+t.TempDir())
+	r.take()
+	c.answered(1, terminalRow(c))
+	log := r.take()
+	if len(log) == 0 || !strings.HasPrefix(log[0], "toast 1 ") {
+		t.Fatalf("%q", log)
+	}
+	over, ok := c.deadline()
+	if want := now.Add(10 * time.Second); !ok || !over.Equal(want) {
+		t.Fatalf("over at %v (%v), want %v", over, ok, want)
+	}
+	c.tick(over.Add(-time.Millisecond))
+	wantLog(t, r)
+	c.tick(over)
+	wantLog(t, r, "untoast 1")
+	if _, ok := c.deadline(); ok {
+		t.Error("still due")
 	}
 }
 

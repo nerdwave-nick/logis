@@ -28,6 +28,16 @@ may still change it; each such change is listed here.
 
 ### Fixed
 
+- **A toast shows its whole text.** One too long for a line wraps onto as many
+  lines as it needs, at most four (the fourth ends in `…` if even that is not
+  enough), its strip growing upward over the rows; it was one line cut off with
+  `…`, which lost the end of every long error. A toast also stays as long as its
+  words take to read (a second, and a second for every fifteen characters, at
+  most ten) when that is longer than it was asked to stay, a provider's
+  `seconds` included.
+- **A failed launch's error toast goes after its time** (5 s, or as long as it
+  takes to read); it stayed over the list until the session ended.
+
 - **A dmenu switch given a value is refused**, as logis(1) promises ("a value a
   rune cannot bear is an error naming it") and as fuzzel does:
   `--counter=x`, `--index=x`, `--only-match=x` and `--no-run-if-empty=x` are

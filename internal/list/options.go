@@ -1,5 +1,10 @@
 package list
 
+import (
+	"time"
+	"unicode/utf8"
+)
+
 // Options are how a session's list looks and behaves, as the client asked
 // (fuzzel-compatible). DefaultOptions has every default, so a client names
 // only what it changes.
@@ -58,6 +63,22 @@ type Preselect struct {
 type Notice struct {
 	Text  string
 	Level Level
+}
+
+// Reading a notice: a second to notice it, then fifteen characters a
+// second (a slow reading pace, for words read in passing), ten seconds at
+// most, so that a long error does not stand over the list for long.
+const (
+	readNotice = time.Second
+	readPace   = 15 // characters a second
+	readAtMost = 10 * time.Second
+)
+
+// ReadFor is how long the notice shows when asked to show for asked: that
+// long, or longer if its words take longer to read (at most readAtMost).
+func (n Notice) ReadFor(asked time.Duration) time.Duration {
+	reading := min(readNotice+time.Duration(utf8.RuneCountInString(n.Text))*time.Second/readPace, readAtMost)
+	return max(asked, reading)
 }
 
 // Level is what kind of news a notice brings.

@@ -345,6 +345,9 @@ as its arguments.
 The daemon starts it as this client would have (its working directory and
 environment) and shows the stages it sends: lists in one window, whose items
 may be pending, with toasts.
+A toast shows its whole text, wrapped onto at most four lines, for as long as
+it is asked to or, if longer, as its words take to read (a second, and a
+second for every fifteen characters, at most ten).
 The provider speaks the provider protocol, version 1: JSON lines over its
 stdin and stdout, described in
 .I docs/provider\-protocol.md

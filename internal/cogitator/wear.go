@@ -158,6 +158,7 @@ func (u *ui) painter(sh *shown) window.FramePainter {
 			measure = u.measure(f.Geometry)
 		}
 		sh.columns.Fit(&look, u.theme, measure)
+		sh.toastFit.Fit(&look, f.Logical, u.theme, measure)
 		target, selected := u.bandTop(sh, &look, f.Logical)
 		band, banded, gliding := sh.glide.Toward(target, selected, f.At, f.Interval)
 		moment, glitching := u.glitchAt(sh, f.At)

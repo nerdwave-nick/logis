@@ -165,7 +165,7 @@ func (c *core) step(id SessionID, step provider.Step) {
 		c.logf("a provider's toast before its window: " + step.Notice.Text)
 	case !l.shown:
 	case step.Kind == provider.StepToast:
-		l.toast = c.now().Add(step.Span)
+		l.toast = c.now().Add(step.Notice.ReadFor(step.Span))
 		c.resolver.Step(id, step)
 	default:
 		c.resolver.Step(id, step)

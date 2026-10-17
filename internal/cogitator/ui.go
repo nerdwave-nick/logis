@@ -37,7 +37,8 @@ import (
 // <session>` (the daemon took it away), beside the window's own focus, key,
 // commit and settled events.
 
-// noticeFor is how long a toast from the daemon stays.
+// noticeFor is how long a toast from the daemon stays, or longer if its
+// words take longer to read (list.Notice.ReadFor).
 const noticeFor = 3 * time.Second
 
 // surface is what the session logic needs of the window.
@@ -72,8 +73,10 @@ type shown struct {
 	tab    provider.Tab
 	// rows is how many rows its panel was sized for.
 	rows uint32
-	// toast is a notice over the list: from the daemon, or the provider's.
-	toast *list.Notice
+	// toast is a notice over the list: from the daemon, or the provider's;
+	// toastFit is where its lines break.
+	toast    *list.Notice
+	toastFit scene.ToastFit
 	// asked are the first stage's lines and width (nil: the theme's): the
 	// window's size, which later stages keep.
 	asked [2]*uint32
@@ -315,7 +318,7 @@ func (u *ui) toast(t daemon.Toast) {
 	}
 	u.emit("toast %s", trace.Quote(n.Text))
 	sh.toast = n
-	u.noticeUntil = u.now().Add(noticeFor)
+	u.noticeUntil = u.now().Add(n.ReadFor(noticeFor))
 	u.surf.RequestRedraw()
 }
 

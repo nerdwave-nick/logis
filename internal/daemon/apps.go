@@ -64,6 +64,8 @@ type appsFeed struct {
 	stages *provider.Apps
 	// awaiting is a launch waiting for its token.
 	awaiting *awaiting
+	// toast is when its error toast goes (zero: none shows).
+	toast time.Time
 }
 
 type awaiting struct {
@@ -124,9 +126,7 @@ func (c *core) answeredApps(id SessionID, f *appsFeed, answer Answer) {
 	if said.Failure != "" {
 		c.logf(said.Failure)
 	}
-	for _, step := range said.Steps {
-		c.resolver.Step(id, step)
-	}
+	c.appsSteps(id, f, said.Steps)
 	if said.Launch == nil {
 		return
 	}
@@ -151,9 +151,7 @@ func (c *core) activated(id SessionID, token string) {
 	if err != nil {
 		message := a.plan.Name + " cannot be summoned: " + err.Error()
 		c.logf(message)
-		for _, step := range provider.AppsFailed(message) {
-			c.resolver.Step(id, step)
-		}
+		c.appsSteps(id, f, provider.AppsFailed(message))
 		return
 	}
 	for _, w := range launched.Warnings {
@@ -161,6 +159,17 @@ func (c *core) activated(id SessionID, token string) {
 	}
 	c.note(a.id)
 	c.finish(id, protocol.Outcome{Kind: protocol.Closed})
+}
+
+// appsSteps hands app session id's steps to the window, timing a toast:
+// it goes after its span, or once its words are read.
+func (c *core) appsSteps(id SessionID, f *appsFeed, steps []provider.Step) {
+	for _, step := range steps {
+		if step.Kind == provider.StepToast {
+			f.toast = c.now().Add(step.Notice.ReadFor(step.Span))
+		}
+		c.resolver.Step(id, step)
+	}
 }
 
 // note notes a launch for frecency and keeps it.
@@ -196,15 +205,28 @@ func (c *core) appsDeadline(consider func(time.Time)) {
 		if cn.apps != nil && cn.apps.awaiting != nil {
 			consider(cn.apps.awaiting.due)
 		}
+		if cn.apps != nil {
+			consider(cn.apps.toast)
+		}
 	}
 }
 
-// appsTick launches without a token what waited too long for one.
+// appsTick launches without a token what waited too long for one, and
+// takes away the toasts that have had their time.
 func (c *core) appsTick(now time.Time) {
-	var late []SessionID
+	var late, spent []SessionID
 	for id, cn := range c.conns {
 		if cn.apps != nil && cn.apps.awaiting != nil && !now.Before(cn.apps.awaiting.due) {
 			late = append(late, id)
+		}
+		if cn.apps != nil && !cn.apps.toast.IsZero() && !now.Before(cn.apps.toast) {
+			cn.apps.toast = time.Time{}
+			spent = append(spent, id)
+		}
+	}
+	if lingerer, ok := c.resolver.(Lingerer); ok {
+		for _, id := range spent {
+			lingerer.Untoast(id)
 		}
 	}
 	for _, id := range late {

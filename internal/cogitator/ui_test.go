@@ -298,15 +298,18 @@ func TestAToastShowsOverTheVisibleListForAWhile(t *testing.T) {
 	if l := r.ui.look(); l.Toast == nil || l.Toast.Level != list.Error {
 		t.Fatalf("%+v", l.Toast)
 	}
+	// noticeFor, or as long as its words take to read.
+	shown := (list.Notice{Text: "the config is heretical: /c:1:2: why"}).ReadFor(noticeFor)
 	until, ok := r.ui.deadline()
-	if !ok || until != now.Add(noticeFor) {
+	if !ok || until != now.Add(shown) || shown < noticeFor {
 		t.Fatalf("%v %v", until, ok)
 	}
+	now = now.Add(shown - time.Millisecond)
 	r.ui.expire()
 	if r.ui.look().Toast == nil {
 		t.Fatal("expired early")
 	}
-	now = now.Add(noticeFor)
+	now = now.Add(time.Millisecond)
 	r.ui.expire()
 	r.saw(t, "untoast")
 	if r.ui.look().Toast != nil {
