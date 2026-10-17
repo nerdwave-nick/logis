@@ -9,8 +9,8 @@ import (
 	"github.com/nerdwave-nick/logis/internal/theme"
 )
 
-// What ends a row (its badges in their order, then the pending mark,
-// shimmering) and the toast across the bottom of the body.
+// What ends a row: its badges in their order, then the pending mark,
+// shimmering.
 
 // rowMarks are what ends a row, and the room they take from it, gaps
 // included.
@@ -84,43 +84,4 @@ func badgeWords(words string, b theme.Badge) string {
 		words = "[" + words + "]"
 	}
 	return words
-}
-
-// toastInset is the toast strip's distance from the body's edges.
-const toastInset = 8
-
-// toastHeight is the toast strip's height in theme t.
-func toastHeight(t *theme.Theme) float32 { return t.Row.Font.Size*1.3 + 12 }
-
-// toastTop is the top of the toast strip across the bottom of body: rows
-// reaching below it are not drawn while a toast shows (rows).
-func toastTop(body [4]float32, t *theme.Theme) float32 {
-	return body[1] + body[3] - toastHeight(t) - toastInset
-}
-
-// toast draws a toast's strip across the bottom of body, and its words:
-// its edge in the colour of its level.
-func toast(sc *render.Scene, n list.Notice, body [4]float32, t *theme.Theme) {
-	font := t.Row.Font
-	height := toastHeight(t)
-	const inset = toastInset
-	edge := t.Prompt.Color
-	switch n.Level {
-	case list.Success:
-		edge = t.Match.Color
-	case list.Error:
-		edge = t.Error
-	}
-	rect := [4]float32{body[0] + inset, body[1] + body[3] - height - inset, body[2] - 2*inset, height}
-	base := render.Hex(0)
-	if len(t.Panel.Fill) > 0 {
-		base = t.Panel.Fill[len(t.Panel.Fill)-1]
-	}
-	sc.Shapes = append(sc.Shapes, render.RoundedRect{
-		Rect: rect, Radius: 6, Fill: render.Solid(base.WithAlpha(0.97)),
-		Border: render.Border{Width: 1.5, Paint: render.Solid(edge)},
-		Glow:   render.Glow{Radius: 8, Color: edge.WithAlpha(0.35)},
-	})
-	words := text(n.Text, rect[0]+12, rect[1]+height/2, font, t.Row.Columns[0])
-	sc.Texts = append(sc.Texts, column(words, rect[2]-24, render.Ellipsis))
 }

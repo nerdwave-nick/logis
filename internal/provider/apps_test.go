@@ -145,6 +145,9 @@ func TestAnAppThatCannotBePlannedSaysWhyAndTakesReturnAgain(t *testing.T) {
 		!strings.HasPrefix(n.Text, "Cogitator shell cannot be summoned: ") {
 		t.Errorf("%+v", n)
 	}
+	if said.Failure != said.Steps[0].Notice.Text {
+		t.Errorf("the log is told %q", said.Failure)
+	}
 	if len(AppsFailed("x")) != 2 {
 		t.Error("a failure is a toast and ready")
 	}
@@ -153,7 +156,8 @@ func TestAnAppThatCannotBePlannedSaysWhyAndTakesReturnAgain(t *testing.T) {
 func TestAnAppGoneFromTheIndexMeanwhileIsAnErrorNotAPanic(t *testing.T) {
 	a, step, _ := opened(t, apps.NewFrecency())
 	said := a.Answer(Answer{Kind: AnswerItem, Index: row(t, step.Entries, "Anoint")}, &apps.Index{}, nil)
-	if len(said.Steps) != 2 || said.Steps[0].Kind != StepToast || said.Steps[0].Notice.Text != "forge-anoint.desktop is gone from the census" {
+	if len(said.Steps) != 2 || said.Steps[0].Kind != StepToast || said.Steps[0].Notice.Text != "forge-anoint.desktop is gone from the census" ||
+		said.Failure != said.Steps[0].Notice.Text {
 		t.Errorf("%+v", said)
 	}
 }

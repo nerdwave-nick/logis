@@ -166,8 +166,10 @@ Its outcome may be reported as a toast.
 **Toast**:
 A short, themed notice of an action's outcome or of an error, such as a
 provider's result or a configuration error after a live reload. It shows over the
-bottom of the list for 3 s (or as long as its provider asks); when the provider
-ends its flow meanwhile, the window **lingers** on it without the keyboard.
+bottom of the list for 3 s (or as long as its provider asks), longer when its
+words take longer to read, and shows its whole text, wrapped onto up to four
+lines; when the provider ends its flow meanwhile, the window **lingers** on it
+without the keyboard.
 (servitor mode shows no outcome: servitor announces its own verdicts; its toasts
 only tell what logis itself could not do.)
 

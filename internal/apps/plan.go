@@ -1,7 +1,6 @@
 package apps
 
 import (
-	"errors"
 	"slices"
 
 	"github.com/nerdwave-nick/logis/internal/launch"
@@ -12,9 +11,24 @@ import (
 // Terminal=true, in its Path; or, for DBusActivatable=true, an activation
 // the bus may perform (with the Exec, if any, to fall back on).
 
-// ErrNoTerminal: Terminal=true, and no terminal is configured.
-var ErrNoTerminal = errors.New(`it must run in a terminal, and none is named ` +
-	`(set "terminal" in the config, or $TERMINAL)`)
+// Terminal finds the program and leading arguments that run a command in a
+// terminal (["foot", "-e"]); it is asked once for each launch of a
+// Terminal=true app, and only then. Its error says why there is none.
+type Terminal func() ([]string, error)
+
+// A NoTerminalError says a Terminal=true app found no terminal to run in,
+// and how to name one: in Config, the config file the daemon reads ("" if
+// it has none).
+type NoTerminalError struct{ Config string }
+
+func (e *NoTerminalError) Error() string {
+	where := "the config"
+	if e.Config != "" {
+		where = e.Config
+	}
+	return `it must run in a terminal, and no terminal was found. ` +
+		`Set "terminal" in ` + where + `, e.g. "terminal": ["foot", "-e"]`
+}
 
 // NoActionError: the application has no such desktop action.
 type NoActionError struct{ ID string }
@@ -22,9 +36,8 @@ type NoActionError struct{ ID string }
 func (e *NoActionError) Error() string { return "it knows no action '" + e.ID + "'" }
 
 // PlanFor is the plan for app, or its action ("" for the app itself).
-// terminal is the program and leading arguments that run a command in a
-// terminal (["foot", "-e"]), empty if none is known.
-func PlanFor(app *App, action string, terminal []string) (launch.Plan, error) {
+// terminal finds the terminal a Terminal=true app runs in; nil finds none.
+func PlanFor(app *App, action string, terminal Terminal) (launch.Plan, error) {
 	e := &app.Entry
 	exec, icon, name := e.Exec, e.Icon, e.Name
 	if action != "" {
@@ -43,10 +56,14 @@ func PlanFor(app *App, action string, terminal []string) (launch.Plan, error) {
 		argv = exec.Expand(Fields{Icon: icon, Name: e.Name, Location: app.Location})
 	}
 	if e.Terminal && len(argv) > 0 {
-		if len(terminal) == 0 {
-			return launch.Plan{}, ErrNoTerminal
+		if terminal == nil {
+			return launch.Plan{}, &NoTerminalError{}
 		}
-		argv = append(slices.Clone(terminal), argv...)
+		prefix, err := terminal()
+		if err != nil {
+			return launch.Plan{}, err
+		}
+		argv = append(slices.Clone(prefix), argv...)
 	}
 	return launch.Plan{
 		AppID:  app.AppID(),

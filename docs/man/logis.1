@@ -136,9 +136,30 @@ systemd user manager's, else the caller's), in a transient systemd scope of
 its own where one is available, and outlives logis;
 .B Terminal=true
 apps run behind the configuration's
+.BR terminal ;
+without one, behind the caller's
+.BR "$TERMINAL \-e" ;
+without that,
+.B xdg\-terminal\-exec
+on the caller's
+.BR PATH ;
+else the first of
+.BR foot ,
+.BR kitty ,
+.BR "alacritty \-e" ,
+.BR "wezterm start \-\-" ,
+.BR "ghostty \-e" ,
+.BR "konsole \-e" ,
+.BR "gnome\-terminal \-\-" ,
+.B "xfce4\-terminal \-x"
+and
+.B "xterm \-e"
+found on the caller's
+.BR PATH ,
+searched afresh at each launch.
+With none, the error says to set
 .B terminal
-(or
-.BR "$TERMINAL \-e" ).
+in the configuration file the daemon reads.
 .SH DMENU MODE
 .B logis \-\-dmenu
 reads items from stdin, one per line
@@ -324,6 +345,9 @@ as its arguments.
 The daemon starts it as this client would have (its working directory and
 environment) and shows the stages it sends: lists in one window, whose items
 may be pending, with toasts.
+A toast shows its whole text, wrapped onto at most four lines, for as long as
+it is asked to or, if longer, as its words take to read (a second, and a
+second for every fifteen characters, at most ten).
 The provider speaks the provider protocol, version 1: JSON lines over its
 stdin and stdout, described in
 .I docs/provider\-protocol.md

@@ -98,14 +98,16 @@ func DrawAt(l *list.Look, logical scale.Size, band float32, banded bool, s Style
 	if banded {
 		selectionBand(sc, body, band, g.Pitch, t)
 	}
+	var toastLines []string
 	if l.Toast != nil {
 		// The row fit leaves no room below the rows: a row whose line the
 		// toast would cover is not drawn, so nothing shows through it.
-		g.Rows = rowsAbove(g, t.Row.Font.Size, toastTop(body, t))
+		toastLines = toastLinesOf(l, body, t)
+		g.Rows = rowsAbove(g, t.Row.Font.Size, toastTop(body, t, len(toastLines)))
 	}
 	rows(sc, l, g, s, icons)
 	if l.Toast != nil {
-		toast(sc, *l.Toast, body, t)
+		toast(sc, *l.Toast, toastLines, body, t)
 	}
 	sc.Post = post(body, s)
 	return sc

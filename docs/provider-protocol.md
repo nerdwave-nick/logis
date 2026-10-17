@@ -60,7 +60,7 @@ error: the session ends with exit 2 and the provider is cancelled.
 | `stage` | see [Stage](#stage) | a new list; the first one opens the window, a later one replaces the list in the same window |
 | `items` | `items`: [Item] | items for the current stage: a new `id` is added after the others, a known `id` is replaced in its place (an *upsert*); optional `select` |
 | `remove` | `ids`: [string] | items of the current stage that are gone (unknown ids are ignored) |
-| `toast` | `text`, `level` (`info` default, `success`, `error`), `seconds` (default 3, 1 to 60) | a short notice over the bottom of the list, for that long |
+| `toast` | `text`, `level` (`info` default, `success`, `error`), `seconds` (default 3, 1 to 60) | a short notice over the bottom of the list, for that long, or longer if its text takes longer to read (a second, and a second for every fifteen characters, at most ten); it wraps onto up to four lines |
 | `ready` | — | after an `activate`/`submit`: the current stage takes Return again |
 | `close` | — | the flow is over: the caller exits 0 and the window closes |
 

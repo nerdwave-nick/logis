@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"strings"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/apps"
@@ -42,8 +41,12 @@ type appsState struct {
 	frecency *apps.Frecency
 	// frecencyPath is where frecency is kept ("": not kept).
 	frecencyPath string
-	// terminal is the config's terminal; nil: $TERMINAL -e.
+	// terminal is the config's terminal; nil: one is sought
+	// (launch.FindTerminal).
 	terminal []string
+	// config is the config file the daemon reads ("": none), which a
+	// missing terminal's error names.
+	config string
 	// bus is the session bus's address.
 	bus string
 	// keep saves a frecency snapshot (the loop: off its goroutine).
@@ -61,6 +64,8 @@ type appsFeed struct {
 	stages *provider.Apps
 	// awaiting is a launch waiting for its token.
 	awaiting *awaiting
+	// toast is when its error toast goes (zero: none shows).
+	toast time.Time
 }
 
 type awaiting struct {
@@ -117,10 +122,11 @@ func (c *core) answeredApps(id SessionID, f *appsFeed, answer Answer) {
 	if f.awaiting != nil || f.stages == nil {
 		return
 	}
-	said := f.stages.Answer(answer, c.apps.index, terminal(c.apps.terminal, f.env))
-	for _, step := range said.Steps {
-		c.resolver.Step(id, step)
+	said := f.stages.Answer(answer, c.apps.index, c.terminalFor(f.env))
+	if said.Failure != "" {
+		c.logf(said.Failure)
 	}
+	c.appsSteps(id, f, said.Steps)
 	if said.Launch == nil {
 		return
 	}
@@ -145,9 +151,7 @@ func (c *core) activated(id SessionID, token string) {
 	if err != nil {
 		message := a.plan.Name + " cannot be summoned: " + err.Error()
 		c.logf(message)
-		for _, step := range provider.AppsFailed(message) {
-			c.resolver.Step(id, step)
-		}
+		c.appsSteps(id, f, provider.AppsFailed(message))
 		return
 	}
 	for _, w := range launched.Warnings {
@@ -155,6 +159,17 @@ func (c *core) activated(id SessionID, token string) {
 	}
 	c.note(a.id)
 	c.finish(id, protocol.Outcome{Kind: protocol.Closed})
+}
+
+// appsSteps hands app session id's steps to the window, timing a toast:
+// it goes after its span, or once its words are read.
+func (c *core) appsSteps(id SessionID, f *appsFeed, steps []provider.Step) {
+	for _, step := range steps {
+		if step.Kind == provider.StepToast {
+			f.toast = c.now().Add(step.Notice.ReadFor(step.Span))
+		}
+		c.resolver.Step(id, step)
+	}
 }
 
 // note notes a launch for frecency and keeps it.
@@ -171,21 +186,17 @@ func (c *core) note(id string) {
 	}
 }
 
-// terminal is the terminal prefix: the config's, or $TERMINAL -e from the
-// caller's environment.
-func terminal(configured, env []string) []string {
-	if configured != nil {
-		return configured
-	}
-	for _, kv := range env {
-		if name, value, _ := strings.Cut(kv, "="); name == "TERMINAL" {
-			if value == "" {
-				break
-			}
-			return []string{value, "-e"}
+// terminalFor finds the terminal for a launch asked by a client with
+// environment env: the config's, else one sought on the client's
+// environment, afresh at each launch.
+func (c *core) terminalFor(env []string) apps.Terminal {
+	configured, file := c.apps.terminal, c.apps.config
+	return func() ([]string, error) {
+		if argv, ok := launch.FindTerminal(configured, env); ok {
+			return argv, nil
 		}
+		return nil, &apps.NoTerminalError{Config: file}
 	}
-	return nil
 }
 
 // appsDeadline is when the next launch stops waiting for its token.
@@ -194,15 +205,28 @@ func (c *core) appsDeadline(consider func(time.Time)) {
 		if cn.apps != nil && cn.apps.awaiting != nil {
 			consider(cn.apps.awaiting.due)
 		}
+		if cn.apps != nil {
+			consider(cn.apps.toast)
+		}
 	}
 }
 
-// appsTick launches without a token what waited too long for one.
+// appsTick launches without a token what waited too long for one, and
+// takes away the toasts that have had their time.
 func (c *core) appsTick(now time.Time) {
-	var late []SessionID
+	var late, spent []SessionID
 	for id, cn := range c.conns {
 		if cn.apps != nil && cn.apps.awaiting != nil && !now.Before(cn.apps.awaiting.due) {
 			late = append(late, id)
+		}
+		if cn.apps != nil && !cn.apps.toast.IsZero() && !now.Before(cn.apps.toast) {
+			cn.apps.toast = time.Time{}
+			spent = append(spent, id)
+		}
+	}
+	if lingerer, ok := c.resolver.(Lingerer); ok {
+		for _, id := range spent {
+			lingerer.Untoast(id)
 		}
 	}
 	for _, id := range late {

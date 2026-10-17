@@ -255,6 +255,19 @@ func TestAReplacedProviderSessionIsCancelled(t *testing.T) {
 	wantSeenLines(t, f, `{"type":"cancel"}`, "eof")
 }
 
+// A provider's toast whose words take longer to read than it asked to
+// show stays until they are read (list.Notice.ReadFor).
+func TestALongToastShowsLongEnoughToRead(t *testing.T) {
+	r := newProviderRig()
+	r.staged(t, 1, "oil")
+	r.seen.take()
+	long := strings.Repeat("the litany goes on ", 8)
+	r.say(1, provider.Toast{Text: long, Level: list.Error, Seconds: new(uint32(1))})
+	if over := r.deadline(t); over != r.clock.Add(10*time.Second) {
+		t.Fatalf("over after %v", over.Sub(r.clock))
+	}
+}
+
 func TestTheFirstStageIsDueWithinThePatience(t *testing.T) {
 	r := newProviderRig()
 	w := r.open(t, 1, "rite")

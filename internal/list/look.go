@@ -50,6 +50,12 @@ type Look struct {
 	Columns []float32
 	// Toast is a notice over the list; the view leaves it to its owner.
 	Toast *Notice
+	// ToastBreaks are where the toast's lines after its first start, as
+	// byte offsets in Toast.Text, once fitted to the panel's width
+	// (ToastFitted: the scene's ToastFit); unfitted, the scene estimates
+	// them.
+	ToastBreaks []int
+	ToastFitted bool
 }
 
 // Look is what to draw now.

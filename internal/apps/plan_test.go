@@ -3,6 +3,7 @@ package apps
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,12 +54,43 @@ func TestAnActionRunsItsOwnExec(t *testing.T) {
 
 func TestATerminalAppRunsBehindTheTerminal(t *testing.T) {
 	shell := app(t, systemIndex(t), "forge-terminal.desktop")
-	p, err := PlanFor(shell, "", []string{"foot", "-e"})
+	p, err := PlanFor(shell, "", func() ([]string, error) { return []string{"foot", "-e"}, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantArgs(t, p.Argv, "foot", "-e", "anoint", "--terminal")
-	if _, err := PlanFor(shell, "", nil); !errors.Is(err, ErrNoTerminal) {
+}
+
+// The terminal is sought once for a terminal app, and never for another.
+func TestTheTerminalIsSoughtOnlyForATerminalApp(t *testing.T) {
+	ix := systemIndex(t)
+	for _, tc := range []struct {
+		id    string
+		times int
+	}{{"forge-terminal.desktop", 1}, {"forge-anoint.desktop", 0}} {
+		sought := 0
+		_, err := PlanFor(app(t, ix, tc.id), "", func() ([]string, error) { sought++; return []string{"foot"}, nil })
+		if err != nil || sought != tc.times {
+			t.Errorf("%s: sought %d times (%v)", tc.id, sought, err)
+		}
+	}
+}
+
+// Without a terminal, the error says how to name one: in the config file
+// the daemon reads, with an example.
+func TestWithoutATerminalTheErrorSaysHowToNameOne(t *testing.T) {
+	shell := app(t, systemIndex(t), "forge-terminal.desktop")
+	const want = `it must run in a terminal, and no terminal was found. ` +
+		`Set "terminal" in /home/adept/.config/logis/logis.jsonc, e.g. "terminal": ["foot", "-e"]`
+	_, err := PlanFor(shell, "", func() ([]string, error) {
+		return nil, &NoTerminalError{Config: "/home/adept/.config/logis/logis.jsonc"}
+	})
+	var none *NoTerminalError
+	if !errors.As(err, &none) || err.Error() != want {
+		t.Errorf("%v", err)
+	}
+	_, err = PlanFor(shell, "", nil)
+	if !errors.As(err, &none) || !strings.Contains(err.Error(), `Set "terminal" in the config, e.g.`) {
 		t.Errorf("%v", err)
 	}
 }

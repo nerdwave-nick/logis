@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Cogitator shell
+Comment=A terminal app: the E2E tests run it with no terminal named
+Terminal=true
+Exec=anoint --terminal

@@ -67,6 +67,7 @@ func checkThemes(t *testing.T, name string, view *list.View, o list.Options, toa
 		for _, s := range goldenScales {
 			l := l
 			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
+			(&scene.ToastFit{}).Fit(&l, logical, &th, measureAt(h, s))
 			img, err := h.Offscreen(make(h, s, &l, logical, scene.Style{Theme: &th}), logical, s)
 			if err != nil {
 				t.Fatal(err)
@@ -134,6 +135,20 @@ func TestGoldenAProviderStageWithGlyphsBadgesAPendingRowAndAToast(t *testing.T) 
 	})
 	v.Apply(input.ActNext)
 	checkThemes(t, "provider", v, o, &list.Notice{Text: "the rite of oil is begun", Level: list.Success}, plainScene)
+}
+
+// A toast too long for one line wraps onto as many as it needs, its strip
+// growing upward over the rows, which are hidden where it covers them: the
+// app launcher's error for a terminal app with no terminal found.
+func TestGoldenALongToastWrapsOntoSeveralLines(t *testing.T) {
+	o := list.DefaultOptions()
+	o.Prompt, o.Lines, o.Width = "summon: ", u32(6), u32(52)
+	v := list.NewView(o)
+	v.Push(entries("termusic", "Cogitator shell", "Anoint", "litany of the forge", "rite of oil", "rite of ignition"))
+	checkThemes(t, "toast-wrapped", v, o, &list.Notice{
+		Text: `termusic cannot be summoned: it must run in a terminal, and no terminal was found. ` +
+			`Set "terminal" in /home/adept/.config/logis/logis.jsonc, e.g. "terminal": ["foot", "-e"]`,
+		Level: list.Error}, plainScene)
 }
 
 // The theme's own window: no size asked, as servitor mode and the app
@@ -313,6 +328,7 @@ func checkTabbed(t *testing.T, name string, view *list.View, o list.Options, st 
 		for _, s := range goldenScales {
 			l := view.Look()
 			(&scene.Columns{}).Fit(&l, &th, measureAt(h, s))
+			(&scene.ToastFit{}).Fit(&l, logical, &th, measureAt(h, s))
 			band, banded := scene.TabbedBandTop(&l, logical, &th)
 			st.Measure = measureAt(h, s)
 			sc := scene.DrawTabbed(&l, st, logical, band, banded, scene.Style{Theme: &th}, nil)

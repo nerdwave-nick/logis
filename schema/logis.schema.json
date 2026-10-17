@@ -25,7 +25,7 @@
       "examples": [0, 600, 1.5]
     },
     "terminal": {
-      "description": "The program and leading arguments that run the command of a terminal application (Terminal=true); the command follows as further arguments. When absent: $TERMINAL -e.",
+      "description": "The program and leading arguments that run the command of a terminal application (Terminal=true); the command follows as further arguments. When absent: the caller's $TERMINAL -e; else xdg-terminal-exec on the caller's PATH; else the first of foot, kitty, alacritty -e, wezterm start --, ghostty -e, konsole -e, gnome-terminal --, xfce4-terminal -x and xterm -e on the caller's PATH.",
       "type": "array",
       "minItems": 1,
       "items": {"type": "string"},
