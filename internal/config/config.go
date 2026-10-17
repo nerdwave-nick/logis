@@ -41,7 +41,8 @@ type Config struct {
 	IdleTimeout time.Duration
 	// Terminal is the program and leading arguments that run a terminal
 	// app's command (Terminal=true), such as ["foot", "-e"]; nil means
-	// $TERMINAL -e.
+	// $TERMINAL -e, else a terminal found on the caller's PATH
+	// (launch.FindTerminal).
 	Terminal []string
 	// IconTheme is the freedesktop icon theme; lookups fall back to hicolor.
 	IconTheme string

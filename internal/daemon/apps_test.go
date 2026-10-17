@@ -244,18 +244,19 @@ func TestWithoutAnActivatorTheAppIsLaunchedAtOnceWithoutAToken(t *testing.T) {
 	}
 }
 
+// terminalRow answers the fixture terminal app, Cogitator shell.
+func terminalRow(c *core) Answer {
+	i := slices.IndexFunc(c.apps.index.Apps(), func(a apps.App) bool { return a.ID == "forge-terminal.desktop" })
+	return Answer{Kind: AnswerItem, Index: i}
+}
+
 func TestATerminalAppRunsBehindTheConfiguredTerminalOrTERMINAL(t *testing.T) {
-	shell := func(c *core) Answer {
-		i := slices.IndexFunc(c.apps.index.Apps(), func(a apps.App) bool { return a.ID == "forge-terminal.desktop" })
-		return Answer{Kind: AnswerItem, Index: i}
-	}
 	for _, tc := range []struct {
 		name       string
 		configured []string
 		env        []string
 		toast      string
 	}{
-		{"none", nil, nil, "toast 1 Cogitator shell cannot be summoned: it must run in a terminal"},
 		{"$TERMINAL", nil, []string{"TERMINAL=forge-term"}, "toast 1 Cogitator shell cannot be summoned: no program 'forge-term'"},
 		{"configured", []string{"forge-glass", "-e"}, []string{"TERMINAL=forge-term"},
 			"toast 1 Cogitator shell cannot be summoned: no program 'forge-glass'"},
@@ -266,12 +267,51 @@ func TestATerminalAppRunsBehindTheConfiguredTerminalOrTERMINAL(t *testing.T) {
 			c.indexed(appIndex(t))
 			openApps(t, c, 1, append([]string{"HOME=/"}, tc.env...)...)
 			r.take()
-			c.answered(1, shell(c))
+			c.answered(1, terminalRow(c))
 			c.activated(1, "")
 			if log := r.take(); !slices.ContainsFunc(log, func(l string) bool { return strings.HasPrefix(l, tc.toast) }) {
 				t.Errorf("%q", log)
 			}
 		})
+	}
+}
+
+// Without a configured terminal or $TERMINAL, a terminal app runs in a
+// known terminal found on the client's PATH (a stub foot here, which takes
+// the command directly).
+func TestATerminalAppRunsInATerminalFoundOnTheClientsPath(t *testing.T) {
+	dir, bin := t.TempDir(), t.TempDir()
+	if err := os.Symlink(filepath.Join(appFixtures(t), "bin", "anoint"), filepath.Join(bin, "foot")); err != nil {
+		t.Fatal(err)
+	}
+	c := newCore(tokenless{&recorder{}}, pid)
+	c.indexed(appIndex(t))
+	w := openApps(t, c, 1, "PATH="+bin+":/usr/bin:/bin", "ANOINT_RECORD="+filepath.Join(dir, "record"), "HOME=/")
+	c.answered(1, terminalRow(c))
+	wantReplies(t, w, protocol.Visible(), result(protocol.Closed))
+	if heard := recorded(t, dir); !strings.Contains(heard, "arg anoint\narg --terminal\ntoken") {
+		t.Errorf("%q", heard)
+	}
+}
+
+// With no terminal at all, the toast and the log say how to name one in
+// the config file the daemon reads.
+func TestWithoutAnyTerminalTheToastAndTheLogSayHowToNameOne(t *testing.T) {
+	c, r := newTestCore()
+	var logged []string
+	c.logf = func(m string) { logged = append(logged, m) }
+	c.apps.config = "/home/adept/.config/logis/logis.jsonc"
+	c.indexed(appIndex(t))
+	openApps(t, c, 1, "HOME=/", "PATH="+t.TempDir())
+	r.take()
+	c.answered(1, terminalRow(c))
+	const want = `Cogitator shell cannot be summoned: it must run in a terminal, and no terminal was found. ` +
+		`Set "terminal" in /home/adept/.config/logis/logis.jsonc, e.g. "terminal": ["foot", "-e"]`
+	if log := r.take(); !slices.Contains(log, "toast 1 "+want) {
+		t.Errorf("%q", log)
+	}
+	if !slices.Contains(logged, want) {
+		t.Errorf("logged %q", logged)
 	}
 }
 

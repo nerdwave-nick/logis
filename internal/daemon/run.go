@@ -107,6 +107,9 @@ func Run(ctx context.Context, o Options) int {
 		getenv = os.Getenv
 	}
 	stopApps := l.startApps(getenv)
+	if o.Config != nil {
+		l.core.apps.config = o.Config.Path()
+	}
 	l.core.configure(cfg.live.Config())
 	configure(resolver, cfg.live.Config())
 	retheme(resolver, cfg.themes.Theme())

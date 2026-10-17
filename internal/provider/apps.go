@@ -33,6 +33,9 @@ type AppsSaid struct {
 	Steps  []Step
 	Launch *launch.Plan
 	ID     string
+	// Failure is what could not be launched and why, for the log, as the
+	// error toast in Steps says it ("": none).
+	Failure string
 }
 
 // Apps is one apps session's stages.
@@ -72,8 +75,9 @@ func OpenApps(ix *apps.Index, f *apps.Frecency, now uint64) (*Apps, Step) {
 	return a, Step{Kind: StepStage, Options: AppsOptions(), Entries: entries}
 }
 
-// Answer is what the user's answer asks; terminal runs Terminal=true apps.
-func (a *Apps) Answer(answer Answer, ix *apps.Index, terminal []string) AppsSaid {
+// Answer is what the user's answer asks; terminal finds the terminal a
+// Terminal=true app runs in.
+func (a *Apps) Answer(answer Answer, ix *apps.Index, terminal apps.Terminal) AppsSaid {
 	if answer.Kind != AnswerItem && answer.Kind != AnswerDescend {
 		return AppsSaid{}
 	}
@@ -91,7 +95,7 @@ func (a *Apps) Answer(answer Answer, ix *apps.Index, terminal []string) AppsSaid
 	}
 	app, ok := ix.Get(id)
 	if !ok {
-		return AppsSaid{Steps: AppsFailed(id + " is gone from the census")}
+		return failed(id + " is gone from the census")
 	}
 	if answer.Kind == AnswerDescend && listing && len(app.Entry.Actions) > 0 {
 		var step Step
@@ -100,7 +104,7 @@ func (a *Apps) Answer(answer Answer, ix *apps.Index, terminal []string) AppsSaid
 	}
 	plan, err := apps.PlanFor(app, action, terminal)
 	if err != nil {
-		return AppsSaid{Steps: AppsFailed(app.Entry.Name + " cannot be summoned: " + err.Error())}
+		return failed(app.Entry.Name + " cannot be summoned: " + err.Error())
 	}
 	return AppsSaid{Launch: &plan, ID: id}
 }
@@ -112,6 +116,11 @@ func AppsFailed(message string) []Step {
 		{Kind: StepToast, Notice: list.Notice{Text: message, Level: list.Error}, Span: failedFor},
 		{Kind: StepReady},
 	}
+}
+
+// failed is an answer that launches nothing, saying why.
+func failed(message string) AppsSaid {
+	return AppsSaid{Steps: AppsFailed(message), Failure: message}
 }
 
 // appEntry is an app's row: its name, matched also by generic name,

@@ -11,6 +11,16 @@ may still change it; each such change is listed here.
 
 ### Changed
 
+- **A terminal app finds an installed terminal.** Without the config's
+  `terminal` or the caller's `$TERMINAL` (a keybind or a socket-started daemon
+  rarely has one), logis runs it through `xdg-terminal-exec` on the caller's
+  `PATH`, else in the first of foot, kitty, alacritty, wezterm, ghostty,
+  konsole, gnome-terminal, xfce4-terminal and xterm found there, each given
+  the command its own way (`alacritty -e`, `wezterm start --`, …). With none,
+  the error names the app and says to set `"terminal"` in the config file the
+  daemon reads, with an example, in the toast and in the daemon's log; it told
+  only that none was named before, cut off in the toast.
+
 - **An operating-system error reads as its description alone**, without the
   "(os error N)" the port from Rust left behind: "cannot reach
   /run/user/1000/wayland-nowhere: No such file or directory", and the same

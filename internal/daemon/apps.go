@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"strings"
 	"time"
 
 	"github.com/nerdwave-nick/logis/internal/apps"
@@ -42,8 +41,12 @@ type appsState struct {
 	frecency *apps.Frecency
 	// frecencyPath is where frecency is kept ("": not kept).
 	frecencyPath string
-	// terminal is the config's terminal; nil: $TERMINAL -e.
+	// terminal is the config's terminal; nil: one is sought
+	// (launch.FindTerminal).
 	terminal []string
+	// config is the config file the daemon reads ("": none), which a
+	// missing terminal's error names.
+	config string
 	// bus is the session bus's address.
 	bus string
 	// keep saves a frecency snapshot (the loop: off its goroutine).
@@ -117,7 +120,10 @@ func (c *core) answeredApps(id SessionID, f *appsFeed, answer Answer) {
 	if f.awaiting != nil || f.stages == nil {
 		return
 	}
-	said := f.stages.Answer(answer, c.apps.index, terminal(c.apps.terminal, f.env))
+	said := f.stages.Answer(answer, c.apps.index, c.terminalFor(f.env))
+	if said.Failure != "" {
+		c.logf(said.Failure)
+	}
 	for _, step := range said.Steps {
 		c.resolver.Step(id, step)
 	}
@@ -171,21 +177,17 @@ func (c *core) note(id string) {
 	}
 }
 
-// terminal is the terminal prefix: the config's, or $TERMINAL -e from the
-// caller's environment.
-func terminal(configured, env []string) []string {
-	if configured != nil {
-		return configured
-	}
-	for _, kv := range env {
-		if name, value, _ := strings.Cut(kv, "="); name == "TERMINAL" {
-			if value == "" {
-				break
-			}
-			return []string{value, "-e"}
+// terminalFor finds the terminal for a launch asked by a client with
+// environment env: the config's, else one sought on the client's
+// environment, afresh at each launch.
+func (c *core) terminalFor(env []string) apps.Terminal {
+	configured, file := c.apps.terminal, c.apps.config
+	return func() ([]string, error) {
+		if argv, ok := launch.FindTerminal(configured, env); ok {
+			return argv, nil
 		}
+		return nil, &apps.NoTerminalError{Config: file}
 	}
-	return nil
 }
 
 // appsDeadline is when the next launch stops waiting for its token.
